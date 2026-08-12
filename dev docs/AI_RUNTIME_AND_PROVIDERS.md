@@ -1,0 +1,255 @@
+# AI Runtime and Providers
+
+## 1. 原则
+
+业务层永远不依赖具体模型厂商。
+
+统一能力：
+
+```text
+LLMProvider
+ASRProvider
+POIProvider
+```
+
+---
+
+# 2. LLMProvider
+
+接口概念：
+
+```python
+class LLMProvider:
+    async def generate(...)
+    async def structured_output(...)
+    async def vision(...)
+```
+
+实现：
+
+- OllamaProvider
+- OpenAIProvider
+- OpenAICompatibleProvider
+- MockProvider（测试）
+
+---
+
+# 3. LLM 策略
+
+支持：
+
+- LOCAL_ONLY
+- LOCAL_FIRST
+- CLOUD_FIRST
+- MANUAL
+
+默认：
+`LOCAL_FIRST`
+
+---
+
+# 4. Local First
+
+示意：
+
+```text
+本地模型
+→ Schema 验证
+→ 成功：完成
+→ 失败/低置信：根据策略调用外部模型
+```
+
+外部模型是增强，不是核心依赖。
+
+---
+
+# 5. 外部 API Key
+
+Settings 支持：
+
+- provider
+- base_url
+- api_key
+- model
+- timeout
+- max_retry
+
+正式版本不把 Key 明文放 SQLite。
+
+Windows 优先：
+- DPAPI
+- Windows Credential Manager
+
+SQLite 只存 key reference。
+
+开发环境允许 `.env`，但不得提交 Git。
+
+---
+
+# 6. Capability-based Routing
+
+业务不要指定具体模型。
+
+任务声明：
+
+- CLASSIFICATION
+- STRUCTURED_EXTRACTION
+- LONG_CONTEXT
+- VISION
+- SEMANTIC_MATCH
+- VERIFY
+
+Router 决定 Provider + Model。
+
+---
+
+# 7. 本地硬件策略
+
+WILLIAM-PC：
+- 5800X
+- 32 GB
+- RX 7900 XT 20 GB
+
+可以本地承担：
+- 分类；
+- 结构化提取；
+- Recruitment DSL；
+- Travel Trait；
+- ASR；
+- 未来视觉理解。
+
+---
+
+# 8. 模型角色
+
+具体型号允许随时间更新，不应硬编码到业务。
+
+建议角色：
+
+### Fast Local Model
+- 分类
+- 简单摘要
+- 链接判断
+- 轻量实体提取
+
+### Main Local Model
+- 招聘公告结构化
+- Requirement DSL
+- 地点抽取
+- 偏好解释
+
+### Vision Model
+后续阶段。
+
+### External Strong Model
+- 本地解析失败
+- 低置信
+- 用户手动高质量重跑
+- 高价值歧义验证
+
+---
+
+# 9. Structured Output
+
+必须 Schema First。
+
+流程：
+
+```text
+Prompt
++ JSON Schema
++ Evidence Segments
+→ LLM
+→ JSON
+→ Pydantic Validation
+→ PASS / RETRY / FAIL
+```
+
+不允许依赖自由文本再正则抠 JSON。
+
+---
+
+# 10. Evidence Validation
+
+模型输出事实时必须引用 segment/evidence id。
+
+若 Claim 没有对应 Evidence：
+- Reject；
+- Retry；
+- 标记不可信。
+
+---
+
+# 11. Cross-model Verification
+
+未来/可选：
+
+重要字段可由本地与外部模型交叉验证。
+
+若冲突：
+- 不自动选择；
+- 回到 Evidence；
+- 显示冲突。
+
+---
+
+# 12. ASRProvider
+
+默认：
+WhisperCppProvider
+
+预留：
+- FasterWhisperProvider
+- CloudASRProvider
+
+原因：
+Windows + AMD 环境。
+
+---
+
+# 13. ASR 策略
+
+模式：
+
+- FAST
+- AUTO
+- ACCURATE
+
+AUTO：
+- 默认快速模型；
+- 低置信/关键内容再高精度重跑。
+
+---
+
+# 14. GPU 并发
+
+初始：
+`gpu_heavy_concurrency = 1`
+
+CMS 可配置。
+
+避免 ASR + 大模型同时抢占显存导致稳定性问题。
+
+---
+
+# 15. Prompt / Parser Version
+
+每个结构化任务保存：
+
+- provider
+- model
+- prompt_version
+- parser_version
+- schema_version
+
+支持以后 Replay 与对比。
+
+---
+
+# 16. 禁止
+
+- Processor 内 import openai/ollama SDK；
+- LLM 直接决定确定性日期/年龄；
+- LLM 生成 POI 经纬度；
+- LLM 输出没有 Evidence 的事实；
+- 只保存最终自然语言摘要而丢失 Typed Result。

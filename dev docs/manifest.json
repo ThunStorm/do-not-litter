@@ -1,0 +1,38 @@
+{
+  "project": "AI Personal Inbox / Personal Scout",
+  "version": "0.1",
+  "frozen_date": "2026-08-12",
+  "mvp_processors": [
+    "Recruitment",
+    "TravelFood"
+  ],
+  "future_processors": [
+    "GenericProcessor",
+    "ConfigurableProcessor",
+    "OtherDedicatedProcessors"
+  ],
+  "deployment": "Windows 11 local-first PC-only",
+  "hardware": {
+    "cpu": "AMD Ryzen 7 5800X",
+    "ram_gb": 32,
+    "gpu": "AMD Radeon RX 7900 XT",
+    "vram_gb": 20
+  },
+  "documents": [
+    "AI_RUNTIME_AND_PROVIDERS.md",
+    "API_DESIGN.md",
+    "ARCHITECTURE_DECISIONS.md",
+    "COMPLETE_PROJECT_SPEC.md",
+    "CONTROL_CENTER.md",
+    "DATA_MODEL.md",
+    "FUTURE_ROADMAP.md",
+    "PRODUCT_REQUIREMENTS.md",
+    "PROJECT_PLAN.md",
+    "README.md",
+    "RECRUITMENT_PIPELINE.md",
+    "SECURITY_PRIVACY.md",
+    "SYSTEM_ARCHITECTURE.md",
+    "TESTING_AND_ACCEPTANCE.md",
+    "TRAVEL_FOOD_PIPELINE.md"
+  ]
+}
