@@ -1,7 +1,7 @@
 # AI Personal Inbox / Personal Scout
 ## Complete Project Specification
 
-此文件为全部项目文档的合并版本，便于一次性阅读或交给 Agent 作为总上下文。
+> GENERATED FILE. Edit the source documents in this directory, then run `python scripts/build_complete_project_spec.py`.
 
 
 ---
@@ -11,11 +11,11 @@
 # AI Personal Inbox / Personal Scout
 ## 项目文档索引
 
-> 文档版本：v0.1  
-> 冻结日期：2026-08-12  
-> 当前阶段：需求与架构基线已完成，可进入工程实施  
-> 第一阶段部署形态：Windows 11 单机、本地优先、PC 作为完整后端与 AI Worker  
-> 第一阶段业务范围：Recruitment（招聘/考试） + Travel/Food（旅行/探店）
+> 文档版本：v0.2
+> 冻结日期：2026-08-13
+> 当前阶段：需求与架构基线已完成，可进入 Phase 0A 技术验证与工程实施
+> 第一阶段部署形态：Windows 11 本地优先，PC 作为完整后端与 AI Worker，手机通过可信局域网访问
+> 第一阶段业务范围：北京市公务员/事业单位招聘 + 中国范围 Travel/Food
 
 ---
 
@@ -105,9 +105,12 @@
 | [API_DESIGN.md](./API_DESIGN.md) | REST / WebSocket API 边界 |
 | [SECURITY_PRIVACY.md](./SECURITY_PRIVACY.md) | 本地优先、API Key、浏览器登录态、敏感数据 |
 | [TESTING_AND_ACCEPTANCE.md](./TESTING_AND_ACCEPTANCE.md) | 测试策略、关键验收用例 |
+| [GOLDEN_SAMPLES.md](./GOLDEN_SAMPLES.md) | 首批真实样本、Fixture 规则、技术 Spike 与质量门槛 |
 | [PROJECT_PLAN.md](./PROJECT_PLAN.md) | Codex/Agent 可直接执行的工程实施计划 |
 | [FUTURE_ROADMAP.md](./FUTURE_ROADMAP.md) | GenericProcessor、移动端、云、多 Worker、C 级自动化 |
 | [ARCHITECTURE_DECISIONS.md](./ARCHITECTURE_DECISIONS.md) | 关键设计决策与原因 |
+
+`COMPLETE_PROJECT_SPEC.md` 是由上述分文档自动生成的合订本，不作为独立编辑源。修改分文档后运行 `python scripts/build_complete_project_spec.py` 重新生成。
 
 ---
 
@@ -143,9 +146,10 @@
 - React
 - TypeScript
 - Vite
+- Node.js 20.19+ 或 22.12+
 - 响应式 Web
 - 后期可封装 Tauri 桌面壳
-- 手机第一版先通过响应式 Web 使用
+- 手机第一版通过同一可信局域网访问响应式 Web
 
 ### Backend
 - Python 3.12+
@@ -167,8 +171,12 @@
 - yt-dlp / 平台解析能力
 - ffmpeg
 - openpyxl
+- `.xls` legacy adapter（Phase 0A 选择 xlrd 或 python-calamine）
 - PDF Parser
-- POI Provider 抽象
+- DOCX Parser
+- 中文 OCR（扫描 PDF / PNG / JPEG）
+- 高德 POI Web 服务 + 地图 JS API 2.0
+- DeepSeek / Xiaomi MiMo 等 OpenAI-compatible 外部 Provider
 
 ---
 
@@ -249,7 +257,7 @@ V1.x
 # Product Requirements
 ## AI Personal Inbox / Personal Scout
 
-> 状态：Baseline v0.1  
+> 状态：Baseline v0.2
 > 当前产品策略：Narrow Product, Extensible Core
 
 ---
@@ -324,6 +332,8 @@ Capture
 - 微信公众号事业编汇总文章；
 - 政府招聘公告；
 - 招聘 PDF；
+- 扫描 PDF、PNG/JPEG 公告；
+- DOCX 公告/附件；
 - 岗位 Excel；
 - 报名说明页面。
 
@@ -367,6 +377,13 @@ Capture
 - 用户想去/去过/不感兴趣；
 - 来源时间码；
 - CSV/JSON/GeoJSON 导出。
+
+## 4.3 第一阶段地域与来源基线
+
+- Recruitment 首域：北京市公务员、事业单位招聘及相关考试公告；
+- Travel/Food：第一版按中国范围设计；
+- POI 与底图首选高德地图；
+- 首批真实样本与 Fixture 规则见 `GOLDEN_SAMPLES.md`。
 
 ---
 
@@ -431,6 +448,15 @@ UI 可提供：
 - 删除。
 
 第一版不自动创建新的业务分类。
+
+第一版 Capture 支持：
+
+- URL 粘贴；
+- PDF / DOCX / XLS / XLSX 文件上传；
+- PNG / JPEG 图片上传；
+- 直接文本作为补充输入。
+
+上传文件与 URL 入口使用相同的 Job、Evidence 与 Processor Router，不建立第二套处理链。
 
 ---
 
@@ -618,6 +644,8 @@ Eligibility：
 
 ## 本地优先
 - 默认数据保存在 PC；
+- 手机通过可信局域网访问 PC，不在手机保存完整业务数据库；
+- LAN API、WebSocket 与 Admin API 必须验证访问 Token；
 - 外部模型只是可选 Provider；
 - API Key 安全存储；
 - 浏览器登录态不导出。
@@ -656,7 +684,7 @@ Eligibility：
 
 第一版采用：
 
-> **Windows 单机 + Local First + Local AI First + 可选外部 LLM**
+> **Windows PC 单节点 + LAN Mobile Client + Local First + Local AI First + 可选外部 LLM**
 
 但内部保持清晰模块边界，以便未来平滑演化为：
 
@@ -674,7 +702,7 @@ Eligibility：
 Clients
   │
   ├─ PC Browser
-  └─ Mobile Browser
+  └─ Mobile Browser（trusted LAN + access token）
        │
        ▼
 React + TypeScript + Vite
@@ -707,7 +735,7 @@ Independent Worker
              │
              ├─ Ollama
              ├─ OpenAI Provider
-             └─ OpenAI-Compatible Provider
+             └─ OpenAI-Compatible Provider（DeepSeek / Xiaomi MiMo / custom）
 ```
 
 ---
@@ -723,6 +751,8 @@ Independent Worker
 2. Worker Process
 3. React Vite Dev Server
 ```
+
+手机通过同一可信局域网访问 PC。开发与生产都必须支持可配置监听地址；默认不做公网暴露。所有非 localhost 的 REST/WebSocket 请求必须带有效访问 Token，Admin API 不允许匿名访问。
 
 生产/桌面封装后：
 
@@ -833,6 +863,12 @@ RUNNING
 ## poi/
 解决“现实地点解析”。
 
+## documents/
+解决 PDF、DOCX、XLS/XLSX 与图片型文档的归一化。
+
+## ocr/
+解决扫描 PDF、PNG/JPEG 的中文 OCR、页码/边界框定位与低置信 Review。
+
 ## jobs/
 解决“后台长任务”。
 
@@ -908,7 +944,7 @@ class Processor:
 ## LLMProvider
 - OllamaProvider
 - OpenAIProvider
-- OpenAICompatibleProvider
+- OpenAICompatibleProvider（DeepSeek、Xiaomi MiMo、自定义兼容端点）
 
 ## ASRProvider
 - WhisperCppProvider
@@ -916,8 +952,10 @@ class Processor:
 - CloudASRProvider（预留）
 
 ## POIProvider
-- 第一版实际选一个；
+- 第一版实现 AMapPOIProvider；
 - 业务代码不得依赖具体厂商。
+
+地图前端第一版使用高德地图 JS API 2.0。中国大陆 POI 的 `coordinate_system` 显式记录为 `GCJ02`，严禁把 GCJ-02 静默标成 WGS84；GeoJSON 导出必须附坐标系元数据与来源 Provider。
 
 ---
 
@@ -1174,6 +1212,8 @@ metadata_json
 created_at
 ```
 
+文件型 Source 的 `metadata_json` 至少保存：原始文件名、MIME、字节数、内容哈希、解析器与 OCR 版本；文件正文仍通过 Snapshot/Segment 建模。
+
 ## source_snapshots
 
 ```text
@@ -1244,6 +1284,16 @@ PDF：
 {"page":7,"block":13}
 ```
 
+DOCX：
+```json
+{"part":"document","paragraph":18,"run_start":2,"run_end":5}
+```
+
+OCR：
+```json
+{"page":3,"bbox":[120,240,920,318],"ocr_confidence":0.91}
+```
+
 ---
 
 # 5. Claim / Evidence
@@ -1286,6 +1336,24 @@ evidence_role
 
 一个 Claim 可以多证据。
 一个 Segment 可以支持多个 Claim。
+
+## claim_relations
+
+```text
+from_claim_id
+to_claim_id
+relation_type
+created_at
+```
+
+relation_type：
+- derived_from
+- normalizes
+- computes_from
+- conflicts_with
+- supersedes
+
+`NORMALIZED`、`COMPUTED` Claim 必须通过关系指向其输入 Claim；来源冲突不得只靠覆盖最终字段表达。
 
 ---
 
@@ -1523,6 +1591,7 @@ district
 address
 latitude
 longitude
+coordinate_system
 
 external_provider
 external_poi_id
@@ -1536,7 +1605,10 @@ resolution_status:
 - CANDIDATE
 - CONFIRMED
 - REVIEW
+- UNRESOLVED
 - REJECTED
+
+中国大陆高德 POI 的 `coordinate_system` 为 `GCJ02`。任何导出都必须携带该字段，不得默认标记为 WGS84。
 
 ## place_mentions
 
@@ -1629,6 +1701,8 @@ rating nullable
 notes nullable
 ```
 
+地点当前用户状态由 `preference_events` / `visit_events` 投影得到；若为查询性能物化缓存，缓存必须可从事件重建，不能成为唯一事实源。
+
 ---
 
 # 12. Jobs
@@ -1654,6 +1728,7 @@ heartbeat_at
 
 retry_count
 max_retries
+idempotency_key
 error_code
 error_message
 
@@ -1661,6 +1736,8 @@ created_at
 started_at
 finished_at
 ```
+
+`idempotency_key` 对同一 Capture/Step 的重复提交建立唯一约束。Job Lease 必须通过单条条件更新原子抢占；Step 输出与领域写入按版本幂等 upsert，防止 Worker 崩溃恢复后重复物化。
 
 status：
 - QUEUED
@@ -1686,6 +1763,10 @@ error_message
 started_at
 finished_at
 ```
+
+## settings / secret references
+
+非敏感设置可存 SQLite；API Key、LAN Token 与其他 Secret 只保存 Windows Credential Manager/DPAPI 引用。数据库字段包含 `setting_key/value_json/updated_at` 与 `secret_key/secret_ref/updated_at`，不得存 Secret 明文。
 
 ---
 
@@ -1723,6 +1804,8 @@ finished_at
 - 推荐；
 - 冲突提示。
 
+第一阶段优先覆盖北京市公务员、事业单位招聘及相关考试公告；真实样本见 `GOLDEN_SAMPLES.md`。
+
 ---
 
 # 2. 总流程
@@ -1739,6 +1822,8 @@ DISCOVER_LINKS
 FOLLOW_SOURCES
 ↓
 NORMALIZE_DOCUMENTS
+↓
+OCR（扫描 PDF / 图片时）
 ↓
 EXTRACT_NOTICE
 ↓
@@ -1835,6 +1920,17 @@ NormalizedDocument
 └─ SourceLocators[]
 ```
 
+MVP 文档矩阵：
+
+- HTML；
+- 文本型 PDF；
+- 扫描 PDF；
+- DOCX；
+- XLS/XLSX；
+- PNG/JPEG。
+
+OCR 必须保留页码、边界框、OCR 置信度与原始图片引用。低置信 OCR 不可直接支撑关键日期或 HARD Requirement 的自动确定结论，必须进入 `REVIEW`。
+
 ---
 
 # 7. Excel Normalizer
@@ -1848,7 +1944,7 @@ NormalizedDocument
 - 备注列；
 - 列名差异。
 
-先 openpyxl 读取。
+`.xlsx` 先用 openpyxl 读取；旧 `.xls` 通过独立 SpreadsheetReader 适配器处理，Phase 0A 在 xlrd/python-calamine 中按 Windows 安装、格式覆盖和维护状态选择，不允许把 `.xls` 伪装成 openpyxl 支持。
 
 AI 只做 Column Mapping：
 
@@ -2272,6 +2368,8 @@ PositionDetailVM：
 - 可导出数据；
 - 全程可追溯 Evidence。
 
+第一版地域为中国范围，POI 与地图首选高德；真实样本见 `GOLDEN_SAMPLES.md`。
+
 ---
 
 # 2. Pipeline
@@ -2398,6 +2496,8 @@ PlaceMention
 - REJECTED
 
 只有 CONFIRMED 默认进入地图。
+
+MVP 实现 `AMapPOIProvider`：使用高德 Web 服务进行候选搜索，优先传城市/adcode 与 `citylimit` 收敛歧义；保存 Provider、POI ID、原始候选响应哈希与 `GCJ02` 坐标系。前端使用高德地图 JS API 2.0。
 
 ---
 
@@ -2613,6 +2713,8 @@ FrameExtractor
 - JSON
 - GeoJSON
 
+GeoJSON 必须显式附带坐标来源和 `coordinate_system`。中国大陆高德坐标不得静默声明为 WGS84；若未来需要跨坐标系输出，必须由独立、可测试的转换策略完成并标注转换来源。
+
 导出字段尽可能带：
 - name
 - coordinates
@@ -2691,6 +2793,14 @@ class LLMProvider:
 - OpenAICompatibleProvider
 - MockProvider（测试）
 
+第一版外部兼容端点至少验证：
+
+- DeepSeek API；
+- Xiaomi MiMo API；
+- 用户自定义 OpenAI-compatible `base_url`。
+
+模型 ID、上下文长度与能力随服务更新，不写死在 Processor；通过 Settings 的能力映射配置。
+
 ---
 
 # 3. LLM 策略
@@ -2742,6 +2852,13 @@ Windows 优先：
 SQLite 只存 key reference。
 
 开发环境允许 `.env`，但不得提交 Git。
+
+外部请求的数据策略：
+
+- `NORMAL` 来源 Segment 可按所选策略外发；
+- `SENSITIVE` Profile 默认不外发，仅在用户对单次任务明确授权后发送最小必要字段；
+- `LOCAL_ONLY` 永不发送到外部 Provider；
+- 审计仅记录字段类别、Segment ID、Provider/Model 与结果状态，不记录完整敏感正文。
 
 ---
 
@@ -3058,6 +3175,9 @@ Travel：
 - cache limit
 - cleanup policy
 - worker concurrency
+- LAN enable / bind address / port
+- LAN access token rotate
+- allowed origins
 
 ## AI
 - mode: local/cloud
@@ -3066,6 +3186,7 @@ Travel：
 - API Key
 - Base URL
 - connection test
+- outbound data policy / per-run sensitive authorization
 
 ## ASR
 - engine
@@ -3079,9 +3200,10 @@ Travel：
 - clear/reset profile
 
 ## POI
-- provider
+- provider（MVP: AMap）
 - API key
 - country/region preference
+- coordinate system（China: GCJ02）
 
 ## Recruitment
 - source crawl depth
@@ -3200,6 +3322,19 @@ Claim
   "status": "QUEUED"
 }
 ```
+
+URL/Text 使用 JSON。文件使用：
+
+`POST /api/inbox/upload`（`multipart/form-data`）
+
+MVP 允许：
+
+- `.pdf`
+- `.docx`
+- `.xls` / `.xlsx`
+- `.png` / `.jpg` / `.jpeg`
+
+上传时校验扩展名、MIME、文件头、大小上限与内容哈希；原文件写入本地永久 Source 存储，再创建统一 Job。扫描 PDF 与图片自动进入 OCR Step。
 
 ## GET /api/inbox/{id}
 
@@ -3406,11 +3541,15 @@ API 返回给产品前端的是 ViewModel，而不是 ORM Row。
 
 # 8. 单用户认证
 
-第一版本地模式可简化。
+第一版必须支持手机局域网访问，因此认证不是可选项：
 
-若允许局域网手机访问：
-- 至少增加本地访问 token；
-- 不允许匿名开放管理 API。
+- localhost 与 LAN UI 使用同一 API；
+- 手机首次配对通过 `POST /api/auth/session` 在请求体提交访问 Token，服务端换发短期 HttpOnly、SameSite Session Cookie；
+- 后续 REST 与 WebSocket 握手统一验证 Session Cookie；脚本型客户端可使用 `Authorization: Bearer <access-token>`；
+- Token 由本机生成、存入 Windows Credential Manager/DPAPI，并支持轮换；
+- CORS 使用明确 Origin allowlist；
+- 长期 Token 不放在查询字符串、localStorage 或普通日志中；
+- 未授权请求统一返回稳定错误码 `AUTH_REQUIRED` / `AUTH_INVALID`。
 
 未来远程访问再引入完整认证。
 
@@ -3488,24 +3627,33 @@ Local First 默认尽可能本地处理。
 - 明确 provider；
 - 允许用户选择 Local Only；
 - 日志记录是否调用外部；
-- 可后续增加敏感字段脱敏策略。
+- `NORMAL` 内容按策略发送；
+- `SENSITIVE` Profile 默认不外发，仅允许单次明确授权和最小字段发送；
+- `LOCAL_ONLY` 永不外发；
+- 发送审计记录只保存字段类别与 Evidence/Segment 引用，不复制敏感正文。
 
 ---
 
 # 6. 本地 Web 安全
 
-如果只 localhost：
-风险较低。
+MVP 明确支持手机局域网访问：
 
-如果允许局域网：
-- bind 到局域网需显式开启；
-- API token；
-- Admin API 保护；
-- 不默认暴露互联网。
+- 首次安装默认生成高熵访问 Token；
+- PC Control Center 显示 LAN 地址并允许复制/轮换 Token；
+- 手机首次访问输入 Token，通过 `POST /api/auth/session` 换取短期 HttpOnly、SameSite Session Cookie；
+- 浏览器不把长期 Token 保存到 localStorage，REST 与 WebSocket 统一验证 Session；
+- localhost 之外的请求缺少/无效 Token 一律拒绝；
+- CORS 只允许配置的 LAN Origin，不使用通配符；
+- 管理 API 与业务 API 均受保护；
+- 监听地址与 LAN 访问可关闭；
+- 不做 UPnP、端口映射或公网暴露；
+- Token 不写入 URL、普通日志或导出文件。
+
+LAN 传输只允许用户明确配置的可信家庭/办公网络。Phase 0A 必须比较本地 HTTPS 与可信 LAN HTTP 的安装/配对体验；若 MVP 不能可靠部署 HTTPS，UI 必须明确提示不得在公共 Wi-Fi、访客网络或不可信热点中启用 LAN，并将 HTTPS 列为发布前风险项。
 
 ---
 
-# 7. PC-only 远程访问
+# 7. 超出可信局域网的远程访问
 
 MVP 不强制实现。
 
@@ -3594,6 +3742,8 @@ MVP 不强制实现。
 - WeChat Snapshot
 - Excel
 - PDF
+- DOCX
+- scanned PDF / image OCR
 - Transcript
 - POI candidates
 
@@ -3669,6 +3819,8 @@ ANY(FAIL, REVIEW) → REVIEW
 
 发现孤儿 Claim：
 测试失败。
+
+`NORMALIZED` / `COMPUTED` Claim 必须具有有效 Claim 血缘；冲突 Claim 必须同时保留，不能靠最后写入覆盖。
 
 ---
 
@@ -3754,6 +3906,10 @@ Mock：
 - whisper.cpp
 - model availability
 - disk writable
+- Node.js 20.19+ 或 22.12+
+- LAN mobile access / token auth
+- AMap API / map render
+- DeepSeek / Xiaomi MiMo connection
 
 CMS 显示诊断结果。
 
@@ -3777,6 +3933,11 @@ CMS 显示诊断结果。
 12. PC 重启任务可恢复；
 13. 外部模型 API Key 可配置且可测试；
 14. 所有核心长任务可从 CMS 重试。
+15. 手机可在同一局域网安全访问，未授权请求无法读取业务或管理数据；
+16. DOCX、扫描 PDF 与图片公告可归一化并保留 Evidence 定位；
+17. 高德 POI/地图可用，GCJ-02 在存储与导出中明确标注；
+18. DeepSeek、Xiaomi MiMo 可通过兼容 Provider 配置和测试；
+19. `GOLDEN_SAMPLES.md` 的安全与正确性门槛全部通过。
 
 
 ---
@@ -3786,7 +3947,7 @@ CMS 显示诊断结果。
 # Architecture Decisions
 
 ## ADR-001：第一版取消云端
-**Decision**  
+**Decision**
 全部核心数据与计算运行在用户 PC。
 
 **Reason**
@@ -3968,6 +4129,187 @@ UI 窄，接口宽。
 **Reason**
 兼顾第一版速度与长期 GenericProcessor 演进。
 
+---
+
+## ADR-018：MVP 支持可信局域网手机访问
+**Decision**
+PC 仍是唯一数据与计算节点；手机通过同一可信局域网访问响应式 Web。REST/WebSocket/Admin API 必须验证本机生成的访问 Token，不自动暴露公网。
+
+**Reason**
+- 手机是“随手分享/查看结果”的必要入口；
+- 不为此提前引入云端与多用户体系；
+- LAN 已扩大攻击面，认证不能后置。
+
+---
+
+## ADR-019：招聘文档矩阵包含 DOCX 与 OCR
+**Decision**
+MVP 支持 PDF、扫描 PDF、DOCX、XLS/XLSX、PNG/JPEG；OCR 结果保存页码、边界框和置信度，低置信关键事实进入 Review。
+
+**Reason**
+北京市公务员/事业单位公告附件并不只使用文本型 PDF/Excel，缺少 DOCX/OCR 会造成真实链路断裂。
+
+---
+
+## ADR-020：中国 POI 首选高德并显式使用 GCJ-02
+**Decision**
+MVP 实现 AMapPOIProvider 和高德地图 JS API 2.0。中国大陆高德坐标存储为 `GCJ02`，导出必须标注坐标系。
+
+**Reason**
+- 第一版旅行范围为中国；
+- 高德同时提供 POI 搜索与 PC/移动 Web 地图；
+- 显式坐标系避免地图显示与 GeoJSON 语义错误。
+
+---
+
+## ADR-021：外部模型通过兼容 Provider 接入且敏感档案默认不外发
+**Decision**
+DeepSeek、Xiaomi MiMo 等通过 OpenAICompatibleProvider 配置；模型名不写死。`SENSITIVE` Profile 默认不外发，`LOCAL_ONLY` 永不外发。
+
+**Reason**
+- Provider 与模型会持续变化；
+- 招聘 Profile 涉及学历、工作经历、政治面貌和户籍；
+- 最小化外发符合 Local First。
+
+---
+
+## ADR-022：真实 URL 手工验收，冻结 Fixture 用于 CI
+**Decision**
+微信/Bilibili 真实链接用于手工验收；CI 使用脱敏冻结 Fixture，不依赖实时平台网络。
+
+**Reason**
+- 平台存在登录态、验证码、风控、412 与内容变化；
+- 实时网络依赖无法提供可复现测试；
+- 不绕过平台访问限制。
+
+
+---
+
+# FILE: GOLDEN_SAMPLES.md
+
+# Golden Samples & Feasibility Baseline
+
+> 状态：Baseline v0.2
+> 冻结日期：2026-08-13
+> 用途：登记 MVP 首批真实样本、Fixture 获取规则、技术 Spike 与质量门槛。
+
+---
+
+# 1. 样本使用原则
+
+1. 真实 URL 用于手工验收与定期兼容性检查，不作为 CI 的实时网络依赖。
+2. 首次成功解析后，保存脱敏且许可范围内的 HTML、附件、字幕、POI 候选响应为 Fixture。
+3. Fixture 必须记录获取时间、原始 URL、内容哈希、Resolver/Parser 版本；不得保存 Cookie、Token 或浏览器 Profile。
+4. 微信、Bilibili 等来源若受登录态、验证码、风控或 412 限制，按 `HTTP → Playwright 持久 Profile → NEEDS_USER` 处理，不绕过平台限制。
+5. 公众号正文中的官方公告和附件允许按 Source Graph 规则下钻；默认 `max_depth = 2`、单来源最多跟随 30 个链接。
+6. 黄金样本内容可能随来源页面更新或失效；验收以冻结 Fixture 为可复现基准，以真实 URL 为补充手工验证。
+
+---
+
+# 2. Recruitment 黄金样本
+
+首域：北京市公务员、事业单位招聘及相关考试公告。
+
+## R-001
+
+- 类型：微信公众号招聘汇总/入口文章
+- URL：`https://mp.weixin.qq.com/s/_A_u11jr_FDA58sQ5QkBhg`
+- 目标：验证微信 Resolver、正文解析、官方来源下钻、附件发现、Notice/Position/Requirement/Evidence 全链路。
+- 当前网络特征：普通无状态 HTTP 无法稳定读取，必须验证 Playwright 持久登录态与 `NEEDS_USER` 路径。
+
+## R-002
+
+- 类型：微信公众号招聘汇总/入口文章
+- URL：`https://mp.weixin.qq.com/s/HTw6_R4YICpLCFFl6PO4Yg`
+- 目标：作为第二种页面结构与下钻关系样本，避免 Resolver 只适配单页。
+- 当前网络特征：普通无状态 HTTP 无法稳定读取，测试策略同 R-001。
+
+## 招聘 Fixture 最小集合
+
+每个样本应尽量冻结：
+
+- 微信正文 HTML；
+- 下钻后的官方公告 HTML/PDF/DOCX；
+- 岗位 XLS/XLSX；
+- 扫描 PDF 或图片型公告（若来源存在）；
+- Source Graph 期望结果；
+- 关键日期、岗位数、字段映射、Requirement DSL 与 Evidence 的人工校验答案。
+
+---
+
+# 3. Travel/Food 黄金样本
+
+## T-001
+
+- 标题：厦门街头米其林小馆，连吃两家爽了…
+- URL：`https://www.bilibili.com/video/BV189ui6LEhK`
+- 类型：探店视频
+- 目标：字幕优先、餐厅/菜品/价格/作者观点抽取、厦门 POI 解析、重复地点合并、时间码 Evidence。
+
+## T-002
+
+- 标题：不只是凉快，一口气逛遍贵州全省43个景区，TOP10你去过几个？｜全景推荐03
+- URL：`https://www.bilibili.com/video/BV1qF3t6TENn`
+- 类型：多地点旅行视频
+- 目标：长视频字幕/ASR、43 地点批量抽取、Partial Materialization、高德 POI 候选、地图与 Review 队列。
+- 当前网络特征：无状态抓取可能返回 412，必须覆盖浏览器/媒体解析 fallback 与 `NEEDS_USER`。
+
+## 旅行 Fixture 最小集合
+
+- 元数据与封面引用；
+- 平台字幕（若有）或经授权生成的本地 Transcript；
+- 时间码 Segment；
+- 人工校验的 PlaceMention/Observation；
+- 脱敏后的 Mock 高德 POI 候选响应；
+- Confirmed/Review/Unresolved 期望状态。
+
+不把完整受版权保护的视频提交到 Git。测试仓库仅保存短小、必要、合法的派生 Fixture；本地媒体放入被忽略的数据目录。
+
+---
+
+# 4. Phase 0A 技术 Spike
+
+正式业务实施前必须在目标 Windows 11 主机完成：
+
+1. `LAN_ACCESS`：手机通过同一局域网访问前后端，验证 Token-to-Session、CORS、WebSocket 重连、Admin API 保护，并比较本地 HTTPS 与可信 LAN HTTP 的可部署性。
+2. `WECHAT_RESOLVER`：R-001/R-002 至少一个可通过持久浏览器 Profile 获取正文并发现下钻链接；失败时能进入 `NEEDS_USER`。
+3. `DOCUMENT_MATRIX`：验证 HTML、PDF、扫描 PDF、DOCX、XLS/XLSX、PNG/JPEG 的文本与定位信息。
+4. `OCR`：中文 OCR 输出页码/边界框/置信度，低置信内容进入 Review，不直接生成高风险事实。
+5. `LOCAL_LLM`：RX 7900 XT 上 Ollama 结构化输出、显存占用、吞吐与 JSON Schema 成功率。
+6. `ASR`：whisper.cpp Vulkan 在 RX 7900 XT 上输出中文时间码 Transcript。
+7. `EXTERNAL_LLM`：DeepSeek 与 Xiaomi MiMo 至少各完成一次 OpenAI-compatible 连接测试、结构化输出测试与审计记录测试。
+8. `AMAP`：高德 Web 服务 POI 搜索、JS API 2.0 地图渲染、GCJ-02 坐标与配额错误路径。
+9. `SQLITE_MULTI_PROCESS`：FastAPI + Worker 下 WAL、原子 Job Lease、崩溃恢复与幂等写入。
+
+每项记录：环境版本、命令、输入、结果、耗时、资源占用、失败原因、是否阻塞后续 Phase。
+
+---
+
+# 5. 初始质量门槛
+
+在黄金 Fixture 上：
+
+- 关键报名/考试日期：人工标注项 100% 有正确值或明确进入 `UNKNOWN/REVIEW`，不得静默给出错误确定值；
+- Eligibility：不得把人工标注的明确 `FAIL/REVIEW` 自动判为 `PASS`；
+- Evidence：所有 `EXTRACTED` Claim 100% 可回到有效 Segment/Cell/Page/时间码；
+- Excel 岗位行：不得静默丢行，无法可靠识别的行必须进入 Review 并报告计数；
+- OCR：低于配置阈值的文字不得作为无需复核的关键日期或硬性资格依据；
+- POI：只有高置信且候选唯一时自动 `CONFIRMED`；黄金样本中的误确认数必须为 0，其余进入 `REVIEW/UNRESOLVED`；
+- Job：崩溃恢复不丢任务，业务结果幂等，不重复生成最终实体；
+- LAN：未携带有效 Token 的 API、WebSocket 和 Admin 请求全部拒绝。
+
+吞吐、ASR 速度、LLM Schema 首次成功率等性能指标由 Phase 0A 在目标主机实测后补入，不凭空设定。
+
+---
+
+# 6. 尚待补充的样本
+
+- 至少一份北京市官方 DOCX 招聘附件；
+- 至少一份扫描 PDF 或图片公告；
+- 至少一份结构复杂的 XLS/XLSX 岗位表；
+- R-001/R-002 的人工期望答案与脱敏 Fixture；
+- T-001/T-002 的人工地点清单与时间码答案。
+
 
 ---
 
@@ -4137,7 +4479,7 @@ Responsive Web。
 
 # 9. Remote PC
 
-PC-only MVP 的限制：
+PC 节点 + 可信局域网 MVP 的限制：
 PC 离线时无法即时处理。
 
 未来选择：
@@ -4322,6 +4664,34 @@ Agent 在实现过程中必须：
 9. 所有核心模块必须有测试。
 10. 每完成一个 Phase 更新实现状态文档或 checklist。
 
+真实样本、Fixture 规则和初始质量门槛见 `GOLDEN_SAMPLES.md`。
+
+---
+
+# Phase 0A — Target PC Feasibility Spikes（在 Phase 0 最小 Bootstrap 后执行）
+
+## Goal
+
+在搭建完整业务代码前，用目标 Windows 11 / RX 7900 XT 主机消除高风险外部依赖的不确定性。
+
+## Spikes
+
+- 手机 LAN 访问、Token-to-Session、CORS、WebSocket 与 HTTPS 可部署性；
+- 微信持久 Playwright Profile 与 `NEEDS_USER`；
+- HTML/PDF/扫描 PDF/DOCX/XLS/XLSX/PNG/JPEG 文档矩阵；
+- 中文 OCR 定位与置信度；
+- Ollama AMD 结构化输出；
+- whisper.cpp Vulkan 时间码 ASR；
+- DeepSeek / Xiaomi MiMo OpenAI-compatible 连接；
+- 高德 POI Web 服务 / JS API 2.0 / GCJ-02；
+- SQLite WAL 多进程、原子 Lease 与幂等恢复。
+
+## Acceptance
+
+- 每项有可复现记录与 `PASS / DEGRADED / BLOCKED` 结论；
+- `BLOCKED` 项在进入依赖它的 Phase 前必须选定替代方案或调整范围；
+- 性能门槛使用目标 PC 实测值回填 `GOLDEN_SAMPLES.md`。
+
 ---
 
 # Phase 0 — Repository Bootstrap
@@ -4358,6 +4728,7 @@ Frontend：
 - React
 - TypeScript
 - Vite
+- Node.js 20.19+ 或 22.12+
 
 ### P0.4
 .gitignore：
@@ -4371,10 +4742,19 @@ Frontend：
 基础健康接口：
 `GET /api/health`
 
+### P0.6
+LAN 安全基线：
+- 可配置 bind address / port；
+- 首次生成访问 Token；
+- REST / WebSocket 鉴权；
+- Origin allowlist；
+- 默认不做公网暴露。
+
 ## Acceptance
 - backend 启动；
 - frontend 启动；
 - health 正常；
+- 手机在同一局域网携带 Token 可访问，未授权请求被拒绝；
 - Windows README 命令可用。
 
 ---
@@ -4404,8 +4784,10 @@ Alembic 初始化。
 - segments
 - claims
 - claim_evidences
+- claim_relations
 - jobs
 - job_steps
+- settings / secret references
 
 ### P1.4
 Repository 层。
@@ -4615,10 +4997,11 @@ Source Graph。
 # Phase 7 — PDF / Excel Normalizer
 
 ## Goal
-支持招聘附件。
+支持招聘附件与扫描材料。
 
 ## Excel Tasks
-- workbook read
+- `.xlsx` openpyxl reader
+- `.xls` legacy reader adapter（Phase 0A 选型）
 - sheet detect
 - header detect
 - merged cell recovery
@@ -4630,8 +5013,20 @@ Source Graph。
 - text blocks
 - locator
 
+## DOCX Tasks
+- paragraph / table normalization
+- paragraph/run locator
+- embedded attachment/image discovery
+
+## OCR Tasks
+- scanned PDF detection
+- PNG/JPEG input
+- Chinese OCR provider abstraction
+- page/bbox/confidence locator
+- low-confidence Review policy
+
 ## Acceptance
-岗位表 Fixture 可转换为标准 rows，保留原 Cell 定位。
+岗位表 Fixture 可转换为标准 rows，保留原 Cell 定位；DOCX/PDF/OCR 文本均可回到原页、段落或边界框，低置信关键事实不自动确定。
 
 ---
 
@@ -4823,17 +5218,21 @@ PlaceMention → Place。
 
 ## Tasks
 - POIProvider base
-- 具体 Provider
+- AMapPOIProvider
+- AMap Web Service Key / quota error handling
+- GCJ-02 coordinate metadata
 - candidate search
 - name/location matching
 - confidence
 - Confirmed/Review/Unresolved
 - CMS POI Review
 - deduplicate
+- AMap JS API 2.0 map view
 
 ## Acceptance
 LLM 不参与经纬度生成。
 两个来源提同一家店最终可归并为一个 Place。
+GeoJSON 明确携带坐标系，不把 GCJ-02 静默声明为 WGS84。
 
 ---
 
@@ -4980,7 +5379,7 @@ Tauri 或其他薄壳：
 
 # 25. 建议 Agent 实施顺序
 
-严格按 Phase 0 → 13 先完成 Recruitment，
+按 Phase 0 → Phase 0A → Phase 1–13 完成 Recruitment，
 再 14 → 19 完成 Travel，
 之后 20 → 21 做系统化完善。
 

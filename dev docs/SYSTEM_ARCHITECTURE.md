@@ -4,7 +4,7 @@
 
 第一版采用：
 
-> **Windows 单机 + Local First + Local AI First + 可选外部 LLM**
+> **Windows PC 单节点 + LAN Mobile Client + Local First + Local AI First + 可选外部 LLM**
 
 但内部保持清晰模块边界，以便未来平滑演化为：
 
@@ -22,7 +22,7 @@
 Clients
   │
   ├─ PC Browser
-  └─ Mobile Browser
+  └─ Mobile Browser（trusted LAN + access token）
        │
        ▼
 React + TypeScript + Vite
@@ -55,7 +55,7 @@ Independent Worker
              │
              ├─ Ollama
              ├─ OpenAI Provider
-             └─ OpenAI-Compatible Provider
+             └─ OpenAI-Compatible Provider（DeepSeek / Xiaomi MiMo / custom）
 ```
 
 ---
@@ -71,6 +71,8 @@ Independent Worker
 2. Worker Process
 3. React Vite Dev Server
 ```
+
+手机通过同一可信局域网访问 PC。开发与生产都必须支持可配置监听地址；默认不做公网暴露。所有非 localhost 的 REST/WebSocket 请求必须带有效访问 Token，Admin API 不允许匿名访问。
 
 生产/桌面封装后：
 
@@ -181,6 +183,12 @@ RUNNING
 ## poi/
 解决“现实地点解析”。
 
+## documents/
+解决 PDF、DOCX、XLS/XLSX 与图片型文档的归一化。
+
+## ocr/
+解决扫描 PDF、PNG/JPEG 的中文 OCR、页码/边界框定位与低置信 Review。
+
 ## jobs/
 解决“后台长任务”。
 
@@ -256,7 +264,7 @@ class Processor:
 ## LLMProvider
 - OllamaProvider
 - OpenAIProvider
-- OpenAICompatibleProvider
+- OpenAICompatibleProvider（DeepSeek、Xiaomi MiMo、自定义兼容端点）
 
 ## ASRProvider
 - WhisperCppProvider
@@ -264,8 +272,10 @@ class Processor:
 - CloudASRProvider（预留）
 
 ## POIProvider
-- 第一版实际选一个；
+- 第一版实现 AMapPOIProvider；
 - 业务代码不得依赖具体厂商。
+
+地图前端第一版使用高德地图 JS API 2.0。中国大陆 POI 的 `coordinate_system` 显式记录为 `GCJ02`，严禁把 GCJ-02 静默标成 WGS84；GeoJSON 导出必须附坐标系元数据与来源 Provider。
 
 ---
 

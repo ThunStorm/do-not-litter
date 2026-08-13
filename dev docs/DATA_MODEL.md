@@ -94,6 +94,8 @@ metadata_json
 created_at
 ```
 
+文件型 Source 的 `metadata_json` 至少保存：原始文件名、MIME、字节数、内容哈希、解析器与 OCR 版本；文件正文仍通过 Snapshot/Segment 建模。
+
 ## source_snapshots
 
 ```text
@@ -164,6 +166,16 @@ PDF：
 {"page":7,"block":13}
 ```
 
+DOCX：
+```json
+{"part":"document","paragraph":18,"run_start":2,"run_end":5}
+```
+
+OCR：
+```json
+{"page":3,"bbox":[120,240,920,318],"ocr_confidence":0.91}
+```
+
 ---
 
 # 5. Claim / Evidence
@@ -206,6 +218,24 @@ evidence_role
 
 一个 Claim 可以多证据。
 一个 Segment 可以支持多个 Claim。
+
+## claim_relations
+
+```text
+from_claim_id
+to_claim_id
+relation_type
+created_at
+```
+
+relation_type：
+- derived_from
+- normalizes
+- computes_from
+- conflicts_with
+- supersedes
+
+`NORMALIZED`、`COMPUTED` Claim 必须通过关系指向其输入 Claim；来源冲突不得只靠覆盖最终字段表达。
 
 ---
 
@@ -443,6 +473,7 @@ district
 address
 latitude
 longitude
+coordinate_system
 
 external_provider
 external_poi_id
@@ -456,7 +487,10 @@ resolution_status:
 - CANDIDATE
 - CONFIRMED
 - REVIEW
+- UNRESOLVED
 - REJECTED
+
+中国大陆高德 POI 的 `coordinate_system` 为 `GCJ02`。任何导出都必须携带该字段，不得默认标记为 WGS84。
 
 ## place_mentions
 
@@ -549,6 +583,8 @@ rating nullable
 notes nullable
 ```
 
+地点当前用户状态由 `preference_events` / `visit_events` 投影得到；若为查询性能物化缓存，缓存必须可从事件重建，不能成为唯一事实源。
+
 ---
 
 # 12. Jobs
@@ -574,6 +610,7 @@ heartbeat_at
 
 retry_count
 max_retries
+idempotency_key
 error_code
 error_message
 
@@ -581,6 +618,8 @@ created_at
 started_at
 finished_at
 ```
+
+`idempotency_key` 对同一 Capture/Step 的重复提交建立唯一约束。Job Lease 必须通过单条条件更新原子抢占；Step 输出与领域写入按版本幂等 upsert，防止 Worker 崩溃恢复后重复物化。
 
 status：
 - QUEUED
@@ -606,6 +645,10 @@ error_message
 started_at
 finished_at
 ```
+
+## settings / secret references
+
+非敏感设置可存 SQLite；API Key、LAN Token 与其他 Secret 只保存 Windows Credential Manager/DPAPI 引用。数据库字段包含 `setting_key/value_json/updated_at` 与 `secret_key/secret_ref/updated_at`，不得存 Secret 明文。
 
 ---
 

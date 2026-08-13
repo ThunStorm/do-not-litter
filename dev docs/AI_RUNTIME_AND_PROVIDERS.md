@@ -32,6 +32,14 @@ class LLMProvider:
 - OpenAICompatibleProvider
 - MockProvider（测试）
 
+第一版外部兼容端点至少验证：
+
+- DeepSeek API；
+- Xiaomi MiMo API；
+- 用户自定义 OpenAI-compatible `base_url`。
+
+模型 ID、上下文长度与能力随服务更新，不写死在 Processor；通过 Settings 的能力映射配置。
+
 ---
 
 # 3. LLM 策略
@@ -83,6 +91,13 @@ Windows 优先：
 SQLite 只存 key reference。
 
 开发环境允许 `.env`，但不得提交 Git。
+
+外部请求的数据策略：
+
+- `NORMAL` 来源 Segment 可按所选策略外发；
+- `SENSITIVE` Profile 默认不外发，仅在用户对单次任务明确授权后发送最小必要字段；
+- `LOCAL_ONLY` 永不发送到外部 Provider；
+- 审计仅记录字段类别、Segment ID、Provider/Model 与结果状态，不记录完整敏感正文。
 
 ---
 

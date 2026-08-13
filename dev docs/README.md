@@ -1,11 +1,11 @@
 # AI Personal Inbox / Personal Scout
 ## 项目文档索引
 
-> 文档版本：v0.1  
-> 冻结日期：2026-08-12  
-> 当前阶段：需求与架构基线已完成，可进入工程实施  
-> 第一阶段部署形态：Windows 11 单机、本地优先、PC 作为完整后端与 AI Worker  
-> 第一阶段业务范围：Recruitment（招聘/考试） + Travel/Food（旅行/探店）
+> 文档版本：v0.2
+> 冻结日期：2026-08-13
+> 当前阶段：需求与架构基线已完成，可进入 Phase 0A 技术验证与工程实施
+> 第一阶段部署形态：Windows 11 本地优先，PC 作为完整后端与 AI Worker，手机通过可信局域网访问
+> 第一阶段业务范围：北京市公务员/事业单位招聘 + 中国范围 Travel/Food
 
 ---
 
@@ -95,9 +95,12 @@
 | [API_DESIGN.md](./API_DESIGN.md) | REST / WebSocket API 边界 |
 | [SECURITY_PRIVACY.md](./SECURITY_PRIVACY.md) | 本地优先、API Key、浏览器登录态、敏感数据 |
 | [TESTING_AND_ACCEPTANCE.md](./TESTING_AND_ACCEPTANCE.md) | 测试策略、关键验收用例 |
+| [GOLDEN_SAMPLES.md](./GOLDEN_SAMPLES.md) | 首批真实样本、Fixture 规则、技术 Spike 与质量门槛 |
 | [PROJECT_PLAN.md](./PROJECT_PLAN.md) | Codex/Agent 可直接执行的工程实施计划 |
 | [FUTURE_ROADMAP.md](./FUTURE_ROADMAP.md) | GenericProcessor、移动端、云、多 Worker、C 级自动化 |
 | [ARCHITECTURE_DECISIONS.md](./ARCHITECTURE_DECISIONS.md) | 关键设计决策与原因 |
+
+`COMPLETE_PROJECT_SPEC.md` 是由上述分文档自动生成的合订本，不作为独立编辑源。修改分文档后运行 `python scripts/build_complete_project_spec.py` 重新生成。
 
 ---
 
@@ -133,9 +136,10 @@
 - React
 - TypeScript
 - Vite
+- Node.js 20.19+ 或 22.12+
 - 响应式 Web
 - 后期可封装 Tauri 桌面壳
-- 手机第一版先通过响应式 Web 使用
+- 手机第一版通过同一可信局域网访问响应式 Web
 
 ### Backend
 - Python 3.12+
@@ -157,8 +161,12 @@
 - yt-dlp / 平台解析能力
 - ffmpeg
 - openpyxl
+- `.xls` legacy adapter（Phase 0A 选择 xlrd 或 python-calamine）
 - PDF Parser
-- POI Provider 抽象
+- DOCX Parser
+- 中文 OCR（扫描 PDF / PNG / JPEG）
+- 高德 POI Web 服务 + 地图 JS API 2.0
+- DeepSeek / Xiaomi MiMo 等 OpenAI-compatible 外部 Provider
 
 ---
 

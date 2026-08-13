@@ -1,7 +1,7 @@
 {
   "project": "AI Personal Inbox / Personal Scout",
-  "version": "0.1",
-  "frozen_date": "2026-08-12",
+  "version": "0.2",
+  "frozen_date": "2026-08-13",
   "mvp_processors": [
     "Recruitment",
     "TravelFood"
@@ -11,7 +11,12 @@
     "ConfigurableProcessor",
     "OtherDedicatedProcessors"
   ],
-  "deployment": "Windows 11 local-first PC-only",
+  "deployment": "Windows 11 local-first PC node with trusted-LAN mobile browser access",
+  "recruitment_scope": "Beijing civil service and public institution recruitment",
+  "travel_scope": "China",
+  "map_provider": "AMap",
+  "document_inputs": ["HTML", "PDF", "scanned PDF", "DOCX", "XLS", "XLSX", "PNG", "JPEG"],
+  "external_llm_targets": ["DeepSeek", "Xiaomi MiMo", "custom OpenAI-compatible"],
   "hardware": {
     "cpu": "AMD Ryzen 7 5800X",
     "ram_gb": 32,
@@ -22,10 +27,10 @@
     "AI_RUNTIME_AND_PROVIDERS.md",
     "API_DESIGN.md",
     "ARCHITECTURE_DECISIONS.md",
-    "COMPLETE_PROJECT_SPEC.md",
     "CONTROL_CENTER.md",
     "DATA_MODEL.md",
     "FUTURE_ROADMAP.md",
+    "GOLDEN_SAMPLES.md",
     "PRODUCT_REQUIREMENTS.md",
     "PROJECT_PLAN.md",
     "README.md",
@@ -34,5 +39,8 @@
     "SYSTEM_ARCHITECTURE.md",
     "TESTING_AND_ACCEPTANCE.md",
     "TRAVEL_FOOD_PIPELINE.md"
-  ]
+  ],
+  "generated_documents": {
+    "COMPLETE_PROJECT_SPEC.md": "python scripts/build_complete_project_spec.py"
+  }
 }

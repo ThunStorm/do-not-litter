@@ -25,6 +25,34 @@ Agent 在实现过程中必须：
 9. 所有核心模块必须有测试。
 10. 每完成一个 Phase 更新实现状态文档或 checklist。
 
+真实样本、Fixture 规则和初始质量门槛见 `GOLDEN_SAMPLES.md`。
+
+---
+
+# Phase 0A — Target PC Feasibility Spikes（在 Phase 0 最小 Bootstrap 后执行）
+
+## Goal
+
+在搭建完整业务代码前，用目标 Windows 11 / RX 7900 XT 主机消除高风险外部依赖的不确定性。
+
+## Spikes
+
+- 手机 LAN 访问、Token-to-Session、CORS、WebSocket 与 HTTPS 可部署性；
+- 微信持久 Playwright Profile 与 `NEEDS_USER`；
+- HTML/PDF/扫描 PDF/DOCX/XLS/XLSX/PNG/JPEG 文档矩阵；
+- 中文 OCR 定位与置信度；
+- Ollama AMD 结构化输出；
+- whisper.cpp Vulkan 时间码 ASR；
+- DeepSeek / Xiaomi MiMo OpenAI-compatible 连接；
+- 高德 POI Web 服务 / JS API 2.0 / GCJ-02；
+- SQLite WAL 多进程、原子 Lease 与幂等恢复。
+
+## Acceptance
+
+- 每项有可复现记录与 `PASS / DEGRADED / BLOCKED` 结论；
+- `BLOCKED` 项在进入依赖它的 Phase 前必须选定替代方案或调整范围；
+- 性能门槛使用目标 PC 实测值回填 `GOLDEN_SAMPLES.md`。
+
 ---
 
 # Phase 0 — Repository Bootstrap
@@ -61,6 +89,7 @@ Frontend：
 - React
 - TypeScript
 - Vite
+- Node.js 20.19+ 或 22.12+
 
 ### P0.4
 .gitignore：
@@ -74,10 +103,19 @@ Frontend：
 基础健康接口：
 `GET /api/health`
 
+### P0.6
+LAN 安全基线：
+- 可配置 bind address / port；
+- 首次生成访问 Token；
+- REST / WebSocket 鉴权；
+- Origin allowlist；
+- 默认不做公网暴露。
+
 ## Acceptance
 - backend 启动；
 - frontend 启动；
 - health 正常；
+- 手机在同一局域网携带 Token 可访问，未授权请求被拒绝；
 - Windows README 命令可用。
 
 ---
@@ -107,8 +145,10 @@ Alembic 初始化。
 - segments
 - claims
 - claim_evidences
+- claim_relations
 - jobs
 - job_steps
+- settings / secret references
 
 ### P1.4
 Repository 层。
@@ -318,10 +358,11 @@ Source Graph。
 # Phase 7 — PDF / Excel Normalizer
 
 ## Goal
-支持招聘附件。
+支持招聘附件与扫描材料。
 
 ## Excel Tasks
-- workbook read
+- `.xlsx` openpyxl reader
+- `.xls` legacy reader adapter（Phase 0A 选型）
 - sheet detect
 - header detect
 - merged cell recovery
@@ -333,8 +374,20 @@ Source Graph。
 - text blocks
 - locator
 
+## DOCX Tasks
+- paragraph / table normalization
+- paragraph/run locator
+- embedded attachment/image discovery
+
+## OCR Tasks
+- scanned PDF detection
+- PNG/JPEG input
+- Chinese OCR provider abstraction
+- page/bbox/confidence locator
+- low-confidence Review policy
+
 ## Acceptance
-岗位表 Fixture 可转换为标准 rows，保留原 Cell 定位。
+岗位表 Fixture 可转换为标准 rows，保留原 Cell 定位；DOCX/PDF/OCR 文本均可回到原页、段落或边界框，低置信关键事实不自动确定。
 
 ---
 
@@ -526,17 +579,21 @@ PlaceMention → Place。
 
 ## Tasks
 - POIProvider base
-- 具体 Provider
+- AMapPOIProvider
+- AMap Web Service Key / quota error handling
+- GCJ-02 coordinate metadata
 - candidate search
 - name/location matching
 - confidence
 - Confirmed/Review/Unresolved
 - CMS POI Review
 - deduplicate
+- AMap JS API 2.0 map view
 
 ## Acceptance
 LLM 不参与经纬度生成。
 两个来源提同一家店最终可归并为一个 Place。
+GeoJSON 明确携带坐标系，不把 GCJ-02 静默声明为 WGS84。
 
 ---
 
@@ -683,7 +740,7 @@ Tauri 或其他薄壳：
 
 # 25. 建议 Agent 实施顺序
 
-严格按 Phase 0 → 13 先完成 Recruitment，
+按 Phase 0 → Phase 0A → Phase 1–13 完成 Recruitment，
 再 14 → 19 完成 Travel，
 之后 20 → 21 做系统化完善。
 

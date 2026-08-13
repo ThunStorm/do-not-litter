@@ -29,6 +29,19 @@
 }
 ```
 
+URL/Text 使用 JSON。文件使用：
+
+`POST /api/inbox/upload`（`multipart/form-data`）
+
+MVP 允许：
+
+- `.pdf`
+- `.docx`
+- `.xls` / `.xlsx`
+- `.png` / `.jpg` / `.jpeg`
+
+上传时校验扩展名、MIME、文件头、大小上限与内容哈希；原文件写入本地永久 Source 存储，再创建统一 Job。扫描 PDF 与图片自动进入 OCR Step。
+
 ## GET /api/inbox/{id}
 
 返回：
@@ -234,10 +247,14 @@ API 返回给产品前端的是 ViewModel，而不是 ORM Row。
 
 # 8. 单用户认证
 
-第一版本地模式可简化。
+第一版必须支持手机局域网访问，因此认证不是可选项：
 
-若允许局域网手机访问：
-- 至少增加本地访问 token；
-- 不允许匿名开放管理 API。
+- localhost 与 LAN UI 使用同一 API；
+- 手机首次配对通过 `POST /api/auth/session` 在请求体提交访问 Token，服务端换发短期 HttpOnly、SameSite Session Cookie；
+- 后续 REST 与 WebSocket 握手统一验证 Session Cookie；脚本型客户端可使用 `Authorization: Bearer <access-token>`；
+- Token 由本机生成、存入 Windows Credential Manager/DPAPI，并支持轮换；
+- CORS 使用明确 Origin allowlist；
+- 长期 Token 不放在查询字符串、localStorage 或普通日志中；
+- 未授权请求统一返回稳定错误码 `AUTH_REQUIRED` / `AUTH_INVALID`。
 
 未来远程访问再引入完整认证。

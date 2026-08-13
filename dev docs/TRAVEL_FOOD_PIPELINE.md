@@ -15,6 +15,8 @@
 - 可导出数据；
 - 全程可追溯 Evidence。
 
+第一版地域为中国范围，POI 与地图首选高德；真实样本见 `GOLDEN_SAMPLES.md`。
+
 ---
 
 # 2. Pipeline
@@ -141,6 +143,8 @@ PlaceMention
 - REJECTED
 
 只有 CONFIRMED 默认进入地图。
+
+MVP 实现 `AMapPOIProvider`：使用高德 Web 服务进行候选搜索，优先传城市/adcode 与 `citylimit` 收敛歧义；保存 Provider、POI ID、原始候选响应哈希与 `GCJ02` 坐标系。前端使用高德地图 JS API 2.0。
 
 ---
 
@@ -355,6 +359,8 @@ FrameExtractor
 - CSV
 - JSON
 - GeoJSON
+
+GeoJSON 必须显式附带坐标来源和 `coordinate_system`。中国大陆高德坐标不得静默声明为 WGS84；若未来需要跨坐标系输出，必须由独立、可测试的转换策略完成并标注转换来源。
 
 导出字段尽可能带：
 - name

@@ -30,6 +30,8 @@
 - WeChat Snapshot
 - Excel
 - PDF
+- DOCX
+- scanned PDF / image OCR
 - Transcript
 - POI candidates
 
@@ -105,6 +107,8 @@ ANY(FAIL, REVIEW) → REVIEW
 
 发现孤儿 Claim：
 测试失败。
+
+`NORMALIZED` / `COMPUTED` Claim 必须具有有效 Claim 血缘；冲突 Claim 必须同时保留，不能靠最后写入覆盖。
 
 ---
 
@@ -190,6 +194,10 @@ Mock：
 - whisper.cpp
 - model availability
 - disk writable
+- Node.js 20.19+ 或 22.12+
+- LAN mobile access / token auth
+- AMap API / map render
+- DeepSeek / Xiaomi MiMo connection
 
 CMS 显示诊断结果。
 
@@ -213,3 +221,8 @@ CMS 显示诊断结果。
 12. PC 重启任务可恢复；
 13. 外部模型 API Key 可配置且可测试；
 14. 所有核心长任务可从 CMS 重试。
+15. 手机可在同一局域网安全访问，未授权请求无法读取业务或管理数据；
+16. DOCX、扫描 PDF 与图片公告可归一化并保留 Evidence 定位；
+17. 高德 POI/地图可用，GCJ-02 在存储与导出中明确标注；
+18. DeepSeek、Xiaomi MiMo 可通过兼容 Provider 配置和测试；
+19. `GOLDEN_SAMPLES.md` 的安全与正确性门槛全部通过。

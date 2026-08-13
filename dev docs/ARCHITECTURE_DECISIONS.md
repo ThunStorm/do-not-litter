@@ -1,7 +1,7 @@
 # Architecture Decisions
 
 ## ADR-001：第一版取消云端
-**Decision**  
+**Decision**
 全部核心数据与计算运行在用户 PC。
 
 **Reason**
@@ -182,3 +182,56 @@ UI 窄，接口宽。
 
 **Reason**
 兼顾第一版速度与长期 GenericProcessor 演进。
+
+---
+
+## ADR-018：MVP 支持可信局域网手机访问
+**Decision**
+PC 仍是唯一数据与计算节点；手机通过同一可信局域网访问响应式 Web。REST/WebSocket/Admin API 必须验证本机生成的访问 Token，不自动暴露公网。
+
+**Reason**
+- 手机是“随手分享/查看结果”的必要入口；
+- 不为此提前引入云端与多用户体系；
+- LAN 已扩大攻击面，认证不能后置。
+
+---
+
+## ADR-019：招聘文档矩阵包含 DOCX 与 OCR
+**Decision**
+MVP 支持 PDF、扫描 PDF、DOCX、XLS/XLSX、PNG/JPEG；OCR 结果保存页码、边界框和置信度，低置信关键事实进入 Review。
+
+**Reason**
+北京市公务员/事业单位公告附件并不只使用文本型 PDF/Excel，缺少 DOCX/OCR 会造成真实链路断裂。
+
+---
+
+## ADR-020：中国 POI 首选高德并显式使用 GCJ-02
+**Decision**
+MVP 实现 AMapPOIProvider 和高德地图 JS API 2.0。中国大陆高德坐标存储为 `GCJ02`，导出必须标注坐标系。
+
+**Reason**
+- 第一版旅行范围为中国；
+- 高德同时提供 POI 搜索与 PC/移动 Web 地图；
+- 显式坐标系避免地图显示与 GeoJSON 语义错误。
+
+---
+
+## ADR-021：外部模型通过兼容 Provider 接入且敏感档案默认不外发
+**Decision**
+DeepSeek、Xiaomi MiMo 等通过 OpenAICompatibleProvider 配置；模型名不写死。`SENSITIVE` Profile 默认不外发，`LOCAL_ONLY` 永不外发。
+
+**Reason**
+- Provider 与模型会持续变化；
+- 招聘 Profile 涉及学历、工作经历、政治面貌和户籍；
+- 最小化外发符合 Local First。
+
+---
+
+## ADR-022：真实 URL 手工验收，冻结 Fixture 用于 CI
+**Decision**
+微信/Bilibili 真实链接用于手工验收；CI 使用脱敏冻结 Fixture，不依赖实时平台网络。
+
+**Reason**
+- 平台存在登录态、验证码、风控、412 与内容变化；
+- 实时网络依赖无法提供可复现测试；
+- 不绕过平台访问限制。

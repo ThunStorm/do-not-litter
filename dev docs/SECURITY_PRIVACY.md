@@ -67,24 +67,33 @@ Local First 默认尽可能本地处理。
 - 明确 provider；
 - 允许用户选择 Local Only；
 - 日志记录是否调用外部；
-- 可后续增加敏感字段脱敏策略。
+- `NORMAL` 内容按策略发送；
+- `SENSITIVE` Profile 默认不外发，仅允许单次明确授权和最小字段发送；
+- `LOCAL_ONLY` 永不外发；
+- 发送审计记录只保存字段类别与 Evidence/Segment 引用，不复制敏感正文。
 
 ---
 
 # 6. 本地 Web 安全
 
-如果只 localhost：
-风险较低。
+MVP 明确支持手机局域网访问：
 
-如果允许局域网：
-- bind 到局域网需显式开启；
-- API token；
-- Admin API 保护；
-- 不默认暴露互联网。
+- 首次安装默认生成高熵访问 Token；
+- PC Control Center 显示 LAN 地址并允许复制/轮换 Token；
+- 手机首次访问输入 Token，通过 `POST /api/auth/session` 换取短期 HttpOnly、SameSite Session Cookie；
+- 浏览器不把长期 Token 保存到 localStorage，REST 与 WebSocket 统一验证 Session；
+- localhost 之外的请求缺少/无效 Token 一律拒绝；
+- CORS 只允许配置的 LAN Origin，不使用通配符；
+- 管理 API 与业务 API 均受保护；
+- 监听地址与 LAN 访问可关闭；
+- 不做 UPnP、端口映射或公网暴露；
+- Token 不写入 URL、普通日志或导出文件。
+
+LAN 传输只允许用户明确配置的可信家庭/办公网络。Phase 0A 必须比较本地 HTTPS 与可信 LAN HTTP 的安装/配对体验；若 MVP 不能可靠部署 HTTPS，UI 必须明确提示不得在公共 Wi-Fi、访客网络或不可信热点中启用 LAN，并将 HTTPS 列为发布前风险项。
 
 ---
 
-# 7. PC-only 远程访问
+# 7. 超出可信局域网的远程访问
 
 MVP 不强制实现。
 

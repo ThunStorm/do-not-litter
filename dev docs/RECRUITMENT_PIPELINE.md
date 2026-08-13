@@ -15,6 +15,8 @@
 - 推荐；
 - 冲突提示。
 
+第一阶段优先覆盖北京市公务员、事业单位招聘及相关考试公告；真实样本见 `GOLDEN_SAMPLES.md`。
+
 ---
 
 # 2. 总流程
@@ -31,6 +33,8 @@ DISCOVER_LINKS
 FOLLOW_SOURCES
 ↓
 NORMALIZE_DOCUMENTS
+↓
+OCR（扫描 PDF / 图片时）
 ↓
 EXTRACT_NOTICE
 ↓
@@ -127,6 +131,17 @@ NormalizedDocument
 └─ SourceLocators[]
 ```
 
+MVP 文档矩阵：
+
+- HTML；
+- 文本型 PDF；
+- 扫描 PDF；
+- DOCX；
+- XLS/XLSX；
+- PNG/JPEG。
+
+OCR 必须保留页码、边界框、OCR 置信度与原始图片引用。低置信 OCR 不可直接支撑关键日期或 HARD Requirement 的自动确定结论，必须进入 `REVIEW`。
+
 ---
 
 # 7. Excel Normalizer
@@ -140,7 +155,7 @@ NormalizedDocument
 - 备注列；
 - 列名差异。
 
-先 openpyxl 读取。
+`.xlsx` 先用 openpyxl 读取；旧 `.xls` 通过独立 SpreadsheetReader 适配器处理，Phase 0A 在 xlrd/python-calamine 中按 Windows 安装、格式覆盖和维护状态选择，不允许把 `.xls` 伪装成 openpyxl 支持。
 
 AI 只做 Column Mapping：
 

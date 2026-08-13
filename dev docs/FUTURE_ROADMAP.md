@@ -162,7 +162,7 @@ Responsive Web。
 
 # 9. Remote PC
 
-PC-only MVP 的限制：
+PC 节点 + 可信局域网 MVP 的限制：
 PC 离线时无法即时处理。
 
 未来选择：

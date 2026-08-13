@@ -1,7 +1,7 @@
 # Product Requirements
 ## AI Personal Inbox / Personal Scout
 
-> 状态：Baseline v0.1  
+> 状态：Baseline v0.2
 > 当前产品策略：Narrow Product, Extensible Core
 
 ---
@@ -76,6 +76,8 @@ Capture
 - 微信公众号事业编汇总文章；
 - 政府招聘公告；
 - 招聘 PDF；
+- 扫描 PDF、PNG/JPEG 公告；
+- DOCX 公告/附件；
 - 岗位 Excel；
 - 报名说明页面。
 
@@ -119,6 +121,13 @@ Capture
 - 用户想去/去过/不感兴趣；
 - 来源时间码；
 - CSV/JSON/GeoJSON 导出。
+
+## 4.3 第一阶段地域与来源基线
+
+- Recruitment 首域：北京市公务员、事业单位招聘及相关考试公告；
+- Travel/Food：第一版按中国范围设计；
+- POI 与底图首选高德地图；
+- 首批真实样本与 Fixture 规则见 `GOLDEN_SAMPLES.md`。
 
 ---
 
@@ -183,6 +192,15 @@ UI 可提供：
 - 删除。
 
 第一版不自动创建新的业务分类。
+
+第一版 Capture 支持：
+
+- URL 粘贴；
+- PDF / DOCX / XLS / XLSX 文件上传；
+- PNG / JPEG 图片上传；
+- 直接文本作为补充输入。
+
+上传文件与 URL 入口使用相同的 Job、Evidence 与 Processor Router，不建立第二套处理链。
 
 ---
 
@@ -370,6 +388,8 @@ Eligibility：
 
 ## 本地优先
 - 默认数据保存在 PC；
+- 手机通过可信局域网访问 PC，不在手机保存完整业务数据库；
+- LAN API、WebSocket 与 Admin API 必须验证访问 Token；
 - 外部模型只是可选 Provider；
 - API Key 安全存储；
 - 浏览器登录态不导出。

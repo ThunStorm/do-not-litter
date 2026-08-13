@@ -138,6 +138,9 @@ Travel：
 - cache limit
 - cleanup policy
 - worker concurrency
+- LAN enable / bind address / port
+- LAN access token rotate
+- allowed origins
 
 ## AI
 - mode: local/cloud
@@ -146,6 +149,7 @@ Travel：
 - API Key
 - Base URL
 - connection test
+- outbound data policy / per-run sensitive authorization
 
 ## ASR
 - engine
@@ -159,9 +163,10 @@ Travel：
 - clear/reset profile
 
 ## POI
-- provider
+- provider（MVP: AMap）
 - API key
 - country/region preference
+- coordinate system（China: GCJ02）
 
 ## Recruitment
 - source crawl depth
