@@ -2,11 +2,11 @@
 
 ## ADR-001：第一版取消云端
 **Decision**
-全部核心数据与计算运行在用户 PC。
+全部核心数据与计算运行在用户选中的本地后端节点：Windows PC 或 Mac mini。
 
 **Reason**
 - 单用户；
-- 可接受 PC 关机时暂不处理；
+- 可接受选中节点离线时暂不处理；
 - 用户明确希望先走通链路；
 - 降低云部署与成本复杂度。
 
@@ -34,7 +34,7 @@ FastAPI。
 
 **Reason**
 - ASR/视频/LLM 长任务；
-- PC 重启恢复；
+- 后端节点重启恢复；
 - CMS 可视化状态；
 - 不引入 Redis/Celery。
 
@@ -133,7 +133,7 @@ Semantic Major Match 不自动 PASS。
 LLMProvider 抽象，默认 LOCAL_FIRST。
 
 **Reason**
-- 利用 RX7900XT；
+- 利用所选节点的 RX 7900 XT 或 Apple Metal；
 - 可离线；
 - 外部强模型用于增强；
 - 不锁厂商。
@@ -142,7 +142,7 @@ LLMProvider 抽象，默认 LOCAL_FIRST。
 
 ## ADR-013：ASR 抽象
 **Decision**
-ASRProvider，Windows AMD 首选 whisper.cpp 路线。
+ASRProvider：Windows AMD 首选 whisper.cpp Vulkan，Mac mini 首选 whisper.cpp Metal；Core ML encoder 仅作为 Mac Spike 后的可选加速。
 
 **Reason**
 避免锁 CUDA/faster-whisper。
@@ -187,7 +187,7 @@ UI 窄，接口宽。
 
 ## ADR-018：MVP 支持可信局域网手机访问
 **Decision**
-PC 仍是唯一数据与计算节点；手机通过同一可信局域网访问响应式 Web。REST/WebSocket/Admin API 必须验证本机生成的访问 Token，不自动暴露公网。
+选中的 Windows PC 或 Mac mini 仍是唯一数据与计算节点；PC 浏览器与手机通过同一可信局域网访问响应式 Web。REST/WebSocket/Admin API 必须验证本机生成的访问 Token，不自动暴露公网。
 
 **Reason**
 - 手机是“随手分享/查看结果”的必要入口；
@@ -235,3 +235,18 @@ DeepSeek、Xiaomi MiMo 等通过 OpenAICompatibleProvider 配置；模型名不�
 - 平台存在登录态、验证码、风控、412 与内容变化；
 - 实时网络依赖无法提供可复现测试；
 - 不绕过平台访问限制。
+
+---
+
+## ADR-023：MVP 保留两套单节点部署方案，实施时二选一
+**Decision**
+保留 `windows_pc` 与 `mac_mini` 两套部署适配。两套方案共享业务代码、数据库模型与 API；只在安装、进程托管、Secret Store、本地 AI Runtime 和硬件诊断层分叉。进入 Phase 0A 前由用户选择一个 `DEPLOYMENT_TARGET`，MVP 不同时交付两套生产安装包，也不跨机器共享 SQLite。
+
+**Reason**
+- Windows PC 的 RX 7900 XT 20 GB 更适合优先验证较大的本地模型；
+- Mac mini M4 更适合低功耗常驻，使 PC 与手机在后端在线时都可随时访问；
+- 当前尚无两台设备上可直接比较的真实吞吐、兼容性和稳定性数据；
+- 业务架构本身不需要因操作系统而分叉。
+
+**Decision Gate**
+分别执行 `DEPLOYMENT_OPTIONS.md` 和 `GOLDEN_SAMPLES.md` 的 Phase 0A 项，以 `PASS / DEGRADED / BLOCKED`、模型容量、ASR 时间、统一内存/显存峰值、功耗和常驻恢复结果支持最终选择。

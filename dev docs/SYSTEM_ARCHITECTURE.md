@@ -2,9 +2,11 @@
 
 ## 1. 架构目标
 
-第一版采用：
+第一版从以下两套单节点方案中选择一套实施：
 
-> **Windows PC 单节点 + LAN Mobile Client + Local First + Local AI First + 可选外部 LLM**
+> **Windows PC 或 Mac mini 单节点 + PC/Mobile LAN Client + Local First + Local AI First + 可选外部 LLM**
+
+两套方案的详细拓扑、平台适配和选择矩阵见 `DEPLOYMENT_OPTIONS.md`。在用户完成选择前，业务模块不得绑定 Windows 或 macOS；平台差异只允许存在于部署、Secret Store、进程托管、本地 AI Runtime 与诊断适配器。
 
 但内部保持清晰模块边界，以便未来平滑演化为：
 
@@ -72,9 +74,9 @@ Independent Worker
 3. React Vite Dev Server
 ```
 
-手机通过同一可信局域网访问 PC。开发与生产都必须支持可配置监听地址；默认不做公网暴露。所有非 localhost 的 REST/WebSocket 请求必须带有效访问 Token，Admin API 不允许匿名访问。
+PC 浏览器与手机通过同一可信局域网访问选中的后端节点。开发与生产都必须支持可配置监听地址；默认不做公网暴露。所有非 localhost 的 REST/WebSocket 请求必须带有效访问 Token，Admin API 不允许匿名访问。
 
-生产/桌面封装后：
+方案 A 的生产进程：
 
 ```text
 PersonalAI.exe / launcher
@@ -83,7 +85,17 @@ PersonalAI.exe / launcher
  └─ UI
 ```
 
-后续可使用 Tauri 封装，但桌面壳不属于 MVP 前置条件。
+方案 B 的生产进程：
+
+```text
+launchd
+ ├─ zhijian-backend
+ └─ zhijian-worker
+
+React production assets 由后端或同机静态服务提供
+```
+
+后续可使用 Tauri 封装 Windows 管理入口，但桌面壳不属于 MVP 前置条件；Mac mini 作为无显示器服务节点时不依赖桌面壳。
 
 ---
 
@@ -149,7 +161,7 @@ Job 最少包含：
 - started_at
 - finished_at
 
-若 PC 异常关闭：
+若选中的后端节点异常关闭：
 
 ```text
 RUNNING
@@ -279,20 +291,28 @@ class Processor:
 
 ---
 
-# 11. Windows + AMD 本地 AI
+# 11. 本地 AI 硬件方案
 
-当前硬件：
+## 11.1 方案 A：Windows + AMD
 
 - Ryzen 7 5800X
 - 32 GB RAM
 - RX 7900 XT 20 GB
 
-建议策略：
+## 11.2 方案 B：Mac mini + Apple Silicon
+
+- Apple M4，10 核 CPU
+- 16 GB 统一内存
+- Ollama Metal
+- whisper.cpp Metal，可选验证 Core ML encoder
+
+## 11.3 共同策略
 
 - 本地模型做分类、结构化抽取、偏好推断；
 - 外部模型只在失败/低置信/用户手动时增强；
 - GPU 重任务初始并发为 1；
-- ASR 与 LLM 不默认同时抢显存。
+- ASR 与 LLM 不默认同时争用 GPU/统一内存；
+- Windows 与 Mac 的模型尺寸、吞吐和并发必须分别实测，结果不得相互推算。
 
 ---
 
@@ -321,7 +341,7 @@ GPU semaphore = 1
 - ffmpeg 部分 CPU 工作；
 - 文件下载。
 
-后续根据实际显存与稳定性将并发调至 2。
+后续根据所选机器的显存或统一内存、吞吐与稳定性决定是否调至 2，Mac mini 16 GB 不预设可提升。
 
 ---
 
@@ -414,7 +434,7 @@ data/
 
 第一版：
 ```text
-手机 ↔ PC
+PC/Mobile Client ↔ Selected Backend Node（Windows PC 或 Mac mini）
 ```
 
 未来：

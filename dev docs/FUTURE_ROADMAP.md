@@ -262,7 +262,12 @@ VisualEvidence 与 TranscriptEvidence 并存。
 
 # 15. Travel Planning
 
-未来：
+MVP 已提供：
+- 独立地图空间总览；
+- Marker 地点预览；
+- 路线清单选点与手动排序。
+
+未来在真实 Route Provider 基础上增加：
 - Trip
 - itinerary
 - route
@@ -271,7 +276,7 @@ VisualEvidence 与 TranscriptEvidence 并存。
 - city clustering
 - multi-day plan
 
-当前 Place 用户状态已为未来 PLANNED 留口子。
+当前 Place 用户状态、RouteDraft 与顺序项已为未来 PLANNED/RoutePlan 留口子；未来计算结果必须记录 Provider、策略版本与坐标系，不由 LLM 编造距离或时长。
 
 ---
 

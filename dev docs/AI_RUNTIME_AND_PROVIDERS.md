@@ -84,11 +84,11 @@ Settings 支持：
 
 正式版本不把 Key 明文放 SQLite。
 
-Windows 优先：
-- DPAPI
-- Windows Credential Manager
+平台 Secret Store：
+- Windows PC：DPAPI / Windows Credential Manager；
+- Mac mini：macOS Keychain。
 
-SQLite 只存 key reference。
+SQLite 只存平台无关的 key reference，业务代码通过 `SecretStore` 接口访问，不判断操作系统。
 
 开发环境允许 `.env`，但不得提交 Git。
 
@@ -120,18 +120,25 @@ Router 决定 Provider + Model。
 
 # 7. 本地硬件策略
 
-WILLIAM-PC：
+方案 A，WILLIAM-PC：
 - 5800X
 - 32 GB
 - RX 7900 XT 20 GB
 
-可以本地承担：
+方案 B，Mac mini：
+- Apple M4，10 核 CPU
+- 16 GB 统一内存
+- arm64 / Metal
+
+两者都应验证本地承担：
 - 分类；
 - 结构化提取；
 - Recruitment DSL；
 - Travel Trait；
 - ASR；
 - 未来视觉理解。
+
+Windows PC 可优先验证更大的本地模型与未来视觉模型。Mac mini 从 7B/8B 量化档起步，16 GB 统一内存下不承诺与 RX 7900 XT 相同的模型容量、吞吐或并发；复杂任务允许按数据策略转外部 Provider。两套结果分别记录，不互相推算。
 
 ---
 
@@ -217,8 +224,10 @@ WhisperCppProvider
 - FasterWhisperProvider
 - CloudASRProvider
 
-原因：
-Windows + AMD 环境。
+运行时：
+- Windows PC：whisper.cpp Vulkan；
+- Mac mini：whisper.cpp Metal，可选验证 Core ML encoder；
+- FasterWhisper/CloudASR 仍只作为可替换 Provider，不改变 Transcript 与 Evidence 模型。
 
 ---
 
@@ -243,7 +252,7 @@ AUTO：
 
 CMS 可配置。
 
-避免 ASR + 大模型同时抢占显存导致稳定性问题。
+避免 ASR + 大模型同时争用显存或统一内存导致稳定性问题。Windows 与 Mac 分别通过 Phase 0A 确定可用模型和资源阈值。
 
 ---
 

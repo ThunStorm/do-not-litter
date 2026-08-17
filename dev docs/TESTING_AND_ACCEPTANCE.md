@@ -142,7 +142,11 @@ Fixture：
 - POI；
 - Dedup；
 - Preference；
-- Map ViewModel；
+- MapOverviewVM；
+- 同一区域多 Marker 分布与密集点聚合；
+- 依次点击 Marker 只切换地点预览，地图 viewport 不重置；
+- 从地点详情返回恢复 zoom、filters 与 selected Marker；
+- 路线清单按手动顺序保存 Place，且不生成未经 Route Provider 验证的距离/耗时；
 - Evidence timestamp。
 
 ---
@@ -181,16 +185,15 @@ Mock：
 
 ---
 
-# 12. PC Hardware Acceptance
+# 12. Target Node Hardware Acceptance
 
-安装诊断：
+共同安装诊断：
 
 - Python
 - SQLite
 - ffmpeg
 - Playwright browser
 - Ollama
-- AMD GPU detected
 - whisper.cpp
 - model availability
 - disk writable
@@ -199,7 +202,25 @@ Mock：
 - AMap API / map render
 - DeepSeek / Xiaomi MiMo connection
 
-CMS 显示诊断结果。
+方案 A 额外验收：
+
+- Windows Credential Manager / DPAPI；
+- AMD GPU detected；
+- Ollama AMD 结构化输出；
+- whisper.cpp Vulkan；
+- Windows 重启、休眠/唤醒与服务恢复。
+
+方案 B 额外验收：
+
+- macOS Keychain；
+- Apple Metal detected；
+- Ollama Metal 结构化输出与统一内存峰值；
+- whisper.cpp Metal，Core ML encoder 如启用则单独记录；
+- arm64 OCR、Playwright、ffmpeg 与 legacy `.xls` 依赖；
+- `launchd` 在崩溃、退出登录和 Mac mini 重启后的服务恢复；
+- mDNS 不可用时通过固定 IP/DHCP 保留地址访问。
+
+CMS 显示当前后端类型、硬件、运行时和诊断结果。两套平台的性能结果必须分别记录。
 
 ---
 
@@ -216,13 +237,14 @@ CMS 显示诊断结果。
 7. 用户可粘贴 Bilibili 链接；
 8. 能得到字幕或 ASR；
 9. 能提取并确认地点；
-10. 地点可出现在地图 ViewModel；
+10. 多个地点可同时出现在独立地图总览，点击 Marker 可切换预览并进入详情；
 11. 可 SAVE / DISMISS / VISITED；
-12. PC 重启任务可恢复；
+12. 选中的后端节点重启后任务可恢复；
 13. 外部模型 API Key 可配置且可测试；
 14. 所有核心长任务可从 CMS 重试。
 15. 手机可在同一局域网安全访问，未授权请求无法读取业务或管理数据；
 16. DOCX、扫描 PDF 与图片公告可归一化并保留 Evidence 定位；
 17. 高德 POI/地图可用，GCJ-02 在存储与导出中明确标注；
 18. DeepSeek、Xiaomi MiMo 可通过兼容 Provider 配置和测试；
-19. `GOLDEN_SAMPLES.md` 的安全与正确性门槛全部通过。
+19. 地点可加入路线清单并手动排序，系统不伪造自动最优路线、距离或交通耗时；
+20. `GOLDEN_SAMPLES.md` 的安全与正确性门槛全部通过。

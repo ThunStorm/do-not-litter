@@ -146,6 +146,42 @@ PlaceMention
 
 MVP 实现 `AMapPOIProvider`：使用高德 Web 服务进行候选搜索，优先传城市/adcode 与 `citylimit` 收敛歧义；保存 Provider、POI ID、原始候选响应哈希与 `GCJ02` 坐标系。前端使用高德地图 JS API 2.0。
 
+## 7.1 地图是空间总览，不是地点附件
+
+旅行信息架构固定为：
+
+```text
+内容 > 旅行 > 地图总览
+             ├─ Marker A → 地点预览 A → 地点详情 A
+             ├─ Marker B → 地点预览 B → 地点详情 B
+             └─ 路线清单 → 手动排序 → 后续路线规划
+```
+
+地图总览是独立主页面，默认展示当前区域内全部符合筛选条件的 `CONFIRMED Place` 分布。地点详情是从 Marker 预览进入的下一级页面；不得先进入某个地点详情，再把地图作为该地点的附属卡片。
+
+地图总览必须支持：
+
+- 按城市、行政区、地点类型与用户状态筛选；
+- 根据当前 viewport/bbox 返回 Marker，并在密集区域聚合；
+- 一键适配全部当前结果；
+- 点击 Marker 只更新 `selected_place_id` 和底部地点预览，不重建或离开地图；
+- 预览卡显示当前序号、名称、地址、关键观察、Evidence 摘要及“查看详情”；
+- 从详情返回后恢复原 viewport、zoom、筛选与 selected Marker；
+- 上一处/下一处按当前可见 Marker 的稳定顺序切换，不改变地图父级关系；
+- 无选中 Marker 时仍完整展示区域分布，不能强制打开某个地点详情。
+
+Marker 只表示现实 `Place`，不能直接用 `PlaceMention` 或 LLM 生成坐标。`REVIEW/UNRESOLVED` 不默认进入主地图，可通过“待确认地点”入口单独处理。
+
+## 7.2 路线清单边界
+
+第一版地图提供“加入路线清单”和手动排序，用于保存用户希望串联的地点。它不是自动路线优化：
+
+- 清单存 `Place ID + 手动顺序`；
+- 不在没有地图路线服务结果时生成距离、交通时长或最优顺序；
+- 清单中的 Marker 可使用顺序编号，但普通总览 Marker 不强制编号；
+- 真正的驾车/步行/公共交通路线计算、日期行程与导航跳转留给后续 Trip Planner；
+- 后续接入路线 Provider 时复用清单，不改变 Place、Observation 与 Evidence。
+
 ---
 
 # 8. 禁止 LLM 生成地图坐标
@@ -382,6 +418,18 @@ TravelDashboardVM：
 - recent_discoveries
 - recommended_places
 - pending_reviews
+
+MapOverviewVM：
+
+- viewport / coordinate_system
+- total_places / visible_places
+- markers / clusters
+- selected_place_id
+- selected_preview
+- filters
+- route_draft_count
+
+地图总览不依赖某个地点详情才能构造。`selected_preview` 只是当前 Marker 的轻量投影视图，完整 Observation、Evidence 与来源仍由 Place Detail ViewModel 提供。
 
 ---
 

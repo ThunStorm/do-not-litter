@@ -529,6 +529,31 @@ observed_at
 - ranking
 - recommended_season
 
+## route_drafts
+
+```text
+id
+name
+city
+status
+created_at
+updated_at
+```
+
+第一版 `status` 只需支持 `DRAFT / ARCHIVED`。路线清单是用户选点结果，不等于已计算路线。
+
+## route_draft_items
+
+```text
+id
+route_draft_id
+place_id
+sort_order
+added_at
+```
+
+对 `(route_draft_id, place_id)` 建唯一约束，对 `(route_draft_id, sort_order)` 建索引。第一版不存 LLM 推测的距离、交通时长或最优顺序；未来真实 Route Provider 结果使用独立的版本化 RoutePlan/RouteLeg 模型。
+
 ---
 
 # 11. Preference
@@ -648,7 +673,7 @@ finished_at
 
 ## settings / secret references
 
-非敏感设置可存 SQLite；API Key、LAN Token 与其他 Secret 只保存 Windows Credential Manager/DPAPI 引用。数据库字段包含 `setting_key/value_json/updated_at` 与 `secret_key/secret_ref/updated_at`，不得存 Secret 明文。
+非敏感设置可存 SQLite；API Key、LAN Token 与其他 Secret 只保存平台 Secret Store 引用：Windows PC 使用 Windows Credential Manager/DPAPI，Mac mini 使用 macOS Keychain。数据库字段包含 `setting_key/value_json/updated_at` 与 `secret_key/secret_ref/updated_at`，不得存 Secret 明文。
 
 ---
 

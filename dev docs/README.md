@@ -1,10 +1,10 @@
 # AI Personal Inbox / Personal Scout
 ## 项目文档索引
 
-> 文档版本：v0.2
-> 冻结日期：2026-08-13
+> 文档版本：v0.3
+> 更新日期：2026-08-18
 > 当前阶段：需求与架构基线已完成，可进入 Phase 0A 技术验证与工程实施
-> 第一阶段部署形态：Windows 11 本地优先，PC 作为完整后端与 AI Worker，手机通过可信局域网访问
+> 第一阶段部署形态：保留 Windows 11 PC 与 Mac mini 两套本地优先单节点方案，实施前由用户选择其一作为后端与 AI Worker；手机通过可信局域网访问
 > 第一阶段业务范围：北京市公务员/事业单位招聘 + 中国范围 Travel/Food
 
 ---
@@ -85,6 +85,7 @@
 
 | 文档 | 用途 |
 |---|---|
+| [DEPLOYMENT_OPTIONS.md](./DEPLOYMENT_OPTIONS.md) | Windows PC / Mac mini 双部署方案、选择矩阵与决策门 |
 | [PRODUCT_REQUIREMENTS.md](./PRODUCT_REQUIREMENTS.md) | 产品需求、用户场景、功能边界、MVP |
 | [SYSTEM_ARCHITECTURE.md](./SYSTEM_ARCHITECTURE.md) | 总体架构、模块边界、运行方式 |
 | [DATA_MODEL.md](./DATA_MODEL.md) | 领域对象、数据库表、Claim/Evidence 数据模型 |
@@ -104,9 +105,9 @@
 
 ---
 
-## 4. 当前硬件基线
+## 4. 当前硬件基线与待选部署
 
-开发/运行主机：
+### 方案 A：Windows PC 后端
 
 - 设备名：`WILLIAM-PC`
 - OS：Windows 11 x64
@@ -127,6 +128,18 @@
 - 独立 Worker；
 - Web Control Center；
 - 本地文件存储。
+
+### 方案 B：Mac mini 后端
+
+- 设备：Mac mini（`Mac16,10`）
+- OS：macOS 26.6.1（实施时允许升级）
+- 芯片：Apple M4，10 核 CPU
+- RAM：16 GB 统一内存
+- 架构：arm64
+
+这台机器可独立承担同一套 FastAPI、SQLite、Playwright、文档/OCR、Worker、Web Control Center 与本地文件存储；本地 AI 改用 Ollama Metal 与 whisper.cpp Metal，Secret 改存 macOS Keychain，服务由 `launchd` 常驻托管。完整差异与选择条件见 `DEPLOYMENT_OPTIONS.md`。
+
+两套方案互斥选择，不在 MVP 中让 Windows PC 与 Mac mini 共享同一个 SQLite 文件，也不同时维护两套生产安装包。
 
 ---
 
@@ -236,5 +249,5 @@ V1.x
 6. **不得因为未来可能需要而提前实现大平台。**
 7. **允许定义扩展接口，但不提前实现不属于 MVP 的能力。**
 8. **Pipeline 必须可重放、可重跑、可审计。**
-9. **长任务必须持久化，PC 重启后可恢复。**
+9. **长任务必须持久化，所选后端节点重启后可恢复。**
 10. **原始证据优先，AI 解释次之。**

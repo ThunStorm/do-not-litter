@@ -4,7 +4,7 @@
 
 Local First。
 
-第一版业务数据默认只在用户 PC。
+第一版业务数据默认只在用户选定的本地后端节点（Windows PC 或 Mac mini）。
 
 ---
 
@@ -33,7 +33,8 @@ Local First。
 # 3. API Key
 
 正式版本：
-- Windows Credential Manager / DPAPI；
+- Windows PC 使用 Windows Credential Manager / DPAPI；
+- Mac mini 使用 macOS Keychain；
 - 数据库只保存引用。
 
 开发 `.env`：
@@ -79,7 +80,7 @@ Local First 默认尽可能本地处理。
 MVP 明确支持手机局域网访问：
 
 - 首次安装默认生成高熵访问 Token；
-- PC Control Center 显示 LAN 地址并允许复制/轮换 Token；
+- Control Center 显示当前后端节点、LAN 地址并允许复制/轮换 Token；
 - 手机首次访问输入 Token，通过 `POST /api/auth/session` 换取短期 HttpOnly、SameSite Session Cookie；
 - 浏览器不把长期 Token 保存到 localStorage，REST 与 WebSocket 统一验证 Session；
 - localhost 之外的请求缺少/无效 Token 一律拒绝；
@@ -90,6 +91,8 @@ MVP 明确支持手机局域网访问：
 - Token 不写入 URL、普通日志或导出文件。
 
 LAN 传输只允许用户明确配置的可信家庭/办公网络。Phase 0A 必须比较本地 HTTPS 与可信 LAN HTTP 的安装/配对体验；若 MVP 不能可靠部署 HTTPS，UI 必须明确提示不得在公共 Wi-Fi、访客网络或不可信热点中启用 LAN，并将 HTTPS 列为发布前风险项。
+
+Mac mini 作为无显示器常驻节点时，不能只依赖 `.local` 主机名发现；必须同时显示当前 IP，并建议在路由器配置 DHCP 保留地址。Windows PC 与 Mac mini 都必须关闭自动公网暴露，平台防火墙只放行已选 LAN Profile/接口与应用端口。
 
 ---
 

@@ -146,7 +146,41 @@ Filters：
 
 ## GET /api/travel/map
 
-只返回 Confirmed Place ViewModel。
+返回独立 `MapOverviewVM`，只包含 Confirmed Place。请求参数：
+
+- `bbox`：当前地图可视区域；
+- `zoom`：缩放级别；
+- `city` / `district`；
+- `place_type`；
+- `user_state`；
+- `selected_place_id`（可选，用于恢复页面状态）。
+
+响应包含：
+
+```json
+{
+  "coordinate_system": "GCJ02",
+  "total_places": 12,
+  "visible_places": 8,
+  "markers": [],
+  "clusters": [],
+  "selected_place_id": "place_03",
+  "selected_preview": {},
+  "route_draft_count": 2
+}
+```
+
+Marker 只返回地图绘制和轻量预览所需字段，不携带完整 Observation/Evidence。点击 Marker 更新前端 `selected_place_id` 并切换预览卡；只有点击“查看详情”才进入 Place Detail API。地图 viewport、zoom、filters 与 selected Marker 应保存在页面路由状态中，从详情返回时恢复。
+
+## GET /api/travel/places/{id}/preview
+
+返回 Marker 底部预览卡所需的名称、地址、地点类型、关键 Observation、Evidence 摘要和用户状态，不返回完整详情。
+
+## GET /api/travel/route-drafts
+## POST /api/travel/route-drafts
+## PUT /api/travel/route-drafts/{id}/items
+
+路线清单只保存 `place_id` 与 `sort_order`。第一版不返回自动路线几何、最优顺序、距离或交通耗时；这些字段只能来自未来路线 Provider。
 
 ## POST /api/travel/places/{id}/save
 ## POST /api/travel/places/{id}/dismiss
@@ -252,7 +286,7 @@ API 返回给产品前端的是 ViewModel，而不是 ORM Row。
 - localhost 与 LAN UI 使用同一 API；
 - 手机首次配对通过 `POST /api/auth/session` 在请求体提交访问 Token，服务端换发短期 HttpOnly、SameSite Session Cookie；
 - 后续 REST 与 WebSocket 握手统一验证 Session Cookie；脚本型客户端可使用 `Authorization: Bearer <access-token>`；
-- Token 由本机生成、存入 Windows Credential Manager/DPAPI，并支持轮换；
+- Token 由本机生成并支持轮换；Windows PC 存入 Windows Credential Manager/DPAPI，Mac mini 存入 macOS Keychain；
 - CORS 使用明确 Origin allowlist；
 - 长期 Token 不放在查询字符串、localStorage 或普通日志中；
 - 未授权请求统一返回稳定错误码 `AUTH_REQUIRED` / `AUTH_INVALID`。

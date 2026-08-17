@@ -2,8 +2,9 @@
 ## Codex / Agent 可执行实施计划
 
 > 项目：AI Personal Inbox / Personal Scout  
-> 目标平台：Windows 11  
-> 当前硬件：Ryzen 7 5800X / 32GB / RX 7900 XT 20GB  
+> 目标平台：二选一——Windows 11 PC 或 Mac mini（实施前设置 `DEPLOYMENT_TARGET`）
+> 候选硬件 A：Ryzen 7 5800X / 32GB / RX 7900 XT 20GB
+> 候选硬件 B：Apple M4 10-core / 16GB unified memory / arm64
 > 当前范围：Recruitment + Travel/Food  
 > 架构：FastAPI + React/TS/Vite + SQLite + Worker + Playwright + Ollama/External LLM + whisper.cpp  
 > 原则：产品做窄，内核留宽
@@ -29,11 +30,11 @@ Agent 在实现过程中必须：
 
 ---
 
-# Phase 0A — Target PC Feasibility Spikes（在 Phase 0 最小 Bootstrap 后执行）
+# Phase 0A — Target Node Feasibility Spikes（在 Phase 0 最小 Bootstrap 后执行）
 
 ## Goal
 
-在搭建完整业务代码前，用目标 Windows 11 / RX 7900 XT 主机消除高风险外部依赖的不确定性。
+在搭建完整业务代码前，先从 `windows_pc` 与 `mac_mini` 中选择一个 `DEPLOYMENT_TARGET`，并在该目标节点消除高风险外部依赖的不确定性。若用户需要比较两套方案，则分别运行同一套 Fixture 与记录模板，但不同时开发两套生产安装包。
 
 ## Spikes
 
@@ -41,8 +42,8 @@ Agent 在实现过程中必须：
 - 微信持久 Playwright Profile 与 `NEEDS_USER`；
 - HTML/PDF/扫描 PDF/DOCX/XLS/XLSX/PNG/JPEG 文档矩阵；
 - 中文 OCR 定位与置信度；
-- Ollama AMD 结构化输出；
-- whisper.cpp Vulkan 时间码 ASR；
+- Windows：Ollama AMD 结构化输出、whisper.cpp Vulkan 时间码 ASR、Credential Manager/DPAPI、服务恢复；
+- Mac mini：Ollama Metal 结构化输出、whisper.cpp Metal 时间码 ASR、Keychain、arm64 依赖和 `launchd` 服务恢复；
 - DeepSeek / Xiaomi MiMo OpenAI-compatible 连接；
 - 高德 POI Web 服务 / JS API 2.0 / GCJ-02；
 - SQLite WAL 多进程、原子 Lease 与幂等恢复。
@@ -116,7 +117,7 @@ LAN 安全基线：
 - frontend 启动；
 - health 正常；
 - 手机在同一局域网携带 Token 可访问，未授权请求被拒绝；
-- Windows README 命令可用。
+- 所选平台 README 安装与启动命令可用。
 
 ---
 
@@ -210,7 +211,7 @@ WebSocket progress。
 - recovery
 
 ## Acceptance
-PC/Worker 异常停止后任务可恢复。
+后端节点/Worker 异常停止后任务可恢复。
 
 ---
 
@@ -522,14 +523,14 @@ Semantic similarity 永远不会自动 PASS。
 # Phase 14 — ASR Runtime
 
 ## Goal
-实现 Windows AMD 本地视频转录。
+实现所选后端节点的本地视频转录。
 
 ## Tasks
 - ffmpeg detection
 - whisper.cpp provider
 - model management
 - timestamp transcript
-- GPU diagnostic
+- 加速器诊断：Windows Vulkan / Mac Metal
 - ASR mode
 - cache cleanup
 
@@ -612,11 +613,16 @@ GeoJSON 明确携带坐标系，不把 GCJ-02 静默声明为 WGS84。
 - VisitEvent
 - days_since_last_trip
 - TravelDashboardVM
-- map view
+- MapOverviewVM：viewport、markers、clusters、filters、selected preview
+- 独立地图总览页；Marker 点击切换底部预览，详情为下一级页面
+- 地图路由状态恢复：viewport / zoom / filters / selected_place_id
+- route_drafts / route_draft_items
+- 路线清单选点与手动排序
 - list view
 
 ## Acceptance
 SAVE/DISMISS/VISITED 会影响后续推荐解释。
+同一区域多个 Confirmed Place 可在地图总览中同时显示；依次点击 Marker 只切换地点预览，不离开地图；进入详情再返回后保留原地图状态。路线清单不伪造最优顺序、距离或交通时间。
 
 ---
 
@@ -727,7 +733,7 @@ Tauri 或其他薄壳：
 - Export。
 
 ### Platform
-- PC only；
+- selected local node only（Windows PC 或 Mac mini）；
 - Job recovery；
 - Control Center；
 - Ollama；

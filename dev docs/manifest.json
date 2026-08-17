@@ -1,7 +1,7 @@
 {
   "project": "AI Personal Inbox / Personal Scout",
-  "version": "0.2",
-  "frozen_date": "2026-08-13",
+  "version": "0.3",
+  "updated_date": "2026-08-18",
   "mvp_processors": [
     "Recruitment",
     "TravelFood"
@@ -11,24 +11,43 @@
     "ConfigurableProcessor",
     "OtherDedicatedProcessors"
   ],
-  "deployment": "Windows 11 local-first PC node with trusted-LAN mobile browser access",
+  "deployment_decision": "pending user selection before Phase 0A",
+  "deployment_options": [
+    {
+      "id": "windows_pc",
+      "role": "single local backend and AI worker",
+      "os": "Windows 11 x64",
+      "cpu": "AMD Ryzen 7 5800X",
+      "ram_gb": 32,
+      "accelerator": "AMD Radeon RX 7900 XT",
+      "accelerator_memory_gb": 20,
+      "local_ai": ["Ollama AMD", "whisper.cpp Vulkan"],
+      "secret_store": "Windows Credential Manager / DPAPI"
+    },
+    {
+      "id": "mac_mini",
+      "role": "single local backend and AI worker",
+      "os": "macOS arm64",
+      "model_identifier": "Mac16,10",
+      "chip": "Apple M4 10-core CPU",
+      "unified_memory_gb": 16,
+      "local_ai": ["Ollama Metal", "whisper.cpp Metal"],
+      "secret_store": "macOS Keychain",
+      "service_manager": "launchd"
+    }
+  ],
   "recruitment_scope": "Beijing civil service and public institution recruitment",
   "travel_scope": "China",
   "map_provider": "AMap",
   "document_inputs": ["HTML", "PDF", "scanned PDF", "DOCX", "XLS", "XLSX", "PNG", "JPEG"],
   "external_llm_targets": ["DeepSeek", "Xiaomi MiMo", "custom OpenAI-compatible"],
-  "hardware": {
-    "cpu": "AMD Ryzen 7 5800X",
-    "ram_gb": 32,
-    "gpu": "AMD Radeon RX 7900 XT",
-    "vram_gb": 20
-  },
   "documents": [
     "AI_RUNTIME_AND_PROVIDERS.md",
     "API_DESIGN.md",
     "ARCHITECTURE_DECISIONS.md",
     "CONTROL_CENTER.md",
     "DATA_MODEL.md",
+    "DEPLOYMENT_OPTIONS.md",
     "FUTURE_ROADMAP.md",
     "GOLDEN_SAMPLES.md",
     "PRODUCT_REQUIREMENTS.md",

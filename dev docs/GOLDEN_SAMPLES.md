@@ -80,17 +80,19 @@
 
 # 4. Phase 0A 技术 Spike
 
-正式业务实施前必须在目标 Windows 11 主机完成：
+正式业务实施前必须在用户选中的目标节点完成；若要比较两套方案，则在 Windows PC 与 Mac mini 上分别执行并保存结果：
 
 1. `LAN_ACCESS`：手机通过同一局域网访问前后端，验证 Token-to-Session、CORS、WebSocket 重连、Admin API 保护，并比较本地 HTTPS 与可信 LAN HTTP 的可部署性。
 2. `WECHAT_RESOLVER`：R-001/R-002 至少一个可通过持久浏览器 Profile 获取正文并发现下钻链接；失败时能进入 `NEEDS_USER`。
 3. `DOCUMENT_MATRIX`：验证 HTML、PDF、扫描 PDF、DOCX、XLS/XLSX、PNG/JPEG 的文本与定位信息。
 4. `OCR`：中文 OCR 输出页码/边界框/置信度，低置信内容进入 Review，不直接生成高风险事实。
-5. `LOCAL_LLM`：RX 7900 XT 上 Ollama 结构化输出、显存占用、吞吐与 JSON Schema 成功率。
-6. `ASR`：whisper.cpp Vulkan 在 RX 7900 XT 上输出中文时间码 Transcript。
+5. `LOCAL_LLM`：Windows 记录 RX 7900 XT/Ollama 的显存占用与吞吐；Mac mini 记录 M4/Ollama Metal 的统一内存峰值与吞吐；两者都记录 JSON Schema 成功率。
+6. `ASR`：Windows 验证 whisper.cpp Vulkan；Mac mini 验证 whisper.cpp Metal，并在启用时单独验证 Core ML encoder；两者都输出中文时间码 Transcript。
 7. `EXTERNAL_LLM`：DeepSeek 与 Xiaomi MiMo 至少各完成一次 OpenAI-compatible 连接测试、结构化输出测试与审计记录测试。
 8. `AMAP`：高德 Web 服务 POI 搜索、JS API 2.0 地图渲染、GCJ-02 坐标与配额错误路径。
 9. `SQLITE_MULTI_PROCESS`：FastAPI + Worker 下 WAL、原子 Job Lease、崩溃恢复与幂等写入。
+10. `SERVICE_SUPERVISION`：Windows 验证 launcher/服务或计划任务，Mac mini 验证 `launchd`；崩溃和重启后 API、Worker 与未完成 Job 均可恢复。
+11. `PLATFORM_SECRET_STORE`：Windows 验证 Credential Manager/DPAPI，Mac mini 验证 Keychain；SQLite、日志和导出均不得出现 Secret 明文。
 
 每项记录：环境版本、命令、输入、结果、耗时、资源占用、失败原因、是否阻塞后续 Phase。
 

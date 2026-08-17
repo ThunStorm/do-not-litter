@@ -11,10 +11,10 @@
 # AI Personal Inbox / Personal Scout
 ## 项目文档索引
 
-> 文档版本：v0.2
-> 冻结日期：2026-08-13
+> 文档版本：v0.3
+> 更新日期：2026-08-18
 > 当前阶段：需求与架构基线已完成，可进入 Phase 0A 技术验证与工程实施
-> 第一阶段部署形态：Windows 11 本地优先，PC 作为完整后端与 AI Worker，手机通过可信局域网访问
+> 第一阶段部署形态：保留 Windows 11 PC 与 Mac mini 两套本地优先单节点方案，实施前由用户选择其一作为后端与 AI Worker；手机通过可信局域网访问
 > 第一阶段业务范围：北京市公务员/事业单位招聘 + 中国范围 Travel/Food
 
 ---
@@ -95,6 +95,7 @@
 
 | 文档 | 用途 |
 |---|---|
+| [DEPLOYMENT_OPTIONS.md](./DEPLOYMENT_OPTIONS.md) | Windows PC / Mac mini 双部署方案、选择矩阵与决策门 |
 | [PRODUCT_REQUIREMENTS.md](./PRODUCT_REQUIREMENTS.md) | 产品需求、用户场景、功能边界、MVP |
 | [SYSTEM_ARCHITECTURE.md](./SYSTEM_ARCHITECTURE.md) | 总体架构、模块边界、运行方式 |
 | [DATA_MODEL.md](./DATA_MODEL.md) | 领域对象、数据库表、Claim/Evidence 数据模型 |
@@ -114,9 +115,9 @@
 
 ---
 
-## 4. 当前硬件基线
+## 4. 当前硬件基线与待选部署
 
-开发/运行主机：
+### 方案 A：Windows PC 后端
 
 - 设备名：`WILLIAM-PC`
 - OS：Windows 11 x64
@@ -137,6 +138,18 @@
 - 独立 Worker；
 - Web Control Center；
 - 本地文件存储。
+
+### 方案 B：Mac mini 后端
+
+- 设备：Mac mini（`Mac16,10`）
+- OS：macOS 26.6.1（实施时允许升级）
+- 芯片：Apple M4，10 核 CPU
+- RAM：16 GB 统一内存
+- 架构：arm64
+
+这台机器可独立承担同一套 FastAPI、SQLite、Playwright、文档/OCR、Worker、Web Control Center 与本地文件存储；本地 AI 改用 Ollama Metal 与 whisper.cpp Metal，Secret 改存 macOS Keychain，服务由 `launchd` 常驻托管。完整差异与选择条件见 `DEPLOYMENT_OPTIONS.md`。
+
+两套方案互斥选择，不在 MVP 中让 Windows PC 与 Mac mini 共享同一个 SQLite 文件，也不同时维护两套生产安装包。
 
 ---
 
@@ -246,8 +259,196 @@ V1.x
 6. **不得因为未来可能需要而提前实现大平台。**
 7. **允许定义扩展接口，但不提前实现不属于 MVP 的能力。**
 8. **Pipeline 必须可重放、可重跑、可审计。**
-9. **长任务必须持久化，PC 重启后可恢复。**
+9. **长任务必须持久化，所选后端节点重启后可恢复。**
 10. **原始证据优先，AI 解释次之。**
+
+
+---
+
+# FILE: DEPLOYMENT_OPTIONS.md
+
+# Deployment Options
+
+## 1. 决策状态
+
+第一版保留两套互斥、均可实施的单节点部署方案，最终实施前由用户选择：
+
+- **方案 A：Windows 11 PC 后端**；
+- **方案 B：Mac mini 后端**。
+
+两套方案共享同一套 React、FastAPI、SQLite、Job、Processor、Evidence 与 Provider 代码，不允许为了某台机器复制业务实现。`DEPLOYMENT_TARGET` 只决定安装脚本、进程托管、Secret Store、本地 AI 加速器和硬件诊断。进入 Phase 0A 前必须选择一个主目标完成验证；未选择前不得把平台特有实现写死进业务层。
+
+---
+
+## 2. 共同架构
+
+```text
+PC Browser ─┐
+            ├─ trusted LAN + session ─→ Selected Backend Node
+Mobile Web ─┘                              ├─ React production assets
+                                          ├─ FastAPI / WebSocket
+                                          ├─ SQLite + local files
+                                          ├─ independent Worker
+                                          ├─ Playwright / document / OCR
+                                          └─ local AI + optional external Provider
+```
+
+共同约束：
+
+- 选中的后端节点是第一版唯一业务数据库、永久文件和 Job Lease 所有者；
+- PC 浏览器和手机都是客户端，不在客户端保存完整业务数据库；
+- 默认只监听 localhost；启用手机访问时才监听明确的 LAN 地址，并执行 Token-to-Session、Origin 限制与 Admin API 认证；
+- 不做 UPnP、端口映射或直接公网暴露；
+- URL、DOCX、PDF、XLS/XLSX、PNG/JPEG、OCR、视频、Evidence 与 Processor 行为在两套方案中保持一致；
+- DeepSeek、Xiaomi MiMo 与自定义 OpenAI-compatible Provider 均可配置；
+- 两台机器之间不共享同一个 SQLite 文件，也不在第一版拆分 API 主机和 Worker。未来混合 Worker 属于 Multi Worker 路线，不属于本次二选一。
+
+---
+
+## 3. 方案 A：Windows 11 PC 后端
+
+### 3.1 硬件基线
+
+- 设备：`WILLIAM-PC`；
+- CPU：AMD Ryzen 7 5800X，8C/16T；
+- RAM：32 GB；
+- GPU：AMD Radeon RX 7900 XT，20 GB VRAM；
+- OS：Windows 11 x64。
+
+### 3.2 运行方式
+
+```text
+Windows PC
+├─ backend service / launcher
+├─ worker process
+├─ React static assets
+├─ SQLite + permanent files
+├─ Ollama on AMD GPU
+├─ whisper.cpp Vulkan
+└─ Windows Credential Manager / DPAPI
+```
+
+开发期可分别启动 Vite、FastAPI 与 Worker；生产期使用项目 launcher 或 Windows 服务/计划任务托管后端与 Worker。浏览器是管理界面，不要求桌面壳才能运行。
+
+### 3.3 优势
+
+- 20 GB 独立显存更适合较大的本地模型、长上下文与未来视觉任务；
+- 32 GB 系统内存对 Playwright、OCR、文档解析与本地 AI 并行更宽裕；
+- 已有 Windows + AMD、Ollama、whisper.cpp Vulkan 的原方案与验证清单。
+
+### 3.4 代价与风险
+
+- AMD 本地 AI 在 Windows 上的具体模型兼容性和稳定性必须实测；
+- 若 PC 不是长期在线设备，手机随时投递和后台持续处理会受开关机影响；
+- 功耗、噪声和作为常驻服务的维护成本通常高于 Mac mini；
+- Windows 更新、休眠和显卡驱动可能中断长任务，必须验证自动恢复。
+
+---
+
+## 4. 方案 B：Mac mini 后端
+
+### 4.1 当前设备基线
+
+截至 2026-08-18 当前设备为：
+
+- 设备：Mac mini；
+- 型号标识：`Mac16,10`；
+- 芯片：Apple M4，10 核 CPU（4 性能核 + 6 能效核）；
+- 统一内存：16 GB；
+- 架构：arm64；
+- 当前系统：macOS 26.6.1。
+
+系统版本允许升级，不作为代码硬依赖；Apple Silicon arm64 是必须验证的目标架构。
+
+### 4.2 运行方式
+
+```text
+Mac mini
+├─ launchd: backend service
+├─ launchd: worker process
+├─ React static assets
+├─ SQLite + permanent files on APFS
+├─ Ollama using Metal
+├─ whisper.cpp using Metal（可选 Core ML encoder）
+└─ macOS Keychain
+```
+
+生产期优先使用原生 arm64 Python/Node 与 `launchd` 托管，不把依赖 Metal 的本地 AI 主路径放进 Docker。Docker 只可用于不依赖本机 GPU/Metal 的辅助开发或 CI。关闭自动睡眠并启用断电恢复后，Mac mini 可作为无显示器常驻 LAN 节点；管理端通过浏览器访问。
+
+### 4.3 本地 AI 策略
+
+- Ollama 使用 Apple Metal；本地模型从 7B/8B 量化档起做结构化输出 Spike；
+- 16 GB 是 CPU、GPU 与模型共享的统一内存，不能按 16 GB 独立显存理解；
+- GPU 重任务并发初始为 1，ASR、LLM、Vision 不并行抢统一内存；
+- whisper.cpp 使用 Metal，Core ML encoder 仅在可复现安装和结果一致时启用；
+- OCR、Playwright 和文档解析必须验证 arm64 原生依赖；安装困难的 OCR 实现通过 `OCRProvider` 替换，不能渗入业务 Pipeline；
+- 复杂长上下文、较大视觉模型或本地失败任务可按用户策略转 DeepSeek、MiMo 等外部 Provider；敏感字段外发规则不变。
+
+### 4.4 存储与常驻运维
+
+- SQLite、Source、Snapshot、Evidence 和浏览器 Profile 位于 Mac mini 本机 APFS 数据目录；
+- API Key 与 LAN Token 存入 macOS Keychain，SQLite 只保存 Secret 引用；
+- 可使用 Time Machine 或加密外置盘备份永久数据目录，但默认排除临时视频、模型缓存和浏览器 Profile；
+- LAN 地址可显示主机名和 IP，客户端发现不能只依赖 mDNS；`zhijian.local` 不可用时必须提供固定 IP/路由器 DHCP 保留地址；
+- `launchd` 必须在进程崩溃、用户退出登录或机器重启后恢复服务；Job 本身仍通过数据库 Lease 恢复。
+
+### 4.5 优势
+
+- 更适合低功耗、低噪声、长期开机的家庭/办公 LAN 服务节点；
+- Apple Silicon 的 Metal 与统一内存路径相对集中，部署形态比桌面 PC 常驻更简单；
+- PC 与手机都退化为浏览器客户端，后端状态不依赖 Windows PC 是否开机。
+
+### 4.6 代价与风险
+
+- 16 GB 统一内存限制可同时运行的模型大小与任务并发；
+- 大模型、长视频 ASR、Vision 与 Playwright 并行时更容易出现内存压力；
+- 部分 OCR、旧 `.xls` 或浏览器依赖需要单独验证 arm64 wheel/二进制；
+- Mac mini 的本地 AI 吞吐不得从 Windows/AMD 结果推算，必须独立测量。
+
+---
+
+## 5. 选择矩阵
+
+| 维度 | 方案 A：Windows PC | 方案 B：Mac mini |
+| --- | --- | --- |
+| 常驻服务 | 取决于 PC 开机、休眠与更新策略 | 更适合 7×24 低功耗常驻 |
+| 本地模型容量 | 20 GB 独立显存，空间更大 | 16 GB 统一内存，需更保守 |
+| 本地 AI 并发 | 初始仍为 1，实测后可调整 | 固定从 1 起步，优先串行 |
+| ASR | whisper.cpp Vulkan | whisper.cpp Metal，可 Spike Core ML |
+| Secret Store | Credential Manager / DPAPI | macOS Keychain |
+| 服务托管 | launcher / Windows 服务 / 计划任务 | launchd |
+| 本地 AI 兼容风险 | AMD Windows 运行时与驱动 | arm64 依赖与统一内存上限 |
+| 手机可用性 | PC 在线时可用 | Mac mini 常驻时更稳定 |
+| 功耗与噪声 | 通常更高 | 通常更低 |
+| 适合优先级 | 更强本地 AI、未来视觉模型 | 稳定常驻、随时投递、外部模型可补强 |
+
+选择建议不是最终决定：若“尽量本地跑更大模型”优先，先验证方案 A；若“手机随时可用、长期安静运行”优先，先验证方案 B。最终结论必须以两台目标机器各自的 Phase 0A 数据为依据。
+
+---
+
+## 6. 分别实施时的决策门
+
+实施前设置且只设置一个目标：
+
+```text
+DEPLOYMENT_TARGET=windows_pc
+```
+
+或：
+
+```text
+DEPLOYMENT_TARGET=mac_mini
+```
+
+选择后：
+
+1. 执行对应平台的 Phase 0A；
+2. 把 LAN、OCR、本地 LLM、ASR、SQLite 恢复、常驻服务与功耗结果写入 `GOLDEN_SAMPLES.md`；
+3. 所有关键项得到 `PASS / DEGRADED / BLOCKED`；
+4. 若出现 `BLOCKED`，先选择 Provider 替代或调整范围，再进入依赖该能力的 Phase；
+5. 未选择的方案保留文档与适配接口，但不要求同步交付安装包。
+
+不允许在同一次 MVP 实施中同时维护两套生产安装包，以免部署工作吞噬业务验证时间。
 
 
 ---
@@ -598,6 +799,17 @@ Eligibility：
 3. 哪些地点最符合我的偏好？
 4. 地图上都在哪里？
 
+旅行地图是独立的空间总览入口，不是某个地点详情的附属模块。用户先查看某个城市或区域内所有已确认地点的分布，再依次点击 Marker 切换地点预览，必要时进入完整详情；从详情返回必须保留原地图视野、筛选和选中位置。
+
+地图第一版支持：
+
+- 区域、类型和用户状态筛选；
+- Marker 聚合与适配全部结果；
+- 点击不同 Marker 切换底部地点预览；
+- 将地点加入路线清单并手动排序。
+
+第一版不承诺自动最优路线、交通耗时或导航结果，这些能力必须等待真实路线 Provider，不能由 LLM 推测。
+
 地点用户状态：
 
 - DISCOVERED
@@ -616,7 +828,7 @@ Eligibility：
 
 - 正在处理什么；
 - 等待什么；
-- 是否等待 PC；
+- 是否等待后端节点；
 - 哪一步失败；
 - ASR 进度；
 - POI 解析；
@@ -633,7 +845,7 @@ Eligibility：
 # 14. MVP 非功能目标
 
 ## 稳定性
-- PC 重启后任务不丢；
+- 选中的 Windows PC 或 Mac mini 后端重启后任务不丢；
 - 失败任务可重试；
 - Pipeline 可从中间步骤重跑。
 
@@ -643,8 +855,8 @@ Eligibility：
 - 记录 Processor 版本。
 
 ## 本地优先
-- 默认数据保存在 PC；
-- 手机通过可信局域网访问 PC，不在手机保存完整业务数据库；
+- 默认数据保存在选中的本地后端节点；
+- PC 浏览器与手机通过可信局域网访问后端节点，不在客户端保存完整业务数据库；
 - LAN API、WebSocket 与 Admin API 必须验证访问 Token；
 - 外部模型只是可选 Provider；
 - API Key 安全存储；
@@ -682,9 +894,11 @@ Eligibility：
 
 ## 1. 架构目标
 
-第一版采用：
+第一版从以下两套单节点方案中选择一套实施：
 
-> **Windows PC 单节点 + LAN Mobile Client + Local First + Local AI First + 可选外部 LLM**
+> **Windows PC 或 Mac mini 单节点 + PC/Mobile LAN Client + Local First + Local AI First + 可选外部 LLM**
+
+两套方案的详细拓扑、平台适配和选择矩阵见 `DEPLOYMENT_OPTIONS.md`。在用户完成选择前，业务模块不得绑定 Windows 或 macOS；平台差异只允许存在于部署、Secret Store、进程托管、本地 AI Runtime 与诊断适配器。
 
 但内部保持清晰模块边界，以便未来平滑演化为：
 
@@ -752,9 +966,9 @@ Independent Worker
 3. React Vite Dev Server
 ```
 
-手机通过同一可信局域网访问 PC。开发与生产都必须支持可配置监听地址；默认不做公网暴露。所有非 localhost 的 REST/WebSocket 请求必须带有效访问 Token，Admin API 不允许匿名访问。
+PC 浏览器与手机通过同一可信局域网访问选中的后端节点。开发与生产都必须支持可配置监听地址；默认不做公网暴露。所有非 localhost 的 REST/WebSocket 请求必须带有效访问 Token，Admin API 不允许匿名访问。
 
-生产/桌面封装后：
+方案 A 的生产进程：
 
 ```text
 PersonalAI.exe / launcher
@@ -763,7 +977,17 @@ PersonalAI.exe / launcher
  └─ UI
 ```
 
-后续可使用 Tauri 封装，但桌面壳不属于 MVP 前置条件。
+方案 B 的生产进程：
+
+```text
+launchd
+ ├─ zhijian-backend
+ └─ zhijian-worker
+
+React production assets 由后端或同机静态服务提供
+```
+
+后续可使用 Tauri 封装 Windows 管理入口，但桌面壳不属于 MVP 前置条件；Mac mini 作为无显示器服务节点时不依赖桌面壳。
 
 ---
 
@@ -829,7 +1053,7 @@ Job 最少包含：
 - started_at
 - finished_at
 
-若 PC 异常关闭：
+若选中的后端节点异常关闭：
 
 ```text
 RUNNING
@@ -959,20 +1183,28 @@ class Processor:
 
 ---
 
-# 11. Windows + AMD 本地 AI
+# 11. 本地 AI 硬件方案
 
-当前硬件：
+## 11.1 方案 A：Windows + AMD
 
 - Ryzen 7 5800X
 - 32 GB RAM
 - RX 7900 XT 20 GB
 
-建议策略：
+## 11.2 方案 B：Mac mini + Apple Silicon
+
+- Apple M4，10 核 CPU
+- 16 GB 统一内存
+- Ollama Metal
+- whisper.cpp Metal，可选验证 Core ML encoder
+
+## 11.3 共同策略
 
 - 本地模型做分类、结构化抽取、偏好推断；
 - 外部模型只在失败/低置信/用户手动时增强；
 - GPU 重任务初始并发为 1；
-- ASR 与 LLM 不默认同时抢显存。
+- ASR 与 LLM 不默认同时争用 GPU/统一内存；
+- Windows 与 Mac 的模型尺寸、吞吐和并发必须分别实测，结果不得相互推算。
 
 ---
 
@@ -1001,7 +1233,7 @@ GPU semaphore = 1
 - ffmpeg 部分 CPU 工作；
 - 文件下载。
 
-后续根据实际显存与稳定性将并发调至 2。
+后续根据所选机器的显存或统一内存、吞吐与稳定性决定是否调至 2，Mac mini 16 GB 不预设可提升。
 
 ---
 
@@ -1094,7 +1326,7 @@ data/
 
 第一版：
 ```text
-手机 ↔ PC
+PC/Mobile Client ↔ Selected Backend Node（Windows PC 或 Mac mini）
 ```
 
 未来：
@@ -1647,6 +1879,31 @@ observed_at
 - ranking
 - recommended_season
 
+## route_drafts
+
+```text
+id
+name
+city
+status
+created_at
+updated_at
+```
+
+第一版 `status` 只需支持 `DRAFT / ARCHIVED`。路线清单是用户选点结果，不等于已计算路线。
+
+## route_draft_items
+
+```text
+id
+route_draft_id
+place_id
+sort_order
+added_at
+```
+
+对 `(route_draft_id, place_id)` 建唯一约束，对 `(route_draft_id, sort_order)` 建索引。第一版不存 LLM 推测的距离、交通时长或最优顺序；未来真实 Route Provider 结果使用独立的版本化 RoutePlan/RouteLeg 模型。
+
 ---
 
 # 11. Preference
@@ -1766,7 +2023,7 @@ finished_at
 
 ## settings / secret references
 
-非敏感设置可存 SQLite；API Key、LAN Token 与其他 Secret 只保存 Windows Credential Manager/DPAPI 引用。数据库字段包含 `setting_key/value_json/updated_at` 与 `secret_key/secret_ref/updated_at`，不得存 Secret 明文。
+非敏感设置可存 SQLite；API Key、LAN Token 与其他 Secret 只保存平台 Secret Store 引用：Windows PC 使用 Windows Credential Manager/DPAPI，Mac mini 使用 macOS Keychain。数据库字段包含 `setting_key/value_json/updated_at` 与 `secret_key/secret_ref/updated_at`，不得存 Secret 明文。
 
 ---
 
@@ -1944,7 +2201,7 @@ OCR 必须保留页码、边界框、OCR 置信度与原始图片引用。低置
 - 备注列；
 - 列名差异。
 
-`.xlsx` 先用 openpyxl 读取；旧 `.xls` 通过独立 SpreadsheetReader 适配器处理，Phase 0A 在 xlrd/python-calamine 中按 Windows 安装、格式覆盖和维护状态选择，不允许把 `.xls` 伪装成 openpyxl 支持。
+`.xlsx` 先用 openpyxl 读取；旧 `.xls` 通过独立 SpreadsheetReader 适配器处理，Phase 0A 在 xlrd/python-calamine 中按所选目标平台的安装、arm64/x64 格式覆盖和维护状态选择，不允许把 `.xls` 伪装成 openpyxl 支持。
 
 AI 只做 Column Mapping：
 
@@ -2499,6 +2756,42 @@ PlaceMention
 
 MVP 实现 `AMapPOIProvider`：使用高德 Web 服务进行候选搜索，优先传城市/adcode 与 `citylimit` 收敛歧义；保存 Provider、POI ID、原始候选响应哈希与 `GCJ02` 坐标系。前端使用高德地图 JS API 2.0。
 
+## 7.1 地图是空间总览，不是地点附件
+
+旅行信息架构固定为：
+
+```text
+内容 > 旅行 > 地图总览
+             ├─ Marker A → 地点预览 A → 地点详情 A
+             ├─ Marker B → 地点预览 B → 地点详情 B
+             └─ 路线清单 → 手动排序 → 后续路线规划
+```
+
+地图总览是独立主页面，默认展示当前区域内全部符合筛选条件的 `CONFIRMED Place` 分布。地点详情是从 Marker 预览进入的下一级页面；不得先进入某个地点详情，再把地图作为该地点的附属卡片。
+
+地图总览必须支持：
+
+- 按城市、行政区、地点类型与用户状态筛选；
+- 根据当前 viewport/bbox 返回 Marker，并在密集区域聚合；
+- 一键适配全部当前结果；
+- 点击 Marker 只更新 `selected_place_id` 和底部地点预览，不重建或离开地图；
+- 预览卡显示当前序号、名称、地址、关键观察、Evidence 摘要及“查看详情”；
+- 从详情返回后恢复原 viewport、zoom、筛选与 selected Marker；
+- 上一处/下一处按当前可见 Marker 的稳定顺序切换，不改变地图父级关系；
+- 无选中 Marker 时仍完整展示区域分布，不能强制打开某个地点详情。
+
+Marker 只表示现实 `Place`，不能直接用 `PlaceMention` 或 LLM 生成坐标。`REVIEW/UNRESOLVED` 不默认进入主地图，可通过“待确认地点”入口单独处理。
+
+## 7.2 路线清单边界
+
+第一版地图提供“加入路线清单”和手动排序，用于保存用户希望串联的地点。它不是自动路线优化：
+
+- 清单存 `Place ID + 手动顺序`；
+- 不在没有地图路线服务结果时生成距离、交通时长或最优顺序；
+- 清单中的 Marker 可使用顺序编号，但普通总览 Marker 不强制编号；
+- 真正的驾车/步行/公共交通路线计算、日期行程与导航跳转留给后续 Trip Planner；
+- 后续接入路线 Provider 时复用清单，不改变 Place、Observation 与 Evidence。
+
 ---
 
 # 8. 禁止 LLM 生成地图坐标
@@ -2736,6 +3029,18 @@ TravelDashboardVM：
 - recommended_places
 - pending_reviews
 
+MapOverviewVM：
+
+- viewport / coordinate_system
+- total_places / visible_places
+- markers / clusters
+- selected_place_id
+- selected_preview
+- filters
+- route_draft_count
+
+地图总览不依赖某个地点详情才能构造。`selected_preview` 只是当前 Marker 的轻量投影视图，完整 Observation、Evidence 与来源仍由 Place Detail ViewModel 提供。
+
 ---
 
 # 22. CMS
@@ -2845,11 +3150,11 @@ Settings 支持：
 
 正式版本不把 Key 明文放 SQLite。
 
-Windows 优先：
-- DPAPI
-- Windows Credential Manager
+平台 Secret Store：
+- Windows PC：DPAPI / Windows Credential Manager；
+- Mac mini：macOS Keychain。
 
-SQLite 只存 key reference。
+SQLite 只存平台无关的 key reference，业务代码通过 `SecretStore` 接口访问，不判断操作系统。
 
 开发环境允许 `.env`，但不得提交 Git。
 
@@ -2881,18 +3186,25 @@ Router 决定 Provider + Model。
 
 # 7. 本地硬件策略
 
-WILLIAM-PC：
+方案 A，WILLIAM-PC：
 - 5800X
 - 32 GB
 - RX 7900 XT 20 GB
 
-可以本地承担：
+方案 B，Mac mini：
+- Apple M4，10 核 CPU
+- 16 GB 统一内存
+- arm64 / Metal
+
+两者都应验证本地承担：
 - 分类；
 - 结构化提取；
 - Recruitment DSL；
 - Travel Trait；
 - ASR；
 - 未来视觉理解。
+
+Windows PC 可优先验证更大的本地模型与未来视觉模型。Mac mini 从 7B/8B 量化档起步，16 GB 统一内存下不承诺与 RX 7900 XT 相同的模型容量、吞吐或并发；复杂任务允许按数据策略转外部 Provider。两套结果分别记录，不互相推算。
 
 ---
 
@@ -2978,8 +3290,10 @@ WhisperCppProvider
 - FasterWhisperProvider
 - CloudASRProvider
 
-原因：
-Windows + AMD 环境。
+运行时：
+- Windows PC：whisper.cpp Vulkan；
+- Mac mini：whisper.cpp Metal，可选验证 Core ML encoder；
+- FasterWhisper/CloudASR 仍只作为可替换 Provider，不改变 Transcript 与 Evidence 模型。
 
 ---
 
@@ -3004,7 +3318,7 @@ AUTO：
 
 CMS 可配置。
 
-避免 ASR + 大模型同时抢占显存导致稳定性问题。
+避免 ASR + 大模型同时争用显存或统一内存导致稳定性问题。Windows 与 Mac 分别通过 Phase 0A 确定可用模型和资源阈值。
 
 ---
 
@@ -3074,8 +3388,10 @@ Control Center 不是普通 CMS，而是：
 - Today Done
 - Recruitment processing
 - Travel processing
-- GPU 当前任务
+- 本地加速器当前任务
 - 最近错误
+- 当前后端节点（Windows PC / Mac mini）
+- 服务在线、Worker、LAN 地址与本地 AI Runtime
 
 例：
 
@@ -3171,6 +3487,8 @@ Travel：
 # 7. Settings
 
 ## General
+- deployment target（只读：Windows PC / Mac mini）
+- node name / OS / architecture
 - data directory
 - cache limit
 - cleanup policy
@@ -3192,7 +3510,7 @@ Travel：
 - engine
 - model
 - mode
-- GPU test
+- accelerator test（Windows Vulkan / Mac Metal）
 
 ## Browser
 - profile status
@@ -3440,7 +3758,41 @@ Filters：
 
 ## GET /api/travel/map
 
-只返回 Confirmed Place ViewModel。
+返回独立 `MapOverviewVM`，只包含 Confirmed Place。请求参数：
+
+- `bbox`：当前地图可视区域；
+- `zoom`：缩放级别；
+- `city` / `district`；
+- `place_type`；
+- `user_state`；
+- `selected_place_id`（可选，用于恢复页面状态）。
+
+响应包含：
+
+```json
+{
+  "coordinate_system": "GCJ02",
+  "total_places": 12,
+  "visible_places": 8,
+  "markers": [],
+  "clusters": [],
+  "selected_place_id": "place_03",
+  "selected_preview": {},
+  "route_draft_count": 2
+}
+```
+
+Marker 只返回地图绘制和轻量预览所需字段，不携带完整 Observation/Evidence。点击 Marker 更新前端 `selected_place_id` 并切换预览卡；只有点击“查看详情”才进入 Place Detail API。地图 viewport、zoom、filters 与 selected Marker 应保存在页面路由状态中，从详情返回时恢复。
+
+## GET /api/travel/places/{id}/preview
+
+返回 Marker 底部预览卡所需的名称、地址、地点类型、关键 Observation、Evidence 摘要和用户状态，不返回完整详情。
+
+## GET /api/travel/route-drafts
+## POST /api/travel/route-drafts
+## PUT /api/travel/route-drafts/{id}/items
+
+路线清单只保存 `place_id` 与 `sort_order`。第一版不返回自动路线几何、最优顺序、距离或交通耗时；这些字段只能来自未来路线 Provider。
 
 ## POST /api/travel/places/{id}/save
 ## POST /api/travel/places/{id}/dismiss
@@ -3546,7 +3898,7 @@ API 返回给产品前端的是 ViewModel，而不是 ORM Row。
 - localhost 与 LAN UI 使用同一 API；
 - 手机首次配对通过 `POST /api/auth/session` 在请求体提交访问 Token，服务端换发短期 HttpOnly、SameSite Session Cookie；
 - 后续 REST 与 WebSocket 握手统一验证 Session Cookie；脚本型客户端可使用 `Authorization: Bearer <access-token>`；
-- Token 由本机生成、存入 Windows Credential Manager/DPAPI，并支持轮换；
+- Token 由本机生成并支持轮换；Windows PC 存入 Windows Credential Manager/DPAPI，Mac mini 存入 macOS Keychain；
 - CORS 使用明确 Origin allowlist；
 - 长期 Token 不放在查询字符串、localStorage 或普通日志中；
 - 未授权请求统一返回稳定错误码 `AUTH_REQUIRED` / `AUTH_INVALID`。
@@ -3564,7 +3916,7 @@ API 返回给产品前端的是 ViewModel，而不是 ORM Row。
 
 Local First。
 
-第一版业务数据默认只在用户 PC。
+第一版业务数据默认只在用户选定的本地后端节点（Windows PC 或 Mac mini）。
 
 ---
 
@@ -3593,7 +3945,8 @@ Local First。
 # 3. API Key
 
 正式版本：
-- Windows Credential Manager / DPAPI；
+- Windows PC 使用 Windows Credential Manager / DPAPI；
+- Mac mini 使用 macOS Keychain；
 - 数据库只保存引用。
 
 开发 `.env`：
@@ -3639,7 +3992,7 @@ Local First 默认尽可能本地处理。
 MVP 明确支持手机局域网访问：
 
 - 首次安装默认生成高熵访问 Token；
-- PC Control Center 显示 LAN 地址并允许复制/轮换 Token；
+- Control Center 显示当前后端节点、LAN 地址并允许复制/轮换 Token；
 - 手机首次访问输入 Token，通过 `POST /api/auth/session` 换取短期 HttpOnly、SameSite Session Cookie；
 - 浏览器不把长期 Token 保存到 localStorage，REST 与 WebSocket 统一验证 Session；
 - localhost 之外的请求缺少/无效 Token 一律拒绝；
@@ -3650,6 +4003,8 @@ MVP 明确支持手机局域网访问：
 - Token 不写入 URL、普通日志或导出文件。
 
 LAN 传输只允许用户明确配置的可信家庭/办公网络。Phase 0A 必须比较本地 HTTPS 与可信 LAN HTTP 的安装/配对体验；若 MVP 不能可靠部署 HTTPS，UI 必须明确提示不得在公共 Wi-Fi、访客网络或不可信热点中启用 LAN，并将 HTTPS 列为发布前风险项。
+
+Mac mini 作为无显示器常驻节点时，不能只依赖 `.local` 主机名发现；必须同时显示当前 IP，并建议在路由器配置 DHCP 保留地址。Windows PC 与 Mac mini 都必须关闭自动公网暴露，平台防火墙只放行已选 LAN Profile/接口与应用端口。
 
 ---
 
@@ -3854,7 +4209,11 @@ Fixture：
 - POI；
 - Dedup；
 - Preference；
-- Map ViewModel；
+- MapOverviewVM；
+- 同一区域多 Marker 分布与密集点聚合；
+- 依次点击 Marker 只切换地点预览，地图 viewport 不重置；
+- 从地点详情返回恢复 zoom、filters 与 selected Marker；
+- 路线清单按手动顺序保存 Place，且不生成未经 Route Provider 验证的距离/耗时；
 - Evidence timestamp。
 
 ---
@@ -3893,16 +4252,15 @@ Mock：
 
 ---
 
-# 12. PC Hardware Acceptance
+# 12. Target Node Hardware Acceptance
 
-安装诊断：
+共同安装诊断：
 
 - Python
 - SQLite
 - ffmpeg
 - Playwright browser
 - Ollama
-- AMD GPU detected
 - whisper.cpp
 - model availability
 - disk writable
@@ -3911,7 +4269,25 @@ Mock：
 - AMap API / map render
 - DeepSeek / Xiaomi MiMo connection
 
-CMS 显示诊断结果。
+方案 A 额外验收：
+
+- Windows Credential Manager / DPAPI；
+- AMD GPU detected；
+- Ollama AMD 结构化输出；
+- whisper.cpp Vulkan；
+- Windows 重启、休眠/唤醒与服务恢复。
+
+方案 B 额外验收：
+
+- macOS Keychain；
+- Apple Metal detected；
+- Ollama Metal 结构化输出与统一内存峰值；
+- whisper.cpp Metal，Core ML encoder 如启用则单独记录；
+- arm64 OCR、Playwright、ffmpeg 与 legacy `.xls` 依赖；
+- `launchd` 在崩溃、退出登录和 Mac mini 重启后的服务恢复；
+- mDNS 不可用时通过固定 IP/DHCP 保留地址访问。
+
+CMS 显示当前后端类型、硬件、运行时和诊断结果。两套平台的性能结果必须分别记录。
 
 ---
 
@@ -3928,16 +4304,17 @@ CMS 显示诊断结果。
 7. 用户可粘贴 Bilibili 链接；
 8. 能得到字幕或 ASR；
 9. 能提取并确认地点；
-10. 地点可出现在地图 ViewModel；
+10. 多个地点可同时出现在独立地图总览，点击 Marker 可切换预览并进入详情；
 11. 可 SAVE / DISMISS / VISITED；
-12. PC 重启任务可恢复；
+12. 选中的后端节点重启后任务可恢复；
 13. 外部模型 API Key 可配置且可测试；
 14. 所有核心长任务可从 CMS 重试。
 15. 手机可在同一局域网安全访问，未授权请求无法读取业务或管理数据；
 16. DOCX、扫描 PDF 与图片公告可归一化并保留 Evidence 定位；
 17. 高德 POI/地图可用，GCJ-02 在存储与导出中明确标注；
 18. DeepSeek、Xiaomi MiMo 可通过兼容 Provider 配置和测试；
-19. `GOLDEN_SAMPLES.md` 的安全与正确性门槛全部通过。
+19. 地点可加入路线清单并手动排序，系统不伪造自动最优路线、距离或交通耗时；
+20. `GOLDEN_SAMPLES.md` 的安全与正确性门槛全部通过。
 
 
 ---
@@ -3948,11 +4325,11 @@ CMS 显示诊断结果。
 
 ## ADR-001：第一版取消云端
 **Decision**
-全部核心数据与计算运行在用户 PC。
+全部核心数据与计算运行在用户选中的本地后端节点：Windows PC 或 Mac mini。
 
 **Reason**
 - 单用户；
-- 可接受 PC 关机时暂不处理；
+- 可接受选中节点离线时暂不处理；
 - 用户明确希望先走通链路；
 - 降低云部署与成本复杂度。
 
@@ -3980,7 +4357,7 @@ FastAPI。
 
 **Reason**
 - ASR/视频/LLM 长任务；
-- PC 重启恢复；
+- 后端节点重启恢复；
 - CMS 可视化状态；
 - 不引入 Redis/Celery。
 
@@ -4079,7 +4456,7 @@ Semantic Major Match 不自动 PASS。
 LLMProvider 抽象，默认 LOCAL_FIRST。
 
 **Reason**
-- 利用 RX7900XT；
+- 利用所选节点的 RX 7900 XT 或 Apple Metal；
 - 可离线；
 - 外部强模型用于增强；
 - 不锁厂商。
@@ -4088,7 +4465,7 @@ LLMProvider 抽象，默认 LOCAL_FIRST。
 
 ## ADR-013：ASR 抽象
 **Decision**
-ASRProvider，Windows AMD 首选 whisper.cpp 路线。
+ASRProvider：Windows AMD 首选 whisper.cpp Vulkan，Mac mini 首选 whisper.cpp Metal；Core ML encoder 仅作为 Mac Spike 后的可选加速。
 
 **Reason**
 避免锁 CUDA/faster-whisper。
@@ -4133,7 +4510,7 @@ UI 窄，接口宽。
 
 ## ADR-018：MVP 支持可信局域网手机访问
 **Decision**
-PC 仍是唯一数据与计算节点；手机通过同一可信局域网访问响应式 Web。REST/WebSocket/Admin API 必须验证本机生成的访问 Token，不自动暴露公网。
+选中的 Windows PC 或 Mac mini 仍是唯一数据与计算节点；PC 浏览器与手机通过同一可信局域网访问响应式 Web。REST/WebSocket/Admin API 必须验证本机生成的访问 Token，不自动暴露公网。
 
 **Reason**
 - 手机是“随手分享/查看结果”的必要入口；
@@ -4181,6 +4558,21 @@ DeepSeek、Xiaomi MiMo 等通过 OpenAICompatibleProvider 配置；模型名不�
 - 平台存在登录态、验证码、风控、412 与内容变化；
 - 实时网络依赖无法提供可复现测试；
 - 不绕过平台访问限制。
+
+---
+
+## ADR-023：MVP 保留两套单节点部署方案，实施时二选一
+**Decision**
+保留 `windows_pc` 与 `mac_mini` 两套部署适配。两套方案共享业务代码、数据库模型与 API；只在安装、进程托管、Secret Store、本地 AI Runtime 和硬件诊断层分叉。进入 Phase 0A 前由用户选择一个 `DEPLOYMENT_TARGET`，MVP 不同时交付两套生产安装包，也不跨机器共享 SQLite。
+
+**Reason**
+- Windows PC 的 RX 7900 XT 20 GB 更适合优先验证较大的本地模型；
+- Mac mini M4 更适合低功耗常驻，使 PC 与手机在后端在线时都可随时访问；
+- 当前尚无两台设备上可直接比较的真实吞吐、兼容性和稳定性数据；
+- 业务架构本身不需要因操作系统而分叉。
+
+**Decision Gate**
+分别执行 `DEPLOYMENT_OPTIONS.md` 和 `GOLDEN_SAMPLES.md` 的 Phase 0A 项，以 `PASS / DEGRADED / BLOCKED`、模型容量、ASR 时间、统一内存/显存峰值、功耗和常驻恢复结果支持最终选择。
 
 
 ---
@@ -4269,17 +4661,19 @@ DeepSeek、Xiaomi MiMo 等通过 OpenAICompatibleProvider 配置；模型名不�
 
 # 4. Phase 0A 技术 Spike
 
-正式业务实施前必须在目标 Windows 11 主机完成：
+正式业务实施前必须在用户选中的目标节点完成；若要比较两套方案，则在 Windows PC 与 Mac mini 上分别执行并保存结果：
 
 1. `LAN_ACCESS`：手机通过同一局域网访问前后端，验证 Token-to-Session、CORS、WebSocket 重连、Admin API 保护，并比较本地 HTTPS 与可信 LAN HTTP 的可部署性。
 2. `WECHAT_RESOLVER`：R-001/R-002 至少一个可通过持久浏览器 Profile 获取正文并发现下钻链接；失败时能进入 `NEEDS_USER`。
 3. `DOCUMENT_MATRIX`：验证 HTML、PDF、扫描 PDF、DOCX、XLS/XLSX、PNG/JPEG 的文本与定位信息。
 4. `OCR`：中文 OCR 输出页码/边界框/置信度，低置信内容进入 Review，不直接生成高风险事实。
-5. `LOCAL_LLM`：RX 7900 XT 上 Ollama 结构化输出、显存占用、吞吐与 JSON Schema 成功率。
-6. `ASR`：whisper.cpp Vulkan 在 RX 7900 XT 上输出中文时间码 Transcript。
+5. `LOCAL_LLM`：Windows 记录 RX 7900 XT/Ollama 的显存占用与吞吐；Mac mini 记录 M4/Ollama Metal 的统一内存峰值与吞吐；两者都记录 JSON Schema 成功率。
+6. `ASR`：Windows 验证 whisper.cpp Vulkan；Mac mini 验证 whisper.cpp Metal，并在启用时单独验证 Core ML encoder；两者都输出中文时间码 Transcript。
 7. `EXTERNAL_LLM`：DeepSeek 与 Xiaomi MiMo 至少各完成一次 OpenAI-compatible 连接测试、结构化输出测试与审计记录测试。
 8. `AMAP`：高德 Web 服务 POI 搜索、JS API 2.0 地图渲染、GCJ-02 坐标与配额错误路径。
 9. `SQLITE_MULTI_PROCESS`：FastAPI + Worker 下 WAL、原子 Job Lease、崩溃恢复与幂等写入。
+10. `SERVICE_SUPERVISION`：Windows 验证 launcher/服务或计划任务，Mac mini 验证 `launchd`；崩溃和重启后 API、Worker 与未完成 Job 均可恢复。
+11. `PLATFORM_SECRET_STORE`：Windows 验证 Credential Manager/DPAPI，Mac mini 验证 Keychain；SQLite、日志和导出均不得出现 Secret 明文。
 
 每项记录：环境版本、命令、输入、结果、耗时、资源占用、失败原因、是否阻塞后续 Phase。
 
@@ -4579,7 +4973,12 @@ VisualEvidence 与 TranscriptEvidence 并存。
 
 # 15. Travel Planning
 
-未来：
+MVP 已提供：
+- 独立地图空间总览；
+- Marker 地点预览；
+- 路线清单选点与手动排序。
+
+未来在真实 Route Provider 基础上增加：
 - Trip
 - itinerary
 - route
@@ -4588,7 +4987,7 @@ VisualEvidence 与 TranscriptEvidence 并存。
 - city clustering
 - multi-day plan
 
-当前 Place 用户状态已为未来 PLANNED 留口子。
+当前 Place 用户状态、RouteDraft 与顺序项已为未来 PLANNED/RoutePlan 留口子；未来计算结果必须记录 Provider、策略版本与坐标系，不由 LLM 编造距离或时长。
 
 ---
 
@@ -4641,8 +5040,9 @@ Input
 ## Codex / Agent 可执行实施计划
 
 > 项目：AI Personal Inbox / Personal Scout  
-> 目标平台：Windows 11  
-> 当前硬件：Ryzen 7 5800X / 32GB / RX 7900 XT 20GB  
+> 目标平台：二选一——Windows 11 PC 或 Mac mini（实施前设置 `DEPLOYMENT_TARGET`）
+> 候选硬件 A：Ryzen 7 5800X / 32GB / RX 7900 XT 20GB
+> 候选硬件 B：Apple M4 10-core / 16GB unified memory / arm64
 > 当前范围：Recruitment + Travel/Food  
 > 架构：FastAPI + React/TS/Vite + SQLite + Worker + Playwright + Ollama/External LLM + whisper.cpp  
 > 原则：产品做窄，内核留宽
@@ -4668,11 +5068,11 @@ Agent 在实现过程中必须：
 
 ---
 
-# Phase 0A — Target PC Feasibility Spikes（在 Phase 0 最小 Bootstrap 后执行）
+# Phase 0A — Target Node Feasibility Spikes（在 Phase 0 最小 Bootstrap 后执行）
 
 ## Goal
 
-在搭建完整业务代码前，用目标 Windows 11 / RX 7900 XT 主机消除高风险外部依赖的不确定性。
+在搭建完整业务代码前，先从 `windows_pc` 与 `mac_mini` 中选择一个 `DEPLOYMENT_TARGET`，并在该目标节点消除高风险外部依赖的不确定性。若用户需要比较两套方案，则分别运行同一套 Fixture 与记录模板，但不同时开发两套生产安装包。
 
 ## Spikes
 
@@ -4680,8 +5080,8 @@ Agent 在实现过程中必须：
 - 微信持久 Playwright Profile 与 `NEEDS_USER`；
 - HTML/PDF/扫描 PDF/DOCX/XLS/XLSX/PNG/JPEG 文档矩阵；
 - 中文 OCR 定位与置信度；
-- Ollama AMD 结构化输出；
-- whisper.cpp Vulkan 时间码 ASR；
+- Windows：Ollama AMD 结构化输出、whisper.cpp Vulkan 时间码 ASR、Credential Manager/DPAPI、服务恢复；
+- Mac mini：Ollama Metal 结构化输出、whisper.cpp Metal 时间码 ASR、Keychain、arm64 依赖和 `launchd` 服务恢复；
 - DeepSeek / Xiaomi MiMo OpenAI-compatible 连接；
 - 高德 POI Web 服务 / JS API 2.0 / GCJ-02；
 - SQLite WAL 多进程、原子 Lease 与幂等恢复。
@@ -4755,7 +5155,7 @@ LAN 安全基线：
 - frontend 启动；
 - health 正常；
 - 手机在同一局域网携带 Token 可访问，未授权请求被拒绝；
-- Windows README 命令可用。
+- 所选平台 README 安装与启动命令可用。
 
 ---
 
@@ -4849,7 +5249,7 @@ WebSocket progress。
 - recovery
 
 ## Acceptance
-PC/Worker 异常停止后任务可恢复。
+后端节点/Worker 异常停止后任务可恢复。
 
 ---
 
@@ -5161,14 +5561,14 @@ Semantic similarity 永远不会自动 PASS。
 # Phase 14 — ASR Runtime
 
 ## Goal
-实现 Windows AMD 本地视频转录。
+实现所选后端节点的本地视频转录。
 
 ## Tasks
 - ffmpeg detection
 - whisper.cpp provider
 - model management
 - timestamp transcript
-- GPU diagnostic
+- 加速器诊断：Windows Vulkan / Mac Metal
 - ASR mode
 - cache cleanup
 
@@ -5251,11 +5651,16 @@ GeoJSON 明确携带坐标系，不把 GCJ-02 静默声明为 WGS84。
 - VisitEvent
 - days_since_last_trip
 - TravelDashboardVM
-- map view
+- MapOverviewVM：viewport、markers、clusters、filters、selected preview
+- 独立地图总览页；Marker 点击切换底部预览，详情为下一级页面
+- 地图路由状态恢复：viewport / zoom / filters / selected_place_id
+- route_drafts / route_draft_items
+- 路线清单选点与手动排序
 - list view
 
 ## Acceptance
 SAVE/DISMISS/VISITED 会影响后续推荐解释。
+同一区域多个 Confirmed Place 可在地图总览中同时显示；依次点击 Marker 只切换地点预览，不离开地图；进入详情再返回后保留原地图状态。路线清单不伪造最优顺序、距离或交通时间。
 
 ---
 
@@ -5366,7 +5771,7 @@ Tauri 或其他薄壳：
 - Export。
 
 ### Platform
-- PC only；
+- selected local node only（Windows PC 或 Mac mini）；
 - Job recovery；
 - Control Center；
 - Ollama；

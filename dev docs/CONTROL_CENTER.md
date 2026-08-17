@@ -37,8 +37,10 @@ Control Center 不是普通 CMS，而是：
 - Today Done
 - Recruitment processing
 - Travel processing
-- GPU 当前任务
+- 本地加速器当前任务
 - 最近错误
+- 当前后端节点（Windows PC / Mac mini）
+- 服务在线、Worker、LAN 地址与本地 AI Runtime
 
 例：
 
@@ -134,6 +136,8 @@ Travel：
 # 7. Settings
 
 ## General
+- deployment target（只读：Windows PC / Mac mini）
+- node name / OS / architecture
 - data directory
 - cache limit
 - cleanup policy
@@ -155,7 +159,7 @@ Travel：
 - engine
 - model
 - mode
-- GPU test
+- accelerator test（Windows Vulkan / Mac Metal）
 
 ## Browser
 - profile status
