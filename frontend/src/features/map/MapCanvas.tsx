@@ -23,10 +23,12 @@ const roads = [
 export function MapCanvas({ markers, selectedId, onSelect }: MapCanvasProps) {
   const bounds = markerBounds(markers)
   const [amapReady, setAmapReady] = useState(false)
+  const [zoom, setZoom] = useState(1)
+  const [locationMessage, setLocationMessage] = useState('')
   const handleAmapReady = useCallback((ready: boolean) => setAmapReady(ready), [])
   return (
     <div className="map-canvas" aria-label="厦门地点地图总览">
-      <svg className={`map-canvas__roads ${amapReady ? 'is-hidden' : ''}`} viewBox="0 0 853 900" aria-hidden="true">
+      <svg className={`map-canvas__roads ${amapReady ? 'is-hidden' : ''}`} style={{ transform: `scale(${zoom})` }} viewBox="0 0 853 900" aria-hidden="true">
         <rect width="853" height="900" fill="#f4f3f0" />
         <path d="M690 0 H853 V900 H760 C700 760 780 650 720 520 C680 410 750 240 690 0Z" fill="#e8ecee" />
         {roads.map((road) => <path key={road} d={road} fill="none" stroke="#d4d2cd" strokeWidth="8" />)}
@@ -35,7 +37,7 @@ export function MapCanvas({ markers, selectedId, onSelect }: MapCanvasProps) {
           <text x="250" y="260">中山路步行街</text><text x="480" y="460">厦门大学</text><text x="145" y="600">思明区</text><text x="660" y="690">白城沙滩</text>
         </g>
       </svg>
-      <div className={`map-canvas__markers ${amapReady ? 'is-hidden' : ''}`}>
+      <div className={`map-canvas__markers ${amapReady ? 'is-hidden' : ''}`} style={{ transform: `scale(${zoom})` }}>
         {markers.map((marker) => {
           const { left, top } = markerPosition(marker, bounds)
           const selected = marker.id === selectedId
@@ -52,7 +54,8 @@ export function MapCanvas({ markers, selectedId, onSelect }: MapCanvasProps) {
         })}
       </div>
       <AmapLayer markers={markers} selectedId={selectedId} onSelect={onSelect} onReady={handleAmapReady} />
-      <div className="map-canvas__tools"><button aria-label="定位"><LocateFixed /></button><button aria-label="放大"><Plus /></button><button aria-label="缩小"><Minus /></button><button className="fit-all"><Maximize />适配全部</button></div>
+      <div className="map-canvas__tools"><button aria-label="定位" onClick={() => navigator.geolocation?.getCurrentPosition((position) => setLocationMessage(`当前位置 ${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`), () => setLocationMessage('无法读取当前位置'))}><LocateFixed /></button><button aria-label="放大" onClick={() => setZoom((value) => Math.min(1.6, value + .15))}><Plus /></button><button aria-label="缩小" onClick={() => setZoom((value) => Math.max(.7, value - .15))}><Minus /></button><button className="fit-all" onClick={() => setZoom(1)}><Maximize />适配全部</button></div>
+      {locationMessage && <span className="map-location-message" role="status">{locationMessage}</span>}
       <span className="map-attribution">高德地图 · GCJ-02</span>
     </div>
   )

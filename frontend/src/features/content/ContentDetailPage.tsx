@@ -13,14 +13,14 @@ export function ContentDetailPage() {
   const eligibility = Array.isArray(structured.eligibility) ? structured.eligibility as Array<Record<string, string>> : []
   return (
     <div className="detail-page">
-      <header className="detail-topbar"><Link to="/content"><ArrowLeft />返回内容</Link><span>{item.content_type === 'RECRUITMENT' ? '招聘详情' : '旅行详情'}</span><button aria-label="重新处理"><RotateCcw /></button></header>
+      <header className="detail-topbar"><Link to="/content"><ArrowLeft />返回内容</Link><span>{contentTypeLabel(item.content_type)}</span><Link aria-label="查看来源" to="/sources"><RotateCcw /></Link></header>
       <article className="detail-body">
         <p className="detail-context">结构化结果 · {item.status === 'NEEDS_USER' ? '需要确认' : '来源已保存'}</p>
         <h1>{item.title}</h1>
         <p className="detail-summary">{item.summary}</p>
         {item.content_type === 'RECRUITMENT' ? (
           <>
-            <section className="deadline-block"><span>报名截止</span><strong>{String(structured.deadline ?? '待确认')}</strong><button>添加提醒</button></section>
+            <section className="deadline-block"><span>报名截止</span><strong>{String(structured.deadline ?? '待确认')}</strong><Link className="button" to="/todos">查看待办</Link></section>
             <section className="detail-section"><h2>我的条件核验</h2>{eligibility.length ? eligibility.map((rule) => <EligibilityRow key={rule.label} rule={rule} />) : <p>个人档案信息不足，暂不自动给出通过结论。</p>}</section>
           </>
         ) : (
@@ -34,5 +34,8 @@ export function ContentDetailPage() {
 
 function EligibilityRow({ rule }: { rule: Record<string, string> }) {
   const safe = rule.status === 'PASS'
-  return <div className="eligibility-row">{safe ? <CheckCircle2 /> : <CircleHelp />}<strong>{rule.label}</strong><span>{rule.value}</span><em className={`eligibility-${rule.status?.toLowerCase()}`}>{rule.status}</em></div>
+  return <div className="eligibility-row">{safe ? <CheckCircle2 /> : <CircleHelp />}<strong>{rule.label}</strong><span>{rule.value}</span><em className={`eligibility-${rule.status?.toLowerCase()}`}>{eligibilityLabel(rule.status)}</em></div>
 }
+
+function contentTypeLabel(type: string) { return ({ RECRUITMENT: '招聘详情', TRAVEL: '旅行详情', UNSUPPORTED: '来源详情' } as Record<string, string>)[type] ?? '内容详情' }
+function eligibilityLabel(status: string) { return ({ PASS: '符合', UNKNOWN: '待确认', FAIL: '不符合' } as Record<string, string>)[status] ?? status }

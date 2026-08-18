@@ -210,3 +210,23 @@ class AccessSession(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
     client_label: Mapped[str] = mapped_column(String(200), default="", nullable=False)
+
+
+class SystemEvent(Base):
+    __tablename__ = "system_events"
+    __table_args__ = (
+        Index("ix_system_events_created", "created_at"),
+        Index("ix_system_events_component_level", "component", "level"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("evt"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    level: Mapped[str] = mapped_column(String(16), default="INFO", nullable=False)
+    component: Mapped[str] = mapped_column(String(64), nullable=False)
+    event_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    message: Mapped[str] = mapped_column(String(500), nullable=False)
+    request_id: Mapped[str | None] = mapped_column(String(64))
+    actor: Mapped[str] = mapped_column(String(128), default="system", nullable=False)
+    entity_type: Mapped[str | None] = mapped_column(String(64))
+    entity_id: Mapped[str | None] = mapped_column(String(64))
+    detail_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)

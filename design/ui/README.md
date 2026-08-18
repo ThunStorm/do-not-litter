@@ -21,6 +21,19 @@
 | `24-capture-progress-mobile.png` | 手机 | 链接/文件/扫描投递，以及处理进度和最近完成 |
 | `25-map-overview-mobile.png` | 手机 | 独立地图总览、多 Marker 分布、地点预览与路线清单入口 |
 
+## v0.2 实际运行截图
+
+`implementation-v0.2/` 保存 2026-08-19 在当前 Mac mini 常驻服务上通过浏览器逐页操作后截取的实图，不是生成式概念稿。PC 截图覆盖概览、内容、任务、来源证据链、六个设置选项卡、日志、地图、路线、内容详情和任务详情；手机截图覆盖首页、内容、投递、待办、档案、地图总览和地点详情。
+
+| 范围 | 文件 |
+| --- | --- |
+| PC CMS 首页与结构化内容 | `implementation-v0.2/01-overview-pc.png`、`02-content-pc.png`、`13-content-detail-pc.png` |
+| PC 运维与证据 | `03-tasks-pc.png`、`04-sources-pc.png`、`10-logs-pc.png`、`14-task-detail-pc.png` |
+| PC 全部设置 | `05-settings-general-pc.png` 至 `09-settings-map-pc.png`，其中 AI、运行时分别为 `06-settings-ai-pc.png`、`07-settings-runtime-pc.png` |
+| PC 地图与路线 | `11-map-pc.png`、`12-routes-pc.png` |
+| 手机日常入口 | `20-home-mobile.png` 至 `24-profile-mobile.png` |
+| 手机地图父页面与地点详情 | `25-map-mobile.png`、`26-place-detail-mobile.png` |
+
 ## 实施约束
 
 - PC 是 CMS 与运维主入口，但首页必须同时展示少量结构化结果；数据不足时使用叙事式列表、详情预览和自然留白，不用空统计窗格或虚构数量填满页面。
@@ -47,4 +60,4 @@
 
 ## 生成说明
 
-设计稿由内置图像生成模式依据已确认的 PC 与手机首页稿延展生成，生成日期为 2026-08-18。图片是产品设计参考，不是最终可访问性、文案或像素级实现验收的替代品。
+第一组设计稿由内置图像生成模式依据已确认的 PC 与手机首页稿延展生成，生成日期为 2026-08-18；`implementation-v0.2/` 则是 2026-08-19 的真实运行截图。概念稿用于方向约束，运行截图用于本版本审阅、回退对照与视觉回归。

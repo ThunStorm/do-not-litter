@@ -18,6 +18,7 @@ from zhijian.db.models import (
     Snapshot,
 )
 from zhijian.domain.enums import ContentType, JobStatus, JobType, ResolutionStatus
+from zhijian.services.audit import record_event
 from zhijian.services.classifier import classify_capture
 from zhijian.services.resolver import resolve_payload
 
@@ -158,6 +159,16 @@ def process_job(db: Session, job: Job) -> None:
         job.lease_owner = None
         job.lease_expire_at = None
         _upsert_step(db, job, "MATERIALIZE", 100, "COMPLETED")
+        record_event(
+            db,
+            "job.completed",
+            f"任务处理完成：{title}",
+            component="worker",
+            entity_type="job",
+            entity_id=job.id,
+            detail={"content_id": content.id, "content_type": content_type},
+            commit=False,
+        )
         db.commit()
     except Exception as exc:
         job.status = JobStatus.FAILED.value
@@ -165,6 +176,16 @@ def process_job(db: Session, job: Job) -> None:
         job.finished_at = utc_now()
         job.lease_owner = None
         job.lease_expire_at = None
+        record_event(
+            db,
+            "job.failed",
+            f"任务处理失败：{str(exc)[:240]}",
+            component="worker",
+            level="ERROR",
+            entity_type="job",
+            entity_id=job.id,
+            commit=False,
+        )
         db.commit()
         raise
 

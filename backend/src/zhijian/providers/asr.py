@@ -1,0 +1,67 @@
+from __future__ import annotations
+
+import shutil
+import subprocess
+import tempfile
+from pathlib import Path
+
+
+class WhisperCppProvider:
+    def __init__(self, binary: str, model: Path) -> None:
+        self.binary = shutil.which(binary) or binary
+        self.model = model
+
+    def transcribe(self, media: Path) -> tuple[str, list[dict]]:
+        ffmpeg = shutil.which("ffmpeg")
+        whisper = shutil.which(self.binary)
+        if not ffmpeg:
+            raise RuntimeError("FFmpeg 未安装")
+        if not whisper:
+            raise RuntimeError("Whisper.cpp 未安装")
+        if not self.model.is_file():
+            raise RuntimeError(f"Whisper 模型不存在：{self.model}")
+        with tempfile.TemporaryDirectory(prefix="zhijian-asr-") as temporary:
+            directory = Path(temporary)
+            wav = directory / "audio.wav"
+            output = directory / "transcript"
+            convert = subprocess.run(
+                [ffmpeg, "-y", "-i", str(media), "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", str(wav)],
+                capture_output=True,
+                text=True,
+                timeout=900,
+                check=False,
+            )
+            if convert.returncode != 0:
+                raise RuntimeError(f"音频提取失败：{convert.stderr[-500:]}")
+            arguments = [
+                whisper,
+                "-m",
+                str(self.model),
+                "-f",
+                str(wav),
+                "-l",
+                "auto",
+                "-otxt",
+                "-of",
+                str(output),
+            ]
+            result = subprocess.run(
+                arguments,
+                capture_output=True,
+                text=True,
+                timeout=3600,
+                check=False,
+            )
+            if result.returncode != 0 and "failed to allocate buffer" in (result.stderr or ""):
+                result = subprocess.run(
+                    [*arguments, "-ng"],
+                    capture_output=True,
+                    text=True,
+                    timeout=3600,
+                    check=False,
+                )
+            transcript = output.with_suffix(".txt")
+            if result.returncode != 0 or not transcript.is_file():
+                raise RuntimeError(f"Whisper 转写失败：{(result.stderr or result.stdout)[-500:]}")
+            text = transcript.read_text(encoding="utf-8", errors="replace").strip()
+            return text, [{"text": text, "locator": {"file": media.name, "method": "whisper.cpp"}}]

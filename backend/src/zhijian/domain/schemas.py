@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, HttpUrl
 
 
 class SessionRequest(BaseModel):
-    token: str = Field(min_length=20, max_length=512)
+    token: str = Field(pattern=r"^\d{4}$")
     client_label: str = Field(default="", max_length=200)
 
 
@@ -103,3 +103,19 @@ class ProviderConfig(BaseModel):
     model: str
     timeout_seconds: int = 60
     api_key: str | None = None
+
+
+class ProfileConfig(BaseModel):
+    name: str = Field(default="", max_length=100)
+    education: str = Field(default="", max_length=100)
+    major: str = Field(default="", max_length=120)
+    graduation_year: str = Field(default="", max_length=20)
+    graduate_status: str = Field(default="", max_length=80)
+    household_registration: str = Field(default="", max_length=120)
+    preferred_regions: list[str] = []
+
+
+class GeneralConfig(BaseModel):
+    app_name: str = Field(default="至简", min_length=1, max_length=40)
+    default_city: str = Field(default="厦门市", max_length=64)
+    data_retention_days: int = Field(default=90, ge=7, le=3650)

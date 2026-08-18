@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, ListOrdered, Search, SlidersHorizontal } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useDeferredValue, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { api } from '../../lib/api'
@@ -17,7 +17,11 @@ export function MapOverviewPage() {
   const queryClient = useQueryClient()
   const [selectedId, setSelectedId] = useState<string>()
   const [state, setState] = useState('')
-  const overview = useQuery({ queryKey: ['map', selectedId, state], queryFn: () => api.map(selectedId, state) })
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [district, setDistrict] = useState('')
+  const deferredQuery = useDeferredValue(query)
+  const overview = useQuery({ queryKey: ['map', selectedId, state, deferredQuery, district], queryFn: () => api.map(selectedId, state, deferredQuery, district) })
   const routes = useQuery({ queryKey: ['routes'], queryFn: api.routes })
   const selected = overview.data?.selected_preview
   const markerIds = useMemo(() => overview.data?.markers.map((item) => item.id) ?? [], [overview.data?.markers])
@@ -45,11 +49,12 @@ export function MapOverviewPage() {
     <div className="map-page">
       <header className="map-page__header">
         <div><h1>地图总览</h1><p>厦门 · {overview.data?.total_places ?? 0} 个地点</p></div>
-        <button className="icon-button" aria-label="搜索地点"><Search /></button>
+        <button className="icon-button" aria-label="搜索地点" onClick={() => setSearchOpen((value) => !value)}><Search /></button>
       </header>
+      {searchOpen && <div className="map-search"><Search /><input autoFocus value={query} onChange={(event) => { setQuery(event.target.value); setSelectedId(undefined) }} placeholder="搜索地点或地址" /><span>{overview.data?.visible_places ?? 0} 个结果</span></div>}
       <div className="map-filters">
         {stateFilters.map((filter) => <button key={filter.label} className={state === filter.value ? 'is-active' : ''} onClick={() => { setState(filter.value); setSelectedId(undefined) }}>{filter.label}</button>)}
-        <button><SlidersHorizontal />区域</button>
+        <button className={district ? 'is-active' : ''} onClick={() => { setDistrict((value) => value ? '' : '思明区'); setSelectedId(undefined) }}><SlidersHorizontal />{district || '区域'}</button>
       </div>
       <div className="map-page__stage">
         <MapCanvas markers={overview.data?.markers ?? []} selectedId={overview.data?.selected_place_id ?? null} onSelect={setSelectedId} />

@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import platform
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -36,7 +36,11 @@ from zhijian.db.models import (
     PlaceObservation,
     RouteDraft,
     RouteDraftItem,
+    Segment,
     Setting,
+    Snapshot,
+    Source,
+    SystemEvent,
 )
 from zhijian.db.session import get_db
 from zhijian.domain.enums import JobStatus, ResolutionStatus
@@ -44,10 +48,12 @@ from zhijian.domain.schemas import (
     CaptureRequest,
     CaptureResponse,
     ContentView,
+    GeneralConfig,
     JobView,
     MapMarker,
     MapOverviewView,
     PlacePreview,
+    ProfileConfig,
     ProviderConfig,
     RouteDraftCreate,
     RouteDraftUpdate,
@@ -55,12 +61,17 @@ from zhijian.domain.schemas import (
     SessionRequest,
 )
 from zhijian.providers.llm import OllamaProvider, OpenAICompatibleProvider
-from zhijian.providers.runtime import runtime_report
+from zhijian.providers.runtime import hardware_report, runtime_report
+from zhijian.services.audit import record_event
 from zhijian.services.auth import (
+    assert_auth_attempt_allowed,
+    clear_auth_failures,
     create_session,
     ensure_lan_token,
     get_secret_store,
+    record_auth_failure,
     require_session,
+    rotate_lan_token,
     token_hash,
     verify_lan_token,
 )
@@ -129,9 +140,20 @@ def exchange_session(
     store: SecretStore = Depends(get_secret_store),
     settings: Settings = Depends(get_settings),
 ) -> dict:
+    client_host = request.client.host if request.client else "unknown"
+    assert_auth_attempt_allowed(client_host, settings)
     if not verify_lan_token(payload.token, store):
+        record_auth_failure(client_host, settings)
+        record_event(
+            db,
+            "auth.session.denied",
+            "局域网配对码校验失败",
+            level="WARNING",
+            actor=client_host,
+        )
         raise HTTPException(status_code=401, detail="访问 Token 无效")
-    raw, session = create_session(db, payload.client_label)
+    clear_auth_failures(client_host)
+    raw, session = create_session(db, payload.client_label, settings.session_ttl_hours)
     response.set_cookie(
         key=settings.session_cookie_name,
         value=raw,
@@ -141,6 +163,7 @@ def exchange_session(
         max_age=settings.session_ttl_hours * 3600,
         path="/",
     )
+    record_event(db, "auth.session.created", "新设备已建立可信会话", actor=client_host)
     return {"status": "ok", "expires_at": session.expires_at}
 
 
@@ -150,26 +173,58 @@ def read_lan_token(
     store: SecretStore = Depends(get_secret_store),
 ) -> dict:
     token = ensure_lan_token(store)
-    return {"token": token, "display": f"{token[:6]}…{token[-4:]}"}
+    return {"token": token, "display": token, "digits": 4}
+
+
+@router.post("/api/admin/lan-token/rotate")
+def rotate_lan_access_token(
+    _: Protected,
+    db: Session = Depends(get_db),
+    store: SecretStore = Depends(get_secret_store),
+) -> dict:
+    token = rotate_lan_token(store)
+    db.query(AccessSession).delete()
+    record_event(db, "auth.token.rotated", "局域网配对码已轮换，已有设备会话已失效")
+    return {"token": token, "display": token, "digits": 4, "sessions_revoked": True}
 
 
 @router.get("/api/status")
 def status_view(
     _: Protected,
     settings: Settings = Depends(get_settings),
+    db: Session = Depends(get_db),
 ) -> dict:
+    checks = runtime_report(settings.ollama_base_url, settings.whisper_binary, settings.whisper_model)
+    hardware = hardware_report()
+    heartbeat = db.get(Setting, "runtime:worker-heartbeat")
+    worker_running = False
+    if heartbeat:
+        heartbeat_at = heartbeat.updated_at
+        if heartbeat_at.tzinfo is None:
+            heartbeat_at = heartbeat_at.replace(tzinfo=UTC)
+        age = (utc_now() - heartbeat_at).total_seconds()
+        worker_running = age <= max(30, settings.worker_heartbeat_seconds * 3)
     return {
-        "node_name": platform.node() or "至简 Mac mini",
+        "node_name": hardware["machine_name"],
         "deployment_target": "mac_mini",
         "system": platform.system(),
-        "release": platform.release(),
+        "release": hardware["os_version"],
         "architecture": platform.machine(),
         "python": platform.python_version(),
         "data_dir": str(settings.data_dir.resolve()),
         "database": str(settings.database_path.resolve()),
-        "services": {"fastapi": "RUNNING", "sqlite": "RUNNING"},
-        "runtime": {"ollama": settings.ollama_base_url, "asr": "whisper.cpp Metal"},
-        "runtime_checks": runtime_report(settings.ollama_base_url),
+        "services": {
+            "api": "RUNNING",
+            "worker": "RUNNING" if worker_running else "STALE",
+            "sqlite": "RUNNING",
+        },
+        "runtime": {
+            "ollama": settings.ollama_base_url,
+            "asr": next((item["detail"] for item in checks if item["name"] == "whisper.cpp"), "未检测"),
+        },
+        "hardware": hardware,
+        "lan_url": f"http://{hardware['lan_ip']}:{settings.port}",
+        "runtime_checks": checks,
     }
 
 
@@ -223,7 +278,24 @@ async def capture_file(
         raise HTTPException(status_code=413, detail="文件超过大小限制")
     filename = Path(upload.filename or "upload.bin").name
     suffix = Path(filename).suffix.lower()
-    allowed = {".pdf", ".docx", ".xlsx", ".xlsm", ".png", ".jpg", ".jpeg", ".txt", ".md"}
+    allowed = {
+        ".pdf",
+        ".docx",
+        ".xlsx",
+        ".xlsm",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".txt",
+        ".md",
+        ".mp3",
+        ".m4a",
+        ".wav",
+        ".aac",
+        ".mp4",
+        ".mov",
+        ".webm",
+    }
     if suffix not in allowed:
         raise HTTPException(status_code=415, detail=f"暂不支持 {suffix or '未知'} 文件")
     path = safe_upload_path(settings, filename, content)
@@ -383,6 +455,188 @@ def get_content(content_id: str, _: Protected, db: Session = Depends(get_db)) ->
     }
 
 
+@router.get("/api/sources")
+def list_sources(
+    _: Protected,
+    query: str | None = None,
+    source_type: str | None = None,
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    statement = select(Source).order_by(Source.updated_at.desc())
+    if query:
+        statement = statement.where(Source.title.contains(query) | Source.locator.contains(query))
+    if source_type:
+        statement = statement.where(Source.source_type == source_type.upper())
+    result = []
+    for source in db.scalars(statement).all():
+        snapshot_count = (
+            db.scalar(select(func.count(Snapshot.id)).where(Snapshot.source_id == source.id)) or 0
+        )
+        content_count = (
+            db.scalar(select(func.count(ContentItem.id)).where(ContentItem.source_id == source.id)) or 0
+        )
+        result.append(
+            {
+                "id": source.id,
+                "source_type": source.source_type,
+                "locator": source.locator,
+                "title": source.title or "未命名来源",
+                "authority": source.authority,
+                "snapshot_count": snapshot_count,
+                "content_count": content_count,
+                "updated_at": source.updated_at,
+            }
+        )
+    return result
+
+
+@router.get("/api/sources/{source_id}")
+def source_detail(source_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
+    source = db.get(Source, source_id)
+    if source is None:
+        raise HTTPException(status_code=404, detail="来源不存在")
+    snapshots = db.scalars(
+        select(Snapshot).where(Snapshot.source_id == source_id).order_by(Snapshot.captured_at.desc())
+    ).all()
+    snapshot_ids = [snapshot.id for snapshot in snapshots]
+    segment_count = (
+        db.scalar(select(func.count(Segment.id)).where(Segment.snapshot_id.in_(snapshot_ids))) or 0
+        if snapshot_ids
+        else 0
+    )
+    contents = db.scalars(select(ContentItem).where(ContentItem.source_id == source_id)).all()
+    return {
+        "id": source.id,
+        "source_type": source.source_type,
+        "locator": source.locator,
+        "title": source.title,
+        "authority": source.authority,
+        "metadata": source.metadata_json,
+        "snapshots": [
+            {
+                "id": snapshot.id,
+                "content_hash": snapshot.content_hash,
+                "raw_path": snapshot.raw_path,
+                "captured_at": snapshot.captured_at,
+            }
+            for snapshot in snapshots
+        ],
+        "segment_count": segment_count,
+        "contents": [content_view(item).model_dump() for item in contents],
+    }
+
+
+@router.get("/api/todos")
+def list_todos(_: Protected, db: Session = Depends(get_db)) -> list[dict]:
+    todos: list[dict] = []
+    for item in db.scalars(
+        select(ContentItem).where(ContentItem.status == "NEEDS_USER").order_by(ContentItem.updated_at.desc())
+    ).all():
+        todos.append(
+            {
+                "id": f"content:{item.id}",
+                "kind": "CONTENT_REVIEW",
+                "title": item.title,
+                "detail": "结构化结果存在需要人工确认的字段",
+                "to": f"/content/{item.id}",
+                "created_at": item.updated_at,
+            }
+        )
+    for job in db.scalars(select(Job).where(Job.status.in_(["FAILED", "NEEDS_USER"]))).all():
+        todos.append(
+            {
+                "id": f"job:{job.id}",
+                "kind": "JOB_FAILURE" if job.status == "FAILED" else "JOB_REVIEW",
+                "title": job_view(job).title,
+                "detail": job.error or "任务等待确认",
+                "to": f"/tasks/{job.id}",
+                "created_at": job.created_at,
+            }
+        )
+    unresolved = db.scalars(select(Place).where(Place.resolution_status == "UNRESOLVED")).all()
+    for place in unresolved:
+        todos.append(
+            {
+                "id": f"place:{place.id}",
+                "kind": "PLACE_REVIEW",
+                "title": place.name,
+                "detail": "地点需要通过高德 POI 确认",
+                "to": f"/places/{place.id}",
+                "created_at": place.updated_at,
+            }
+        )
+    return sorted(todos, key=lambda item: str(item["created_at"]), reverse=True)
+
+
+@router.get("/api/profile")
+def read_profile(_: Protected, db: Session = Depends(get_db)) -> dict:
+    setting = db.get(Setting, "profile:local")
+    return ProfileConfig(**(setting.value_json if setting else {})).model_dump()
+
+
+@router.put("/api/profile")
+def save_profile(payload: ProfileConfig, _: Protected, db: Session = Depends(get_db)) -> dict:
+    setting = db.get(Setting, "profile:local")
+    if setting is None:
+        setting = Setting(key="profile:local", value_json=payload.model_dump())
+        db.add(setting)
+    else:
+        setting.value_json = payload.model_dump()
+    record_event(db, "profile.updated", "本地报考档案已更新", entity_type="profile", entity_id="local")
+    return payload.model_dump()
+
+
+@router.get("/api/settings/general")
+def read_general_settings(_: Protected, db: Session = Depends(get_db)) -> dict:
+    setting = db.get(Setting, "app:general")
+    return GeneralConfig(**(setting.value_json if setting else {})).model_dump()
+
+
+@router.put("/api/settings/general")
+def save_general_settings(payload: GeneralConfig, _: Protected, db: Session = Depends(get_db)) -> dict:
+    setting = db.get(Setting, "app:general")
+    if setting is None:
+        setting = Setting(key="app:general", value_json=payload.model_dump())
+        db.add(setting)
+    else:
+        setting.value_json = payload.model_dump()
+    record_event(db, "settings.general.updated", "通用设置已保存")
+    return payload.model_dump()
+
+
+@router.get("/api/logs")
+def list_logs(
+    _: Protected,
+    level: str | None = None,
+    component: str | None = None,
+    query: str | None = None,
+    limit: int = Query(default=200, ge=1, le=1000),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    statement = select(SystemEvent).order_by(SystemEvent.created_at.desc()).limit(limit)
+    if level:
+        statement = statement.where(SystemEvent.level == level.upper())
+    if component:
+        statement = statement.where(SystemEvent.component == component)
+    if query:
+        statement = statement.where(SystemEvent.message.contains(query))
+    return [
+        {
+            "id": event.id,
+            "created_at": event.created_at,
+            "level": event.level,
+            "component": event.component,
+            "event_type": event.event_type,
+            "message": event.message,
+            "actor": event.actor,
+            "entity_type": event.entity_type,
+            "entity_id": event.entity_id,
+            "detail": event.detail_json,
+        }
+        for event in db.scalars(statement).all()
+    ]
+
+
 @router.get("/api/travel/map", response_model=MapOverviewView)
 def map_overview(
     _: Protected,
@@ -390,6 +644,7 @@ def map_overview(
     district: str | None = None,
     place_type: str | None = None,
     user_state: str | None = None,
+    query: str | None = None,
     selected_place_id: str | None = None,
     bbox: str | None = Query(default=None, description="west,south,east,north"),
     db: Session = Depends(get_db),
@@ -404,6 +659,8 @@ def map_overview(
         statement = statement.where(Place.place_type == place_type)
     if user_state:
         statement = statement.where(Place.user_state == user_state)
+    if query:
+        statement = statement.where(Place.name.contains(query) | Place.address.contains(query))
     if bbox:
         try:
             west, south, east, north = (float(part) for part in bbox.split(","))

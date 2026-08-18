@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 import { AppShell } from './components/AppShell'
-import { ProfilePage, SourcesPage, TodosPage } from './components/UtilityPages'
+import { LogsPage, ProfilePage, SourcesPage, TodosPage } from './components/UtilityPages'
 import { ContentDetailPage } from './features/content/ContentDetailPage'
 import { ContentPage } from './features/content/ContentPage'
 import { DashboardPage } from './features/dashboard/DashboardPage'
@@ -24,6 +24,7 @@ export function App() {
         <Route path="/tasks/:jobId" element={<TaskDetailPage />} />
         <Route path="/sources" element={<SourcesPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/logs" element={<LogsPage />} />
         <Route path="/capture" element={<CapturePage />} />
         <Route path="/todos" element={<TodosPage />} />
         <Route path="/profile" element={<ProfilePage />} />

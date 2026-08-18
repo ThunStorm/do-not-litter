@@ -58,4 +58,10 @@ def read_document(path: Path) -> tuple[str, list[dict]]:
                     "confidence": None,
                 }
             ]
+    if suffix in {".mp3", ".m4a", ".wav", ".aac", ".mp4", ".mov", ".webm"}:
+        from zhijian.core.config import get_settings
+        from zhijian.providers.asr import WhisperCppProvider
+
+        settings = get_settings()
+        return WhisperCppProvider(settings.whisper_binary, settings.whisper_model).transcribe(path)
     raise ValueError(f"暂不支持的文件类型：{suffix or 'unknown'}")

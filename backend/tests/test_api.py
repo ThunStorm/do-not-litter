@@ -5,7 +5,7 @@ from io import BytesIO
 from docx import Document
 from sqlalchemy import select
 
-from zhijian.db.models import Job, Setting
+from zhijian.db.models import Job, Setting, SystemEvent
 from zhijian.services.pipeline import process_job
 
 
@@ -13,6 +13,54 @@ def test_health(client) -> None:
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
+
+
+def test_lan_token_is_four_digits_and_rotates(client) -> None:
+    first = client.get("/api/admin/lan-token")
+    assert first.status_code == 200
+    token = first.json()["token"]
+    assert len(token) == 4
+    assert token.isdigit()
+    rotated = client.post("/api/admin/lan-token/rotate")
+    assert rotated.status_code == 200
+    assert rotated.json()["token"].isdigit()
+    assert rotated.json()["token"] != token
+
+
+def test_real_status_schema_and_runtime_checks(client) -> None:
+    response = client.get("/api/status")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["deployment_target"] == "mac_mini"
+    assert payload["hardware"]["machine_name"]
+    assert payload["hardware"]["disk"]["total_gb"] > 0
+    assert {item["name"] for item in payload["runtime_checks"]} >= {"ffmpeg", "whisper.cpp", "ollama"}
+
+
+def test_sources_profile_todos_and_logs_are_real_endpoints(client, app_and_session) -> None:
+    _, factory = app_and_session
+    sources = client.get("/api/sources")
+    assert sources.status_code == 200
+    assert sources.json()
+    detail = client.get(f"/api/sources/{sources.json()[0]['id']}")
+    assert detail.status_code == 200
+    profile = {
+        "name": "测试用户",
+        "education": "本科",
+        "major": "计算机科学",
+        "graduation_year": "2026",
+        "graduate_status": "应届",
+        "household_registration": "北京市",
+        "preferred_regions": ["北京市"],
+    }
+    assert client.put("/api/profile", json=profile).json() == profile
+    assert client.get("/api/profile").json() == profile
+    assert client.get("/api/todos").status_code == 200
+    logs = client.get("/api/logs")
+    assert logs.status_code == 200
+    assert any(item["event_type"] == "profile.updated" for item in logs.json())
+    with factory() as db:
+        assert db.query(SystemEvent).count() >= 1
 
 
 def test_map_overview_switches_selected_preview(client) -> None:

@@ -32,6 +32,83 @@ export interface DashboardView {
   contents: ContentView[]
 }
 
+export interface RuntimeCheck {
+  name: string
+  status: 'READY' | 'MISSING' | 'DEGRADED' | 'UNAVAILABLE'
+  detail: string
+  path?: string | null
+}
+
+export interface StatusView {
+  node_name: string
+  deployment_target: string
+  system: string
+  release: string
+  architecture: string
+  python: string
+  data_dir: string
+  database: string
+  lan_url: string
+  services: Record<string, string>
+  runtime: { ollama: string; asr: string }
+  hardware: {
+    machine_name: string
+    model: string
+    chip: string
+    cpu_cores: number | null
+    gpu: string
+    gpu_cores: number | null
+    memory: string
+    architecture: string
+    lan_ip: string
+    disk: { total_gb: number; used_gb: number; free_gb: number }
+  }
+  runtime_checks: RuntimeCheck[]
+}
+
+export interface SourceView {
+  id: string
+  source_type: string
+  locator: string
+  title: string
+  authority: string
+  snapshot_count: number
+  content_count: number
+  updated_at: string
+}
+
+export interface TodoView {
+  id: string
+  kind: string
+  title: string
+  detail: string
+  to: string
+  created_at: string
+}
+
+export interface ProfileView {
+  name: string
+  education: string
+  major: string
+  graduation_year: string
+  graduate_status: string
+  household_registration: string
+  preferred_regions: string[]
+}
+
+export interface LogEventView {
+  id: string
+  created_at: string
+  level: string
+  component: string
+  event_type: string
+  message: string
+  actor: string
+  entity_type: string | null
+  entity_id: string | null
+  detail: Record<string, unknown>
+}
+
 export interface PlaceObservation {
   type: string
   value?: string

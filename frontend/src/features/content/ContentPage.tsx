@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { BriefcaseBusiness, ChevronRight, Filter, Luggage, Map, Search } from 'lucide-react'
+import { BriefcaseBusiness, ChevronRight, FileQuestion, Filter, Luggage, Map, Search } from 'lucide-react'
 import { useDeferredValue, useState } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -16,11 +16,19 @@ const filters: Array<{ label: string; value?: ContentType }> = [
 export function ContentPage() {
   const [activeType, setActiveType] = useState<ContentType | undefined>()
   const [query, setQuery] = useState('')
+  const [needsReviewOnly, setNeedsReviewOnly] = useState(false)
   const deferredQuery = useDeferredValue(query)
   const contents = useQuery({
     queryKey: ['content', activeType, deferredQuery],
     queryFn: () => api.content(activeType, deferredQuery),
   })
+  const visibleContents = needsReviewOnly ? contents.data?.filter((item) => item.status === 'NEEDS_USER') : contents.data
+
+  const typeMeta = (contentType: ContentType) => {
+    if (contentType === 'RECRUITMENT') return { icon: <BriefcaseBusiness />, label: '招聘' }
+    if (contentType === 'TRAVEL') return { icon: <Luggage />, label: '旅行' }
+    return { icon: <FileQuestion />, label: '未支持' }
+  }
 
   return (
     <div className="content-page page-frame">
@@ -41,7 +49,7 @@ export function ContentPage() {
             {item.label}
           </button>
         ))}
-        <button className="content-tabs__filter"><Filter size={18} />筛选</button>
+        <button className={`content-tabs__filter ${needsReviewOnly ? 'is-active' : ''}`} aria-pressed={needsReviewOnly} onClick={() => setNeedsReviewOnly((value) => !value)}><Filter size={18} />{needsReviewOnly ? '只看待确认' : '筛选'}</button>
       </div>
       {activeType !== 'RECRUITMENT' && (
         <Link className="map-entry" to="/map">
@@ -50,12 +58,12 @@ export function ContentPage() {
         </Link>
       )}
       <section className="content-list-section">
-        <div className="section-title"><h2>最近更新</h2><span>{contents.data?.length ?? 0}</span></div>
+        <div className="section-title"><h2>{needsReviewOnly ? '需要确认' : '最近更新'}</h2><span>{visibleContents?.length ?? 0}</span></div>
         <div className="mobile-content-list">
-          {contents.data?.length ? contents.data.map((item) => (
+          {visibleContents?.length ? visibleContents.map((item) => (
             <Link key={item.id} className="mobile-content-row" to={`/content/${item.id}`}>
-              {item.content_type === 'RECRUITMENT' ? <BriefcaseBusiness /> : <Luggage />}
-              <div><strong>{item.title}</strong><span>{item.content_type === 'RECRUITMENT' ? '招聘' : '旅行'} · {item.status === 'NEEDS_USER' ? '需确认' : '已完成'}</span></div>
+              {typeMeta(item.content_type).icon}
+              <div><strong>{item.title}</strong><span>{typeMeta(item.content_type).label} · {item.status === 'NEEDS_USER' ? '需确认' : '已完成'}</span></div>
               <ChevronRight />
             </Link>
           )) : <EmptyState title="没有符合条件的内容" detail="调整分类或投递新的链接" />}

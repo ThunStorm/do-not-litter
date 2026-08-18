@@ -28,7 +28,12 @@ class Settings(BaseSettings):
     worker_poll_seconds: float = 1.0
     worker_lease_seconds: int = 90
     worker_heartbeat_seconds: int = 20
+    auth_max_attempts: int = 5
+    auth_window_seconds: int = 300
+    auth_lockout_seconds: int = 600
     ollama_base_url: str = "http://127.0.0.1:11434"
+    whisper_binary: str = "whisper-cli"
+    whisper_model: Path = Path("./data/models/whisper/ggml-base.bin")
     deepseek_base_url: str = "https://api.deepseek.com/v1"
     mimo_base_url: str = ""
     amap_api_key: str = ""
@@ -65,6 +70,7 @@ class Settings(BaseSettings):
             self.permanent_dir / "exports",
             self.data_dir / "browser" / "profile",
             self.data_dir / "models",
+            self.data_dir / "models" / "whisper",
             self.cache_dir / "video",
             self.cache_dir / "audio",
             self.cache_dir / "frames",

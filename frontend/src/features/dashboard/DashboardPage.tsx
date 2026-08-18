@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowUp, ChevronRight, Cpu, Database, Link2, Server, Sparkles } from 'lucide-react'
+import { ArrowUp, Check, ChevronRight, Copy, Cpu, Database, KeyRound, Link2, RefreshCw, Server, Sparkles } from 'lucide-react'
 import { FormEvent, useState } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -12,8 +12,11 @@ const contentTypeLabel = { RECRUITMENT: '招聘', TRAVEL: '旅行', UNSUPPORTED:
 export function DashboardPage() {
   const queryClient = useQueryClient()
   const [captureValue, setCaptureValue] = useState('')
+  const [copied, setCopied] = useState(false)
   const dashboard = useQuery({ queryKey: ['dashboard'], queryFn: api.dashboard, refetchInterval: 5000 })
-  const status = useQuery({ queryKey: ['status'], queryFn: api.status })
+  const status = useQuery({ queryKey: ['status'], queryFn: api.status, refetchInterval: 15000 })
+  const lanToken = useQuery({ queryKey: ['lan-token'], queryFn: api.lanToken })
+  const rotateToken = useMutation({ mutationFn: api.rotateLanToken, onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['lan-token'] }) })
   const capture = useMutation({
     mutationFn: api.capture,
     onSuccess: () => {
@@ -45,6 +48,12 @@ export function DashboardPage() {
       </form>
       {capture.isError && <p className="form-error">{capture.error.message}</p>}
 
+      <section className="pairing-card" aria-label="局域网配对信息">
+        <div className="pairing-card__title"><KeyRound /><span><strong>手机局域网配对码</strong><small>{status.data?.lan_url ?? '正在读取局域网地址'}</small></span></div>
+        <output aria-label="四位配对码">{lanToken.data?.display ?? '••••'}</output>
+        <div className="pairing-card__actions"><button onClick={async () => { if (!lanToken.data) return; await navigator.clipboard.writeText(lanToken.data.token); setCopied(true); window.setTimeout(() => setCopied(false), 1600) }}>{copied ? <Check /> : <Copy />}{copied ? '已复制' : '复制'}</button><button onClick={() => rotateToken.mutate()} disabled={rotateToken.isPending}><RefreshCw className={rotateToken.isPending ? 'spin' : ''} />换一个</button></div>
+      </section>
+
       <div className="dashboard-grid">
         <section className="panel panel--contents">
           <PanelHeading title="最近内容" to="/content" />
@@ -74,14 +83,14 @@ export function DashboardPage() {
             <span><span className="status-dot" />可信局域网在线</span>
           </div>
           <div className="node-panel__grid">
-            <NodeMetric icon={Server} label="节点" value="至简 Mac mini" detail="后端 · AI Worker · 数据存储" />
-            <NodeMetric icon={Cpu} label="硬件与系统" value="Apple M4 · 16 GB" detail="macOS · arm64" />
-            <NodeMetric icon={Database} label="服务" value="FastAPI · SQLite" detail="Worker · Playwright" />
+            <NodeMetric icon={Server} label="节点" value={status.data?.hardware.machine_name ?? '读取中'} detail={`${status.data?.hardware.model ?? '—'} · ${status.data?.lan_url ?? '—'}`} />
+            <NodeMetric icon={Cpu} label="硬件与系统" value={`${status.data?.hardware.chip ?? '读取中'} · ${status.data?.hardware.memory ?? '—'}`} detail={`${status.data?.system ?? '—'} ${status.data?.release ?? ''} · ${status.data?.architecture ?? '—'} · GPU ${status.data?.hardware.gpu_cores ?? '—'} 核`} />
+            <NodeMetric icon={Database} label="服务" value={`API ${serviceLabel(status.data?.services.api)} · Worker ${serviceLabel(status.data?.services.worker)}`} detail={`SQLite · 可用空间 ${status.data?.hardware.disk.free_gb ?? '—'} GB`} />
             <NodeMetric
               icon={Sparkles}
               label="本地 AI"
-              value="Ollama Metal"
-              detail={String((status.data?.runtime as Record<string, string> | undefined)?.asr ?? 'whisper.cpp Metal')}
+              value={runtimeSummary(status.data?.runtime_checks)}
+              detail={status.data?.runtime.asr ?? '正在检测 Whisper.cpp'}
             />
           </div>
         </section>
@@ -89,6 +98,9 @@ export function DashboardPage() {
     </div>
   )
 }
+
+function serviceLabel(status?: string) { return status === 'RUNNING' ? '运行中' : status === 'STALE' ? '无心跳' : '检测中' }
+function runtimeSummary(checks?: Array<{ name: string; status: string }>) { const ready = checks?.filter((item) => item.status === 'READY').map((item) => item.name) ?? []; return ready.length ? ready.join(' · ') : '本地 AI 未就绪' }
 
 function PanelHeading({ title, to }: { title: string; to: string }) {
   return (

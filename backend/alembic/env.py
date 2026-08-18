@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from alembic import context
 from zhijian.core.config import get_settings
-from zhijian.db.base import Base
 from zhijian.db import models  # noqa: F401
-
+from zhijian.db.base import Base
 
 config = context.config
 if config.config_file_name is not None:

@@ -7,13 +7,25 @@
 在仓库根目录执行：
 
 ```bash
-pnpm --filter zhijian-frontend verify
+pnpm --dir frontend verify
 .venv/bin/pytest backend/tests
 .venv/bin/zhijian-init
 .venv/bin/python deploy/macos/manage.py install
 ```
 
-安装器会先备份已有 plist，再加载新服务；不会删除 `data/`。默认监听 `0.0.0.0:8787`，Secret Store 使用 macOS Keychain，日志写入 `data/logs/`。手机通过 `http://<Mac-mini-局域网-IP>:8787` 访问，首次输入初始化命令显示的 LAN Token，换取 HttpOnly Session。
+安装器会先备份已有 plist，再加载新服务；不会删除 `data/`。默认监听 `0.0.0.0:8787`，Secret Store 使用 macOS Keychain，日志写入 `data/logs/`。手机通过 `http://<Mac-mini-局域网-IP>:8787` 访问，首次输入 PC 首页或“设置 → 局域网访问”显示的 4 位配对码，换取 HttpOnly Session。连续 5 次失败会触发 10 分钟锁定；轮换配对码会撤销已有设备会话。
+
+## 本地 AI 运行时
+
+```bash
+brew install ffmpeg whisper-cpp ollama
+brew services start ollama
+ollama pull qwen2.5:7b
+```
+
+Whisper.cpp 还需要 `data/models/whisper/ggml-base.bin`。模型启用前必须核对 SHA-256 为 `60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe`。页面“设置 → 语音与 OCR”读取实际二进制路径、模型大小和 Ollama API，不以配置文字代替运行状态。
+
+当前已验收组合为 FFmpeg 9.0.1、Whisper.cpp 1.9.2、`ggml-base.bin`（141 MB）和 Ollama 0.32.14 + `qwen2.5:7b`。Whisper 在 Metal 分配受 Ollama 统一内存占用影响时会自动以 `-ng` 回退 CPU，避免任务直接失败。
 
 ## 管理与回退
 

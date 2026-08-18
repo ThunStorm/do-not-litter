@@ -22,7 +22,7 @@ SERVICES = {
 
 def environment() -> dict[str, str]:
     return {
-        "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
+        "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
         "PYTHONUNBUFFERED": "1",
         "ZHIJIAN_ENV": "production",
         "ZHIJIAN_HOST": "0.0.0.0",
@@ -31,6 +31,8 @@ def environment() -> dict[str, str]:
         "ZHIJIAN_SECRET_STORE": "keychain",
         "ZHIJIAN_ALLOW_LOCALHOST_WITHOUT_SESSION": "true",
         "ZHIJIAN_OLLAMA_BASE_URL": "http://127.0.0.1:11434",
+        "ZHIJIAN_WHISPER_BINARY": "/opt/homebrew/bin/whisper-cli",
+        "ZHIJIAN_WHISPER_MODEL": str(ROOT / "data" / "models" / "whisper" / "ggml-base.bin"),
     }
 
 

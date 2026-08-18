@@ -11,10 +11,10 @@
 # AI Personal Inbox / Personal Scout
 ## 项目文档索引
 
-> 文档版本：v0.3
-> 更新日期：2026-08-18
-> 当前阶段：需求与架构基线已完成，可进入 Phase 0A 技术验证与工程实施
-> 第一阶段部署形态：保留 Windows 11 PC 与 Mac mini 两套本地优先单节点方案，实施前由用户选择其一作为后端与 AI Worker；手机通过可信局域网访问
+> 文档版本：v0.4
+> 更新日期：2026-08-19
+> 当前阶段：Mac mini 可用化实施与真实运行时验收
+> 第一阶段部署形态：文档保留 Windows 11 PC 与 Mac mini 两套单节点方案；当前实施分支选择 Mac mini 作为后端与 AI Worker，手机通过可信局域网访问
 > 第一阶段业务范围：北京市公务员/事业单位招聘 + 中国范围 Travel/Food
 
 ---
@@ -110,6 +110,8 @@
 | [PROJECT_PLAN.md](./PROJECT_PLAN.md) | Codex/Agent 可直接执行的工程实施计划 |
 | [FUTURE_ROADMAP.md](./FUTURE_ROADMAP.md) | GenericProcessor、移动端、云、多 Worker、C 级自动化 |
 | [ARCHITECTURE_DECISIONS.md](./ARCHITECTURE_DECISIONS.md) | 关键设计决策与原因 |
+| [LOGGING_ARCHITECTURE.md](./LOGGING_ARCHITECTURE.md) | 本地结构化日志、审计事件、安全与保留架构 |
+| [LOGGING_IMPLEMENTATION.md](./LOGGING_IMPLEMENTATION.md) | 日志代码、接口、部署、测试与回退操作 |
 
 `COMPLETE_PROJECT_SPEC.md` 是由上述分文档自动生成的合订本，不作为独立编辑源。修改分文档后运行 `python scripts/build_complete_project_spec.py` 重新生成。
 
@@ -142,7 +144,7 @@
 ### 方案 B：Mac mini 后端
 
 - 设备：Mac mini（`Mac16,10`）
-- OS：macOS 26.6.1（实施时允许升级）
+- OS：macOS 26.6.2（当前实际探测值）
 - 芯片：Apple M4，10 核 CPU
 - RAM：16 GB 统一内存
 - 架构：arm64
@@ -271,7 +273,7 @@ V1.x
 
 ## 1. 决策状态
 
-第一版保留两套互斥、均可实施的单节点部署方案，最终实施前由用户选择：
+第一版保留两套互斥、均可实施的单节点部署方案。**2026-08-18 已选择方案 B（Mac mini）作为当前实施目标**，方案 A 继续保留供后续切换：
 
 - **方案 A：Windows 11 PC 后端**；
 - **方案 B：Mac mini 后端**。
@@ -4315,6 +4317,152 @@ CMS 显示当前后端类型、硬件、运行时和诊断结果。两套平台�
 18. DeepSeek、Xiaomi MiMo 可通过兼容 Provider 配置和测试；
 19. 地点可加入路线清单并手动排序，系统不伪造自动最优路线、距离或交通耗时；
 20. `GOLDEN_SAMPLES.md` 的安全与正确性门槛全部通过。
+
+
+---
+
+# FILE: LOGGING_ARCHITECTURE.md
+
+# 日志系统设计架构
+
+版本：v0.1，更新日期：2026-08-19，适用部署：Mac mini 单节点。
+
+## 1. 目标与边界
+
+日志系统解决三类问题：一是回答“服务是否真的在运行”；二是回答“某次投递为什么成功、失败或等待确认”；三是记录影响安全与结果的用户操作。第一版不引入 Elasticsearch、Loki、云日志或遥测 SaaS，所有日志保存在 Mac mini 本地。
+
+日志不存储配对码、Session Cookie、API Key、请求正文、上传文件内容与个人档案完整值。URL 只在 Source 数据域保存，HTTP 运行日志仅记录路径，不记录查询串和请求体。
+
+## 2. 双层日志模型
+
+### 2.1 运行日志 JSONL
+
+API 与 Worker 分别写入 `data/logs/api.jsonl` 和 `data/logs/worker.jsonl`。每行一个 JSON 对象，字段包括 `timestamp`、`level`、`component`、`message`，可选字段包括 `request_id`、`event_type`、`duration_ms`、`status_code`、`path`、`job_id` 和异常摘要。
+
+运行日志用于开发排障和服务恢复。单文件 10 MiB，保留 5 个轮换文件；LaunchAgent 的 stdout/stderr 仍写入独立文件，作为 Python 日志子系统失效时的兜底。
+
+### 2.2 审计事件 SQLite
+
+`system_events` 表保存用户能理解且需要长期查询的事件：配对成功/失败、配对码轮换、设置更新、个人档案更新、任务完成/失败等。字段为事件 ID、时间、级别、组件、事件类型、消息、Actor、实体类型/ID、Request ID 和非敏感结构化详情。
+
+审计事件通过 `/api/logs` 查询并在 PC“运行日志”页面展示。页面只展示结构化事件，不直接暴露原始日志文件。
+
+## 3. 事件链路
+
+```text
+手机/PC 请求
+  → Request ID
+  → API JSONL（路径、状态码、耗时）
+  → 业务动作
+      → system_events（可读审计事件）
+      → Job
+          → Worker JSONL
+          → system_events（完成/失败）
+```
+
+Request ID 由 API 生成或接受客户端 `X-Request-ID`，并通过响应头返回。涉及 Job 的事件同时记录 Job ID，便于从页面任务跳转到日志筛选。
+
+## 4. 级别与事件规范
+
+| 级别 | 使用条件 | 示例 |
+|---|---|---|
+| INFO | 正常状态变化 | 会话建立、设置保存、任务完成 |
+| WARNING | 可恢复但需要关注 | 配对失败、运行时降级、来源需确认 |
+| ERROR | 操作失败或数据处理失败 | Worker 异常、Provider 调用失败 |
+
+事件类型采用 `领域.对象.动作`，例如 `auth.session.created`、`auth.token.rotated`、`job.completed`、`job.failed`、`profile.updated`。消息供人阅读，自动化判断使用事件类型而不是解析消息文字。
+
+## 5. 安全、保留与恢复
+
+- 4 位配对码只存在 macOS Keychain，页面通过受保护接口读取；日志永不记录其值。
+- API Key 只存在 Keychain；Provider 日志只记录 Provider、模型与错误摘要。
+- 运行日志按文件大小轮换；审计事件的默认产品保留期为 90 天，清理任务后续按 `app:general.data_retention_days` 执行。
+- SQLite 使用 WAL；日志写入失败不能阻塞主业务，审计事件失败应回滚当前业务事务并在 stderr 留痕。
+- 备份应同时包含 `app.db`、`-wal/-shm` 一致性快照和永久文件，不要求备份可再生的 JSONL。
+
+## 6. 可观测性验收
+
+验收必须满足：PC 日志页能看到设置/档案/配对/任务事件；API 响应带 Request ID；`api.jsonl` 与 `worker.jsonl` 为合法逐行 JSON；任务失败可从 Job ID 定位事件；日志中搜索不到配对码、Cookie、API Key 与请求正文。
+
+
+---
+
+# FILE: LOGGING_IMPLEMENTATION.md
+
+# 日志系统实施文档
+
+版本：v0.1，更新日期：2026-08-19。
+
+## 1. 已实施组件
+
+| 组件 | 文件/接口 | 职责 |
+|---|---|---|
+| JSON Formatter | `backend/src/zhijian/core/logging.py` | 统一 API/Worker JSONL 格式与 10 MiB×5 轮换 |
+| 请求中间件 | `backend/src/zhijian/main.py` | Request ID、状态码、耗时和异常记录 |
+| 审计模型 | `backend/src/zhijian/db/models.py` | `system_events` 持久表 |
+| 数据迁移 | `backend/alembic/versions/0002_system_events.py` | 新建表与时间/组件索引 |
+| 审计服务 | `backend/src/zhijian/services/audit.py` | 业务事件统一写入 |
+| 查询 API | `GET /api/logs` | 按级别、组件、关键词和数量查询 |
+| PC 页面 | `/logs` | 五秒刷新、级别筛选、关键词检索 |
+
+## 2. 运行目录
+
+```text
+data/logs/
+  api.jsonl
+  api.jsonl.1 ... api.jsonl.5
+  worker.jsonl
+  worker.jsonl.1 ... worker.jsonl.5
+  api.stdout.log / api.stderr.log
+  worker.stdout.log / worker.stderr.log
+```
+
+`data/` 不进入 Git。生产服务由 `deploy/macos/manage.py` 生成的两个 LaunchAgent 写入同一目录。
+
+## 3. 接口使用
+
+```http
+GET /api/logs?level=ERROR&component=worker&query=Whisper&limit=200
+```
+
+返回时间倒序事件列表。`limit` 范围为 1–1000；全部接口复用局域网 Session 保护。本机 `127.0.0.1` 按部署设置可豁免会话。
+
+新增审计事件时调用：
+
+```python
+record_event(
+    db,
+    "job.failed",
+    "任务处理失败",
+    component="worker",
+    level="ERROR",
+    entity_type="job",
+    entity_id=job.id,
+    detail={"reason": "runtime unavailable"},
+)
+```
+
+`detail` 只能放非敏感字段。若业务随后还有同一事务提交，使用 `commit=False`，避免把部分状态提前提交。
+
+## 4. 部署与升级
+
+1. 运行 `.venv/bin/alembic -c backend/alembic.ini upgrade head`；当前启动仍使用 `create_all` 兼容初装，但正式升级以 Alembic 为准。
+2. 构建前端并重新安装 LaunchAgent：`pnpm --dir frontend verify`，随后 `.venv/bin/python deploy/macos/manage.py install`。
+3. 检查 `data/logs/api.jsonl`、`data/logs/worker.jsonl` 是否持续追加，并在 `/logs` 验证结构化事件。
+4. 回退到 v0.1.0 时先停止服务并备份数据库；`0002` 降级会删除审计事件表，因此默认不执行 downgrade，只回退应用代码。
+
+## 5. 测试清单
+
+- 后端测试覆盖日志 API、档案更新产生审计事件、4 位配对码轮换和真实状态 Schema。
+- 手工触发一次设置保存、一次失败登录、一次任务完成，验证页面筛选和时间排序。
+- 对日志目录运行敏感词检查，确认不存在 Keychain 值、Cookie 和正文。
+- 停止 Worker，等待超过三倍心跳间隔，`/api/status.services.worker` 应显示 `STALE`；重启后恢复 `RUNNING`。
+
+本轮实际验收已确认 API/Worker 启动事件与 Whisper 音频任务完成事件进入 `/api/logs`，`api.jsonl`、`worker.jsonl` 均持续写入合法 JSONL；PC `/logs` 页已完成搜索、级别筛选、立即刷新和五秒自动刷新界面验收。
+
+## 6. 后续增强
+
+第二阶段可增加审计事件导出、按 Request ID/Job ID 深链、90 天定时清理、磁盘低水位告警和日志完整性哈希。未达到单机查询瓶颈前不引入外部日志栈。
 
 
 ---

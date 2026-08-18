@@ -1,7 +1,7 @@
 {
   "project": "AI Personal Inbox / Personal Scout",
-  "version": "0.3",
-  "updated_date": "2026-08-18",
+  "version": "0.4",
+  "updated_date": "2026-08-19",
   "mvp_processors": [
     "Recruitment",
     "TravelFood"
@@ -11,7 +11,7 @@
     "ConfigurableProcessor",
     "OtherDedicatedProcessors"
   ],
-  "deployment_decision": "pending user selection before Phase 0A",
+  "deployment_decision": "mac_mini selected for current implementation; windows_pc retained as documented alternative",
   "deployment_options": [
     {
       "id": "windows_pc",
@@ -45,6 +45,8 @@
     "AI_RUNTIME_AND_PROVIDERS.md",
     "API_DESIGN.md",
     "ARCHITECTURE_DECISIONS.md",
+    "LOGGING_ARCHITECTURE.md",
+    "LOGGING_IMPLEMENTATION.md",
     "CONTROL_CENTER.md",
     "DATA_MODEL.md",
     "DEPLOYMENT_OPTIONS.md",

@@ -7,10 +7,8 @@ Create Date: 2026-08-18
 from __future__ import annotations
 
 from alembic import op
-
-from zhijian.db.base import Base
 from zhijian.db import models  # noqa: F401
-
+from zhijian.db.base import Base
 
 revision = "0001"
 down_revision = None

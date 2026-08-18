@@ -7,6 +7,7 @@ import {
   LayoutGrid,
   Plus,
   Settings,
+  ScrollText,
   UserRound,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
@@ -20,6 +21,7 @@ const desktopNav = [
   { to: '/tasks', label: '任务', icon: CheckSquare },
   { to: '/sources', label: '来源', icon: Folder },
   { to: '/settings', label: '设置', icon: Settings },
+  { to: '/logs', label: '日志', icon: ScrollText },
 ]
 
 const mobileNav = [

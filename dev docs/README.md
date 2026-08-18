@@ -1,10 +1,10 @@
 # AI Personal Inbox / Personal Scout
 ## 项目文档索引
 
-> 文档版本：v0.3
-> 更新日期：2026-08-18
-> 当前阶段：需求与架构基线已完成，可进入 Phase 0A 技术验证与工程实施
-> 第一阶段部署形态：保留 Windows 11 PC 与 Mac mini 两套本地优先单节点方案，实施前由用户选择其一作为后端与 AI Worker；手机通过可信局域网访问
+> 文档版本：v0.4
+> 更新日期：2026-08-19
+> 当前阶段：Mac mini 可用化实施与真实运行时验收
+> 第一阶段部署形态：文档保留 Windows 11 PC 与 Mac mini 两套单节点方案；当前实施分支选择 Mac mini 作为后端与 AI Worker，手机通过可信局域网访问
 > 第一阶段业务范围：北京市公务员/事业单位招聘 + 中国范围 Travel/Food
 
 ---
@@ -100,6 +100,8 @@
 | [PROJECT_PLAN.md](./PROJECT_PLAN.md) | Codex/Agent 可直接执行的工程实施计划 |
 | [FUTURE_ROADMAP.md](./FUTURE_ROADMAP.md) | GenericProcessor、移动端、云、多 Worker、C 级自动化 |
 | [ARCHITECTURE_DECISIONS.md](./ARCHITECTURE_DECISIONS.md) | 关键设计决策与原因 |
+| [LOGGING_ARCHITECTURE.md](./LOGGING_ARCHITECTURE.md) | 本地结构化日志、审计事件、安全与保留架构 |
+| [LOGGING_IMPLEMENTATION.md](./LOGGING_IMPLEMENTATION.md) | 日志代码、接口、部署、测试与回退操作 |
 
 `COMPLETE_PROJECT_SPEC.md` 是由上述分文档自动生成的合订本，不作为独立编辑源。修改分文档后运行 `python scripts/build_complete_project_spec.py` 重新生成。
 
@@ -132,7 +134,7 @@
 ### 方案 B：Mac mini 后端
 
 - 设备：Mac mini（`Mac16,10`）
-- OS：macOS 26.6.1（实施时允许升级）
+- OS：macOS 26.6.2（当前实际探测值）
 - 芯片：Apple M4，10 核 CPU
 - RAM：16 GB 统一内存
 - 架构：arm64

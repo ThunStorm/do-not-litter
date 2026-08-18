@@ -58,10 +58,10 @@ export function CapturePage() {
         <button className="capture-bar__submit" aria-label="提交" disabled={capture.isPending}><ArrowUp /></button>
       </form>
       {message && <p className="capture-message">{message}</p>}
-      <input ref={fileInput} className="visually-hidden" type="file" accept=".docx,.pdf,.xlsx,.xlsm,.txt,.md,.png,.jpg,.jpeg" onChange={(event) => chooseFile(event.target.files?.[0])} />
+      <input ref={fileInput} className="visually-hidden" type="file" accept=".docx,.pdf,.xlsx,.xlsm,.txt,.md,.png,.jpg,.jpeg,.mp3,.m4a,.wav,.aac,.mp4,.mov,.webm" onChange={(event) => chooseFile(event.target.files?.[0])} />
       <input ref={imageInput} className="visually-hidden" type="file" accept="image/png,image/jpeg" capture="environment" onChange={(event) => chooseFile(event.target.files?.[0])} />
       <div className="capture-options">
-        <button onClick={() => fileInput.current?.click()} disabled={upload.isPending}><FileText /><strong>上传文件</strong><span>DOCX / PDF / XLSX / 图片</span></button>
+        <button onClick={() => fileInput.current?.click()} disabled={upload.isPending}><FileText /><strong>上传文件</strong><span>DOCX / PDF / 图片 / 音视频</span></button>
         <button onClick={() => imageInput.current?.click()} disabled={upload.isPending}><ScanLine /><strong>扫描文档</strong><span>调用相机后由 Vision OCR 识别</span></button>
         <button onClick={() => void pasteClipboard()}><Clipboard /><strong>从剪贴板</strong><span>读取后仍由你确认提交</span></button>
       </div>
