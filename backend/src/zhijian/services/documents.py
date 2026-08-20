@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import platform
 from pathlib import Path
 
 
@@ -45,9 +46,9 @@ def read_document(path: Path) -> tuple[str, list[dict]]:
         text = path.read_text(encoding="utf-8", errors="replace")
         return text, [{"text": text, "locator": {"file": path.name}}]
     if suffix in {".png", ".jpg", ".jpeg"}:
-        from zhijian.providers.ocr import MacVisionOCRProvider
+        from zhijian.providers.ocr import MacVisionOCRProvider, TesseractOCRProvider
 
-        provider = MacVisionOCRProvider()
+        provider = MacVisionOCRProvider() if platform.system() == "Darwin" else TesseractOCRProvider()
         try:
             return provider.recognize(path)
         except Exception as exc:

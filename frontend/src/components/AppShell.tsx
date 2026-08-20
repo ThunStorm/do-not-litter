@@ -1,6 +1,7 @@
 import {
   CheckSquare,
   FileText,
+  Clapperboard,
   Folder,
   Home,
   Inbox,
@@ -18,6 +19,7 @@ import { Brand } from './Brand'
 const desktopNav = [
   { to: '/', label: '概览', icon: LayoutGrid },
   { to: '/content', label: '内容', icon: FileText },
+  { to: '/video-notes', label: '视频笔记', icon: Clapperboard },
   { to: '/tasks', label: '任务', icon: CheckSquare },
   { to: '/sources', label: '来源', icon: Folder },
   { to: '/settings', label: '设置', icon: Settings },

@@ -37,6 +37,18 @@ class Settings(BaseSettings):
     deepseek_base_url: str = "https://api.deepseek.com/v1"
     mimo_base_url: str = ""
     amap_api_key: str = ""
+    video_media_downloader: str = "yt-dlp"
+    video_max_duration_seconds: int = 2 * 60 * 60
+    video_max_media_mb: int = 800
+    video_cache_ttl_hours: int = 24
+    video_network_timeout_seconds: int = 45
+    video_max_redirects: int = 3
+    video_proxy_url: str = ""
+    video_cookie_secret_key: str = "video-bilibili-cookie"
+    video_note_chunk_chars: int = 12_000
+    video_note_model: str = ""
+    travel_extraction_model: str = ""
+    place_note_model: str = ""
 
     @field_validator("frontend_origins", mode="before")
     @classmethod

@@ -10,6 +10,8 @@ import type {
   StatusView,
   TodoView,
   LogEventView,
+  VideoNoteDetail,
+  VideoNoteView,
 } from './types'
 
 const jsonHeaders = { 'Content-Type': 'application/json' }
@@ -105,4 +107,9 @@ export const api = {
     if (query) params.set('query', query)
     return request<LogEventView[]>(`/api/logs${params.size ? `?${params}` : ''}`)
   },
+  videoNotes: (query?: string) => request<VideoNoteView[]>(`/api/video-notes${query ? `?query=${encodeURIComponent(query)}` : ''}`),
+  videoNote: (id: string) => request<VideoNoteDetail>(`/api/video-notes/${id}`),
+  videoTranscript: (id: string) => request<{ text: string; segments: Array<{ id: string; text: string; start_ms: number; end_ms: number }> }>(`/api/video-notes/${id}/transcript`),
+  videoPlaces: (id: string) => request<Array<{ id: string; name: string; quote: string; resolution_status: string; place_id: string | null; place: { name: string; address: string } | null }>>(`/api/video-notes/${id}/places`),
+  regenerateVideoNote: (id: string) => request<{ job_id: string }>(`/api/video-notes/${id}/regenerate`, { method: 'POST' }),
 }

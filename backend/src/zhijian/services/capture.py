@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 
 from zhijian.core.config import Settings
 from zhijian.db.models import Job, Source
-from zhijian.domain.enums import JobStatus
+from zhijian.domain.enums import JobStatus, JobType
+from zhijian.resolvers.video import is_bilibili_url
 from zhijian.services.classifier import classify_capture
 
 
@@ -22,7 +23,8 @@ def create_capture_job(
     file_path: Path | None = None,
     metadata: dict | None = None,
 ) -> tuple[Source, Job]:
-    job_type = classify_capture(locator, title, text)
+    is_video = source_type == "URL" and is_bilibili_url(locator)
+    job_type = JobType.TRAVEL if is_video else classify_capture(locator, title, text)
     source = Source(
         source_type=source_type,
         locator=locator,
@@ -37,6 +39,7 @@ def create_capture_job(
         "title": title,
         "text": text,
         "file_path": str(file_path) if file_path else None,
+        "video_platform": "BILIBILI" if is_video else None,
     }
     job = Job(job_type=job_type.value, status=JobStatus.QUEUED.value, payload_json=payload)
     db.add(job)

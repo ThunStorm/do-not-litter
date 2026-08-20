@@ -23,6 +23,8 @@ export function ContentDetailPage() {
             <section className="deadline-block"><span>报名截止</span><strong>{String(structured.deadline ?? '待确认')}</strong><Link className="button" to="/todos">查看待办</Link></section>
             <section className="detail-section"><h2>我的条件核验</h2>{eligibility.length ? eligibility.map((rule) => <EligibilityRow key={rule.label} rule={rule} />) : <p>个人档案信息不足，暂不自动给出通过结论。</p>}</section>
           </>
+        ) : item.content_type === 'VIDEO_NOTE' ? (
+          <section className="detail-section"><h2><FileText />视频 AI 笔记</h2><p>已生成可回溯时间码的笔记、地点候选与 POI 确认状态。</p><Link className="text-action" to={`/video-notes/${String(structured.note_id ?? '')}`}>打开视频笔记</Link></section>
         ) : (
           <section className="detail-section"><h2><MapPin />地点与观察</h2><p>地点信息将在高德 POI 确认后进入独立地图总览。</p><Link className="text-action" to="/map">前往地图总览</Link></section>
         )}
@@ -37,5 +39,5 @@ function EligibilityRow({ rule }: { rule: Record<string, string> }) {
   return <div className="eligibility-row">{safe ? <CheckCircle2 /> : <CircleHelp />}<strong>{rule.label}</strong><span>{rule.value}</span><em className={`eligibility-${rule.status?.toLowerCase()}`}>{eligibilityLabel(rule.status)}</em></div>
 }
 
-function contentTypeLabel(type: string) { return ({ RECRUITMENT: '招聘详情', TRAVEL: '旅行详情', UNSUPPORTED: '来源详情' } as Record<string, string>)[type] ?? '内容详情' }
+function contentTypeLabel(type: string) { return ({ RECRUITMENT: '招聘详情', TRAVEL: '旅行详情', VIDEO_NOTE: '视频笔记', UNSUPPORTED: '来源详情' } as Record<string, string>)[type] ?? '内容详情' }
 function eligibilityLabel(status: string) { return ({ PASS: '符合', UNKNOWN: '待确认', FAIL: '不符合' } as Record<string, string>)[status] ?? status }

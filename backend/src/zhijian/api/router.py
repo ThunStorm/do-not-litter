@@ -381,6 +381,7 @@ async def stream_job(
             await websocket.send_json(payload)
             if job.status in {
                 JobStatus.COMPLETED.value,
+                JobStatus.PARTIAL_SUCCESS.value,
                 JobStatus.FAILED.value,
                 JobStatus.CANCELLED.value,
                 JobStatus.NEEDS_USER.value,
@@ -399,6 +400,7 @@ def retry_job(job_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
         raise HTTPException(status_code=404, detail="任务不存在")
     job.status = JobStatus.QUEUED.value
     job.error = None
+    job.error_code = None
     job.finished_at = None
     job.lease_owner = None
     job.lease_expire_at = None
@@ -805,6 +807,21 @@ def provider_settings(
         "default": {"provider": "DeepSeek", "base_url": settings.deepseek_base_url, "model": "deepseek-chat"},
         "fallback": {"provider": "MiMo", "base_url": settings.mimo_base_url, "model": "mimo-v2-flash"},
         "local": {"provider": "Ollama", "base_url": settings.ollama_base_url, "model": "qwen2.5:7b"},
+        "video_note_summary": {
+            "provider": "DeepSeek",
+            "base_url": settings.deepseek_base_url,
+            "model": settings.video_note_model or "deepseek-chat",
+        },
+        "travel_place_extraction": {
+            "provider": "DeepSeek",
+            "base_url": settings.deepseek_base_url,
+            "model": settings.travel_extraction_model or "deepseek-chat",
+        },
+        "place_note_summary": {
+            "provider": "DeepSeek",
+            "base_url": settings.deepseek_base_url,
+            "model": settings.place_note_model or "deepseek-chat",
+        },
     }
     for role in defaults:
         saved = db.get(Setting, f"provider:{role}")
@@ -821,7 +838,14 @@ def save_provider(
     db: Session = Depends(get_db),
     store: SecretStore = Depends(get_secret_store),
 ) -> dict:
-    if role not in {"default", "fallback", "local"}:
+    if role not in {
+        "default",
+        "fallback",
+        "local",
+        "video_note_summary",
+        "travel_place_extraction",
+        "place_note_summary",
+    }:
         raise HTTPException(status_code=404, detail="未知 Provider 角色")
     value = {"provider": payload.provider, "base_url": payload.base_url, "model": payload.model}
     setting = db.get(Setting, f"provider:{role}")
@@ -844,7 +868,14 @@ def test_provider(
     _: Protected,
     store: SecretStore = Depends(get_secret_store),
 ) -> dict:
-    if role not in {"default", "fallback", "local"}:
+    if role not in {
+        "default",
+        "fallback",
+        "local",
+        "video_note_summary",
+        "travel_place_extraction",
+        "place_note_summary",
+    }:
         raise HTTPException(status_code=404, detail="未知 Provider 角色")
     provider_name = payload.provider.lower()
     try:

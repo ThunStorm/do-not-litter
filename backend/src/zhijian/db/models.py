@@ -107,6 +107,7 @@ class Job(Base):
     lease_expire_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     retry_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    error_code: Mapped[str | None] = mapped_column(String(64))
     error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -123,6 +124,7 @@ class JobStep(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     progress: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     input_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    input_hash: Mapped[str | None] = mapped_column(String(128))
     output_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     version: Mapped[str] = mapped_column(String(32), default="1", nullable=False)
     error: Mapped[str | None] = mapped_column(Text)
@@ -164,6 +166,132 @@ class PlaceObservation(Base):
     observation_type: Mapped[str] = mapped_column(String(64), nullable=False)
     value_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     observed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class VideoAsset(Base, TimestampMixin):
+    __tablename__ = "video_assets"
+    __table_args__ = (UniqueConstraint("canonical_url", name="uq_video_asset_canonical_url"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("vid"))
+    source_id: Mapped[str] = mapped_column(ForeignKey("sources.id", ondelete="CASCADE"), unique=True)
+    platform: Mapped[str] = mapped_column(String(32), default="BILIBILI", nullable=False)
+    canonical_url: Mapped[str] = mapped_column(Text, nullable=False)
+    bvid: Mapped[str | None] = mapped_column(String(32))
+    aid: Mapped[str | None] = mapped_column(String(32))
+    cid: Mapped[str | None] = mapped_column(String(32))
+    page_number: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    title: Mapped[str] = mapped_column(String(500), default="", nullable=False)
+    uploader: Mapped[str] = mapped_column(String(200), default="", nullable=False)
+    duration_ms: Mapped[int | None] = mapped_column(Integer)
+    cover_url: Mapped[str | None] = mapped_column(Text)
+    metadata_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class Transcript(Base, TimestampMixin):
+    __tablename__ = "transcripts"
+    __table_args__ = (UniqueConstraint("video_asset_id", "version", name="uq_transcript_asset_version"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("trn"))
+    video_asset_id: Mapped[str] = mapped_column(ForeignKey("video_assets.id", ondelete="CASCADE"))
+    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    source_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    language: Mapped[str] = mapped_column(String(24), default="zh-CN", nullable=False)
+    text: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    segment_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    metadata_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class AINote(Base, TimestampMixin):
+    __tablename__ = "ai_notes"
+    __table_args__ = (UniqueConstraint("video_asset_id", name="uq_ai_note_video_asset"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("note"))
+    video_asset_id: Mapped[str] = mapped_column(ForeignKey("video_assets.id", ondelete="CASCADE"))
+    current_version_id: Mapped[str | None] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(32), default="PROCESSING", nullable=False)
+
+
+class AINoteVersion(Base, TimestampMixin):
+    __tablename__ = "ai_note_versions"
+    __table_args__ = (UniqueConstraint("ai_note_id", "version", name="uq_ai_note_version"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("ntv"))
+    ai_note_id: Mapped[str] = mapped_column(ForeignKey("ai_notes.id", ondelete="CASCADE"))
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    markdown: Mapped[str] = mapped_column(Text, nullable=False)
+    overview: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    warnings_json: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    model_provider: Mapped[str] = mapped_column(String(64), default="", nullable=False)
+    model_name: Mapped[str] = mapped_column(String(160), default="", nullable=False)
+    prompt_version: Mapped[str] = mapped_column(String(32), default="video-note-v1", nullable=False)
+    transcript_version: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
+class AINoteSection(Base):
+    __tablename__ = "ai_note_sections"
+    __table_args__ = (UniqueConstraint("ai_note_version_id", "ordinal", name="uq_ai_note_section_order"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("nsc"))
+    ai_note_version_id: Mapped[str] = mapped_column(ForeignKey("ai_note_versions.id", ondelete="CASCADE"))
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    heading: Mapped[str] = mapped_column(String(500), nullable=False)
+    body_markdown: Mapped[str] = mapped_column(Text, nullable=False)
+    segment_ids_json: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    start_ms: Mapped[int | None] = mapped_column(Integer)
+    end_ms: Mapped[int | None] = mapped_column(Integer)
+
+
+class PlaceMention(Base, TimestampMixin):
+    __tablename__ = "place_mentions"
+    __table_args__ = (Index("ix_place_mentions_asset_status", "video_asset_id", "resolution_status"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("pm"))
+    video_asset_id: Mapped[str] = mapped_column(ForeignKey("video_assets.id", ondelete="CASCADE"))
+    ai_note_version_id: Mapped[str | None] = mapped_column(
+        ForeignKey("ai_note_versions.id", ondelete="SET NULL")
+    )
+    name: Mapped[str] = mapped_column(String(300), nullable=False)
+    city_hint: Mapped[str] = mapped_column(String(64), default="", nullable=False)
+    province_hint: Mapped[str] = mapped_column(String(64), default="", nullable=False)
+    place_type: Mapped[str] = mapped_column(String(64), default="UNKNOWN", nullable=False)
+    reason: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    quote: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    segment_ids_json: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    extraction_status: Mapped[str] = mapped_column(String(32), default="EXTRACTED", nullable=False)
+    resolution_status: Mapped[str] = mapped_column(String(32), default="UNRESOLVED", nullable=False)
+    place_id: Mapped[str | None] = mapped_column(ForeignKey("places.id", ondelete="SET NULL"))
+    metadata_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class PlaceNoteVersion(Base, TimestampMixin):
+    __tablename__ = "place_note_versions"
+    __table_args__ = (UniqueConstraint("place_id", "version", name="uq_place_note_version"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("pnv"))
+    place_id: Mapped[str] = mapped_column(ForeignKey("places.id", ondelete="CASCADE"))
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    markdown: Mapped[str] = mapped_column(Text, nullable=False)
+    model_provider: Mapped[str] = mapped_column(String(64), default="", nullable=False)
+    model_name: Mapped[str] = mapped_column(String(160), default="", nullable=False)
+    evidence_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+
+class ExternalCallAudit(Base, TimestampMixin):
+    __tablename__ = "external_call_audits"
+    __table_args__ = (Index("ix_external_call_audits_job_created", "job_id", "created_at"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("xca"))
+    job_id: Mapped[str | None] = mapped_column(ForeignKey("jobs.id", ondelete="SET NULL"))
+    capability: Mapped[str] = mapped_column(String(64), nullable=False)
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    operation: Mapped[str] = mapped_column(String(128), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    duration_ms: Mapped[int | None] = mapped_column(Integer)
+    request_meta_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    response_meta_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    error_code: Mapped[str | None] = mapped_column(String(64))
+    error_message: Mapped[str | None] = mapped_column(String(500))
 
 
 class RouteDraft(Base, TimestampMixin):

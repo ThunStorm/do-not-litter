@@ -12,6 +12,7 @@ import { SettingsPage } from './features/settings/SettingsPage'
 import { CapturePage } from './features/tasks/CapturePage'
 import { TaskDetailPage } from './features/tasks/TaskDetailPage'
 import { TasksPage } from './features/tasks/TasksPage'
+import { VideoNoteDetailPage, VideoNotesPage } from './features/video/VideoNotesPage'
 
 export function App() {
   return (
@@ -20,6 +21,8 @@ export function App() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/content" element={<ContentPage />} />
         <Route path="/content/:contentId" element={<ContentDetailPage />} />
+        <Route path="/video-notes" element={<VideoNotesPage />} />
+        <Route path="/video-notes/:noteId" element={<VideoNoteDetailPage />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/tasks/:jobId" element={<TaskDetailPage />} />
         <Route path="/sources" element={<SourcesPage />} />

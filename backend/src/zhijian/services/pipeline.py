@@ -82,6 +82,11 @@ def _extract_travel(text: str) -> dict:
 
 
 def process_job(db: Session, job: Job) -> None:
+    if job.payload_json.get("video_platform") == "BILIBILI":
+        from zhijian.services.video_pipeline import process_video_job
+
+        process_video_job(db, job)
+        return
     job.status = JobStatus.RUNNING.value
     job.started_at = job.started_at or utc_now()
     db.commit()

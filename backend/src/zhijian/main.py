@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from zhijian.api.router import router
+from zhijian.api.video_notes import router as video_notes_router
 from zhijian.core.config import get_settings
 from zhijian.core.logging import configure_logging
 from zhijian.core.secret_store import build_secret_store
@@ -92,6 +93,7 @@ def create_app() -> FastAPI:
         allow_headers=["Content-Type", "X-Requested-With", "X-Request-ID"],
     )
     app.include_router(router)
+    app.include_router(video_notes_router)
     frontend_dist = Path(__file__).resolve().parents[3] / "frontend" / "dist"
     if frontend_dist.is_dir():
         app.mount("/", SPAStaticFiles(directory=frontend_dist, html=True), name="frontend")

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 import tempfile
@@ -41,7 +42,7 @@ class WhisperCppProvider:
                 str(wav),
                 "-l",
                 "auto",
-                "-otxt",
+                "-oj",
                 "-of",
                 str(output),
             ]
@@ -60,8 +61,33 @@ class WhisperCppProvider:
                     timeout=3600,
                     check=False,
                 )
-            transcript = output.with_suffix(".txt")
+            transcript = output.with_suffix(".json")
             if result.returncode != 0 or not transcript.is_file():
                 raise RuntimeError(f"Whisper 转写失败：{(result.stderr or result.stdout)[-500:]}")
-            text = transcript.read_text(encoding="utf-8", errors="replace").strip()
-            return text, [{"text": text, "locator": {"file": media.name, "method": "whisper.cpp"}}]
+            data = json.loads(transcript.read_text(encoding="utf-8", errors="replace"))
+            raw_segments = data.get("transcription") or data.get("segments") or []
+            segments: list[dict] = []
+            for item in raw_segments:
+                text = str(item.get("text") or "").strip()
+                if not text:
+                    continue
+                offsets = item.get("offsets") or {}
+                if offsets:
+                    # whisper.cpp exposes offsets in 10 ms ticks.
+                    start_ms = int(offsets.get("from", 0)) * 10
+                    end_ms = int(offsets.get("to", offsets.get("from", 0))) * 10
+                else:
+                    start_ms = int(float(item.get("start", 0)) * 1000)
+                    end_ms = int(float(item.get("end", item.get("start", 0))) * 1000)
+                segments.append(
+                    {
+                        "text": text,
+                        "start_ms": start_ms,
+                        "end_ms": end_ms,
+                        "locator": {"file": media.name, "method": "whisper.cpp"},
+                    }
+                )
+            text = "\n".join(segment["text"] for segment in segments).strip()
+            if not text:
+                raise RuntimeError("Whisper 未产生带时间码的转写结果")
+            return text, segments

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import platform
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -40,4 +41,63 @@ class MacVisionOCRProvider:
             for index, row in enumerate(rows)
             if str(row.get("text", "")).strip()
         ]
+        return "\n".join(segment["text"] for segment in segments), segments
+
+
+class TesseractOCRProvider:
+    """TSV adapter retaining page/line bounding boxes for Windows deployments."""
+
+    def __init__(self, binary: str = "tesseract", languages: str = "chi_sim+eng", timeout: int = 180) -> None:
+        self.binary = shutil.which(binary) or binary
+        self.languages = languages
+        self.timeout = timeout
+
+    def recognize(self, path: Path) -> tuple[str, list[dict]]:
+        result = subprocess.run(
+            [self.binary, str(path), "stdout", "-l", self.languages, "tsv"],
+            capture_output=True,
+            text=True,
+            timeout=self.timeout,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise RuntimeError((result.stderr or "Tesseract OCR 执行失败").strip()[:500])
+        rows = result.stdout.splitlines()
+        if len(rows) < 2:
+            return "", []
+        headers = rows[0].split("\t")
+        groups: dict[tuple[str, str, str, str], list[dict]] = {}
+        for row in rows[1:]:
+            values = row.split("\t")
+            if len(values) != len(headers):
+                continue
+            item = dict(zip(headers, values, strict=True))
+            text = item.get("text", "").strip()
+            try:
+                confidence = float(item.get("conf", "-1"))
+            except ValueError:
+                confidence = -1
+            if not text or confidence < 0:
+                continue
+            key = tuple(item.get(name, "0") for name in ("page_num", "block_num", "par_num", "line_num"))
+            groups.setdefault(key, []).append(item)
+        segments = []
+        for index, (key, words) in enumerate(groups.items(), start=1):
+            left = min(int(word.get("left", 0)) for word in words)
+            top = min(int(word.get("top", 0)) for word in words)
+            right = max(int(word.get("left", 0)) + int(word.get("width", 0)) for word in words)
+            bottom = max(int(word.get("top", 0)) + int(word.get("height", 0)) for word in words)
+            confidence = sum(float(word.get("conf", 0)) for word in words) / len(words) / 100
+            segments.append(
+                {
+                    "text": " ".join(word["text"].strip() for word in words),
+                    "locator": {
+                        "file": path.name,
+                        "page": int(key[0]),
+                        "ocr_index": index,
+                        "bbox": [left, top, right, bottom],
+                    },
+                    "confidence": confidence,
+                }
+            )
         return "\n".join(segment["text"] for segment in segments), segments

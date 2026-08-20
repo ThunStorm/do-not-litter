@@ -7,7 +7,7 @@ import { EmptyState, PageHeader } from '../../components/AppShell'
 import { api } from '../../lib/api'
 import type { ContentView, JobView } from '../../lib/types'
 
-const contentTypeLabel = { RECRUITMENT: '招聘', TRAVEL: '旅行', UNSUPPORTED: '未支持' }
+const contentTypeLabel = { RECRUITMENT: '招聘', TRAVEL: '旅行', VIDEO_NOTE: '视频笔记', UNSUPPORTED: '未支持' }
 
 export function DashboardPage() {
   const queryClient = useQueryClient()
@@ -115,7 +115,7 @@ function ContentRow({ item }: { item: ContentView }) {
   return (
     <Link className="content-row" to={`/content/${item.id}`}>
       <div className={`type-icon type-icon--${item.content_type.toLowerCase()}`} aria-hidden="true">
-        {item.content_type === 'RECRUITMENT' ? '职' : '行'}
+        {item.content_type === 'RECRUITMENT' ? '职' : item.content_type === 'VIDEO_NOTE' ? '影' : '行'}
       </div>
       <div className="content-row__main">
         <strong>{item.title}</strong>

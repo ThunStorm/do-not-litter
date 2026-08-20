@@ -8,6 +8,7 @@ class JobStatus(StrEnum):
     RUNNING = "RUNNING"
     NEEDS_USER = "NEEDS_USER"
     COMPLETED = "COMPLETED"
+    PARTIAL_SUCCESS = "PARTIAL_SUCCESS"
     FAILED = "FAILED"
     CANCELLED = "CANCELLED"
 
@@ -21,6 +22,7 @@ class JobType(StrEnum):
 class ContentType(StrEnum):
     RECRUITMENT = "RECRUITMENT"
     TRAVEL = "TRAVEL"
+    VIDEO_NOTE = "VIDEO_NOTE"
     UNSUPPORTED = "UNSUPPORTED"
 
 

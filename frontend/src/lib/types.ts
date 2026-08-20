@@ -1,5 +1,5 @@
-export type JobStatus = 'QUEUED' | 'RUNNING' | 'NEEDS_USER' | 'COMPLETED' | 'FAILED' | 'CANCELLED'
-export type ContentType = 'RECRUITMENT' | 'TRAVEL' | 'UNSUPPORTED'
+export type JobStatus = 'QUEUED' | 'RUNNING' | 'NEEDS_USER' | 'COMPLETED' | 'PARTIAL_SUCCESS' | 'FAILED' | 'CANCELLED'
+export type ContentType = 'RECRUITMENT' | 'TRAVEL' | 'VIDEO_NOTE' | 'UNSUPPORTED'
 export type UserState = 'DISCOVERED' | 'SAVED' | 'PLANNED' | 'VISITED' | 'DISMISSED'
 
 export interface JobView {
@@ -152,4 +152,24 @@ export interface RouteDraftView {
   city: string
   status: string
   places: PlacePreview[]
+}
+
+export interface VideoNoteView {
+  id: string
+  status: string
+  title: string
+  canonical_url: string
+  cover_url: string | null
+  uploader: string
+  duration_ms: number | null
+  current_version_id: string | null
+  overview: string
+  updated_at: string
+  place_summary: { total: number; confirmed: number }
+}
+
+export interface VideoNoteDetail extends VideoNoteView {
+  markdown: string
+  warnings: string[]
+  sections: Array<{ id: string; heading: string; body_markdown: string; segment_ids: string[]; start_ms: number | null; end_ms: number | null }>
 }

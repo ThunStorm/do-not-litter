@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session, sessionmaker
 
 from zhijian.api.router import router
+from zhijian.api.video_notes import router as video_notes_router
 from zhijian.core.config import Settings, get_settings
 from zhijian.db.base import Base
 from zhijian.db.session import build_engine, get_db
@@ -31,6 +32,7 @@ def app_and_session(tmp_path) -> Generator[tuple[FastAPI, sessionmaker[Session]]
 
     app = FastAPI()
     app.include_router(router)
+    app.include_router(video_notes_router)
 
     def override_db() -> Generator[Session, None, None]:
         with factory() as db:
