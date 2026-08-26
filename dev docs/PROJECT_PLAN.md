@@ -2,9 +2,8 @@
 ## Codex / Agent 可执行实施计划
 
 > 项目：AI Personal Inbox / Personal Scout  
-> 目标平台：二选一——Windows 11 PC 或 Mac mini（实施前设置 `DEPLOYMENT_TARGET`）
-> 候选硬件 A：Ryzen 7 5800X / 32GB / RX 7900 XT 20GB
-> 候选硬件 B：Apple M4 10-core / 16GB unified memory / arm64
+> 目标平台：Mac mini（macOS arm64）
+> 当前硬件：Apple M4 / 16GB 统一内存 / Metal
 > 当前范围：Recruitment + Travel/Food  
 > 架构：FastAPI + React/TS/Vite + SQLite + Worker + Playwright + Ollama/External LLM + whisper.cpp  
 > 原则：产品做窄，内核留宽
@@ -30,11 +29,11 @@ Agent 在实现过程中必须：
 
 ---
 
-# Phase 0A — Target Node Feasibility Spikes（在 Phase 0 最小 Bootstrap 后执行）
+# Phase 0A — Mac mini Feasibility Spikes（在 Phase 0 最小 Bootstrap 后执行）
 
 ## Goal
 
-在搭建完整业务代码前，先从 `windows_pc` 与 `mac_mini` 中选择一个 `DEPLOYMENT_TARGET`，并在该目标节点消除高风险外部依赖的不确定性。若用户需要比较两套方案，则分别运行同一套 Fixture 与记录模板，但不同时开发两套生产安装包。
+在搭建完整业务代码前，用目标 Mac mini / Metal 主机消除高风险外部依赖的不确定性。
 
 ## Spikes
 
@@ -42,8 +41,8 @@ Agent 在实现过程中必须：
 - 微信持久 Playwright Profile 与 `NEEDS_USER`；
 - HTML/PDF/扫描 PDF/DOCX/XLS/XLSX/PNG/JPEG 文档矩阵；
 - 中文 OCR 定位与置信度；
-- Windows：Ollama AMD 结构化输出、whisper.cpp Vulkan 时间码 ASR、Credential Manager/DPAPI、服务恢复；
-- Mac mini：Ollama Metal 结构化输出、whisper.cpp Metal 时间码 ASR、Keychain、arm64 依赖和 `launchd` 服务恢复；
+- Ollama Metal 结构化输出；
+- whisper.cpp Metal 时间码 ASR；
 - DeepSeek / Xiaomi MiMo OpenAI-compatible 连接；
 - 高德 POI Web 服务 / JS API 2.0 / GCJ-02；
 - SQLite WAL 多进程、原子 Lease 与幂等恢复。
@@ -52,7 +51,7 @@ Agent 在实现过程中必须：
 
 - 每项有可复现记录与 `PASS / DEGRADED / BLOCKED` 结论；
 - `BLOCKED` 项在进入依赖它的 Phase 前必须选定替代方案或调整范围；
-- 性能门槛使用目标 PC 实测值回填 `GOLDEN_SAMPLES.md`。
+- 性能门槛使用 Mac mini 实测值回填 `GOLDEN_SAMPLES.md`。
 
 ---
 
@@ -117,7 +116,7 @@ LAN 安全基线：
 - frontend 启动；
 - health 正常；
 - 手机在同一局域网携带 Token 可访问，未授权请求被拒绝；
-- 所选平台 README 安装与启动命令可用。
+- Mac mini launchd 安装、状态与重启命令可用。
 
 ---
 
@@ -211,7 +210,7 @@ WebSocket progress。
 - recovery
 
 ## Acceptance
-后端节点/Worker 异常停止后任务可恢复。
+PC/Worker 异常停止后任务可恢复。
 
 ---
 
@@ -523,14 +522,14 @@ Semantic similarity 永远不会自动 PASS。
 # Phase 14 — ASR Runtime
 
 ## Goal
-实现所选后端节点的本地视频转录。
+实现 Mac mini Metal 本地视频转录。
 
 ## Tasks
 - ffmpeg detection
 - whisper.cpp provider
 - model management
 - timestamp transcript
-- 加速器诊断：Windows Vulkan / Mac Metal
+- GPU diagnostic
 - ASR mode
 - cache cleanup
 
@@ -539,20 +538,161 @@ Semantic similarity 永远不会自动 PASS。
 
 ---
 
+# Phase 14A — Capture Input Normalization
+
+## Goal
+完整分享文案 → 唯一 URL 或明确多链接歧义。
+
+## Tasks
+- `URL_ONLY / SHARE_TEXT_WITH_URL / TEXT_ONLY / MULTIPLE_URLS`；
+- URL/Markdown/尖括号/中文标点/零宽字符提取；
+- canonical 去重和专用 Resolver 唯一命中；
+- 选中 URL 后丢弃周围标题/分享话术，不进入 Resolver/LLM；
+- `CAPTURE_MULTIPLE_URLS` 候选响应；
+- raw input hash 与最小审计字段；
+- 前端提交原始粘贴值，后端权威判定。
+
+## Acceptance
+标题+链接分享文案与纯链接进入同一 URL Pipeline；普通正文保持 TEXT_ONLY；多内容链接不静默选第一个且不创建 Job。
+
+---
+
 # Phase 15 — Bilibili Resolver
+
+> Phase 15–18 的实施必须同时遵循 `VIDEO_AI_NOTE_PIPELINE.md` 与 `VIDEO_AI_NOTE_IMPLEMENTATION_GUIDE.md`，按指南中的 Work Package 拆分提交，不得一次性重写 Pipeline 或提前实现未确认 UI。
 
 ## Goal
 B站视频进入 Travel Pipeline。
 
 ## Tasks
-- metadata
-- subtitle-first
-- media fallback
-- ASR fallback
-- snapshot / transcript storage
+- 建立 BiliNote MIT 第三方声明与上游 revision 记录；
+- 移植/适配 URL 校验、短链、BV ID、分 P 和 CID 解析；
+- metadata-only 解析；
+- Bilibili player API 字幕优先与字幕轨选择；
+- yt-dlp 字幕和音频 fallback；
+- Cookie/代理/412/429/登录态错误映射；
+- ASR fallback；
+- timestamp Transcript、Snapshot 和缓存存储；
+- 持久 JobStep、幂等、恢复和单步重跑。
 
 ## Acceptance
-测试视频 Fixture 或真实样本可得到 Transcript。
+测试视频 Fixture 或真实样本可得到 Transcript；有字幕时不下载音频，无字幕时自动 ASR；分 P 的字幕、元数据和时间跳转属于同一集。详细标准见 `VIDEO_AI_NOTE_PIPELINE.md`。
+
+---
+
+# Phase 15A — DeepSeek Video AI Note
+
+## Goal
+Transcript → 版本化 AI 视频笔记。
+
+## Tasks
+- `VIDEO_NOTE_SUMMARY` Provider Role，默认使用已配置 DeepSeek；
+- 长 Transcript 分块预算；
+- 局部总结、checkpoint 和层级合并；
+- Markdown + structured sections；
+- Segment/timecode binding；
+- Note Version、缓存、重跑和历史版本；
+- Provider/Model/Prompt/Chunker 审计。
+
+## Acceptance
+长视频可生成完整中文 AI 笔记；失败后从 checkpoint 继续；重跑不覆盖旧版本；章节可回到 Transcript 时间码。
+
+---
+
+# Phase 15B — Representative Screenshots
+
+## Goal
+为 AI Note 章节与地点生成可追溯代表性截图。
+
+## Tasks
+- Screenshot Plan：Section/PlaceMention/Segment 时间码；
+- 受限画质视频下载与缓存；
+- FFmpeg 抽帧；
+- 黑帧、模糊、曝光与感知重复检测；
+- VideoScreenshot 数据模型与 API；
+- 每地点 1–3 张、全文默认 3–12 张；
+- 下载不可用时 `PARTIAL_SUCCESS`。
+
+## Acceptance
+截图具有实际时间码、文件哈希和来源关系；重复/无效帧不进入 Note；失败不阻塞已完成笔记。
+
+---
+
+# Phase 15C — Transcript Correction
+
+## Goal
+raw Transcript → 时间码不变、可审计的 AI 校对稿。
+
+## Tasks
+- `CORRECT_TRANSCRIPT / VALIDATE_CORRECTION`；
+- raw_text / corrected_text / status / provider / model / prompt version；
+- 固定 Segment 分块和全覆盖校验；
+- 口音、同音字、断句、重复词、地名/菜名/专有名词校对；
+- 不确定内容 Review，不新增事实；
+- corrected/raw 预览与 TXT 导出。
+
+## Acceptance
+全部 Segment ID、顺序和时间码不变；默认 Note/预览/导出使用 corrected_text；模型不可用时不伪装完成。
+
+---
+
+# Phase 15D — Video Note Reading Experience
+
+## Goal
+重构视频详情的信息顺序、目录、段落跳转、随文截图和灯箱。
+
+## Tasks
+- Hero CoverAsset/缺省空状态；地点候选 + 完整转写放文章底部；
+- 具体 heading/thesis 目录与稳定 Section 锚点；
+- 时间码本地跳转、聚焦、高亮与历史恢复；
+- summary/bullets/place refs 的时间线详述；
+- 截图重新选取并以侧排缩略图嵌入 Section；
+- contain Lightbox、切换、Escape/遮罩关闭；
+- 统一“导出 TXT”按钮；
+- PC/Mobile/键盘回归。
+
+## Acceptance
+完整执行 `VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md` 第 10 节，不得以独立截图宫格或原始转录堆叠代替。
+
+---
+
+# Phase 15E — Video Note List Cover & CTA
+
+## Goal
+列表展示真实本地封面，并统一顶部添加按钮。
+
+## Tasks
+- 主按钮文案“添加视频链接”和 40px/14px Button Token；
+- VideoAsset.cover_url HTTPS 规范化；
+- Bilibili 图片 CDN allowlist、MIME/文件头/尺寸/字节校验；
+- 原始封面 SHA-256 存储与 672×378 WebP；
+- CoverAsset、`FETCH_COVER`、本地图片 API；
+- Video Note List cover ViewModel；
+- 16:9、object-fit cover、lazy loading、时长徽标、skeleton 和失败占位；
+- PC/Mobile/安全/缓存回归。
+
+## Acceptance
+完整执行 `VIDEO_NOTE_LIST_V043_SPEC.md` 第 9 节；封面失败不得阻塞 Note，不得长期热链远程 CDN。
+
+---
+
+# Phase 15F — Video Note Delete
+
+## Goal
+在列表和详情安全删除视频笔记，不破坏共享数据。
+
+## Tasks
+- 列表/详情 `…` 菜单；
+- 共用 `DELETE /api/video-notes/{note_id}`；
+- 删除 AINote/Version/Section/TOC/Content 投影；
+- 保留 Source/VideoAsset/Transcript/Place/Evidence/Cover；
+- 清理无共享引用的 Note 专属截图；
+- 活跃 Job 409 门禁；
+- 标题/保留边界/不可恢复确认；
+- 缓存刷新、旧链接已删除状态和审计。
+
+## Acceptance
+完整执行 `VIDEO_NOTE_DELETE_V044_SPEC.md`，列表和详情入口使用同一 Service。
 
 ---
 
@@ -565,11 +705,13 @@ Transcript → PlaceMention / Observations。
 - TravelFood classifier
 - Place extractor
 - Restaurant extractor
-- dish/price/opinion/warning
+- scenic area / neighborhood / pedestrian street / business district / market extractor
+- PlaceBrief：景区/街区特色、菜品、价格、排队、适合人群、warning
 - Evidence timestamp binding
+- Place Note Builder 与版本化地点归纳笔记
 
 ## Acceptance
-每个事实可回到字幕 segment。
+每个事实可回到字幕 segment；餐馆、景区、街区等粒度可区分；同一 Place 可聚合多个视频来源并生成带冲突与来源时间码的归纳笔记。
 
 ---
 
@@ -584,17 +726,20 @@ PlaceMention → Place。
 - AMap Web Service Key / quota error handling
 - GCJ-02 coordinate metadata
 - candidate search
-- name/location matching
+- raw_name / canonical_name / aliases
+- 同音错字、简称、名称和 location matching
 - confidence
 - Confirmed/Review/Unresolved
 - CMS POI Review
 - deduplicate
 - AMap JS API 2.0 map view
+- 高德 JS Key / Security Code / Web 服务 Key 设置与测试
 
 ## Acceptance
 LLM 不参与经纬度生成。
 两个来源提同一家店最终可归并为一个 Place。
 GeoJSON 明确携带坐标系，不把 GCJ-02 静默声明为 WGS84。
+转写名称校正后仍保留 raw_name；歧义名称进入 Review。
 
 ---
 
@@ -613,16 +758,15 @@ GeoJSON 明确携带坐标系，不把 GCJ-02 静默声明为 WGS84。
 - VisitEvent
 - days_since_last_trip
 - TravelDashboardVM
-- MapOverviewVM：viewport、markers、clusters、filters、selected preview
-- 独立地图总览页；Marker 点击切换底部预览，详情为下一级页面
-- 地图路由状态恢复：viewport / zoom / filters / selected_place_id
-- route_drafts / route_draft_items
-- 路线清单选点与手动排序
+- 中国大陆全境 map view，无默认城市
+- bbox/zoom query、cluster 和 viewport restore
+- Marker popup / mobile sheet
+- user marker add/hide/soft-delete/restore
 - list view
 
 ## Acceptance
 SAVE/DISMISS/VISITED 会影响后续推荐解释。
-同一区域多个 Confirmed Place 可在地图总览中同时显示；依次点击 Marker 只切换地点预览，不离开地图；进入详情再返回后保留原地图状态。路线清单不伪造最优顺序、距离或交通时间。
+首次地图请求不携带默认城市；Marker 浮窗可看简介并进入统一详情；用户 Marker 生命周期与自动 Marker 隐藏语义通过验收。
 
 ---
 
@@ -647,8 +791,14 @@ SAVE/DISMISS/VISITED 会影响后续推荐解释。
 实现长任务体验。
 
 ## Tasks
-- rerun from step
-- versioned step output
+- Step Artifact Manifest 与默认 24h Replay Cache
+- `GET replay-options`
+- `POST retry-from-step`：失败步骤及下游顺次执行
+- 上游步骤 REUSED、下游旧输出 INVALIDATED
+- TTL 到期后禁用步骤续跑，只允许完整重跑
+- 任务详情/日志“从错误步骤继续”与剩余时间
+- 完整重跑独立 API/按钮
+- versioned attempt/step output
 - partial publish
 - stale result invalidation
 - CMS controls
@@ -656,6 +806,7 @@ SAVE/DISMISS/VISITED 会影响后续推荐解释。
 ## Acceptance
 Travel 可在 43 个地点未全部完成时展示已确认地点。
 Recruitment 可单独重跑 DSL/Major Matching。
+ERROR 步骤在 Artifact 有效期内只重跑当前及下游；上游不产生新外部调用。完整执行 `PIPELINE_STEP_REPLAY_V044_SPEC.md`。
 
 ---
 
@@ -733,7 +884,7 @@ Tauri 或其他薄壳：
 - Export。
 
 ### Platform
-- selected local node only（Windows PC 或 Mac mini）；
+- PC only；
 - Job recovery；
 - Control Center；
 - Ollama；

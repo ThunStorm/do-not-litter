@@ -15,6 +15,8 @@ depends_on = None
 
 
 def upgrade() -> None:
+    if "video_assets" in sa.inspect(op.get_bind()).get_table_names():
+        return
     op.add_column("jobs", sa.Column("error_code", sa.String(length=64), nullable=True))
     op.add_column("job_steps", sa.Column("input_hash", sa.String(length=128), nullable=True))
     op.create_table("video_assets", sa.Column("id", sa.String(64), primary_key=True), sa.Column("source_id", sa.String(64), sa.ForeignKey("sources.id", ondelete="CASCADE"), nullable=False, unique=True), sa.Column("platform", sa.String(32), nullable=False), sa.Column("canonical_url", sa.Text(), nullable=False), sa.Column("bvid", sa.String(32)), sa.Column("aid", sa.String(32)), sa.Column("cid", sa.String(32)), sa.Column("page_number", sa.Integer(), nullable=False), sa.Column("title", sa.String(500), nullable=False), sa.Column("uploader", sa.String(200), nullable=False), sa.Column("duration_ms", sa.Integer()), sa.Column("cover_url", sa.Text()), sa.Column("metadata_json", sa.JSON(), nullable=False), sa.Column("created_at", sa.DateTime(timezone=True), nullable=False), sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False), sa.UniqueConstraint("canonical_url", name="uq_video_asset_canonical_url"))

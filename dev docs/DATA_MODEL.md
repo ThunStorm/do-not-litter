@@ -70,11 +70,18 @@ id
 input_type
 original_url
 raw_text
+capture_input_kind
+selected_url
+capture_candidate_count
+discarded_text_length
+raw_input_hash
 status
 processor_hint
 created_at
 updated_at
 ```
+
+`capture_input_kind`：`URL_ONLY / SHARE_TEXT_WITH_URL / TEXT_ONLY / MULTIPLE_URLS`。URL 任务的 `raw_text` 必须为空；分享文案只参与瞬时 URL 提取，默认不持久化全文。`raw_input_hash` 用于排错和幂等，`discarded_text_length` 只记录被忽略文本长度。
 
 ## sources
 
@@ -93,6 +100,8 @@ authority_level
 metadata_json
 created_at
 ```
+
+URL Source 的 `url/locator` 只能写 Input Normalizer 选中的 URL。页面或视频解析得到的正式 title 才写 `sources.title`；粘贴文案中的标题不得覆盖正式元数据。
 
 文件型 Source 的 `metadata_json` 至少保存：原始文件名、MIME、字节数、内容哈希、解析器与 OCR 版本；文件正文仍通过 Snapshot/Segment 建模。
 
@@ -140,9 +149,13 @@ snapshot_id
 segment_type
 sequence_no
 text
+raw_text
+corrected_text
 locator_json
 metadata_json
 ```
+
+视频 Segment 的 `raw_text` 保存平台字幕/ASR 原文，`corrected_text` 保存 AI 校对稿；`text` 作为兼容投影默认返回 corrected_text，未校对时不得静默冒充已校对。校对不得改变 Segment ID、sequence_no 或时间码。
 
 locator 示例：
 
@@ -460,12 +473,208 @@ source_type：
 
 # 10. Travel / Food
 
+## video_assets
+
+```text
+id
+source_id
+platform
+canonical_url
+external_video_id
+part_number
+external_part_id
+title
+author
+cover_url
+duration_ms
+published_at
+metadata_json
+metadata_hash
+resolver_version
+created_at
+updated_at
+```
+
+`platform + external_video_id + part_number` 用于识别同一个视频分 P；原始 URL 仍保存在 Source，不能被 canonical URL 覆盖。
+
+## video_cover_assets
+
+```text
+id
+video_asset_id
+source_url
+local_path
+derivative_path
+content_hash
+content_type
+width
+height
+byte_size
+status
+error_code
+fetched_at
+created_at
+```
+
+`status`：`PENDING / READY / UNAVAILABLE / INVALID`。VideoAsset.cover_url 保存平台元数据；CoverAsset 表示已下载并可由本地 API 服务的封面。原图按 SHA-256 去重，列表 672×378 WebP 衍生图可重建；不同 Note Version 复用同一 VideoAsset/CoverAsset。
+
+## transcripts
+
+```text
+id
+video_asset_id
+snapshot_id
+source_kind
+language
+full_text_hash
+provider
+model
+adapter_version
+correction_status
+correction_provider
+correction_model
+correction_prompt_version
+correction_coverage
+status
+created_at
+```
+
+`source_kind`：
+
+- CLIENT_PREFETCHED_SUBTITLE
+- PLATFORM_SUBTITLE
+- YT_DLP_SUBTITLE
+- ASR
+
+Transcript 的正文通过通用 `segments` 表保存，视频 Segment 的 `locator_json` 至少包含 `start_ms/end_ms`。
+
+`correction_status`：`PENDING / CORRECTING / CORRECTED / REVIEW / FAILED / PURGED`。每次重新校对生成新 Transcript Version 或版本化 Correction，不覆盖 raw。默认 Note、目录、页面预览和 TXT 导出使用 corrected_text；raw 只用于 Evidence/差异审计。
+
+视频 Transcript 还必须保存 `retention_until` 与 `purged_at`。`metadata_json` 只能保存 `fingerprint_sha256`，不得保存由“时间码 + 正文”拼成的全文 fingerprint。完整转写固定保留 180 天；到期后 Transcript/Segment 行作为时间轴 tombstone 保留，但 `Transcript.text`、`Segment.text/raw_text/corrected_text` 与关联 `Evidence.quote` 被清空，`segment_count` 可保留原始数量供审计，API 依据 `purged_at` 返回 410。Note Section 的服务端时间范围和截图实际时间码不随文稿清理删除。
+
+Whisper.cpp JSON 的 `offsets.from/to` 单位为毫秒。写入新 Transcript Version 前必须校验时间单调性及末段与 `VideoAsset.duration_ms` 的合理关系；约 10 倍的历史错误时间轴通过新版本修复，不原地覆盖旧版本。
+
+## ai_notes / ai_note_versions
+
+```text
+ai_notes:
+id
+content_item_id
+video_asset_id
+current_version_id
+created_at
+updated_at
+
+ai_note_versions:
+id
+ai_note_id
+version_no
+markdown
+structured_json
+input_hash
+provider
+model
+prompt_version
+template_version
+status
+created_at
+```
+
+重跑生成新版本，不静默覆盖旧 Markdown。`structured_json` 保存章节与 Segment 引用，但不能替代 Transcript、Claim 或 Evidence。
+
+## ai_note_sections
+
+```text
+id
+note_version_id
+heading
+thesis
+summary
+bullets_json
+anchor_id
+sequence_no
+start_ms
+end_ms
+markdown
+segment_ids_json
+```
+
+## video_screenshots
+
+```text
+id
+video_asset_id
+note_version_id
+note_section_id nullable
+place_mention_id nullable
+segment_id nullable
+planned_timestamp_ms
+actual_timestamp_ms
+image_path
+content_hash
+perceptual_hash
+width
+height
+quality_score
+selection_reason
+caption
+content_role
+status
+created_at
+```
+
+截图必须能回到视频时间码。`perceptual_hash` 用于去重；`caption/content_role` 必须说明地点、菜品、景区特色、路线、价格或关键结论，不能统一写“章节起始时间码代表帧”。截图是来源派生资产，不代替 Transcript Evidence。被 Note/Place 页面引用的截图进入永久派生存储，任务视频仍按缓存 TTL 清理。
+
+## place_notes / place_note_versions
+
+```text
+place_notes:
+id
+place_id
+current_version_id
+created_at
+updated_at
+
+place_note_versions:
+id
+place_note_id
+version_no
+markdown
+structured_json
+input_hash
+provider
+model
+prompt_version
+status
+created_at
+```
+
+Place Note 聚合多个 Mention/Observation/Source。事实必须通过 Claim/Evidence 回到 Transcript Segment；用户状态变化不直接改写事实版本。
+
+## map_marker_states
+
+```text
+id
+place_id
+origin
+visibility
+custom_label nullable
+created_by
+created_at
+updated_at
+deleted_at nullable
+```
+
+`origin`：`AI_EXTRACTED / USER`。`visibility`：`VISIBLE / HIDDEN / DELETED`。用户 Marker 删除为软删除；自动 Marker 删除只改为 `HIDDEN`。Marker 是 Place 的投影，不能保存第二份完整地点详情。
+
 ## places
 
 ```text
 id
 name
+canonical_name
 place_type
+origin
 country
 province
 city
@@ -483,6 +692,8 @@ metadata_json
 created_at
 ```
 
+`origin` 至少区分 `AI_EXTRACTED / USER / IMPORTED`。用户直接点选地图坐标时，`resolution_status=CONFIRMED` 只能表示 `USER_CONFIRMED`，不得伪装成高德 POI 命中；具体确认来源保存于 metadata。
+
 resolution_status:
 - CANDIDATE
 - CONFIRMED
@@ -499,6 +710,7 @@ id
 source_id
 segment_id
 raw_name
+suggested_name
 place_type
 city_hint
 district_hint
@@ -507,6 +719,8 @@ resolution_confidence
 status
 metadata_json
 ```
+
+`raw_name` 永远保留字幕/ASR 原文；高德确认名称写入关联 Place 的 `canonical_name`，不得覆盖原始 Mention。
 
 ## place_observations
 
@@ -528,31 +742,6 @@ observed_at
 - warning
 - ranking
 - recommended_season
-
-## route_drafts
-
-```text
-id
-name
-city
-status
-created_at
-updated_at
-```
-
-第一版 `status` 只需支持 `DRAFT / ARCHIVED`。路线清单是用户选点结果，不等于已计算路线。
-
-## route_draft_items
-
-```text
-id
-route_draft_id
-place_id
-sort_order
-added_at
-```
-
-对 `(route_draft_id, place_id)` 建唯一约束，对 `(route_draft_id, sort_order)` 建索引。第一版不存 LLM 推测的距离、交通时长或最优顺序；未来真实 Route Provider 结果使用独立的版本化 RoutePlan/RouteLeg 模型。
 
 ---
 
@@ -660,6 +849,7 @@ status：
 ```text
 id
 job_id
+attempt_id
 step_name
 status
 progress
@@ -671,9 +861,32 @@ started_at
 finished_at
 ```
 
+上游步骤在新 Attempt 中被复用时，新增 Step 记录或 Attempt-Step 投影状态为 `REUSED`，不得改写旧步骤时间与输出。
+
+## job_step_artifacts
+
+```text
+id
+job_id
+attempt_id
+step_name
+artifact_type
+artifact_ref_json
+input_hash
+content_hash
+schema_version
+producer_version
+status
+created_at
+replayable_until
+invalidated_at nullable
+```
+
+`status`：`AVAILABLE / EXPIRED / INVALIDATED / MISSING`。默认 Replay Cache TTL 使用 `video_cache_ttl_hours=24`。步骤级续跑只有在所有依赖 Artifact 可用且输入/版本一致时成立；TTL 到期后由 Worker 清理文件并把状态改为 EXPIRED，持久 Source/Transcript/Note/Evidence 不属于本表的临时缓存。
+
 ## settings / secret references
 
-非敏感设置可存 SQLite；API Key、LAN Token 与其他 Secret 只保存平台 Secret Store 引用：Windows PC 使用 Windows Credential Manager/DPAPI，Mac mini 使用 macOS Keychain。数据库字段包含 `setting_key/value_json/updated_at` 与 `secret_key/secret_ref/updated_at`，不得存 Secret 明文。
+非敏感设置可存 SQLite；API Key、LAN Token 与其他 Secret 只保存 macOS Keychain 引用。数据库字段包含 `setting_key/value_json/updated_at` 与 `secret_key/secret_ref/updated_at`，不得存 Secret 明文。
 
 ---
 

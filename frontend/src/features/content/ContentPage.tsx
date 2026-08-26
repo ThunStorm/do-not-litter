@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
-import { BriefcaseBusiness, ChevronRight, FileQuestion, Filter, Luggage, Map, Search } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { BriefcaseBusiness, ChevronRight, FileQuestion, Filter, Luggage, Map, Search, Trash2 } from 'lucide-react'
 import { useDeferredValue, useState } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -23,6 +23,8 @@ export function ContentPage() {
     queryFn: () => api.content(activeType, deferredQuery),
   })
   const visibleContents = needsReviewOnly ? contents.data?.filter((item) => item.status === 'NEEDS_USER') : contents.data
+  const queryClient = useQueryClient()
+  const remove = useMutation({ mutationFn: api.deleteContent, onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['content'] }); void queryClient.invalidateQueries({ queryKey: ['dashboard'] }); void queryClient.invalidateQueries({ queryKey: ['todos'] }); void queryClient.invalidateQueries({ queryKey: ['sources'] }) } })
 
   const typeMeta = (contentType: ContentType) => {
     if (contentType === 'RECRUITMENT') return { icon: <BriefcaseBusiness />, label: '招聘' }
@@ -61,11 +63,11 @@ export function ContentPage() {
         <div className="section-title"><h2>{needsReviewOnly ? '需要确认' : '最近更新'}</h2><span>{visibleContents?.length ?? 0}</span></div>
         <div className="mobile-content-list">
           {visibleContents?.length ? visibleContents.map((item) => (
-            <Link key={item.id} className="mobile-content-row" to={`/content/${item.id}`}>
+            <div key={item.id} className="mobile-content-item"><Link className="mobile-content-row" to={`/content/${item.id}`}>
               {typeMeta(item.content_type).icon}
               <div><strong>{item.title}</strong><span>{typeMeta(item.content_type).label} · {item.status === 'NEEDS_USER' ? '需确认' : '已完成'}</span></div>
               <ChevronRight />
-            </Link>
+            </Link><button className="history-delete" aria-label={`删除内容 ${item.title}`} onClick={() => { if (window.confirm(`删除内容“${item.title}”吗？内容及其专属事实/证据会被删除；若来源已无其他内容、视频笔记或活跃任务，对应来源审计记录也会清理。地点和路线仍保留。`)) remove.mutate(item.id) }} disabled={remove.isPending}><Trash2 /></button></div>
           )) : <EmptyState title="没有符合条件的内容" detail="调整分类或投递新的链接" />}
         </div>
       </section>

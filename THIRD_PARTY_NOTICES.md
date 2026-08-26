@@ -6,4 +6,4 @@
 
 ## yt-dlp
 
-受 [yt-dlp](https://github.com/yt-dlp/yt-dlp) Unlicense 许可。仅在平台字幕不可用时调用，用于临时提取音频；不保留完整视频文件。
+受 [yt-dlp](https://github.com/yt-dlp/yt-dlp) Unlicense 许可。平台字幕不可用时用于临时提取音频；代表截图流程还会下载受分辨率、大小、超时和缓存生命周期限制的临时视频流。临时视频不进入永久原始文件目录，抽帧结束后按任务缓存策略清理。

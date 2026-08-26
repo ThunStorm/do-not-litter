@@ -6,12 +6,19 @@ import type {
   PlacePreview,
   ProfileView,
   RouteDraftView,
+  SourceDetailView,
   SourceView,
   StatusView,
   TodoView,
+  TranscriptProcessingView,
   LogEventView,
+  LogsView,
+  ModelProfileView,
+  ModelRoutingView,
+  PromptSupplementsView,
   VideoNoteDetail,
   VideoNoteView,
+  VideoScreenshotView,
 } from './types'
 
 const jsonHeaders = { 'Content-Type': 'application/json' }
@@ -19,8 +26,9 @@ const jsonHeaders = { 'Content-Type': 'application/json' }
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, { credentials: 'include', ...init })
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as { detail?: string } | null
-    throw new Error(payload?.detail ?? `请求失败：${response.status}`)
+    const payload = (await response.json().catch(() => null)) as { detail?: string | { message?: string } } | null
+    const detail = typeof payload?.detail === 'string' ? payload.detail : payload?.detail?.message
+    throw new Error(detail ?? `请求失败：${response.status}`)
   }
   return response.json() as Promise<T>
 }
@@ -37,9 +45,13 @@ export const api = {
   lanToken: () => request<{ token: string; display: string; digits: number }>('/api/admin/lan-token'),
   rotateLanToken: () => request<{ token: string; sessions_revoked: boolean }>('/api/admin/lan-token/rotate', { method: 'POST' }),
   jobs: () => request<JobView[]>('/api/jobs'),
-  job: (id: string) => request<JobView & { steps: Array<Record<string, unknown>> }>(`/api/jobs/${id}`),
-  retryJob: (id: string) => request(`/api/jobs/${id}/retry`, { method: 'POST' }),
+  job: (id: string) => request<JobView & { steps: Array<{ name: string; status: string; progress: number; error: string | null; started_at: string | null; finished_at: string | null; input: Record<string, unknown>; output: Record<string, unknown> }>; events: LogEventView[] }>(`/api/jobs/${id}`),
+  retryJob: (id: string, sourceEventId?: string) => request(`/api/jobs/${id}/retry${sourceEventId ? `?source_event_id=${encodeURIComponent(sourceEventId)}` : ''}`, { method: 'POST' }),
+  replayOptions: (id: string) => request<{ step_replay_available: boolean; replay_from_step: string | null; replayable_until: string | null; remaining_seconds: number; reused_steps: string[]; rerun_steps: string[]; reason: string | null; code: string | null; full_replay_available: boolean; full_replay_reason: string | null }>(`/api/jobs/${id}/replay-options`),
+  retryJobFromStep: (id: string, stepName: string) => request(`/api/jobs/${id}/retry-from-step`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ step_name: stepName }) }),
+  retryJobFull: (id: string) => request<{ status: string; job_id: string; replaced_job_id: string; stopped_active_job: boolean }>(`/api/jobs/${id}/retry-full`, { method: 'POST' }),
   cancelJob: (id: string) => request(`/api/jobs/${id}/cancel`, { method: 'POST' }),
+  deleteJob: (id: string) => request<{ status: string; id: string }>(`/api/jobs/${id}`, { method: 'DELETE' }),
   content: (type?: string, query?: string) => {
     const params = new URLSearchParams()
     if (type) params.set('content_type', type)
@@ -48,8 +60,9 @@ export const api = {
     return request<ContentView[]>(`/api/content${suffix}`)
   },
   contentDetail: (id: string) => request<ContentView & Record<string, unknown>>(`/api/content/${id}`),
+  deleteContent: (id: string) => request<{ status: string; id: string }>(`/api/content/${id}`, { method: 'DELETE' }),
   capture: (value: string) => {
-    const payload = value.startsWith('http') ? { url: value } : { text: value }
+    const payload = { text: value }
     return request<{ job_id: string }>('/api/capture', {
       method: 'POST',
       headers: jsonHeaders,
@@ -61,14 +74,21 @@ export const api = {
     body.append('upload', file)
     return request<{ job_id: string }>('/api/capture/file', { method: 'POST', body })
   },
-  map: (selectedPlaceId?: string, state?: string, query?: string, district?: string) => {
-    const params = new URLSearchParams({ city: '厦门市' })
-    if (selectedPlaceId) params.set('selected_place_id', selectedPlaceId)
-    if (state) params.set('user_state', state)
-    if (query) params.set('query', query)
-    if (district) params.set('district', district)
+  map: (options: { selectedPlaceId?: string; state?: string; origin?: string; query?: string; placeType?: string; bbox?: number[]; zoom?: number } = {}) => {
+    const params = new URLSearchParams()
+    if (options.selectedPlaceId) params.set('selected_place_id', options.selectedPlaceId)
+    if (options.state) params.set('user_state', options.state)
+    if (options.origin) params.set('origin', options.origin)
+    if (options.query) params.set('query', options.query)
+    if (options.placeType) params.set('place_type', options.placeType)
+    if (options.bbox) params.set('bbox', options.bbox.join(','))
+    if (options.zoom) params.set('zoom', String(options.zoom))
     return request<MapOverviewView>(`/api/travel/map?${params.toString()}`)
   },
+  mapBootstrap: () => request<{ js_key: string; security_code: string; security_code_configured: boolean; web_service_configured: boolean; default_viewport: { bbox: number[]; zoom: number }; diagnostics: string[] }>('/api/travel/map/bootstrap'),
+  createMapMarker: (payload: { longitude: number; latitude: number; custom_name: string; place_type?: string; summary?: string }) => request<{ marker_id: string; place_id: string }>('/api/travel/map/markers', { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) }),
+  deleteMapMarker: (markerId: string) => request<{ marker_id: string; visibility: string }>(`/api/travel/map/markers/${markerId}`, { method: 'DELETE' }),
+  restoreMapMarker: (markerId: string) => request<{ marker_id: string; visibility: string }>(`/api/travel/map/markers/${markerId}/restore`, { method: 'POST' }),
   place: (id: string) => request<PlacePreview & Record<string, unknown>>(`/api/travel/places/${id}`),
   updatePlace: (id: string, action: string) => request(`/api/travel/places/${id}/${action}`, { method: 'POST' }),
   routes: () => request<RouteDraftView[]>('/api/travel/route-drafts'),
@@ -94,22 +114,49 @@ export const api = {
       headers: jsonHeaders,
       body: JSON.stringify(payload),
     }),
+  modelProfiles: () => request<ModelProfileView[]>('/api/settings/model-profiles'),
+  createModelProfile: (payload: Record<string, string | number>) => request<ModelProfileView>('/api/settings/model-profiles', { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) }),
+  updateModelProfile: (id: string, payload: Record<string, string | number>) => request<ModelProfileView>(`/api/settings/model-profiles/${id}`, { method: 'PUT', headers: jsonHeaders, body: JSON.stringify(payload) }),
+  deleteModelProfile: (id: string) => request<{ status: string; id: string }>(`/api/settings/model-profiles/${id}`, { method: 'DELETE' }),
+  testModelProfile: (id: string) => request<{ status: string; message: string }>(`/api/settings/model-profiles/${id}/test`, { method: 'POST' }),
+  testModelProfileDraft: (payload: Record<string, string | number>) => request<{ status: string; message: string }>('/api/settings/model-profiles/test-draft', { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) }),
+  modelRouting: () => request<ModelRoutingView>('/api/settings/model-routing'),
+  saveModelRouting: (payload: ModelRoutingView) => request<ModelRoutingView>('/api/settings/model-routing', { method: 'PUT', headers: jsonHeaders, body: JSON.stringify(payload) }),
+  transcriptProcessing: () => request<TranscriptProcessingView>('/api/settings/transcript-processing'),
+  saveTranscriptProcessing: (payload: TranscriptProcessingView) => request<TranscriptProcessingView>('/api/settings/transcript-processing', { method: 'PUT', headers: jsonHeaders, body: JSON.stringify(payload) }),
+  promptSupplements: () => request<PromptSupplementsView>('/api/settings/prompt-supplements'),
+  savePromptSupplements: (payload: Pick<PromptSupplementsView, 'transcript_correction' | 'video_note_summary' | 'travel_place_extraction'>) => request<PromptSupplementsView>('/api/settings/prompt-supplements', { method: 'PUT', headers: jsonHeaders, body: JSON.stringify(payload) }),
   sources: (query?: string) => request<SourceView[]>(`/api/sources${query ? `?query=${encodeURIComponent(query)}` : ''}`),
-  source: (id: string) => request<Record<string, unknown>>(`/api/sources/${id}`),
+  source: (id: string) => request<SourceDetailView>(`/api/sources/${id}`),
+  deleteSource: (id: string) => request<{ status: string; id: string }>(`/api/sources/${id}`, { method: 'DELETE' }),
   todos: () => request<TodoView[]>('/api/todos'),
   profile: () => request<ProfileView>('/api/profile'),
   saveProfile: (payload: ProfileView) => request<ProfileView>('/api/profile', { method: 'PUT', headers: jsonHeaders, body: JSON.stringify(payload) }),
   generalSettings: () => request<Record<string, string | number>>('/api/settings/general'),
   saveGeneralSettings: (payload: Record<string, string | number>) => request<Record<string, string | number>>('/api/settings/general', { method: 'PUT', headers: jsonHeaders, body: JSON.stringify(payload) }),
-  logs: (level?: string, query?: string) => {
+  amapSettings: () => request<{ js_key: string; security_code_saved: boolean; web_service_key_saved: boolean }>('/api/settings/amap'),
+  saveAmapSettings: (payload: { js_key: string; security_code?: string; web_service_key?: string }) => request<{ js_key: string; security_code_saved: boolean; web_service_key_saved: boolean }>('/api/settings/amap', { method: 'PUT', headers: jsonHeaders, body: JSON.stringify(payload) }),
+  testAmapSettings: () => request<{ status: string; message: string }>('/api/settings/amap/test', { method: 'POST' }),
+  logs: (filters: { levels?: string[]; query?: string; component?: string; eventType?: string; jobId?: string; requestId?: string; entityId?: string; cursor?: string; from?: string; to?: string } = {}) => {
     const params = new URLSearchParams()
-    if (level) params.set('level', level)
-    if (query) params.set('query', query)
-    return request<LogEventView[]>(`/api/logs${params.size ? `?${params}` : ''}`)
+    filters.levels?.forEach((level) => params.append('level', level))
+    if (filters.query) params.set('query', filters.query)
+    if (filters.component) params.set('component', filters.component)
+    if (filters.eventType) params.set('event_type', filters.eventType)
+    if (filters.jobId) params.set('job_id', filters.jobId)
+    if (filters.requestId) params.set('request_id', filters.requestId)
+    if (filters.entityId) params.set('entity_id', filters.entityId)
+    if (filters.cursor) params.set('cursor', filters.cursor)
+    if (filters.from) params.set('from', filters.from)
+    if (filters.to) params.set('to', filters.to)
+    return request<LogsView>(`/api/logs${params.size ? `?${params}` : ''}`)
   },
   videoNotes: (query?: string) => request<VideoNoteView[]>(`/api/video-notes${query ? `?query=${encodeURIComponent(query)}` : ''}`),
   videoNote: (id: string) => request<VideoNoteDetail>(`/api/video-notes/${id}`),
-  videoTranscript: (id: string) => request<{ text: string; segments: Array<{ id: string; text: string; start_ms: number; end_ms: number }> }>(`/api/video-notes/${id}/transcript`),
-  videoPlaces: (id: string) => request<Array<{ id: string; name: string; quote: string; resolution_status: string; place_id: string | null; place: { name: string; address: string } | null }>>(`/api/video-notes/${id}/places`),
+  videoTranscript: (id: string) => request<{ text: string; correction_status: string; correction_coverage: number; segments: Array<{ id: string; text: string; raw_text: string; corrected_text: string; correction_status: string; start_ms: number; end_ms: number }> }>(`/api/video-notes/${id}/transcript`),
+  videoTranscriptExportUrl: (id: string, version: 'raw' | 'corrected' = 'corrected') => `/api/video-notes/${id}/transcript/export?version=${version}`,
+  videoScreenshots: (id: string) => request<VideoScreenshotView[]>(`/api/video-notes/${id}/screenshots`),
+  videoPlaces: (id: string) => request<Array<{ id: string; name: string; quote: string; resolution_status: string; place_id: string | null; start_ms: number | null; target_section_id: string | null; place: { name: string; address: string } | null }>>(`/api/video-notes/${id}/places`),
   regenerateVideoNote: (id: string) => request<{ job_id: string }>(`/api/video-notes/${id}/regenerate`, { method: 'POST' }),
+  deleteVideoNote: (id: string) => request<{ status: string }>(`/api/video-notes/${id}`, { method: 'DELETE' }),
 }

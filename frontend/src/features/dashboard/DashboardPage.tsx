@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 
 import { EmptyState, PageHeader } from '../../components/AppShell'
 import { api } from '../../lib/api'
+import { formatBeijingDateTime } from '../../lib/time'
 import type { ContentView, JobView } from '../../lib/types'
 
 const contentTypeLabel = { RECRUITMENT: '招聘', TRAVEL: '旅行', VIDEO_NOTE: '视频笔记', UNSUPPORTED: '未支持' }
@@ -134,7 +135,7 @@ function JobRow({ job }: { job: JobView }) {
     <Link className="job-row" to={`/tasks/${job.id}`}>
       <div className="job-row__heading">
         <strong>{job.title}</strong>
-        <span>{job.status === 'COMPLETED' ? '已完成' : `预计 ${job.progress > 60 ? 2 : 6} 分钟`}</span>
+        <span>{jobStatusHint(job)}</span>
       </div>
       <p>{stepLabel(job.current_step)} · {job.progress}%</p>
       <div className="progress-track" aria-label={`处理进度 ${job.progress}%`}>
@@ -153,8 +154,16 @@ function NodeMetric({ icon: Icon, label, value, detail }: { icon: typeof Server;
   )
 }
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
+function formatDate(value: string) { return formatBeijingDateTime(value, { month: 'numeric', day: 'numeric' }) }
+
+function jobStatusHint(job: JobView) {
+  return ({
+    COMPLETED: '已完成',
+    PARTIAL_SUCCESS: '处理流程已完成',
+    FAILED: '失败',
+    NEEDS_USER: '需确认',
+    CANCELLED: '已取消',
+  } as Record<string, string>)[job.status] ?? `预计 ${job.progress > 60 ? 2 : 6} 分钟`
 }
 
 function stepLabel(step: string) {

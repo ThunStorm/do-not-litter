@@ -11,10 +11,10 @@
 # AI Personal Inbox / Personal Scout
 ## 项目文档索引
 
-> 文档版本：v0.4
-> 更新日期：2026-08-19
-> 当前阶段：Mac mini 可用化实施与真实运行时验收
-> 第一阶段部署形态：文档保留 Windows 11 PC 与 Mac mini 两套单节点方案；当前实施分支选择 Mac mini 作为后端与 AI Worker，手机通过可信局域网访问
+> 文档版本：v0.4.5
+> 更新日期：2026-08-26
+> 当前阶段：视频阅读、步骤续跑、笔记删除、AI 调用重试与提示词补充均已实施；以 `IMPLEMENTATION_STATUS.md` 为唯一实施状态来源
+> 第一阶段部署形态：Mac mini 作为完整后端与 AI Worker，PC/手机通过可信局域网访问
 > 第一阶段业务范围：北京市公务员/事业单位招聘 + 中国范围 Travel/Food
 
 ---
@@ -95,38 +95,48 @@
 
 | 文档 | 用途 |
 |---|---|
-| [DEPLOYMENT_OPTIONS.md](./DEPLOYMENT_OPTIONS.md) | Windows PC / Mac mini 双部署方案、选择矩阵与决策门 |
 | [PRODUCT_REQUIREMENTS.md](./PRODUCT_REQUIREMENTS.md) | 产品需求、用户场景、功能边界、MVP |
 | [SYSTEM_ARCHITECTURE.md](./SYSTEM_ARCHITECTURE.md) | 总体架构、模块边界、运行方式 |
 | [DATA_MODEL.md](./DATA_MODEL.md) | 领域对象、数据库表、Claim/Evidence 数据模型 |
 | [RECRUITMENT_PIPELINE.md](./RECRUITMENT_PIPELINE.md) | 招聘完整处理链、DSL、MajorMatcher、资格判断 |
 | [TRAVEL_FOOD_PIPELINE.md](./TRAVEL_FOOD_PIPELINE.md) | 视频/图文处理、ASR、POI、偏好学习、地图 |
+| [VIDEO_AI_NOTE_PIPELINE.md](./VIDEO_AI_NOTE_PIPELINE.md) | 视频页/Transcript 理解、代表性截图、细粒度地点、高德校名、中国全境地图与 Marker 生命周期 |
+| [VIDEO_AI_NOTE_IMPLEMENTATION_GUIDE.md](./VIDEO_AI_NOTE_IMPLEMENTATION_GUIDE.md) | Agent 实施入口：v0.4/v0.4.1 已有能力、v0.4.2 Work Package 12、测试与 DoD |
 | [AI_RUNTIME_AND_PROVIDERS.md](./AI_RUNTIME_AND_PROVIDERS.md) | 本地/外部模型、ASR、模型路由、Provider 抽象 |
 | [CONTROL_CENTER.md](./CONTROL_CENTER.md) | CMS/控制后台设计 |
+| [OPERATIONS_UI_SPEC.md](./OPERATIONS_UI_SPEC.md) | PC 缩放适配、实时任务诊断、运维日志工作台与 Mac mini 指标 UI 契约 |
+| [MODEL_AND_RETENTION_UI_SPEC.md](./MODEL_AND_RETENTION_UI_SPEC.md) | 自定义模型库、主/备用路由与任务/内容历史删除契约 |
+| [RUNTIME_MONITOR_AND_MODEL_PRESETS_SPEC.md](./RUNTIME_MONITOR_AND_MODEL_PRESETS_SPEC.md) | 持久化 Mac mini 指标、Provider 预设与草稿真实测试契约 |
+| [RUNTIME_MONITOR_AND_PROVIDER_SWITCH_V06_SPEC.md](./RUNTIME_MONITOR_AND_PROVIDER_SWITCH_V06_SPEC.md) | macOS 内存口径、运维浮窗与 Provider 默认值联动契约 |
+| [MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md](./MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md) | 手机会话刷新、视频阶段诊断、取消与重试控制契约 |
+| [TASK_SUMMARY_AND_PARTIAL_SUCCESS_SPEC.md](./TASK_SUMMARY_AND_PARTIAL_SUCCESS_SPEC.md) | 任务摘要字段语义、长文本收缩与部分完成表达契约 |
+| [TASK_STATUS_AND_BEIJING_TIME_SPEC.md](./TASK_STATUS_AND_BEIJING_TIME_SPEC.md) | 终态任务文案与全站北京时间显示契约 |
+| [VIDEO_NOTE_RENDERING_AND_TASK_MODEL_CONTEXT_SPEC.md](./VIDEO_NOTE_RENDERING_AND_TASK_MODEL_CONTEXT_SPEC.md) | 视频笔记封面、Markdown 渲染、部分完成与模型调用摘要契约 |
+| [VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md](./VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md) | 地点/转写前置、AI 校对稿、主旨目录、段落跳转、随文截图与 Lightbox 返工契约 |
+| [VIDEO_NOTE_LIST_V043_SPEC.md](./VIDEO_NOTE_LIST_V043_SPEC.md) | “添加视频链接”按钮、Bilibili 封面下载、本地缓存与 16:9 列表卡契约 |
+| [PIPELINE_STEP_REPLAY_V044_SPEC.md](./PIPELINE_STEP_REPLAY_V044_SPEC.md) | 24h 中间产物、从错误步骤续跑、上游复用和过期后完整重跑契约 |
+| [VIDEO_NOTE_DELETE_V044_SPEC.md](./VIDEO_NOTE_DELETE_V044_SPEC.md) | 视频笔记列表/详情删除入口、共享数据保留和确认门禁契约 |
+| [PROMPT_SUPPLEMENTS_V045_SPEC.md](./PROMPT_SUPPLEMENTS_V045_SPEC.md) | 不可变核心 Prompt 契约、可编辑补充偏好、哈希续跑与设置 UI 契约 |
 | [API_DESIGN.md](./API_DESIGN.md) | REST / WebSocket API 边界 |
 | [SECURITY_PRIVACY.md](./SECURITY_PRIVACY.md) | 本地优先、API Key、浏览器登录态、敏感数据 |
 | [TESTING_AND_ACCEPTANCE.md](./TESTING_AND_ACCEPTANCE.md) | 测试策略、关键验收用例 |
 | [GOLDEN_SAMPLES.md](./GOLDEN_SAMPLES.md) | 首批真实样本、Fixture 规则、技术 Spike 与质量门槛 |
 | [PROJECT_PLAN.md](./PROJECT_PLAN.md) | Codex/Agent 可直接执行的工程实施计划 |
+| [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) | 当前已实现能力、真实验收状态与下一实施项 |
+| [PROJECT_HANDOVER.md](./PROJECT_HANDOVER.md) | 当前代码/文档/运行状态核验后的正式维护交接说明 |
+| [CODEX_CONTEXT.md](./CODEX_CONTEXT.md) | Codex 新任务默认读取的精简项目上下文与文档路由 |
+| [CODEX_TASK_TEMPLATES.md](./CODEX_TASK_TEMPLATES.md) | 诊断、修复、迁移、UI 与文档任务的低额度提示模板 |
+| [REGRESSION_AND_CHANGE_GUARD.md](./REGRESSION_AND_CHANGE_GUARD.md) | 已确认需求的防覆盖基线、变更规则与回归矩阵 |
 | [FUTURE_ROADMAP.md](./FUTURE_ROADMAP.md) | GenericProcessor、移动端、云、多 Worker、C 级自动化 |
 | [ARCHITECTURE_DECISIONS.md](./ARCHITECTURE_DECISIONS.md) | 关键设计决策与原因 |
-| [LOGGING_ARCHITECTURE.md](./LOGGING_ARCHITECTURE.md) | 本地结构化日志、审计事件、安全与保留架构 |
-| [LOGGING_IMPLEMENTATION.md](./LOGGING_IMPLEMENTATION.md) | 日志代码、接口、部署、测试与回退操作 |
 
 `COMPLETE_PROJECT_SPEC.md` 是由上述分文档自动生成的合订本，不作为独立编辑源。修改分文档后运行 `python scripts/build_complete_project_spec.py` 重新生成。
 
 ---
 
-## 4. 当前硬件基线与待选部署
+## 4. 当前硬件基线
 
-### 方案 A：Windows PC 后端
-
-- 设备名：`WILLIAM-PC`
-- OS：Windows 11 x64
-- CPU：AMD Ryzen 7 5800X，8C/16T
-- RAM：32 GB
-- GPU：AMD Radeon RX 7900 XT，20 GB VRAM
-- 存储：总 4.61 TB，当前已使用约 3.30 TB
+开发/运行主机为 Mac mini（Apple M4、16 GB 统一内存、arm64）。CPU、内存、磁盘、运行时与 Worker 心跳均以 `/api/status` 的实时结果为准；安装与常驻规则见 `DEPLOYMENT_OPTIONS.md`。
 
 这台机器承担：
 
@@ -140,18 +150,6 @@
 - 独立 Worker；
 - Web Control Center；
 - 本地文件存储。
-
-### 方案 B：Mac mini 后端
-
-- 设备：Mac mini（`Mac16,10`）
-- OS：macOS 26.6.2（当前实际探测值）
-- 芯片：Apple M4，10 核 CPU
-- RAM：16 GB 统一内存
-- 架构：arm64
-
-这台机器可独立承担同一套 FastAPI、SQLite、Playwright、文档/OCR、Worker、Web Control Center 与本地文件存储；本地 AI 改用 Ollama Metal 与 whisper.cpp Metal，Secret 改存 macOS Keychain，服务由 `launchd` 常驻托管。完整差异与选择条件见 `DEPLOYMENT_OPTIONS.md`。
-
-两套方案互斥选择，不在 MVP 中让 Windows PC 与 Mac mini 共享同一个 SQLite 文件，也不同时维护两套生产安装包。
 
 ---
 
@@ -261,196 +259,939 @@ V1.x
 6. **不得因为未来可能需要而提前实现大平台。**
 7. **允许定义扩展接口，但不提前实现不属于 MVP 的能力。**
 8. **Pipeline 必须可重放、可重跑、可审计。**
-9. **长任务必须持久化，所选后端节点重启后可恢复。**
+9. **长任务必须持久化，PC 重启后可恢复。**
 10. **原始证据优先，AI 解释次之。**
+
+
+---
+
+# FILE: PROJECT_HANDOVER.md
+
+# 至简项目交接说明书
+
+> 交接基线：2026-08-26 代码、文档、在线服务与本地数据只读核验结果
+> 项目目录：`/Volumes/D/Projects/Codework/Git/do-not-litter`
+> 当前分支：`codex/mac-mini-implementation`
+> 当前 HEAD：`f882201b05661f868b61f66c2bcb81ec0be418a8`（2026-08-20）
+> 重要说明：HEAD 之后存在大量未提交实现与文档；交接基线是当前工作区，不是该 Git commit。
+
+## 1. 项目定位与整体现状
+
+### 1.1 产品定位
+
+“至简”是单用户、本地优先的个人信息处理系统。用户从 PC 或手机浏览器投递链接、正文和文件，Mac mini 后端执行解析、OCR/ASR、AI 结构化、证据绑定和结果物化，当前聚焦：
+
+- 北京市公务员、事业单位等招聘信息；
+- 中国大陆旅行、探店和视频 AI 笔记；
+- 结构化内容、任务、来源、证据、地点、地图、路线和本机运维管理。
+
+产品不属于通用 Agent 平台、SaaS、多租户系统或公网服务。未来 GenericProcessor、云控制面、多 Worker、自动报名等只在路线图中预留，未纳入当前交付。
+
+### 1.2 运行形态
+
+- Mac mini 是唯一支持的后端节点；PC/手机是同一 React Web 客户端；
+- API 与 Worker 由用户级 launchd 服务 `cn.zhijian.api`、`cn.zhijian.worker` 常驻；
+- FastAPI 同源提供生产前端、REST、WebSocket 和受控本地图片资源；
+- SQLite/WAL 与永久文件均位于 `data/`；不使用 Redis、Celery、PostgreSQL、消息队列或云业务数据库；
+- 手机通过可信局域网访问，4 位配对码换取 HttpOnly Session；默认不支持公网直接暴露。
+
+### 1.3 当前成熟度与版本状态
+
+当前是“功能较完整、真实单机运行、仍处于快速迭代和工程治理前”的本地 MVP/内部可用版本，不是稳定发布基线：
+
+- 文档版本：v0.4.5；后端/前端包版本仍为 0.2.0/0.1.0，尚未统一版本语义；
+- 数据库迁移：`0007` head；SQLite `integrity_check=ok`，journal mode 为 WAL；
+- 在线服务：API、Worker、SQLite 均为 RUNNING；运行主机为 Apple M4/16 GB/arm64；
+- 自动验证：后端 pytest 51 项、Ruff 通过；前端 Vitest 10 项、ESLint、TypeScript、Vite build 通过；
+- 当前数据快照：28 张业务表、36 个 Source、7 个 VideoAsset、1 个 Video Note、8 个 Place、464 条审计事件、16 个 AVAILABLE Step Artifact；
+- 当前磁盘量级：数据库约 4.1 MB、永久文件约 14 MB、可再生缓存约 103 MB、日志约 40 MB、模型约 141 MB；
+- 当前工作树约有百余个修改/未跟踪文件，绝大多数 v0.4–v0.4.5 实现尚未形成可回退 commit/tag，这是首要交付风险。
+
+### 1.4 已实施范围
+
+- 输入：URL、分享文案唯一 URL、正文、DOCX、PDF、XLSX/XLSM、图片、音频、视频；
+- 文档：PDF/DOCX/XLSX 解析、macOS Vision OCR、FFmpeg 归一化；
+- 招聘：基础分类、公告字段、岗位/条件、档案、Evidence、截止时间与待办基础视图；
+- 视频：Bilibili BV/短链/分 P、元数据、字幕优先、yt-dlp 音频/视频、Whisper.cpp、raw/corrected Transcript、AI Note、章节/目录、地点、POI、截图、封面；
+- 任务：持久 Job、Lease、独立 Worker 心跳、取消、超时、完整重跑、步骤级 Replay、24 小时 Artifact；
+- AI：自定义 OpenAI-compatible/Ollama 模型库、主/备用路由、有限重试、Ollama `keep_alive: 0`、Prompt 补充；
+- 地图：全国视野、bbox/zoom/cluster、GCJ-02、Marker 生命周期、地点详情、路线清单和 GeoJSON/CSV/JSON 导出；
+- 运维：真实 Mac mini 指标、JSONL 日志、SQLite 审计、组合筛选、事件详情、关联任务、脱敏导出；
+- 数据治理：Transcript 180 天清理、视频笔记保留式删除、任务/内容历史删除、Secret Store。
+
+### 1.5 尚未充分验证或不属于当前范围
+
+- CI 不依赖实时 Bilibili、微信、高德或外部 LLM；平台改版、Cookie 风控、额度和网络仍需定期真实样本回归；
+- 高德三项 Key、外部模型 Key、Bilibili Cookie 由部署者提供，代码无法替代外部配置；
+- 局域网 HTTP 只适用于可信网络，HTTPS/VPN 尚未成为默认部署；
+- 单 Worker、单 GPU 重任务并发为 1；未验证多 Worker 和高并发；
+- 浏览器截图主要来自历史版本，当前 v0.4.5 虽有 Browser 验收记录，但没有独立自动化端到端套件覆盖所有 PC/Mobile 路径；
+- 备份文件存在且数据库完整性已验证，但文档未提供近期完整“备份恢复演练”证据；
+- `FUTURE_ROADMAP.md` 中云化、多用户、GenericProcessor、C 级自动操作等均未实施。
+
+### 1.6 文档覆盖结论
+
+文档对产品、架构、领域、API、安全、运维、测试和历次 UI/可靠性决策覆盖较完整，但存在以下客观缺口：
+
+- `IMPLEMENTATION_STATUS.md` 是当前唯一实施状态来源，源码和在线服务基本支持其 v0.4.5 声明；
+- 若干专项文档标题仍写“待实施”，但源码、迁移和测试已存在，例如阅读返工、视频笔记删除、日志续跑；
+- `REGRESSION_AND_CHANGE_GUARD.md` 的测试数字、迁移版本和部分待实施标签停留在早期版本；
+- 原 `manifest.json` 漏列多份现有专项文档；原合订本生成清单漏入 Prompt 补充、模型/保留、移动会话等专项契约；
+- 根 README、后端包、前端包、FastAPI 与业务文档版本号不一致；
+- `SYSTEM_ARCHITECTURE.md` 中 Repository/Processor 接口部分是目标边界，当前实现仍大量由 Router/Service 直接访问 SQLAlchemy，不应误认为已经完全分层。
+
+因此：文档已覆盖主要已实施能力，但在交接前仍需完成“状态标签统一、聚合清单统一、版本统一”。本交接书记录的是核验后的实际基线。
+
+## 2. 完整技术栈与架构
+
+### 2.1 前端
+
+- React 19、React DOM 19；
+- TypeScript 5.8、Vite 7；
+- React Router 7；
+- TanStack React Query 5；
+- Lucide React；
+- Vitest、Testing Library、jsdom、ESLint 9；
+- 响应式单页应用，PC 使用 CMS/运维侧栏，手机使用“首页/内容/投递/待办/我的”底栏。
+
+### 2.2 后端
+
+- Python 3.12；
+- FastAPI、Uvicorn、Pydantic Settings；
+- SQLAlchemy 2、Alembic；
+- httpx、python-multipart；
+- Pillow、pypdf、python-docx、openpyxl；
+- yt-dlp；
+- 自研同步 Worker、Lease、Artifact Replay 和审计服务。
+
+### 2.3 数据与文件
+
+- SQLite，启用 WAL、foreign_keys、busy_timeout=5000；
+- 迁移序列 `0001`–`0007`；启动时仍调用 `Base.metadata.create_all` 兼容初装，正式升级以 Alembic 为准；
+- 永久文件：Source、Snapshot、Evidence、截图、视频封面衍生图、导出；
+- Replay/cache：视频、音频、帧、临时文件，默认 24 小时；
+- JSONL 日志：10 MB × 5 轮换，API/Worker 分文件；
+- Secret：生产 macOS Keychain，开发可用 0700 目录/0600 文件。
+
+### 2.4 本地与外部运行时
+
+- macOS Vision OCR；
+- FFmpeg 9.x；
+- whisper.cpp + `ggml-base.bin`，Metal 失败时 CPU 回退；
+- Ollama + Metal，本地 `/api/chat` 使用 `keep_alive: 0`；
+- DeepSeek、MiMo、Moonshot/Kimi、智谱、通义及任意 OpenAI-compatible Provider；
+- 高德 JS API/Security Code/Web Service Key，坐标系 GCJ-02；
+- Bilibili API/CDN、yt-dlp 和可选平台 Cookie。
+
+### 2.5 物理与逻辑架构
+
+```text
+PC/Mobile Browser
+  → React SPA
+  → FastAPI REST/WebSocket
+  → SQLite + Local Files + Keychain
+  → Independent Worker
+      → Resolver / Document / OCR / ASR
+      → LLM Router / Transcript Correction / Note
+      → Place / AMap / Screenshot / Cover
+      → Artifact Manifest / Replay / Materialize
+```
+
+API 只负责接入、校验、查询、配置和创建 Job。下载、OCR/ASR、模型调用、截图等长任务必须进入 Worker。
+
+## 3. 系统核心能力清单
+
+### 3.1 Capture 与来源
+
+- 统一接收 URL/Text/File；
+- InputNormalizer 区分 URL_ONLY、SHARE_TEXT_WITH_URL、TEXT_ONLY、MULTIPLE_URLS；
+- 单一分享链接只保留 URL、候选数、丢弃长度和原始输入哈希，不保存周边分享全文；
+- 多链接歧义返回候选，不创建 Job；
+- Source → Snapshot → Segment → Claim → Evidence 可回读。
+
+### 3.2 招聘链路
+
+- 招聘/旅行/不支持分类；
+- 公告正文、附件和表格解析；
+- 招聘时间、数量、条件、岗位等首批字段；
+- 用户档案、条件状态、Evidence 和 Review/Unknown 表达；
+- 内容、详情、待办和来源审计 UI。
+
+当前招聘能力属于首批业务闭环，文档中的完整 DSL、MajorMatcher 和大规模真实岗位质量门槛仍需持续样本验证。
+
+### 3.3 视频 AI 笔记链路
+
+主要步骤：
+
+```text
+VALIDATE_LINK → FETCH_METADATA → FETCH_SUBTITLE
+→ DOWNLOAD_AUDIO → ASR → NORMALIZE_TRANSCRIPT
+→ CORRECT_TRANSCRIPT → GENERATE_AI_NOTE
+→ EXTRACT_TRAVEL_FACTS → RESOLVE_POI → BUILD_PLACE_NOTES
+→ PLAN_SCREENSHOTS → DOWNLOAD_VIDEO_FOR_FRAMES
+→ EXTRACT_SCREENSHOTS → MATERIALIZE → CLEAN_CACHE
+```
+
+已实现：
+
+- Bilibili URL 规范化、元数据、字幕优先与 ASR fallback；
+- raw/corrected Transcript 双版本、Segment ID/顺序/时间码校验、批次校对；
+- 版本化 AINote、结构化 Section、thesis/summary/bullets/anchor；
+- 主旨目录、时间线详述、地点/转写证据区、时间码跳转；
+- 代表截图规划、质量过滤、哈希去重、Section 绑定、Lightbox；
+- 本地封面下载、CDN allowlist、MIME/解码/大小校验、672×378 WebP；
+- 完整转写 TXT 导出和 180 天清理；
+- Note/Version ID 历史兼容；
+- 视频笔记保留式删除。
+
+### 3.4 地点、地图与路线
+
+- PlaceMention 与 Place 分离；raw_name/canonical_name 并存；
+- 高德 POI 提供坐标，不接受 LLM 自造经纬度；
+- 歧义进入 REVIEW，不生成正式 Marker；
+- 中国大陆默认 viewport，bbox/zoom 查询和低缩放聚合；
+- Marker 新增、隐藏、用户软删除/恢复；
+- 地图浮层、统一 Place Detail、想去/去过/计划/忽略；
+- 路线清单只保存选点和人工顺序，不伪造最优路线；
+- CSV/JSON/GeoJSON 导出明确 GCJ-02。
+
+### 3.5 Job、恢复与调度
+
+- Job 状态：QUEUED/RUNNING/NEEDS_USER/COMPLETED/PARTIAL_SUCCESS/FAILED/CANCELLED；
+- JobStep 独立状态/进度/输入哈希/输出引用；
+- SQLite 原子领取、lease、任务心跳、900 秒尝试超时；
+- Worker 进程心跳使用独立守护线程，不被同步长 Pipeline 阻塞；
+- 取消在批次和 Provider 边界检查，取消完成前阻止重试；
+- 完整重跑创建新 Job；步骤续跑使用 JobStepArtifact、24 小时 TTL、REUSED/INVALIDATED 状态；
+- Replay Options 由服务端计算，Prompt/输入变化可推进最早失效步骤；
+- Artifact 到期或缺失时只允许完整重跑；
+- Worker 每日清理过期 Replay Artifact 和 Transcript 正文。
+
+### 3.6 模型与 Prompt
+
+- 任意 OpenAI-compatible/Ollama 模型配置；
+- 主模型/备用模型路由；
+- Keychain Secret、草稿真实测试；
+- 调用前等待、有限重试、重试间隔、备用切换；
+- Ollama 调用后立即释放；
+- 三类低优先级 Prompt 补充：转写校对、视频笔记、地点提取；
+- 固定 JSON/Schema/ID/证据契约不可通过 UI 修改；
+- 补充 Prompt Hash 参与 Replay 失效判断。
+
+### 3.7 运维与审计
+
+- 真实 CPU、内存、压缩内存、磁盘、API/Worker/SQLite/Ollama 状态；
+- 指标写入 SQLite，局域网客户端读取同一快照；
+- Request ID、JSONL 日志、SystemEvent 审计；
+- 时间/级别/组件/事件/Job/Request/实体/关键词组合筛选；
+- 游标分页、实时跟随、事件详情、关联任务、脱敏单条导出；
+- 任务详情 WebSocket，断线后轮询回退；
+- 所有用户时间强制 Asia/Shanghai，持久化为 UTC。
+
+## 4. 系统真实复杂度来源
+
+### 4.1 多层状态机
+
+- Job 总状态、JobStep 状态、Artifact 状态、Note 状态、Transcript 校对状态、POI Resolution、Marker Visibility、用户地点状态彼此独立；
+- `progress=100` 不等于 COMPLETED，PARTIAL_SUCCESS 表示流程结束但仍有补充项；
+- 旧 ERROR 事件不代表当前 Job 仍失败，UI 必须查询实时状态和 Replay Options。
+
+### 4.2 并发与 SQLite
+
+- API、Worker、Worker heartbeat thread 和浏览器查询共享 SQLite/WAL；
+- Lease 领取依赖条件 UPDATE；事务边界、rollback 和 busy timeout 直接影响稳定性；
+- 同一数据库同时保存业务状态、运行时指标、审计和配置，长事务会放大锁竞争。
+
+### 4.3 同步重任务与取消
+
+- yt-dlp、FFmpeg、Whisper、Pillow、httpx/LLM 多为同步调用；
+- 单 Worker 内的长调用必须靠任务心跳、独立进程心跳和请求边界取消共同维持可观测性；
+- 取消不能等同于简单改状态，必须停止后续批次并释放 lease/临时资源。
+
+### 4.4 版本与引用关系
+
+- Source/Snapshot/Segment/Claim/Evidence 是证据骨架；
+- VideoAsset、Transcript Version、AINote、AINoteVersion、Section、Screenshot、CoverAsset 有不同生命周期；
+- `note_*` 是公开 Note ID，`ntv_*` 是版本 ID；历史兼容不能散落在各接口；
+- raw/corrected Transcript 必须保持 Segment ID、顺序和时间范围不变。
+
+### 4.5 Replay 依赖
+
+- 步骤续跑不仅看 JobStep 状态，还依赖 Artifact 文件、TTL、Input Hash、Prompt Hash、Producer/Schema Version；
+- 上游 REUSED、下游 INVALIDATED、新版本产物之间存在审计链；
+- 清理 Cache、删除 Note、删除内容不能破坏 Replay 或 Evidence。
+
+### 4.6 外部平台不确定性
+
+- Bilibili 格式、Cookie、字幕和 CDN；
+- 微信风控/登录；
+- LLM 限流、超时、非标准 JSON；
+- 高德 Key、白名单、配额和 POI 歧义；
+- Mac 统一内存下 ASR/LLM/图像处理资源争用。
+
+### 4.7 前后端契约耦合
+
+- Task Detail、Logs、Video Note 和 Map 依赖大量状态字段与稳定 ID；
+- 任务步骤中文化、排序、停滞阈值、Replay 按钮必须与后端顺序/门禁一致；
+- 删除、重跑、Token 轮换等操作需要同时刷新多个 React Query cache。
+
+## 5. 核心高危文件职责与风险
+
+| 文件 | 职责 | 风险与约束 |
+| --- | --- | --- |
+| `backend/src/zhijian/api/router.py` | 绝大多数业务/管理 API、状态 ViewModel、日志、模型设置、地图和 Job 操作 | 约 1949 行，直接查询多张表；**禁止随意修改**路由返回字段、认证依赖、Job 门禁和删除边界。应先加契约测试再拆分 Router。 |
+| `backend/src/zhijian/services/video_pipeline.py` | 视频端到端状态机、步骤/Artifact、取消、部分成功、Replay 分支 | 约 1096 行；**禁止随意修改**步骤顺序、进度、Artifact、finally 清理和状态收口。任何步骤变化必须同步 Replay、前端时间线、文档和测试。 |
+| `backend/src/zhijian/services/video_support.py` | Transcript、AI 校对、Note/Section、Prompt Hash、地点提取/POI/历史修复 | 约 917 行；**禁止随意修改**Segment ID、raw/corrected、证据校验、Prompt 核心契约和版本生成。 |
+| `backend/src/zhijian/services/job_replay.py` | Replay Options、Artifact/Prompt 失效、步骤续跑入队 | **禁止绕过**服务端计算的 replay_from_step；前端不得指定任意后续步骤。 |
+| `backend/src/zhijian/services/jobs.py`、`worker.py` | Lease、超时、Artifact 清理、独立心跳、Worker 主循环 | **禁止随意修改**原子领取、lease 释放、取消、心跳线程和每日清理。 |
+| `backend/src/zhijian/db/models.py`、`backend/alembic/versions/` | 28 张业务表和历史迁移 | **禁止直接改历史迁移**；新 Schema 必须新建迁移、备份生产库、验证 head/integrity。当前 0002/0003 已在工作树被修改，合并前必须重点审计。 |
+| `backend/src/zhijian/db/session.py` | Engine、WAL、FK、busy timeout、Session 工厂 | **禁止取消** WAL/FK/busy timeout；不在无评估下改连接/事务模型。 |
+| `backend/src/zhijian/services/auth.py`、`core/secret_store.py` | LAN 配对、Session、Keychain/File Secret | **禁止记录或回传**配对码、Cookie、API Key；不得把 Secret 写 SQLite/localStorage。 |
+| `backend/src/zhijian/main.py` | Lifespan、指标采样、CORS、日志中间件、SPA 静态资源 | **禁止在请求线程加入长任务**；保持 index no-cache、hash asset immutable。 |
+| `frontend/src/features/tasks/TaskDetailPage.tsx`、`taskTimeline.ts` | 实时任务、停滞、重跑/续跑、步骤时间线 | **禁止前端推测失败或绕过 Replay Options**；状态/阈值必须来自统一契约。 |
+| `frontend/src/features/video/VideoNotesPage.tsx` | Note 列表/详情、目录、证据、删除、截图/Lightbox | **禁止回退**到远程封面、原始 Transcript 正文堆叠或错误 Note ID。 |
+| `frontend/src/lib/api.ts`、`lib/types.ts` | 前后端契约 | 字段改动影响全站；先更新后端 Schema/测试，再同步类型和调用。 |
+| `frontend/src/styles/global.css` | 全局 701 行视觉与响应式规则 | **禁止无范围的全局选择器/重置**；缩放、窄桌面、手机可能被一次改动同时破坏。 |
+| `deploy/macos/manage.py` | LaunchAgent 安装、状态、回退 | 涉及运行服务和 Keychain 主体；安装前必须备份 plist/数据库并确认无活跃 Job。 |
+
+## 6. 现有技术债务与维护风险
+
+### 6.1 交付与版本治理
+
+- 当前工作树远离 HEAD，存在大量未提交文件；没有可证明包含 v0.4.5 的单一 commit/tag；
+- 根 package 0.1.0、前端/后端 0.2.0、API 0.2.0、文档 v0.4.5 不一致；
+- 当前在线服务实际运行的是工作树构建，重装或误切分支可能丢失大量功能。
+
+### 6.2 文档漂移
+
+- `IMPLEMENTATION_STATUS.md` 与源码最接近，但更新日期仍为 2026-08-24；
+- 若干专项文档和 `REGRESSION_AND_CHANGE_GUARD.md` 仍把已实现能力写为待实施；
+- 回归基线仍记 25 项测试/0004，真实为 51 项/0007；
+- 合订本/manifest 过去未覆盖所有专项文档；
+- 设计截图分散在多个版本目录，概念稿与实际运行截图容易混用。
+
+### 6.3 代码集中度
+
+- Router、视频 Pipeline、视频 Support 三个文件合计约 4000 行，是主要耦合中心；
+- SQLAlchemy 查询、ViewModel、权限、状态机和审计在 Router 中混合；
+- 视频模块同时处理网络、模型、文件、数据库、状态和 UI 契约，局部改动回归面大。
+
+### 6.4 数据库与迁移
+
+- 启动时 `create_all` 与 Alembic 并存，可能掩盖迁移遗漏；
+- SQLite 适合当前单节点，但审计/指标/业务共库会增加锁与容量压力；
+- JSON 字段承载较多跨层结构，Schema 演进依赖应用校验；
+- 历史迁移文件 0002/0003 在当前工作树被修改，禁止在未审计的情况下发布。
+
+### 6.5 测试不均衡
+
+- 后端测试数量和状态机覆盖较强；前端只有 10 项，主要覆盖任务/设置/地图/Markdown/时间；
+- 缺少持续执行的全浏览器 E2E、网络故障注入、数据库恢复演练、长视频压力测试；
+- 真实平台验收依赖外部环境，结果不可完全复现。
+
+### 6.6 外部与资源风险
+
+- 16 GB 统一内存限制 ASR/LLM 并行；单 Worker 是稳定性选择也是吞吐瓶颈；
+- LLM 返回不合法 JSON、限流和长响应仍是主要失败来源；
+- 平台 Cookie/接口改版可能使字幕、音频、截图、封面失效；
+- 当前 40 MB 日志已接近多轮换文件规模，长期清理与磁盘水位告警仍需治理。
+
+### 6.7 安全与部署风险
+
+- 4 位配对码依赖可信 LAN、失败锁定和 Session；不适合公网；
+- LAN HTTP 无传输加密；公共 Wi-Fi/访客网络禁用；
+- 开发默认 Secret Store 为文件，生产必须确认实际使用 Keychain；
+- `.env.example` 仍含早期 Vite 高德变量，当前高德配置主要由设置/Bootstrap 管理，易误导接手者。
+
+## 7. 后续优先治理与迭代方向
+
+### P0：先建立可回退交付基线
+
+1. 备份 `data/app.db`、Keychain 项目清单、LaunchAgent plist 和永久文件；执行一次恢复演练。
+2. 审阅当前 dirty diff，特别是历史迁移 0002/0003；移除 `.DS_Store` 等无关变更。
+3. 将当前已验证工作树形成单一 commit/tag，记录数据库 `0007`、前端 asset hash 和部署时间。
+4. 统一 root/backend/frontend/API/docs 版本号与发布说明。
+5. 重新安装/重启服务前确认无 QUEUED/RUNNING/CANCELLING Job。
+
+### P1：同步文档事实
+
+1. 以 `IMPLEMENTATION_STATUS.md` 为状态源，清理各专项文档过期的“待实施”标签。
+2. 更新 `REGRESSION_AND_CHANGE_GUARD.md` 的迁移、测试数和 GUI 记录。
+3. 保证 manifest、README 索引、合订本生成清单包含全部源文档。
+4. 区分“设计稿”“运行截图”“历史稿”，避免把效果图当实现证据。
+
+### P1：降低高危文件耦合
+
+1. 先通过契约测试冻结 API，再按领域拆分 `api/router.py`。
+2. 将视频 Pipeline 的步骤执行、Artifact、状态收口和 Provider 调用分层；不改变步骤顺序。
+3. 将 Query/ViewModel 从写操作 Service 中分离，减少 Router 直接操作多表。
+4. 保持所有拆分为机械迁移；不与新功能同时进行。
+
+### P1：补关键回归
+
+1. 建立 PC 1440、935 窄桌面和 390 手机的 Browser E2E smoke；
+2. 覆盖 Session 刷新、Capture、多链接、取消、完整重跑、步骤续跑、Note 删除、Map Marker 生命周期；
+3. 增加 SQLite busy/断电恢复、备份恢复和 Artifact TTL 测试；
+4. 定期跑 Bilibili 有字幕/无字幕、竖屏/横屏和外部模型故障样本。
+
+### P2：稳定性和容量
+
+1. 增加磁盘低水位、数据库备份年龄、日志/缓存容量告警；
+2. 对视频时长、ASR、校对批次、截图下载和模型调用建立性能基线；
+3. 对 LLM 结构化输出建立更严格的 Schema/重试/降级统计；
+4. 评估审计/指标与业务数据的清理节奏，不急于迁移数据库。
+
+### P3：谨慎迭代
+
+- 招聘 DSL/MajorMatcher、旅行偏好、更多平台 Resolver 只在黄金样本和 Evidence 门槛明确后扩展；
+- 多 Worker、云化、GenericProcessor、自动操作属于未来路线，不与当前单机治理混做；
+- 高德路线计算、远程访问和 HTTPS 需要独立安全/部署决策。
+
+## 8. 开发硬性约束规范
+
+### 8.1 改动禁区
+
+- **禁止随意修改** Source/Snapshot/Segment/Claim/Evidence 引用链；
+- **禁止随意修改** Job/JobStep/Artifact 状态、步骤顺序、Lease、取消和 Replay 门禁；
+- **禁止随意修改** `note_*`/`ntv_*`、raw/corrected Transcript、PlaceMention/Place 的身份边界；
+- **禁止随意修改** 历史 Alembic 迁移；新增 Schema 必须新迁移；
+- **禁止随意修改** Auth、Secret Store、日志脱敏和局域网安全边界；
+- **禁止随意修改** 全局 CSS、PC/Mobile 导航和地图父页面语义；
+- **禁止随意修改** 固定 Prompt 中的 JSON/Schema/ID/证据契约。
+
+### 8.2 必须遵守的范式
+
+1. 长任务只创建 Job，由 Worker 执行；FastAPI 请求不跑 ASR、LLM、视频下载或长 Playwright。
+2. 事实性 Claim 必须有 Evidence；LLM 不生成 POI 坐标，不把推理伪装成事实。
+3. Secret 只进 Keychain/受限 FileSecretStore；禁止进入 SQLite 明文、日志、URL、导出和 localStorage。
+4. 数据库变更：备份 → 新 Alembic migration → upgrade → current → integrity_check → 回归。
+5. Job 改动必须同步：后端状态机、审计事件、API Schema、Task/Logs UI、测试和文档。
+6. 视频步骤变化必须同步 `VIDEO_STEP_ORDER`、Artifact、Replay、时间线中文映射和进度。
+7. 前端不能自行判断可重跑/可续跑步骤；只消费服务端 Replay Options。
+8. 取消必须协作式生效，释放 lease 前禁止新尝试覆盖旧执行。
+9. 用户时间显示为 Asia/Shanghai，持久化和 API 时间保持带时区 UTC。
+10. 地图首次全国视野；禁止恢复厦门/思明等历史默认参数和静态伪地图。
+11. Marker 删除不级联删除 Place/Source/Claim/Evidence/Note。
+12. Note 删除保留共享 Source、VideoAsset、CoverAsset、Transcript、Place 和 Evidence。
+13. Transcript 到期清理 raw/corrected/quote，但保留时间轴、Note、截图和审计 tombstone。
+14. 新功能不得通过重写页面覆盖现有入口；设计资产只作为实现依据，不作为页面背景。
+
+### 8.3 每次交付必跑
+
+```bash
+.venv/bin/python -m alembic -c backend/alembic.ini current
+.venv/bin/python -m pytest backend/tests -q
+.venv/bin/python -m ruff check backend/src backend/tests
+pnpm --dir frontend lint
+pnpm --dir frontend test -- --run
+pnpm --dir frontend build
+python scripts/build_complete_project_spec.py
+git diff --check
+```
+
+然后：
+
+- 查询 `/api/jobs`，确认没有活跃任务再重启 API/Worker；
+- 检查 `/api/status`、Worker heartbeat、数据库 integrity；
+- 用 Browser 回归目标页面、控制台和至少一个真实交互；
+- 更新 `IMPLEMENTATION_STATUS.md`，不得把 Fixture、设计稿或构建成功描述为真实端到端验收。
+
+### 8.4 兼容与回退要求
+
+- API/DB 字段优先向后兼容；历史 `ntv_*` 链接仍需解析；
+- 新版本结果追加版本，不原地覆盖 Note/Transcript/Evidence 历史；
+- Provider/Prompt/Parser 变化必须进入 Input/Prompt Hash 和 Replay 失效计算；
+- 发布前记录 Git commit/tag、迁移 head、备份路径、前端 hash 和服务状态；
+- 回退代码前先停止服务并备份数据库；默认不 downgrade 破坏性迁移。
+
+## 交接入口
+
+- 当前实施状态：`IMPLEMENTATION_STATUS.md`
+- 防覆盖基线：`REGRESSION_AND_CHANGE_GUARD.md`
+- 完整规格索引：`README.md`
+- 生成合订本：`COMPLETE_PROJECT_SPEC.md`
+- 部署操作：`../deploy/macos/README.md`
+- 设计资产：`../design/ui/README.md`
+
+
+---
+
+# FILE: CODEX_CONTEXT.md
+
+# 至简 Codex 精简接手页
+
+> 用途：后续 Codex 新任务的默认第一读物。它替代“先读全部文档”和默认加载合订本。
+
+## 一句话
+
+至简是运行在 Mac mini 上的单用户、本地优先信息处理系统。PC/手机通过可信局域网访问 React Web；FastAPI 接入，SQLite/WAL 持久化，独立 Worker 处理招聘与 Bilibili 旅行视频长任务。
+
+## 当前事实
+
+- 文档版本：v0.4.6；唯一实施状态源：`IMPLEMENTATION_STATUS.md`。
+- 部署：`cn.zhijian.api` + `cn.zhijian.worker`，FastAPI 同源提供前端。
+- 数据库：Alembic `0008`，SQLite/WAL。
+- 验证基线：后端 pytest、Ruff；前端 Vitest 10 项、ESLint、TypeScript、Vite build。
+- 主要高危文件：
+  - `backend/src/zhijian/api/router.py`
+  - `backend/src/zhijian/services/video_pipeline.py`
+  - `backend/src/zhijian/services/video_support.py`
+  - `backend/src/zhijian/services/job_replay.py`
+  - `backend/src/zhijian/db/models.py`
+  - `frontend/src/features/tasks/TaskDetailPage.tsx`
+  - `frontend/src/features/video/VideoNotesPage.tsx`
+  - `frontend/src/styles/global.css`
+- 当前工作树可能包含大量未提交实现；改动前先看 `git status`，不得覆盖用户变更。
+
+## 按任务选文档
+
+| 任务 | 必读 | 可选补充 |
+| --- | --- | --- |
+| 当前状态/交接 | `IMPLEMENTATION_STATUS.md`、`PROJECT_HANDOVER.md` | `README.md` |
+| Capture/文件/OCR | `PRODUCT_REQUIREMENTS.md` | `SYSTEM_ARCHITECTURE.md`、`SECURITY_PRIVACY.md` |
+| 招聘 | `RECRUITMENT_PIPELINE.md` | `DATA_MODEL.md`、`TESTING_AND_ACCEPTANCE.md` |
+| 视频 Pipeline | `VIDEO_AI_NOTE_IMPLEMENTATION_GUIDE.md` | `VIDEO_AI_NOTE_PIPELINE.md` |
+| 视频阅读/UI | `VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md` | 对应 `design/ui/` 标注稿 |
+| Job/取消/重跑 | `PIPELINE_STEP_REPLAY_V044_SPEC.md` | `MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md` |
+| 模型/Prompt | `AI_RUNTIME_AND_PROVIDERS.md` 或 `PROMPT_SUPPLEMENTS_V045_SPEC.md` | `SECURITY_PRIVACY.md` |
+| 地点/地图 | `TRAVEL_FOOD_PIPELINE.md` | `API_DESIGN.md`、`DATA_MODEL.md` |
+| 日志/运维 | `OPERATIONS_UI_SPEC.md` | `LOGGING_ARCHITECTURE.md` |
+| 数据库迁移 | `DATA_MODEL.md` | `ARCHITECTURE_DECISIONS.md` |
+
+不要为局部任务读取 `COMPLETE_PROJECT_SPEC.md`。
+
+## 核心 Pipeline
+
+```text
+Capture → Source/Job → Resolver → Segment/Evidence → Processor → Content
+
+Video:
+VALIDATE_LINK → FETCH_METADATA → FETCH_SUBTITLE → DOWNLOAD_AUDIO → ASR
+→ NORMALIZE_TRANSCRIPT → CORRECT_TRANSCRIPT → GENERATE_AI_NOTE
+→ EXTRACT_TRAVEL_FACTS → RESOLVE_POI → BUILD_PLACE_NOTES
+→ PLAN_SCREENSHOTS → DOWNLOAD_VIDEO_FOR_FRAMES → EXTRACT_SCREENSHOTS
+→ MATERIALIZE → CLEAN_CACHE
+```
+
+## 状态边界
+
+- Job：QUEUED/RUNNING/NEEDS_USER/COMPLETED/PARTIAL_SUCCESS/FAILED/CANCELLED。
+- PARTIAL_SUCCESS 表示流程结束但有补充项，不是仍在运行。
+- Replay Options 由后端计算；前端不得指定任意续跑步骤。
+- `note_*` 是公开 Note ID，`ntv_*` 是版本 ID。
+- raw/corrected Transcript 保持 Segment ID、顺序和时间码不变。
+- Marker 隐藏/删除不级联删除 Place/Source/Evidence。
+
+## 低额度命令
+
+定位：
+
+```bash
+rg -n "关键词" backend/src frontend/src "dev docs/相关文件.md"
+sed -n '起始,结束p' 目标文件
+```
+
+目标验证优先；交付前再运行：
+
+```bash
+.venv/bin/python -m pytest backend/tests -q
+.venv/bin/python -m ruff check backend/src backend/tests
+pnpm --dir frontend lint
+pnpm --dir frontend test -- --run
+pnpm --dir frontend build
+git diff --check
+```
+
+文档源文件变化时才运行：
+
+```bash
+.venv/bin/python scripts/build_complete_project_spec.py
+```
+
+## 禁止默认执行
+
+- 读取整个合订本或全部 DOM/AX Tree；
+- 真实 Provider 测试、视频重新生成、Job 重跑；
+- 为局部改动反复运行全量测试；
+- 顺手实施 Future Roadmap；
+- 重启有活跃 Job 的 Worker；
+- 修改历史迁移、Secret、安全/证据边界。
+
+
+---
+
+# FILE: CODEX_TASK_TEMPLATES.md
+
+# Codex 低额度任务模板
+
+新任务优先使用下列最短模板，不粘贴完整历史会话或合订本。
+
+## 诊断
+
+```text
+先读 dev docs/CODEX_CONTEXT.md 和与问题直接相关的专项规格。
+只诊断，不改代码。给出根因、证据、影响范围和最小修复建议。
+不要读取 COMPLETE_PROJECT_SPEC.md；工具输出只保留相关片段。
+```
+
+建议：高效模型，低/中推理。
+
+## 局部修复
+
+```text
+先读 dev docs/CODEX_CONTEXT.md、IMPLEMENTATION_STATUS.md 和 <专项规格>。
+修复 <一个明确问题>，不得扩展范围。
+先跑目标测试，完成后只跑一次全量验证；前端改变才做目标页面 Browser 回归。
+```
+
+建议：成本/能力平衡模型，中推理。
+
+## 高风险状态机/迁移
+
+```text
+先读 dev docs/CODEX_CONTEXT.md、REGRESSION_AND_CHANGE_GUARD.md、<专项规格>。
+目标：<明确目标>。
+硬约束：不破坏历史数据、Evidence、Job Lease、Replay 和兼容 ID。
+先列出数据迁移与回退边界，再实施；必须有专项测试和数据库 integrity 验证。
+```
+
+建议：旗舰模型，高推理；避免 max/ultra，除非标准任务证明必要。
+
+## UI 批注实施
+
+```text
+仅处理本轮全部批注，先抽象成同一份规格后一次实施。
+读取目标页面组件、相关 CSS、标注设计和一个专项规格。
+不要扫描所有 UI 文档；Browser 只返回目标容器 DOM、控制台错误和一张验收截图。
+```
+
+建议：成本/能力平衡模型，中推理。
+
+## 文档同步
+
+```text
+只核对 <功能/版本> 的源码事实与状态文档。
+不改业务代码，不读取全部合订本；更新源文档后重新生成 COMPLETE_PROJECT_SPEC.md。
+输出差异和仍未验证项，不重复历史说明。
+```
+
+建议：高效模型，低推理。
+
+
+---
+
+# FILE: REGRESSION_AND_CHANGE_GUARD.md
+
+# 回归基线与变更防覆盖清单
+
+更新日期：2026-08-24。本文把本会话已确认的需求收敛为可执行的保护清单。任何后续 Agent 在改动前必须先阅读本文和对应契约；不能以原型截图、静态数据或“构建成功”替代真实实现。
+
+## 1. 变更规则
+
+1. 先定位所属能力，再改代码；不以重写页面的方式覆盖已有可操作功能。
+2. 改动数据模型时必须添加 Alembic 迁移并验证 `alembic current`；不得改动历史 Source、Claim、Evidence 或 Note 来实现地图隐藏。
+3. 改动 Job、模型、视频或地图链路时，必须同时更新任务步骤、可读日志、API、UI 与验收用例。
+4. 每次实施后运行后端 pytest、前端 ESLint/Vitest/TypeScript/Vite 构建，并在没有活跃 Job 时重启 API/Worker；不得为发布中断用户正在运行的任务。
+5. `COMPLETE_PROJECT_SPEC.md` 仅由源文档生成。修改本目录文档后运行 `python scripts/build_complete_project_spec.py`。
+
+## 2. 已冻结的功能基线
+
+| 能力 | 不可回退要求 | 契约 / 主要实现 |
+| --- | --- | --- |
+| 部署与局域网 | 唯一后端为 Mac mini；4 位配对码显眼展示；Cookie 会话刷新不应重新要求配对；服务状态来自真实 API/Worker/SQLite | `DEPLOYMENT_OPTIONS.md`、`MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md`、`services/auth.py` |
+| 捕获与本地处理 | URL、正文、DOCX、PDF、XLSX、图像 OCR、音视频均可进入 Job；Whisper.cpp、FFmpeg 与 OCR 状态必须是探测结果 | `PRODUCT_REQUIREMENTS.md`、`AI_RUNTIME_AND_PROVIDERS.md` |
+| 模型设置 | 用户可维护任意 Provider/模型库；预设仅帮助填写；主/备用从已存模型选择；草稿可真实测试；默认超时 300 秒 | `MODEL_AND_RETENTION_UI_SPEC.md`、`RUNTIME_MONITOR_AND_MODEL_PRESETS_SPEC.md` |
+| 任务控制 | 当前标记只属于运行中的当前 JobStep；终态不固定高亮最后一步；时间线按 Pipeline 排序、阶段中文化并显示步骤用时；普通步骤 90 秒、LLM 步骤 300 秒预警，900 秒才终止；取消协作释放 lease，确认前不允许重试 | `MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md`、`TASK_SUMMARY_AND_PARTIAL_SUCCESS_SPEC.md`、`TASK_STATUS_AND_BEIJING_TIME_SPEC.md` |
+| Worker 存活与完整重跑 | 全局 Worker 心跳独立于同步 Pipeline；Job 活动只反映真实阶段/batch；长模型取消在请求边界停止后续批次，429/5xx 不放大请求；取消 lease 释放后 `CANCELLED` 也可完整重跑 | `RUNTIME_MONITOR_AND_PROVIDER_SWITCH_V06_SPEC.md`、`PIPELINE_STEP_REPLAY_V044_SPEC.md`、ADR-030 |
+| 终态与时间 | 终态不显示预估；展示层强制北京时间，持久化 ISO 时间仍保持 UTC | `TASK_STATUS_AND_BEIJING_TIME_SPEC.md` |
+| 运维 | CPU/内存/磁盘与 Worker 心跳为 SQLite 持久化快照；内存百分比使用可回收页口径；日志支持筛选、关联 Job、分页与脱敏 | `OPERATIONS_UI_SPEC.md`、`LOGGING_ARCHITECTURE.md` |
+| 步骤续跑 | ERROR/CRITICAL 事件先查询 Replay Options；Artifact 有效时从失败步骤继续，上游 REUSED、当前/下游顺次执行；过期后只允许完整重跑；日志页不直接改步骤 | `PIPELINE_STEP_REPLAY_V044_SPEC.md`、`LOGGING_ARCHITECTURE.md`、ADR-026 |
+| 内容保留 | 终态任务和内容可删除；删除不破坏共享来源、地点、路线或证据；密钥只进 Keychain/Secret Store | `MODEL_AND_RETENTION_UI_SPEC.md`、`SECURITY_PRIVACY.md` |
+| 视频 v0.3 | Bilibili 元数据/字幕优先/受控音频/Whisper 转写；AI 笔记、章节、时间码、地点候选、POI、Place Note 和失败/部分成功均为真实数据 | `VIDEO_AI_NOTE_PIPELINE.md` 1–4.11 |
+| 视频 v0.4 截图 | 笔记先综合元数据与 Transcript；`PLAN_SCREENSHOTS → DOWNLOAD_VIDEO_FOR_FRAMES → EXTRACT_SCREENSHOTS → MATERIALIZE` 为显式步骤；3–12 张全文截图、主要地点优先，绑定章节/地点候选/Segment/时间码；过滤黑帧、曝光异常、低清晰度和重复帧 | `VIDEO_AI_NOTE_PIPELINE.md` 4.12–4.15、`services/video_screenshots.py` |
+| 视频 v0.4.2 阅读返工（待实施） | Hero 有真实封面、缺省为空；摘要/主体目录/正文优先，地点候选与完整转写放底部；默认使用 AI corrected Transcript；截图以侧排缩略图嵌入并支持 contain Lightbox；TXT 按钮使用统一视觉 | `VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md` |
+| 视频 v0.4.3 列表封面 | 主按钮为“添加视频链接”并使用统一 40px/14px Token；Card 展示本地持久真实封面、16:9 cover 和时长徽标；封面失败只显示占位，不阻塞 Note | `VIDEO_NOTE_LIST_V043_SPEC.md` |
+| 视频笔记删除（待实施） | 列表/详情共用删除；删除 Note/Version/Section/TOC/Content 投影，保留共享 Source/Asset/Cover/Transcript/Place/Evidence；活跃 Job 阻止删除 | `VIDEO_NOTE_DELETE_V044_SPEC.md` |
+| 地点与 POI | 细粒度地点 + `PlaceBrief`；保留 `raw_name`，高德确认写 `canonical_name`；歧义进入 Review，不能生成 Confirmed Marker | `TRAVEL_FOOD_PIPELINE.md`、`services/video_support.py` |
+| 全国地图 | 首次中国大陆全境、之后恢复 viewport；按 bbox + zoom 查询且低 zoom 聚合；不得恢复厦门/思明区默认参数、标题、静态伪地图或路线默认城市 | `VIDEO_AI_NOTE_PIPELINE.md` 4.16、`MapOverviewPage.tsx` |
+| Marker 生命周期 | 自动 Marker 删除仅隐藏投影；用户 Marker 软删除可恢复；绝不删除 Place、Source、Claim、Evidence、Place Note；浮层展示图片、地址、特色、来源数、状态和详情入口 | `API_DESIGN.md`、`map_marker_states`、`MapOverviewPage.tsx` |
+| 高德设置 | JS API Key、Security Code、Web 服务 Key 分别保存/测试/诊断；前端已认证后用 bootstrap 读取，不在代码或构建变量硬编码 Key | `CONTROL_CENTER.md`、`SettingsPage.tsx` |
+| UI 体系 | PC 是 CMS/运维优先，手机是日常入口；底部导航只放共性功能；外部来源图标单色；设计稿只作代码原生 UI 依据 | `design/ui/README.md`、`design/ui/v0.4/README.md` |
+
+## 3. 回归矩阵
+
+| 层 | 必跑检查 | 通过条件 |
+| --- | --- | --- |
+| 数据库 | `python -m alembic -c backend/alembic.ini current` | 头版本为 `0004` 或更高，且升级不丢历史数据 |
+| 后端 | `./.venv/bin/python -m pytest backend/tests -q` | 全量通过；至少覆盖局域网、超时、取消/重试、运行状态、地图聚合与 Marker 生命周期 |
+| 前端 | 在 `frontend/` 运行 `pnpm run lint`、`pnpm test -- --run`、`pnpm run build` | 无 lint/类型/构建错误；地图画布和设置核心单测通过 |
+| 服务 | `/api/status`、`/api/travel/map?zoom=4`、`/api/travel/map/bootstrap` | API/Worker/SQLite 为 RUNNING；返回中国全境 viewport 和聚合/配置字段 |
+| GUI | PC 与手机宽度分别走概览、投递、内容、任务/详情、视频笔记/截图、地图/Marker、路线、全部设置、日志 | 无控制台错误、无横向溢出、状态与 API 一致；外部 Key 未配置时显示可行动诊断，绝不伪造底图或成功 |
+
+## 4. 本次回归记录
+
+- 自动回归：后端 pytest 25 项通过；前端 ESLint、Vitest（5 项）、TypeScript 与生产构建通过；数据库已在 `0004`。
+- 服务回归：API、Worker、SQLite 已启动；`/api/travel/map?zoom=4` 返回中国大陆默认 viewport 与聚合；历史厦门地点已补齐独立 `marker_id`，但这仅是历史样本数据，不构成产品默认城市。
+- GUI 限制：本会话没有可调用的 Computer Use 控制器，插件技能文件亦不可用；因此无法完成用户浏览器的原生 GUI 点击回归。下次具备 Computer Use 工具时，必须按本节 GUI 矩阵补录截图和控制台结果，不能把该限制标记为已验收。
+
+
+---
+
+# FILE: TASK_STATUS_AND_BEIJING_TIME_SPEC.md
+
+# 任务终态与北京时间显示规格
+
+版本：v0.1，更新日期：2026-08-22，状态：`IMPLEMENTED`。
+
+## 1. 终态不能显示预估
+
+概览、任务列表和详情中的预估仅属于 `QUEUED` 或 `RUNNING`。任务达到终态后必须立即以真实状态替换预估：
+
+| Job 状态 | 展示文案 |
+| --- | --- |
+| `COMPLETED` | 已完成 |
+| `PARTIAL_SUCCESS` | 处理流程已完成，并显示补充原因 |
+| `FAILED` | 失败 |
+| `NEEDS_USER` | 需确认 |
+| `CANCELLED` | 已取消 |
+
+`progress=100` 不是成功的独立判定；以 Job 状态为准。禁止在 `CLEAN_CACHE` 已完成、`PARTIAL_SUCCESS` 或失败任务上继续显示“预计 N 分钟”。
+
+时间线的“当前”标记只在 `Job.status=RUNNING`、对应 `JobStep.status=RUNNING` 且名称等于 `current_step` 时显示。终态 Job 只显示“结束步骤”，不得把 `CLEAN_CACHE` 永久高亮。每个 Step 统一展示中文名称、技术枚举、状态、进度和 `finished_at-started_at` 用时；运行中步骤使用当前时间计算已用时。
+
+## 2. 北京时间
+
+- 数据库、API ISO 时间和审计事件继续使用 UTC 带时区保存，保证排序、跨端比较和导出不含歧义；
+- SQLite 读取历史 `datetime` 时若丢失 offset，API 必须按 UTC 恢复为带 `+00:00` 的 ISO 值后再输出；禁止把无时区 UTC 数值直接交给浏览器；
+- 所有面向用户的时间（日志表、日志抽屉、任务详情、概览更新时间、侧栏采样时间）必须强制使用 `Asia/Shanghai` 格式化，不依赖浏览器或设备时区；
+- 日志界面标题明确显示“北京时间”。原始 UTC ISO 值仅作为导出/诊断数据保留；
+- 相对时间仍按当前时刻与 UTC 时间差计算，避免本地时区导致停滞阈值误判。
+
+## 3. 验收
+
+1. 输入 `2026-08-22T07:00:20Z`，日志 UI 显示 `08/22 15:00:20`；
+2. 在 UTC、美国和中国时区的浏览器均显示相同的北京时刻；
+3. 终态 Job 不显示预估文本；`PARTIAL_SUCCESS` 显示“处理流程已完成”及原因；
+4. API 排序与原始时间不因显示层时区转换改变。
+
+
+---
+
+# FILE: IMPLEMENTATION_STATUS.md
+
+# Implementation Status
+
+更新日期：2026-08-27。当前实施目标与唯一支持的部署形态为 **Mac mini 后端**；项目不再维护其他操作系统的部署方案、测试或运行时说明。
+
+## 已完成
+
+- FastAPI、SQLite WAL、独立 Worker、Source/Snapshot/Segment/Claim/Evidence/Content/Job/Place/Route/Setting/Session/SystemEvent 数据模型和 Alembic 迁移；
+- PC 首页显眼显示 4 位局域网配对码，可复制、轮换并撤销已有会话；5 次失败触发 10 分钟锁定，Session 使用 HttpOnly Cookie；
+- `/api/status` 返回 Mac mini 的硬件、局域网地址、Worker 心跳与真实运行时检查；CPU、内存、数据盘由 API 每 30 秒采样并持久化到 SQLite，局域网访问与本机访问读取同一份快照；
+- URL、正文、DOCX、PDF、XLSX、图片、音频与视频投递；图片使用 macOS Vision OCR，音视频由 FFmpeg 转为 16 kHz 单声道后交给 Whisper.cpp；
+- 招聘与旅行确定性分类、招聘首批字段、旅行地点、Evidence 约束、GCJ-02 地图总览、标记逐点切换、地点详情和人工路线排序；
+- DeepSeek、MiMo、Ollama Provider 配置、Keychain Secret 隔离和真实推理测试；
+- PC 概览、内容、任务、来源审计、设置六分区、运行日志；手机首页、内容、投递、待办、我的、地图和路线全部为可操作 React 页面；
+- JSONL 运行日志、Request ID、SQLite 审计事件、游标分页组合日志查询、详情抽屉和单条脱敏导出，设计见 `LOGGING_ARCHITECTURE.md`，操作见 `LOGGING_IMPLEMENTATION.md`；
+- 任务页在 935px 窄桌面采用图标侧栏和两层任务行；任务详情显示当前步骤、持续时间、最后活动、Worker、实时连接状态与关联日志。Worker 长时间无活动的历史任务会明确标记为“需关注”；
+- 侧栏运行状态每 30 秒读取持久化的 Mac mini CPU、内存、数据盘百分比和 Worker 心跳；超过 75 秒未采样明确显示指标延迟，无执行器上报时 Provider/模型显示“暂未上报”，不使用演示配置。
+- AI 设置改为用户维护的自定义模型库：任意 OpenAI 兼容或 Ollama 配置可保存、真实测试，并从已保存条目选择主模型与可选备用模型；视频笔记的主模型网络/超时/服务失败会记录实际备用模型，不再回退到固定厂商配置。
+- 模型编辑支持 DeepSeek、MiMo、Moonshot / Kimi、智谱 GLM、通义、OpenAI 兼容、Ollama 本地与自定义 Provider 预设；推荐 Base URL/模型会联动填写，本地模型不要求 API Key，未保存草稿也可真实测试且不会写入 SQLite 或 Keychain。
+- macOS 内存监控改为可回收页口径：不再把 inactive/speculative 文件缓存和压缩页重叠计为业务已用；浮窗展示已用/总量 GB、可回收、压缩内存、数据盘容量、API/Worker/SQLite/Ollama 状态。
+- Provider 切换区分预设默认值与用户手填值：自动字段随 Provider 替换，已手填模型名/Base URL 保留；任务步骤进度与总任务进度分离，完成步骤为 100%。
+- 任务停滞只依据该 Job 自身的心跳、步骤与审计事件；超过 900 秒无任务活动返回 `ATTEMPT_TIMEOUT` 与可读原因，当前步骤同步失败，用户可显式重试。
+- 任务接口统一以 UTC 带时区格式输出时间，客户端按本地时区显示；当前任务总进度与每个步骤独立进度分离，历史里程碑不再伪装为步骤百分比。
+- 手机局域网会话统一按 UTC 比较 SQLite 中的过期时间；刷新仅在 401/403 时回到配对页，服务异常显示重试连接。视频资产按 canonical URL 复用，阶段日志覆盖 Bilibili 元数据、CID、资产查询/复用、字幕、音频、ASR、笔记与 POI 检查点。
+- 取消改为协作式停止：取消请求保留 lease 至 Worker 观察并清理临时资源；取消确认前重试返回 409，确认或过期释放后才能创建新尝试。
+- 任务摘要只在 LLM 步骤展示 Provider/模型，ASR 与下载路径不再误填模型字段；`PARTIAL_SUCCESS` 明确表达“处理流程已完成”及 POI/补充处理原因。
+- 视频笔记 API 规范化封面为 HTTPS，封面加载失败展示本地占位；章节正文以受限 Markdown 渲染标题、列表、粗体、斜体、代码与引用，不执行模型输出的 HTML。
+- 任务摘要显示最近模型调用的步骤、Provider 与模型；部分完成明确为“处理流程已完成”，并列出地点待确认/未配置地图等补充原因。
+- 任务和内容历史都有独立删除入口：仅终态任务可删除；删除内容不会破坏共享来源、地点或路线，具体边界见 `MODEL_AND_RETENTION_UI_SPEC.md`。
+- Mac mini LaunchAgent API/Worker 双服务管理脚本和 Ollama Homebrew 后台服务。
+
+## 自动验证
+
+- 后端 Ruff 与 pytest：51 项通过，覆盖 4 位配对码轮换、局域网会话刷新、取消/重试门禁、真实状态 Schema、macOS 内存口径、任务专属超时错误、持久化监控快照、来源/档案/待办/日志、WebSocket、Provider Secret 隔离、DOCX、SPA 深链、自定义模型路由、AI 限流间隔与有限重试、用户补充 Prompt 的契约保护与哈希续跑、运行中完整重跑、历史删除、截图规划/质量过滤、全国地图 Marker 生命周期与 GeoJSON 导出、分享链接规范化、完整转写导出与保留清理、AI 转写校对、步骤级续跑、终态 Replay 门禁、独立 Worker 心跳、备用模型切换取消门禁与视频笔记保留式删除；
+- 前端 ESLint、Vitest、TypeScript 和 Vite 生产构建通过；
+- Homebrew 已安装 FFmpeg、Whisper.cpp、Ollama；运行页以实时探测结果为准；
+- 实际页面读取到 Apple M4 10 核 CPU、10 核 GPU、16 GB 内存、macOS 26.6.2 与磁盘余量；服务运行状态、局域网地址与资源数值均由状态接口实时返回；
+- Ollama 已完成 `qwen2.5:7b` 真实推理，Whisper.cpp 已通过 WAV 上传、Worker 处理、转写文本写入 Segment/Evidence 的端到端验收；
+- Browser 验收覆盖 PC 14 个页面/选项卡与手机 7 个核心页面，控制台无应用错误，运行实图位于 `design/ui/implementation-v0.2/`。
+
+## 外部条件
+
+高德 Web 服务/JS API Key、DeepSeek Key 与 MiMo Key 无法由代码自动生成，未提供时必须显示未配置并保留回退能力。Whisper 模型和 Ollama 模型属于可自动下载的本机资源，启用前必须进行完整性校验和真实推理/转写测试。
+
+## 视频 AI 笔记：v0.3 已实施
+
+- 新增 `0003_video_ai_notes`：视频资产、版本化时间码转写、AI 笔记/章节、地点候选、地点笔记版本和外部调用审计均为持久数据；`JobStatus.PARTIAL_SUCCESS` 用于笔记完成但 POI 未补齐的可用结果。
+- Bilibili 适配器仅允许 Bilibili/API HTTPS 域名，限制短链重定向、按 `BV` 与 `p` 选择 CID、优先平台字幕；无字幕时通过 yt-dlp 临时音频 + FFmpeg + Whisper.cpp 生成带时间码 Segment。Cookie 仅来自 Secret Store，转换为 `0600` 临时 cookie 文件并在 finally 清理。
+- 模型 Provider 已拆分 `generate_text` 与 `generate_json`，新增 `video_note_summary`、`travel_place_extraction`、`place_note_summary` 三个可配置角色，兼容 DeepSeek、MiMo、Ollama 等 OpenAI 兼容服务。没有密钥、Cookie 或硬件依赖时任务明确进入 `NEEDS_USER`，不伪造完成。
+- 地点抽取强制保留有效 `segment_ids`；高德只确认 POI，不使用 LLM 坐标；无 Key 或未命中不写入 `0,0` 伪坐标，视频笔记仍可作为部分成功结果交付。
+- 新增 `/api/video-notes` 列表、详情、转写、地点、重新生成，以及地点笔记/来源接口；PC 导航和响应式移动端均提供视频笔记列表、详情、时间码、地点和重生成功能。
+- `THIRD_PARTY_NOTICES.md` 记录 BiliNote 适配参考与 yt-dlp 许可。Fixture 测试不依赖线上 Bilibili；给定真实链接 `BV1Tvbe6EEw2` 已验证元数据、无字幕判定、10.1 MiB 临时音频回退、Whisper 时间码转写和本地模型笔记生成。
+
+### 仍需由部署者完成的外部配置
+
+高德 Web 服务 Key、DeepSeek/MiMo Key、需要登录的视频 Cookie 不能由代码生成；控制台已提供对应 Provider 状态与 `NEEDS_USER` 原因。地点 POI 未配置时，笔记任务按设计返回 `PARTIAL_SUCCESS`，不会阻塞阅读或时间码回看。
+
+## 视频理解与地图：v0.4 已实施
+
+- 新增 `0004_video_screenshots_and_map_markers`：持久化 `video_screenshots`、`map_marker_states`，并为 `Place` 增加 `canonical_name`、`origin`，为 `PlaceMention` 增加 `raw_name`、建议名称与 `PlaceBrief`；迁移已应用到 Mac mini 的 SQLite 数据库。
+- 视频笔记先利用元数据和带时间码 Transcript 生成完整笔记/章节，再以细粒度地点（餐馆、景区、街区、步行街、商圈、市场、公园、博物馆、寺庙、村镇、地标等）建立候选；地点笔记包含特色、菜品/体验、价格、排队、适合人群、注意事项、作者态度、转写名和校正名。
+- 截图计划以主要地点优先并绑定章节、地点候选和时间码；章节不足时补齐全文代表帧，计划总量 3–12。受限清晰度下载后由 FFmpeg 抽帧，过滤黑帧、异常曝光、模糊/低方差和重复帧，持久化为受保护图片 API。下载/抽帧不可用时保留可读笔记与明确的部分成功原因。
+- 高德 POI 命中写入 `canonical_name`；候选名称与转写/建议名称存在歧义时进入 `REVIEW`，不投影为 Confirmed Marker。
+- 地图 API 以中国大陆 bbox 与 zoom 为默认，支持 `bbox + zoom` 查询、低 zoom 聚合、会话视野恢复，不再含厦门、思明区或路线默认城市。历史地点首次读取时补齐独立 Marker 状态，保证隐藏/恢复只影响地图投影。
+- Marker 浮层展示代表图、地址、特色、来源数、来源类型和状态；可加入路线、隐藏并进入 `/places/:placeId`。用户新增的 Marker 为可恢复软删除；自动生成 Marker 的删除为隐藏，不删除 Place、Source、Claim、Evidence 或地点笔记。
+- 设置页新增高德 JS API Key、Security Code、Web 服务 Key 的 Keychain 存储、独立保存、真实 POI 测试和诊断；前端地图在已认证客户端通过 bootstrap 获取 JS 配置。
+- v0.4 设计稿见 `../design/ui/v0.4/`；后端 pytest 26 项、前端 ESLint/Vitest/TypeScript/Vite 已通过。本版本仍受真实高德 Key 和部分视频访问所需 Cookie 的外部条件限制。
+- 地图补齐 `origin` 过滤、地点列表与旅行摘要 API，并可导出 CSV、JSON、带 GCJ-02 坐标标识的 GeoJSON；日志工作台补齐 DEBUG/CRITICAL、7 天/自定义时间、Request ID/实体 ID 和服务端升降序游标查询。
+- 全量文档已按实现回查；历史“待实施”表述已迁移为已实施状态或明确后续增强。防覆盖和回归入口见 `REGRESSION_AND_CHANGE_GUARD.md`。
+- 概览任务卡只对排队/运行任务显示预计耗时；终态改为真实状态。SQLite 历史日志在 API 输出前恢复 UTC offset，日志、任务详情、概览与侧栏统一以 `Asia/Shanghai` 显示北京时间。
+
+## 2026-08-24 可靠性修复已实施
+
+- 视频内容新写入使用规范 `note_*` ID；历史 `ntv_*` 链接由共享查询器兼容解析到父 Note。详情页区分加载、错误与成功，内容页不会生成空链接；SessionGate 的状态检查有 8 秒超时和可见重连入口。
+- 所有 Ollama `/api/chat` 调用统一带 `keep_alive: 0`，避免 Mac mini 依赖默认 5 分钟模型驻留。
+- 截图下载改为 Bilibili DASH video-only 优先（`bv*[ext=mp4]/bv*/best`）和 `res:720` 排序，携带 Referer/Cookie；现有 `PLANNED` 截图计划可在重试时继续物化。地点置信度兼容 `high/medium/low` 文本，避免模型返回标签时中断地点提取。
+- 后端专项测试覆盖 Note/Version ID 兼容、Ollama 释放、DASH 格式选择、置信度归一化和截图计划复用；真实 Bilibili 抽帧仍受视频访问与 Cookie 条件影响，须在有权限样本上继续验收。
+
+## 2026-08-24 第二轮现场排查已实施
+
+- 修正 Whisper.cpp 毫秒 offset，新增末段时长门禁；Worker 为历史 10 倍时间轴创建修正版 Version。样本 `note_221cd61e9600493cb3f32e062e1ad013` 现有 232 段、2 个时间线章节，页面时间范围已恢复到 6:09 媒体范围。
+- 模型章节引用无效或生成失败时，服务端按固定转写块生成“时间线详述”兜底；任何有效 Transcript 不再得到 0 个章节。
+- 无章节截图计划改为 Transcript 兜底；历史 Note 已补齐 `PLANNING` 计划，实际下载/抽帧仅在显式重生成任务执行。
+- 视频笔记新增完整转写段数、保留截止、TXT 导出和 180 天清理；数据库迁移 `0005_transcript_retention` 已应用。
+
+## 2026-08-24 粘贴分享链接规范化已实施
+
+- 后端 `InputNormalizer` 识别 `URL_ONLY / SHARE_TEXT_WITH_URL / TEXT_ONLY / MULTIPLE_URLS`，前端不再自行用 `startsWith` 决定类型；
+- 唯一 URL 仅进入 Source/Resolver/Classifier，周围分享文案不进入 Job text；
+- 多个不同链接返回 `CAPTURE_MULTIPLE_URLS` 和候选，不创建 Job；
+- Source metadata 只保存输入类型、选中 URL、候选数、丢弃长度和输入哈希；自动测试覆盖分享文案、歧义与纯正文。
+
+## 2026-08-24 运行日志错误恢复语义 v0.4.4（源码已实施）
+
+- 当前 `/logs` 已能点击事件打开详情、定位 `entity_type=job / entity_id` 并进入任务页；现有 `POST /api/jobs/{job_id}/retry` 已具备重新入队、状态重置、取消 lease 门禁和 `job.retry.queued` 审计。
+- 现场数据库中的 ERROR/CRITICAL 审计事件均规范关联 Job，但部分是旧 attempt 的历史错误，所属 Job 当前可能已经 `PARTIAL_SUCCESS` 或完成；因此按钮必须读取当前 Job 状态，不能仅凭错误消息执行。
+- 已新增 Step Artifact Manifest 与 Replay Options：中间产物默认保留 24 小时，ERROR/NEEDS_USER 时从失败步骤继续，上游完成步骤标记 REUSED，当前及下游顺次执行；过期或产物缺失后只允许完整重跑。
+- 任务详情根据 Replay Options 显示“从失败步骤继续”或“从头重新运行”，不会再把整 Job 重入队描述为步骤续跑；完整契约见 `PIPELINE_STEP_REPLAY_V044_SPEC.md`。
+
+## 2026-08-24 任务时间线显示修复
+
+- 时间线排序补齐 `PLAN_SCREENSHOTS / DOWNLOAD_VIDEO_FOR_FRAMES / EXTRACT_SCREENSHOTS`，不再排到清理缓存之后；
+- 只有正在运行的 JobStep 显示当前标记，终态任务不再固定高亮 `CLEAN_CACHE`；
+- 截图相关技术枚举补齐中文名称，每个阶段同时展示状态、进度和本步骤用时；
+- 普通步骤停滞预警保持 90 秒，LLM 步骤提高到 300 秒，真实尝试终止阈值保持 900 秒。
+
+## 2026-08-24 视频笔记阅读体验 v0.4.2（第一阶段已实施）
+
+- Transcript 增加 raw/corrected 双版本，所有转写在 Note 生成前执行 AI 校对，默认预览和 TXT 导出 corrected_text；
+- 目录改为具体 heading + thesis，并与地点、Transcript、截图时间码统一跳转到稳定 Section 锚点；
+- 页面“全文”改为“按时间线详述”，显示 AI 校对后的摘要、要点和地点引用，不连续铺原始转录；
+- TXT 导出改用统一视觉按钮，raw 导出只保留在审计入口；
+- 第一阶段已增加主旨目录、稳定 Section 锚点、按时间线详述和 Section 内截图链接；默认转写读取 `corrected_text` 字段并保留 raw 字段。
+- 已完成返工：Hero 使用本地 CoverAsset，缺封面时收起；地点候选和完整转写位于文章底部；目录采用主体设计语言；截图为侧排关键缩略图并支持 contain Lightbox；模型逐段校对在 Note 生成前执行，旧版未校对正文会被隐藏并提示重新生成。
+
+## 2026-08-24 视频笔记列表 v0.4.3（已实施）
+
+- 顶部主操作从“投递视频链接”调整为“添加视频链接”，复用 40px 高、14px 字号的全局 Primary Button；
+- 列表 Card 使用 Bilibili 元数据的真实封面，本地下载、校验、缓存并生成 672×378 WebP，不长期热链远程 CDN；
+- 封面下载执行 HTTPS、图片 CDN allowlist、SSRF、MIME、文件头、尺寸和最大字节校验；
+- 封面失败继续显示稳定场记板占位，不阻塞视频笔记；
+- 参考 `lanyeeee/bilibili-video-downloader` 的 CoverTask/Content-Type 本地写入方法，直接移植代码时补 MIT Notice；
+- 新增 `0006_video_reading_and_covers`、本地 CoverAsset、HTTPS/CDN allowlist/MIME/大小/解码校验、672×378 WebP 衍生图和受控图片 API；Worker 为历史视频补齐封面。列表 CTA 已改为“添加视频链接”，列表使用本地封面 URL，失败仍显示占位。
+
+## 2026-08-24 Pipeline 续跑与视频笔记删除 v0.4.4（源码已实施）
+
+- 步骤级续跑使用 24 小时 Replay Cache；失败步骤 ERROR 时仅重跑当前及下游，上游完成步骤 REUSED；中间产物清理后只允许完整重跑；
+- 任务详情已接入 Replay Options 和“从错误步骤继续”；
+- 视频笔记列表和详情 `…` 菜单增加统一删除入口；删除 Note/Version/Section/TOC/Content 投影，保留共享 Source、VideoAsset、CoverAsset、Transcript、Place 和 Evidence；
+- 列表与详情已使用 `…` 菜单删除并显示保留边界；自动测试验证删除 Note/Version/Section/Content 后仍保留 Source、VideoAsset 与 Transcript。
+- `0007_step_replay_and_reading_v044` 已应用到 Mac mini 在线库，迁移前备份为 `data/backups/pre-v044-20260825.db`，迁移后 `integrity_check=ok`；API/Worker 已重启并通过健康检查。
+- 真实样本 `job_27bd13014cfc4d6fa16e62966f4208aa` 验证：前六步 REUSED，AI 校对 255/256 段、1 段 REVIEW，生成 7 个结构化章节与 7 张 READY 关键截图，因 3 个 POI 待确认交付 PARTIAL_SUCCESS；所有实际执行步骤均为 100%。
+- Browser 已完成 1440×1000 与 390×844 验收：无横向溢出，桌面截图侧排、移动端单列、证据区位于正文底部、Lightbox 使用 contain、终态无当前步骤高亮、浏览器控制台无 ERROR/WARN。
+
+## 2026-08-25 Worker 延迟与“从头重新运行”修复已实施
+
+- 现场任务 `job_86445a9c341c44aaaac5e8c62db909f1` 在 `CORRECT_TRANSCRIPT` 处理 232 段转写时于 14:13 请求取消，页面随后显示 `CANCELLED`、仍持有 lease，且“从头重新运行”按钮禁用；浏览器证据表明该按钮没有发出请求。后端完整重跑在 lease 释放后本可接受 `CANCELLED`，但任务详情将可重跑状态硬编码为 `FAILED / NEEDS_USER / PARTIAL_SUCCESS`，因此停止完成后仍会永久不可用。
+- 同一任务的全局 Worker 心跳停在 14:01，而任务自身活动在 14:28 仍更新；运行浮窗因单线程 Worker 在同步 Pipeline 内无法回到外层循环而误报“Worker 延迟”。当前 `CORRECT_TRANSCRIPT` 在批次间不检查取消，232 段约拆为 29 个模型请求；取消后仍可能继续发起剩余批次和占用模型/Worker。
+- Worker 使用独立守护线程每 20 秒刷新进程存活心跳；模型校对单批使用 90 秒上限，在请求前后检查取消，HTTP 失败不再递归拆分，结构错误才缩小批次，并记录批次进度。
+- 完整重跑现为右上角唯一入口，运行/排队/终态均可点击；运行态会取消旧 Job、创建新的 QUEUED Job 并导航。恢复卡仅在步骤续跑可用时显示续跑按钮，不可用时只提示原因。
+- 复用旧 canonical VideoAsset 时，续跑从 `FETCH_METADATA` Artifact 读取 `video_asset_id`，不再用新 Capture Source ID 错误查询资产；续跑启动前失败也会把 PENDING 当前步骤恢复为 FAILED，确保可以再次续跑。
+- 通用设置新增 AI 接口策略：默认调用前等待 1 秒；Warn/Error 默认重试 2 次、间隔 5 秒；主模型耗尽重试后再调用备用模型。
+- LLM 页面停滞预警为 600 秒，覆盖单模型 300 秒超时及重试切换窗口；Worker 的真实尝试终止阈值仍为 900 秒。
+- 全量后端 pytest 49 项、Ruff、前端 lint/Vitest 10 项/TypeScript/Vite 构建通过。
+- 现场任务 `job_64b48537770e40efa1029f6ceaef8f87` 修复后从 `CORRECT_TRANSCRIPT` 成功续跑：前六步 REUSED，225/225 段校对完成；真实触发 transcript correction 5 次重试（最大 attempt=2）和 video note summary 1 次重试，最终所有执行步骤 100%，因 19 个 POI 待确认合理交付 PARTIAL_SUCCESS。
+- Browser 验证失败态仅保留步骤续跑按钮、终态不显示恢复卡、右上角完整重跑始终可用、无当前步骤误高亮；设置页显示并保存 2 次/5 秒/1 秒默认策略，控制台无 ERROR/WARN。
+
+## 2026-08-26 可编辑补充 Prompt v0.4.5
+
+- 设置 → AI 模型在现有“推理路由”和“已保存模型”之间新增提示词补充区，按转写校对、视频笔记、地点提取分别保存低优先级表达偏好；界面保留当前导航、卡片、按钮和暖白纸面语言。
+- 固定 Prompt、JSON、Schema、字段、Segment ID、顺序和证据契约不可编辑；服务端在写入时拒绝越权覆盖语言，模型返回仍走原有解析和证据校验。
+- 三个 AI Step Input 记录 `prompt_supplement_hash`；补充 Prompt 改变时，失败 Job 的 Replay Options 自动从最早受影响的 AI 步骤开始，不会错误复用旧模型产物。
+- 设计见 `design/ui/v0.4.5/prompt-supplements-settings-annotated.png`，完整实现契约见 `PROMPT_SUPPLEMENTS_V045_SPEC.md`。
+
+## 2026-08-27 转写路由、参数与来源清理 v0.4.6
+
+- 转写校对支持独立主/备用模型；专属项优先于通用推理路由，留空时逐项继承。
+- 转写每批字符、Segment 数和超时可配置，默认 `12000 / 128 / 180秒`，服务端和原生数字输入均限制安全范围。
+- Prompt 补充区按阶段完整展示 6 条锁定核心契约，不再只显示一条笼统摘要。
+- 来源审计页支持删除孤立来源；关联内容/视频笔记/活跃任务阻止删除。删除最后一个内容或视频笔记时自动清理孤立 Source、快照、分段及专属视频资产，Place 与路线保留。
+- 完整契约与页面设计见 `AI_ROUTING_SOURCE_RETENTION_V046_SPEC.md` 和 `design/ui/v0.4.6/README.md`。
+- 自动验证为后端 pytest 55 项、Ruff，前端 ESLint、Vitest 10 项、TypeScript 与 Vite build；Browser 覆盖 1440×1000 桌面和 390×844 移动设置页、来源删除门禁与孤立来源启用态，控制台无 ERROR/WARN。
 
 
 ---
 
 # FILE: DEPLOYMENT_OPTIONS.md
 
-# Deployment Options
+# Mac mini 部署基线
 
-## 1. 决策状态
+版本：v0.3，更新日期：2026-08-21。第一版唯一受支持的后端节点是 Mac mini；项目不再维护其他操作系统的部署脚本、运行时矩阵、硬件假设或回退方案。
 
-第一版保留两套互斥、均可实施的单节点部署方案。**2026-08-18 已选择方案 B（Mac mini）作为当前实施目标**，方案 A 继续保留供后续切换：
+## 1. 当前设备与职责
 
-- **方案 A：Windows 11 PC 后端**；
-- **方案 B：Mac mini 后端**。
+- 节点：Mac mini `Mac16,10`，Apple M4，16 GB 统一内存，arm64；
+- 服务：FastAPI、React 生产资源、SQLite/WAL、永久文件、独立 Worker、Playwright、文档解析、OCR、whisper.cpp、Ollama 和可选外部 Provider；
+- 客户端：PC 浏览器与手机浏览器，均通过可信局域网访问同一节点；
+- 密钥：macOS Keychain；开发环境允许权限受限的本地文件存储。
 
-两套方案共享同一套 React、FastAPI、SQLite、Job、Processor、Evidence 与 Provider 代码，不允许为了某台机器复制业务实现。`DEPLOYMENT_TARGET` 只决定安装脚本、进程托管、Secret Store、本地 AI 加速器和硬件诊断。进入 Phase 0A 前必须选择一个主目标完成验证；未选择前不得把平台特有实现写死进业务层。
-
----
-
-## 2. 共同架构
+## 2. 运行形态
 
 ```text
-PC Browser ─┐
-            ├─ trusted LAN + session ─→ Selected Backend Node
-Mobile Web ─┘                              ├─ React production assets
-                                          ├─ FastAPI / WebSocket
-                                          ├─ SQLite + local files
-                                          ├─ independent Worker
-                                          ├─ Playwright / document / OCR
-                                          └─ local AI + optional external Provider
-```
-
-共同约束：
-
-- 选中的后端节点是第一版唯一业务数据库、永久文件和 Job Lease 所有者；
-- PC 浏览器和手机都是客户端，不在客户端保存完整业务数据库；
-- 默认只监听 localhost；启用手机访问时才监听明确的 LAN 地址，并执行 Token-to-Session、Origin 限制与 Admin API 认证；
-- 不做 UPnP、端口映射或直接公网暴露；
-- URL、DOCX、PDF、XLS/XLSX、PNG/JPEG、OCR、视频、Evidence 与 Processor 行为在两套方案中保持一致；
-- DeepSeek、Xiaomi MiMo 与自定义 OpenAI-compatible Provider 均可配置；
-- 两台机器之间不共享同一个 SQLite 文件，也不在第一版拆分 API 主机和 Worker。未来混合 Worker 属于 Multi Worker 路线，不属于本次二选一。
-
----
-
-## 3. 方案 A：Windows 11 PC 后端
-
-### 3.1 硬件基线
-
-- 设备：`WILLIAM-PC`；
-- CPU：AMD Ryzen 7 5800X，8C/16T；
-- RAM：32 GB；
-- GPU：AMD Radeon RX 7900 XT，20 GB VRAM；
-- OS：Windows 11 x64。
-
-### 3.2 运行方式
-
-```text
-Windows PC
-├─ backend service / launcher
-├─ worker process
-├─ React static assets
-├─ SQLite + permanent files
-├─ Ollama on AMD GPU
-├─ whisper.cpp Vulkan
-└─ Windows Credential Manager / DPAPI
-```
-
-开发期可分别启动 Vite、FastAPI 与 Worker；生产期使用项目 launcher 或 Windows 服务/计划任务托管后端与 Worker。浏览器是管理界面，不要求桌面壳才能运行。
-
-### 3.3 优势
-
-- 20 GB 独立显存更适合较大的本地模型、长上下文与未来视觉任务；
-- 32 GB 系统内存对 Playwright、OCR、文档解析与本地 AI 并行更宽裕；
-- 已有 Windows + AMD、Ollama、whisper.cpp Vulkan 的原方案与验证清单。
-
-### 3.4 代价与风险
-
-- AMD 本地 AI 在 Windows 上的具体模型兼容性和稳定性必须实测；
-- 若 PC 不是长期在线设备，手机随时投递和后台持续处理会受开关机影响；
-- 功耗、噪声和作为常驻服务的维护成本通常高于 Mac mini；
-- Windows 更新、休眠和显卡驱动可能中断长任务，必须验证自动恢复。
-
----
-
-## 4. 方案 B：Mac mini 后端
-
-### 4.1 当前设备基线
-
-截至 2026-08-18 当前设备为：
-
-- 设备：Mac mini；
-- 型号标识：`Mac16,10`；
-- 芯片：Apple M4，10 核 CPU（4 性能核 + 6 能效核）；
-- 统一内存：16 GB；
-- 架构：arm64；
-- 当前系统：macOS 26.6.1。
-
-系统版本允许升级，不作为代码硬依赖；Apple Silicon arm64 是必须验证的目标架构。
-
-### 4.2 运行方式
-
-```text
+PC Browser / Mobile Browser
+          │ trusted LAN + session
+          ▼
 Mac mini
-├─ launchd: backend service
-├─ launchd: worker process
-├─ React static assets
-├─ SQLite + permanent files on APFS
-├─ Ollama using Metal
-├─ whisper.cpp using Metal（可选 Core ML encoder）
+├─ launchd: cn.zhijian.api
+├─ launchd: cn.zhijian.worker
+├─ FastAPI + WebSocket + React static assets
+├─ SQLite + APFS permanent files
+├─ Ollama / Metal
+├─ whisper.cpp / Metal
 └─ macOS Keychain
 ```
 
-生产期优先使用原生 arm64 Python/Node 与 `launchd` 托管，不把依赖 Metal 的本地 AI 主路径放进 Docker。Docker 只可用于不依赖本机 GPU/Metal 的辅助开发或 CI。关闭自动睡眠并启用断电恢复后，Mac mini 可作为无显示器常驻 LAN 节点；管理端通过浏览器访问。
+生产服务由 `deploy/macos/manage.py install` 渲染并重启两个用户级 LaunchAgent。关闭自动睡眠、启用断电恢复，并为局域网地址设置 DHCP 保留或固定地址。SQLite、Source、Snapshot、Evidence、浏览器 Profile 和日志只保存在 Mac mini 本地；备份使用 Time Machine 或加密外置盘，默认排除可再生的视频缓存和模型缓存。
 
-### 4.3 本地 AI 策略
+## 3. 容量与并发约束
 
-- Ollama 使用 Apple Metal；本地模型从 7B/8B 量化档起做结构化输出 Spike；
-- 16 GB 是 CPU、GPU 与模型共享的统一内存，不能按 16 GB 独立显存理解；
-- GPU 重任务并发初始为 1，ASR、LLM、Vision 不并行抢统一内存；
-- whisper.cpp 使用 Metal，Core ML encoder 仅在可复现安装和结果一致时启用；
-- OCR、Playwright 和文档解析必须验证 arm64 原生依赖；安装困难的 OCR 实现通过 `OCRProvider` 替换，不能渗入业务 Pipeline；
-- 复杂长上下文、较大视觉模型或本地失败任务可按用户策略转 DeepSeek、MiMo 等外部 Provider；敏感字段外发规则不变。
+- 16 GB 为 CPU、GPU 与本地模型共享的统一内存；不把它当成独立显存。
+- GPU 重任务初始并发固定为 1；ASR、LLM、Vision 不并行抢占统一内存。
+- Ollama 用 Metal，whisper.cpp 用 Metal；Core ML encoder 仅在可复现安装且结果一致时启用。
+- 较长视频、较大模型或本地运行时不可用时，可按用户策略调用 DeepSeek、MiMo 等兼容 Provider；敏感字段外发规则不变。
 
-### 4.4 存储与常驻运维
+## 4. 安全与恢复
 
-- SQLite、Source、Snapshot、Evidence 和浏览器 Profile 位于 Mac mini 本机 APFS 数据目录；
-- API Key 与 LAN Token 存入 macOS Keychain，SQLite 只保存 Secret 引用；
-- 可使用 Time Machine 或加密外置盘备份永久数据目录，但默认排除临时视频、模型缓存和浏览器 Profile；
-- LAN 地址可显示主机名和 IP，客户端发现不能只依赖 mDNS；`zhijian.local` 不可用时必须提供固定 IP/路由器 DHCP 保留地址；
-- `launchd` 必须在进程崩溃、用户退出登录或机器重启后恢复服务；Job 本身仍通过数据库 Lease 恢复。
+- 默认只在本机访问；启用手机访问时才绑定明确 LAN 地址，并采用 4 位配对码换取 HttpOnly Session。
+- 不做端口映射、UPnP 或公网暴露；公共/访客网络不得启用可信 LAN 模式。
+- API Key、LAN 配对码和平台 Cookie 不进入 SQLite、日志、导出或前端通用接口。
+- LaunchAgent 崩溃或重启后自动恢复；Job Lease 负责把过期运行任务重新入队。
 
-### 4.5 优势
+## 5. 真实状态原则
 
-- 更适合低功耗、低噪声、长期开机的家庭/办公 LAN 服务节点；
-- Apple Silicon 的 Metal 与统一内存路径相对集中，部署形态比桌面 PC 常驻更简单；
-- PC 与手机都退化为浏览器客户端，后端状态不依赖 Windows PC 是否开机。
-
-### 4.6 代价与风险
-
-- 16 GB 统一内存限制可同时运行的模型大小与任务并发；
-- 大模型、长视频 ASR、Vision 与 Playwright 并行时更容易出现内存压力；
-- 部分 OCR、旧 `.xls` 或浏览器依赖需要单独验证 arm64 wheel/二进制；
-- Mac mini 的本地 AI 吞吐不得从 Windows/AMD 结果推算，必须独立测量。
-
----
-
-## 5. 选择矩阵
-
-| 维度 | 方案 A：Windows PC | 方案 B：Mac mini |
-| --- | --- | --- |
-| 常驻服务 | 取决于 PC 开机、休眠与更新策略 | 更适合 7×24 低功耗常驻 |
-| 本地模型容量 | 20 GB 独立显存，空间更大 | 16 GB 统一内存，需更保守 |
-| 本地 AI 并发 | 初始仍为 1，实测后可调整 | 固定从 1 起步，优先串行 |
-| ASR | whisper.cpp Vulkan | whisper.cpp Metal，可 Spike Core ML |
-| Secret Store | Credential Manager / DPAPI | macOS Keychain |
-| 服务托管 | launcher / Windows 服务 / 计划任务 | launchd |
-| 本地 AI 兼容风险 | AMD Windows 运行时与驱动 | arm64 依赖与统一内存上限 |
-| 手机可用性 | PC 在线时可用 | Mac mini 常驻时更稳定 |
-| 功耗与噪声 | 通常更高 | 通常更低 |
-| 适合优先级 | 更强本地 AI、未来视觉模型 | 稳定常驻、随时投递、外部模型可补强 |
-
-选择建议不是最终决定：若“尽量本地跑更大模型”优先，先验证方案 A；若“手机随时可用、长期安静运行”优先，先验证方案 B。最终结论必须以两台目标机器各自的 Phase 0A 数据为依据。
-
----
-
-## 6. 分别实施时的决策门
-
-实施前设置且只设置一个目标：
-
-```text
-DEPLOYMENT_TARGET=windows_pc
-```
-
-或：
-
-```text
-DEPLOYMENT_TARGET=mac_mini
-```
-
-选择后：
-
-1. 执行对应平台的 Phase 0A；
-2. 把 LAN、OCR、本地 LLM、ASR、SQLite 恢复、常驻服务与功耗结果写入 `GOLDEN_SAMPLES.md`；
-3. 所有关键项得到 `PASS / DEGRADED / BLOCKED`；
-4. 若出现 `BLOCKED`，先选择 Provider 替代或调整范围，再进入依赖该能力的 Phase；
-5. 未选择的方案保留文档与适配接口，但不要求同步交付安装包。
-
-不允许在同一次 MVP 实施中同时维护两套生产安装包，以免部署工作吞噬业务验证时间。
+PC 控制台硬件、运行时、CPU、内存、磁盘与 Worker 心跳均从 Mac mini 当前状态接口读取。不可使用文档样例、固定 M4 参数或虚构百分比作为页面数据；单项采集失败应明确显示不可用原因。
 
 
 ---
@@ -661,6 +1402,21 @@ UI 可提供：
 
 上传文件与 URL 入口使用相同的 Job、Evidence 与 Processor Router，不建立第二套处理链。
 
+## 6.1 粘贴内容中的链接识别
+
+粘贴入口必须接受完整分享文案，不能要求用户先手工删除标题、“复制打开”等文字。后端对原始粘贴值先执行输入规范化并分类：
+
+- `URL_ONLY`：去除首尾空白/包裹符号后只有一个 URL；
+- `SHARE_TEXT_WITH_URL`：标题、分享话术或说明文字中包含一个可唯一确定的 URL；
+- `TEXT_ONLY`：没有 URL，继续作为直接文本处理；
+- `MULTIPLE_URLS`：包含多个不能自动唯一确定的内容 URL，需要用户选择。
+
+`SHARE_TEXT_WITH_URL` 成功时，只把提取出的 URL 写入 Source locator 和后续 Resolver payload；标题、分享说明、App 推广文字不得进入分类、网页/视频解析、LLM、Claim 或 Evidence，也不得覆盖来源页面返回的正式标题。
+
+多个重复或仅参数差异但 canonical 后相同的 URL 先去重。若多个候选中只有一个能被专用 Resolver 处理，可自动选择该 URL；若仍有多个不同内容链接，返回稳定的 `CAPTURE_MULTIPLE_URLS` 和候选列表，不静默使用第一个。
+
+URL 提取必须支持换行分享文案、Markdown 链接、尖括号包裹、中文标点结尾和 Bilibili 短链，并保留 URL 内合法的 query/fragment。没有 URL 的普通文段不得被误判成链接任务。
+
 ---
 
 # 7. 个人档案策略
@@ -801,17 +1557,6 @@ Eligibility：
 3. 哪些地点最符合我的偏好？
 4. 地图上都在哪里？
 
-旅行地图是独立的空间总览入口，不是某个地点详情的附属模块。用户先查看某个城市或区域内所有已确认地点的分布，再依次点击 Marker 切换地点预览，必要时进入完整详情；从详情返回必须保留原地图视野、筛选和选中位置。
-
-地图第一版支持：
-
-- 区域、类型和用户状态筛选；
-- Marker 聚合与适配全部结果；
-- 点击不同 Marker 切换底部地点预览；
-- 将地点加入路线清单并手动排序。
-
-第一版不承诺自动最优路线、交通耗时或导航结果，这些能力必须等待真实路线 Provider，不能由 LLM 推测。
-
 地点用户状态：
 
 - DISCOVERED
@@ -819,6 +1564,58 @@ Eligibility：
 - PLANNED
 - VISITED
 - DISMISSED
+
+## 12.1 视频 AI 笔记是一级产物
+
+旅行视频不能只作为地点抽取的临时输入。用户粘贴 Bilibili 链接后，系统必须先形成可独立阅读、版本化、带时间码与来源引用的 AI 视频笔记，再从 Transcript 中提取地点并形成 Place 数据。
+
+处理完成后必须同时提供：
+
+- 同时包含独立摘要与按真实时间线详述的完整视频 AI 笔记；
+- 视频页元数据、封面和来源链接；
+- 视频完整 Transcript、全部时间码和 TXT 导出；
+- 与章节和地点时间码对应的代表性截图；
+- 本视频提到的地点列表；
+- 已确认地点的地图 Marker；
+- 每个地点跨来源聚合的地点归纳笔记。
+
+摘要用于快速判断内容，不得替代时间线正文。时间线章节必须覆盖完整 Transcript，按时间递增并由服务端绑定 Segment；模型返回无效引用时不得静默生成只有百余字摘要的“完成”笔记。完整 Transcript 在服务端固定保留 180 天并自动清理，清理后 Note、时间线详述和截图仍可阅读，页面显示文稿已过期且不再提供导出。
+
+视频详情页面的阅读顺序固定为：Hero → AI 摘要 → 主旨目录 → 按时间线详述 → 地点候选/完整转写。地点候选与完整转写是文章底部的回查工具；页面“正文/全文”指 AI 校对后的提纲和时间线详述，不是连续铺开的 ASR 原文。Hero 使用真实 CoverAsset，缺省时为空/收起，不显示场记板占位。
+
+所有 Transcript Segment 在总结前执行 AI 校对，修正口音、同音字、断句和专有名词，同时保留 raw_text、时间码和 Segment ID。校对模型不得新增事实；无法确定的地名进入 Review。默认预览、总结和 TXT 导出使用 corrected_text，原始转写只用于证据审计。
+
+目录必须归纳每段具体主旨，每项包含时间码、明确标题和一句 thesis；禁止无信息套话。地点候选、Transcript、目录和截图时间码均可跳到对应时间线 Section。
+
+截图必须以 220–280px 缩略图放在对应时间线文字侧面并说明关键内容，支持点击放大、上一张/下一张、Escape 和遮罩关闭。独立宫格和默认全宽 talking head 不再作为主阅读形式。目录使用暖白纸面、朱砂时间码、衬线标题和细分隔线，不使用硬边框表格。完整规范见 `VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md`。
+
+## 12.1.1 视频笔记列表
+
+列表顶部主操作文案使用“添加视频链接”，不使用“投递视频链接”等系统术语；按钮复用全局 Primary Button 的 40px 高度和 14px 字号。
+
+每条 Video Note Card 必须展示从平台元数据下载并本地缓存的真实视频封面，保持 16:9、object-fit cover 和右下角时长徽标。只有封面下载/校验失败时才显示场记板占位。封面失败不阻塞笔记生成。完整契约见 `VIDEO_NOTE_LIST_V043_SPEC.md`。
+
+## 12.1.2 视频笔记删除
+
+视频笔记列表和详情均通过 `…` 菜单提供“删除笔记”，共用同一删除语义。删除 Note 正文、版本、Section、目录和内容投影，但保留共享 Source、VideoAsset、CoverAsset、Transcript、Place 和 Evidence；活跃生成任务阻止删除。第一版不可恢复，必须确认标题和保留边界。完整契约见 `VIDEO_NOTE_DELETE_V044_SPEC.md`。
+
+地点归纳笔记的入口至少包括视频笔记、地点列表和地图 Marker，所有入口必须进入同一个 Place Detail，不建立多套地点详情。完整流程、BiliNote 复用边界、DeepSeek 调用、异常回退、数据模型和 UI 决策门见 `VIDEO_AI_NOTE_PIPELINE.md`。
+
+## 12.2 地点粒度与名称校正
+
+旅行地点不能只提取城市或泛化区域。第一版必须识别餐馆、景区、街区、步行街、商圈、市场、公园、博物馆、寺庙、村镇、地标、住宿和交通点，并生成景区/街区特色、菜品特色、价格、排队、适合人群、注意事项和作者态度简介。
+
+字幕/ASR 中的地点名称可能存在同音字、错别字、简称或口语表达。系统必须保留原始 `raw_name`，再用高德搜索结合城市、行政区、附近地标和类别校正为 `canonical_name`。无法唯一确认时进入 Review，不加载成正式地图 Marker。
+
+## 12.3 中国大陆全境地图
+
+地图以中国大陆全境为初始视野，不设置默认城市。用户可以平移、缩放、搜索、聚合和按当前视野加载地点；之后恢复上次 viewport。不得在请求、页面标题、fallback 地图或路线创建中硬编码厦门或其他城市。
+
+点击 Marker 在地图内直接展开简略浮窗，显示代表图、名称、类型、地址、特色、关键菜品/体验、来源数和用户状态；点击“查看详情”进入统一 Place Detail。
+
+用户可以自定义添加、隐藏、删除和恢复 Marker。用户创建 Marker 使用软删除；自动抽取 Marker 的“删除”只隐藏地图投影，不删除 Source、Claim、Evidence 或 Place。
+
+设置页必须提供高德 JS API Key、Security Code 和 Web 服务 Key 的录入、保存、状态与真实测试入口。
 
 ---
 
@@ -830,7 +1627,7 @@ Eligibility：
 
 - 正在处理什么；
 - 等待什么；
-- 是否等待后端节点；
+- 是否等待 PC；
 - 哪一步失败；
 - ASR 进度；
 - POI 解析；
@@ -842,12 +1639,14 @@ Eligibility：
 - 查看 Evidence；
 - 修改模型/ASR/数据目录等配置。
 
+步骤级重跑的含义固定为：中间产物有效期内，从 ERROR 步骤重新执行当前及下游，上游已完成步骤 REUSED；中间产物过期后才退回完整重跑。用户不逐步点击下游，也不能任意选择 from_step。完整契约见 `PIPELINE_STEP_REPLAY_V044_SPEC.md`。
+
 ---
 
 # 14. MVP 非功能目标
 
 ## 稳定性
-- 选中的 Windows PC 或 Mac mini 后端重启后任务不丢；
+- PC 重启后任务不丢；
 - 失败任务可重试；
 - Pipeline 可从中间步骤重跑。
 
@@ -857,8 +1656,8 @@ Eligibility：
 - 记录 Processor 版本。
 
 ## 本地优先
-- 默认数据保存在选中的本地后端节点；
-- PC 浏览器与手机通过可信局域网访问后端节点，不在客户端保存完整业务数据库；
+- 默认数据保存在 PC；
+- 手机通过可信局域网访问 PC，不在手机保存完整业务数据库；
 - LAN API、WebSocket 与 Admin API 必须验证访问 Token；
 - 外部模型只是可选 Provider；
 - API Key 安全存储；
@@ -896,11 +1695,9 @@ Eligibility：
 
 ## 1. 架构目标
 
-第一版从以下两套单节点方案中选择一套实施：
+第一版采用：
 
-> **Windows PC 或 Mac mini 单节点 + PC/Mobile LAN Client + Local First + Local AI First + 可选外部 LLM**
-
-两套方案的详细拓扑、平台适配和选择矩阵见 `DEPLOYMENT_OPTIONS.md`。在用户完成选择前，业务模块不得绑定 Windows 或 macOS；平台差异只允许存在于部署、Secret Store、进程托管、本地 AI Runtime 与诊断适配器。
+> **Mac mini 单节点 + LAN Browser Client + Local First + Local AI First + 可选外部 LLM**
 
 但内部保持清晰模块边界，以便未来平滑演化为：
 
@@ -940,6 +1737,11 @@ SQLite + Local Files
 Independent Worker
        │
        ├─ Resolver Registry
+       ├─ Video Resolver Registry
+       │    ├─ Bilibili Resolver
+       │    ├─ Subtitle Fetcher
+       │    └─ yt-dlp Media Adapter
+       ├─ Cover Fetcher / Derivative Generator
        ├─ Processor Router
        ├─ Recruitment Processor
        ├─ TravelFood Processor
@@ -947,6 +1749,10 @@ Independent Worker
        ├─ Rule Engine
        ├─ POI Resolver
        ├─ ASR Provider
+       ├─ Transcript Corrector
+       ├─ AI Note Generator
+       ├─ Screenshot Planner / Frame Extractor
+       ├─ Place Note Builder
        └─ LLM Router
              │
              ├─ Ollama
@@ -968,28 +1774,18 @@ Independent Worker
 3. React Vite Dev Server
 ```
 
-PC 浏览器与手机通过同一可信局域网访问选中的后端节点。开发与生产都必须支持可配置监听地址；默认不做公网暴露。所有非 localhost 的 REST/WebSocket 请求必须带有效访问 Token，Admin API 不允许匿名访问。
+手机和 PC 浏览器通过同一可信局域网访问 Mac mini。开发与生产都必须支持可配置监听地址；默认不做公网暴露。所有非 localhost 的 REST/WebSocket 请求必须带有效访问 Token，Admin API 不允许匿名访问。
 
-方案 A 的生产进程：
-
-```text
-PersonalAI.exe / launcher
- ├─ backend process
- ├─ worker process
- └─ UI
-```
-
-方案 B 的生产进程：
+生产/桌面封装后：
 
 ```text
 launchd
- ├─ zhijian-backend
- └─ zhijian-worker
-
-React production assets 由后端或同机静态服务提供
+ ├─ cn.zhijian.api
+ ├─ cn.zhijian.worker
+ └─ FastAPI 同源提供 UI
 ```
 
-后续可使用 Tauri 封装 Windows 管理入口，但桌面壳不属于 MVP 前置条件；Mac mini 作为无显示器服务节点时不依赖桌面壳。
+后续可使用 Tauri 封装，但桌面壳不属于 MVP 前置条件。
 
 ---
 
@@ -1055,7 +1851,7 @@ Job 最少包含：
 - started_at
 - finished_at
 
-若选中的后端节点异常关闭：
+若 PC 异常关闭：
 
 ```text
 RUNNING
@@ -1070,6 +1866,8 @@ RUNNING
 
 ## capture/
 统一接受 URL/Text/File。
+
+Capture 在创建 Source/Job 前执行 `InputNormalizer`：区分纯 URL、带标题/分享话术的单链接文本、无链接正文和多链接文本。唯一 URL 被选中后，周围文字不得进入 Resolver、Classifier、LLM 或 Evidence；多链接歧义在 Intake 层返回候选，不启动下游网络请求。
 
 ## resolvers/
 解决“如何读取内容”。
@@ -1086,8 +1884,17 @@ RUNNING
 ## asr/
 解决“如何转录音视频”。
 
+## transcript_correction/
+在 Note 生成前将 raw Transcript 分块送入 LLM 校对，保持 Segment ID/顺序/时间码不变，输出 corrected_text、置信度与变更原因；服务端负责覆盖率和无新增事实校验。
+
 ## poi/
 解决“现实地点解析”。
+
+## screenshots/
+根据 Note Section、PlaceMention 与 Transcript 时间码规划并提取代表帧，执行清晰度、黑帧和重复检测；不等同于默认全视频多模态理解。
+
+## covers/
+从 VideoAsset 平台元数据下载真实封面，校验 HTTPS host、MIME、文件头、尺寸和字节数，按内容哈希保存原图并生成 16:9 列表衍生图。封面失败不阻塞 Note，列表使用明确占位。
 
 ## documents/
 解决 PDF、DOCX、XLS/XLSX 与图片型文档的归一化。
@@ -1131,6 +1938,8 @@ media[]
 - Resolver 不做招聘判断；
 - Resolver 不做推荐；
 - Resolver 不修改 Profile。
+
+视频 Resolver 的首个生产实现为 Bilibili，参考并适配 BiliNote 的 URL 解析、字幕优先、yt-dlp 下载和平台兼容逻辑。第三方代码必须封装在适配层；至简 Job、数据库、Evidence、POI 与 UI 不依赖 BiliNote 内部类型。完整边界见 `VIDEO_AI_NOTE_PIPELINE.md`。
 
 ---
 
@@ -1183,30 +1992,13 @@ class Processor:
 
 地图前端第一版使用高德地图 JS API 2.0。中国大陆 POI 的 `coordinate_system` 显式记录为 `GCJ02`，严禁把 GCJ-02 静默标成 WGS84；GeoJSON 导出必须附坐标系元数据与来源 Provider。
 
+地图运行时以中国大陆全境为初始 viewport，通过 `bbox + zoom` 查询 Marker/cluster，不绑定默认城市。Marker 是 Place 的投影，用户的新增/隐藏/软删除状态由独立 Marker State 保存；地图浮窗读取轻量 Preview，详情页读取完整 Place Note。
+
 ---
 
-# 11. 本地 AI 硬件方案
+# 11. Mac mini 本地 AI
 
-## 11.1 方案 A：Windows + AMD
-
-- Ryzen 7 5800X
-- 32 GB RAM
-- RX 7900 XT 20 GB
-
-## 11.2 方案 B：Mac mini + Apple Silicon
-
-- Apple M4，10 核 CPU
-- 16 GB 统一内存
-- Ollama Metal
-- whisper.cpp Metal，可选验证 Core ML encoder
-
-## 11.3 共同策略
-
-- 本地模型做分类、结构化抽取、偏好推断；
-- 外部模型只在失败/低置信/用户手动时增强；
-- GPU 重任务初始并发为 1；
-- ASR 与 LLM 不默认同时争用 GPU/统一内存；
-- Windows 与 Mac 的模型尺寸、吞吐和并发必须分别实测，结果不得相互推算。
+Apple Silicon 使用 Metal；统一内存下 GPU 重任务初始并发为 1，ASR、LLM 和 Vision 不默认并行。完整运行时、内存约束与常驻规则见 `DEPLOYMENT_OPTIONS.md`。
 
 ---
 
@@ -1235,7 +2027,7 @@ GPU semaphore = 1
 - ffmpeg 部分 CPU 工作；
 - 文件下载。
 
-后续根据所选机器的显存或统一内存、吞吐与稳定性决定是否调至 2，Mac mini 16 GB 不预设可提升。
+后续根据实际显存与稳定性将并发调至 2。
 
 ---
 
@@ -1310,6 +2102,12 @@ data/
 - 重新抓微信；
 - 重新下载视频。
 
+运行日志中的错误事件可作为 Replay 入口，但不成为执行器：`SystemEvent(entity_type=job, entity_id=job.id)` → Job 服务校验当前状态与来源事件 → 同一 Job 新 attempt 入队 → Worker 按 Pipeline 顺序执行。日志页只提交 `source_event_id`，不能修改步骤状态、选择 Provider 或跳过依赖。
+
+错误恢复使用 Job 服务的步骤级 Replay：Step Artifact 在默认 24 小时窗口内有效时，上游完成步骤 REUSED，从失败步骤开始顺次执行当前及下游；到期或输入/版本失效后只允许完整重跑。日志和任务详情只展示 Replay Options，不允许任意 from_step，也不让用户逐个点击后续步骤。完整契约见 `PIPELINE_STEP_REPLAY_V044_SPEC.md`。
+
+Worker 进程存活与任务进度是不同信号。进程心跳由独立于同步 Job 执行循环的轻量通道定期持久化，不能依赖被外部模型、FFmpeg 或网络调用阻塞的主领取循环；Job 心跳只由真实阶段与 batch 活动推进。取消请求写入持久状态后，长模型批次在请求边界检查该状态并停止新请求，随后释放 lease；完整重跑必须等待这一确认。
+
 ---
 
 # 16. Partial Materialization
@@ -1328,7 +2126,7 @@ data/
 
 第一版：
 ```text
-PC/Mobile Client ↔ Selected Backend Node（Windows PC 或 Mac mini）
+手机 ↔ PC
 ```
 
 未来：
@@ -1422,11 +2220,18 @@ id
 input_type
 original_url
 raw_text
+capture_input_kind
+selected_url
+capture_candidate_count
+discarded_text_length
+raw_input_hash
 status
 processor_hint
 created_at
 updated_at
 ```
+
+`capture_input_kind`：`URL_ONLY / SHARE_TEXT_WITH_URL / TEXT_ONLY / MULTIPLE_URLS`。URL 任务的 `raw_text` 必须为空；分享文案只参与瞬时 URL 提取，默认不持久化全文。`raw_input_hash` 用于排错和幂等，`discarded_text_length` 只记录被忽略文本长度。
 
 ## sources
 
@@ -1445,6 +2250,8 @@ authority_level
 metadata_json
 created_at
 ```
+
+URL Source 的 `url/locator` 只能写 Input Normalizer 选中的 URL。页面或视频解析得到的正式 title 才写 `sources.title`；粘贴文案中的标题不得覆盖正式元数据。
 
 文件型 Source 的 `metadata_json` 至少保存：原始文件名、MIME、字节数、内容哈希、解析器与 OCR 版本；文件正文仍通过 Snapshot/Segment 建模。
 
@@ -1492,9 +2299,13 @@ snapshot_id
 segment_type
 sequence_no
 text
+raw_text
+corrected_text
 locator_json
 metadata_json
 ```
+
+视频 Segment 的 `raw_text` 保存平台字幕/ASR 原文，`corrected_text` 保存 AI 校对稿；`text` 作为兼容投影默认返回 corrected_text，未校对时不得静默冒充已校对。校对不得改变 Segment ID、sequence_no 或时间码。
 
 locator 示例：
 
@@ -1812,12 +2623,208 @@ source_type：
 
 # 10. Travel / Food
 
+## video_assets
+
+```text
+id
+source_id
+platform
+canonical_url
+external_video_id
+part_number
+external_part_id
+title
+author
+cover_url
+duration_ms
+published_at
+metadata_json
+metadata_hash
+resolver_version
+created_at
+updated_at
+```
+
+`platform + external_video_id + part_number` 用于识别同一个视频分 P；原始 URL 仍保存在 Source，不能被 canonical URL 覆盖。
+
+## video_cover_assets
+
+```text
+id
+video_asset_id
+source_url
+local_path
+derivative_path
+content_hash
+content_type
+width
+height
+byte_size
+status
+error_code
+fetched_at
+created_at
+```
+
+`status`：`PENDING / READY / UNAVAILABLE / INVALID`。VideoAsset.cover_url 保存平台元数据；CoverAsset 表示已下载并可由本地 API 服务的封面。原图按 SHA-256 去重，列表 672×378 WebP 衍生图可重建；不同 Note Version 复用同一 VideoAsset/CoverAsset。
+
+## transcripts
+
+```text
+id
+video_asset_id
+snapshot_id
+source_kind
+language
+full_text_hash
+provider
+model
+adapter_version
+correction_status
+correction_provider
+correction_model
+correction_prompt_version
+correction_coverage
+status
+created_at
+```
+
+`source_kind`：
+
+- CLIENT_PREFETCHED_SUBTITLE
+- PLATFORM_SUBTITLE
+- YT_DLP_SUBTITLE
+- ASR
+
+Transcript 的正文通过通用 `segments` 表保存，视频 Segment 的 `locator_json` 至少包含 `start_ms/end_ms`。
+
+`correction_status`：`PENDING / CORRECTING / CORRECTED / REVIEW / FAILED / PURGED`。每次重新校对生成新 Transcript Version 或版本化 Correction，不覆盖 raw。默认 Note、目录、页面预览和 TXT 导出使用 corrected_text；raw 只用于 Evidence/差异审计。
+
+视频 Transcript 还必须保存 `retention_until` 与 `purged_at`。`metadata_json` 只能保存 `fingerprint_sha256`，不得保存由“时间码 + 正文”拼成的全文 fingerprint。完整转写固定保留 180 天；到期后 Transcript/Segment 行作为时间轴 tombstone 保留，但 `Transcript.text`、`Segment.text/raw_text/corrected_text` 与关联 `Evidence.quote` 被清空，`segment_count` 可保留原始数量供审计，API 依据 `purged_at` 返回 410。Note Section 的服务端时间范围和截图实际时间码不随文稿清理删除。
+
+Whisper.cpp JSON 的 `offsets.from/to` 单位为毫秒。写入新 Transcript Version 前必须校验时间单调性及末段与 `VideoAsset.duration_ms` 的合理关系；约 10 倍的历史错误时间轴通过新版本修复，不原地覆盖旧版本。
+
+## ai_notes / ai_note_versions
+
+```text
+ai_notes:
+id
+content_item_id
+video_asset_id
+current_version_id
+created_at
+updated_at
+
+ai_note_versions:
+id
+ai_note_id
+version_no
+markdown
+structured_json
+input_hash
+provider
+model
+prompt_version
+template_version
+status
+created_at
+```
+
+重跑生成新版本，不静默覆盖旧 Markdown。`structured_json` 保存章节与 Segment 引用，但不能替代 Transcript、Claim 或 Evidence。
+
+## ai_note_sections
+
+```text
+id
+note_version_id
+heading
+thesis
+summary
+bullets_json
+anchor_id
+sequence_no
+start_ms
+end_ms
+markdown
+segment_ids_json
+```
+
+## video_screenshots
+
+```text
+id
+video_asset_id
+note_version_id
+note_section_id nullable
+place_mention_id nullable
+segment_id nullable
+planned_timestamp_ms
+actual_timestamp_ms
+image_path
+content_hash
+perceptual_hash
+width
+height
+quality_score
+selection_reason
+caption
+content_role
+status
+created_at
+```
+
+截图必须能回到视频时间码。`perceptual_hash` 用于去重；`caption/content_role` 必须说明地点、菜品、景区特色、路线、价格或关键结论，不能统一写“章节起始时间码代表帧”。截图是来源派生资产，不代替 Transcript Evidence。被 Note/Place 页面引用的截图进入永久派生存储，任务视频仍按缓存 TTL 清理。
+
+## place_notes / place_note_versions
+
+```text
+place_notes:
+id
+place_id
+current_version_id
+created_at
+updated_at
+
+place_note_versions:
+id
+place_note_id
+version_no
+markdown
+structured_json
+input_hash
+provider
+model
+prompt_version
+status
+created_at
+```
+
+Place Note 聚合多个 Mention/Observation/Source。事实必须通过 Claim/Evidence 回到 Transcript Segment；用户状态变化不直接改写事实版本。
+
+## map_marker_states
+
+```text
+id
+place_id
+origin
+visibility
+custom_label nullable
+created_by
+created_at
+updated_at
+deleted_at nullable
+```
+
+`origin`：`AI_EXTRACTED / USER`。`visibility`：`VISIBLE / HIDDEN / DELETED`。用户 Marker 删除为软删除；自动 Marker 删除只改为 `HIDDEN`。Marker 是 Place 的投影，不能保存第二份完整地点详情。
+
 ## places
 
 ```text
 id
 name
+canonical_name
 place_type
+origin
 country
 province
 city
@@ -1835,6 +2842,8 @@ metadata_json
 created_at
 ```
 
+`origin` 至少区分 `AI_EXTRACTED / USER / IMPORTED`。用户直接点选地图坐标时，`resolution_status=CONFIRMED` 只能表示 `USER_CONFIRMED`，不得伪装成高德 POI 命中；具体确认来源保存于 metadata。
+
 resolution_status:
 - CANDIDATE
 - CONFIRMED
@@ -1851,6 +2860,7 @@ id
 source_id
 segment_id
 raw_name
+suggested_name
 place_type
 city_hint
 district_hint
@@ -1859,6 +2869,8 @@ resolution_confidence
 status
 metadata_json
 ```
+
+`raw_name` 永远保留字幕/ASR 原文；高德确认名称写入关联 Place 的 `canonical_name`，不得覆盖原始 Mention。
 
 ## place_observations
 
@@ -1880,31 +2892,6 @@ observed_at
 - warning
 - ranking
 - recommended_season
-
-## route_drafts
-
-```text
-id
-name
-city
-status
-created_at
-updated_at
-```
-
-第一版 `status` 只需支持 `DRAFT / ARCHIVED`。路线清单是用户选点结果，不等于已计算路线。
-
-## route_draft_items
-
-```text
-id
-route_draft_id
-place_id
-sort_order
-added_at
-```
-
-对 `(route_draft_id, place_id)` 建唯一约束，对 `(route_draft_id, sort_order)` 建索引。第一版不存 LLM 推测的距离、交通时长或最优顺序；未来真实 Route Provider 结果使用独立的版本化 RoutePlan/RouteLeg 模型。
 
 ---
 
@@ -2012,6 +2999,7 @@ status：
 ```text
 id
 job_id
+attempt_id
 step_name
 status
 progress
@@ -2023,9 +3011,32 @@ started_at
 finished_at
 ```
 
+上游步骤在新 Attempt 中被复用时，新增 Step 记录或 Attempt-Step 投影状态为 `REUSED`，不得改写旧步骤时间与输出。
+
+## job_step_artifacts
+
+```text
+id
+job_id
+attempt_id
+step_name
+artifact_type
+artifact_ref_json
+input_hash
+content_hash
+schema_version
+producer_version
+status
+created_at
+replayable_until
+invalidated_at nullable
+```
+
+`status`：`AVAILABLE / EXPIRED / INVALIDATED / MISSING`。默认 Replay Cache TTL 使用 `video_cache_ttl_hours=24`。步骤级续跑只有在所有依赖 Artifact 可用且输入/版本一致时成立；TTL 到期后由 Worker 清理文件并把状态改为 EXPIRED，持久 Source/Transcript/Note/Evidence 不属于本表的临时缓存。
+
 ## settings / secret references
 
-非敏感设置可存 SQLite；API Key、LAN Token 与其他 Secret 只保存平台 Secret Store 引用：Windows PC 使用 Windows Credential Manager/DPAPI，Mac mini 使用 macOS Keychain。数据库字段包含 `setting_key/value_json/updated_at` 与 `secret_key/secret_ref/updated_at`，不得存 Secret 明文。
+非敏感设置可存 SQLite；API Key、LAN Token 与其他 Secret 只保存 macOS Keychain 引用。数据库字段包含 `setting_key/value_json/updated_at` 与 `secret_key/secret_ref/updated_at`，不得存 Secret 明文。
 
 ---
 
@@ -2203,7 +3214,7 @@ OCR 必须保留页码、边界框、OCR 置信度与原始图片引用。低置
 - 备注列；
 - 列名差异。
 
-`.xlsx` 先用 openpyxl 读取；旧 `.xls` 通过独立 SpreadsheetReader 适配器处理，Phase 0A 在 xlrd/python-calamine 中按所选目标平台的安装、arm64/x64 格式覆盖和维护状态选择，不允许把 `.xls` 伪装成 openpyxl 支持。
+`.xlsx` 先用 openpyxl 读取；旧 `.xls` 通过独立 SpreadsheetReader 适配器处理，Phase 0A 按 macOS arm64 安装、格式覆盖和维护状态选择，不允许把 `.xls` 伪装成 openpyxl 支持。
 
 AI 只做 Column Mapping：
 
@@ -2612,6 +3623,8 @@ PositionDetailVM：
 
 # Travel / Food Pipeline
 
+> 视频链接到 AI 笔记、BiliNote 复用边界、DeepSeek 分块总结、地点归纳笔记与多入口导航的冻结契约见 `VIDEO_AI_NOTE_PIPELINE.md`。本文件继续定义 Travel/Food 的领域抽取、POI、偏好和地图规则；发生冲突时，专项文档中的视频链路规则优先。
+
 ## 1. 目标
 
 将视频/图文中的旅行与探店信息转换成：
@@ -2661,6 +3674,27 @@ MATERIALIZE
 CLEAN_CACHE
 ```
 
+`FETCH_SUBTITLE / DOWNLOAD_MEDIA / ASR` 之前必须完成平台 URL 规范化和视频元数据抓取；`SEGMENT` 后先生成版本化 AI 视频笔记，再执行地点结构化抽取。AI 笔记是用户可阅读的一级产物，但地点事实仍必须引用 Transcript Segment，不得只引用 AI Markdown。
+
+完整顺序为：
+
+```text
+VALIDATE_LINK
+→ FETCH_METADATA
+→ FETCH_SUBTITLE
+→ DOWNLOAD_AUDIO / ASR（仅字幕不可用时）
+→ NORMALIZE_TRANSCRIPT
+→ GENERATE_AI_NOTE
+→ EXTRACT_PLACES
+→ RESOLVE_POI
+→ BUILD_PLACE_NOTES
+→ PLAN_SCREENSHOTS
+→ DOWNLOAD_VIDEO_FOR_FRAMES
+→ EXTRACT_SCREENSHOTS
+→ MATERIALIZE
+→ CLEAN_CACHE
+```
+
 ---
 
 # 3. Transcript First
@@ -2694,6 +3728,8 @@ segment_id
 ```
 
 后续餐厅/景点 Claim 直接挂该 segment。
+
+每个 Segment 同时保留 raw_text 与 AI corrected_text。地点/菜品/特色提取默认使用 corrected_text，Evidence 详情允许对照 raw；校对不得改变 Segment ID 和时间码。无法确定的同音地名先标 Review，再交给高德候选校正，不能由校对模型直接生成 canonical Place。
 
 ---
 
@@ -2758,41 +3794,24 @@ PlaceMention
 
 MVP 实现 `AMapPOIProvider`：使用高德 Web 服务进行候选搜索，优先传城市/adcode 与 `citylimit` 收敛歧义；保存 Provider、POI ID、原始候选响应哈希与 `GCJ02` 坐标系。前端使用高德地图 JS API 2.0。
 
-## 7.1 地图是空间总览，不是地点附件
+POI 解析同时承担名称校正：保留转写原文 `raw_name`，高德候选命中后保存 `canonical_name` 与 aliases。必须结合地点类型、城市/区县、附近地标、地址上下文和视频其他地点进行确定性打分；无法唯一确认时进入 Review。城市/省份只作为上下文，不因为被提及就默认创建 Marker。
 
-旅行信息架构固定为：
+## 7.1 地点类型与简介
 
-```text
-内容 > 旅行 > 地图总览
-             ├─ Marker A → 地点预览 A → 地点详情 A
-             ├─ Marker B → 地点预览 B → 地点详情 B
-             └─ 路线清单 → 手动排序 → 后续路线规划
-```
+第一版地点粒度至少包括餐馆、景区、街区、步行街、商圈、市场、公园、博物馆、寺庙、村镇、地标、住宿和交通点。每个 PlaceMention 生成结构化 `PlaceBrief`：
 
-地图总览是独立主页面，默认展示当前区域内全部符合筛选条件的 `CONFIRMED Place` 分布。地点详情是从 Marker 预览进入的下一级页面；不得先进入某个地点详情，再把地图作为该地点的附属卡片。
+- 景区/街区/店铺特色；
+- 推荐菜品或核心体验；
+- 价格、排队、环境与营业提示；
+- 适合人群、季节与注意事项；
+- 作者态度和引用时间码；
+- AI 归纳，明确与来源观点区分。
 
-地图总览必须支持：
+## 7.2 中国大陆全境地图
 
-- 按城市、行政区、地点类型与用户状态筛选；
-- 根据当前 viewport/bbox 返回 Marker，并在密集区域聚合；
-- 一键适配全部当前结果；
-- 点击 Marker 只更新 `selected_place_id` 和底部地点预览，不重建或离开地图；
-- 预览卡显示当前序号、名称、地址、关键观察、Evidence 摘要及“查看详情”；
-- 从详情返回后恢复原 viewport、zoom、筛选与 selected Marker；
-- 上一处/下一处按当前可见 Marker 的稳定顺序切换，不改变地图父级关系；
-- 无选中 Marker 时仍完整展示区域分布，不能强制打开某个地点详情。
+地图首次进入显示中国大陆全境，不设置默认城市；之后恢复用户上次 viewport。请求以 `bbox + zoom` 为主，city/district 只作为可选筛选。全国尺度使用聚合，放大后展开 Marker。点击 Marker 在地图内打开浮窗/侧浮层，显示代表图、地址、特色、关键菜品/体验、来源数和用户状态，再通过“查看详情”进入统一 Place Detail。
 
-Marker 只表示现实 `Place`，不能直接用 `PlaceMention` 或 LLM 生成坐标。`REVIEW/UNRESOLVED` 不默认进入主地图，可通过“待确认地点”入口单独处理。
-
-## 7.2 路线清单边界
-
-第一版地图提供“加入路线清单”和手动排序，用于保存用户希望串联的地点。它不是自动路线优化：
-
-- 清单存 `Place ID + 手动顺序`；
-- 不在没有地图路线服务结果时生成距离、交通时长或最优顺序；
-- 清单中的 Marker 可使用顺序编号，但普通总览 Marker 不强制编号；
-- 真正的驾车/步行/公共交通路线计算、日期行程与导航跳转留给后续 Trip Planner；
-- 后续接入路线 Provider 时复用清单，不改变 Place、Observation 与 Evidence。
+用户可创建 Marker：搜索/逆地理编码优先取得规范 POI，直接点选坐标时标为 `USER_CONFIRMED`。用户 Marker 删除为软删除；自动 Marker 删除只改变地图可见性，不删除 Place/Evidence。所有 Marker 返回 `marker_id + place_id + origin + visibility`。
 
 ---
 
@@ -2962,26 +3981,13 @@ Preference 有权重。
 
 ---
 
-# 18. 视觉能力预留
+# 18. 视频截图与视觉边界
 
-数据模型保留：
-`VisualEvidence`
+代表性截图属于第一版视频笔记必备产物，不再只做未来预留。系统根据 Note Section、PlaceMention 和 Transcript 时间码生成计划，下载受限画质视频流并用 FFmpeg 抽帧；每个主要地点 1–3 张，整篇默认 3–12 张。
 
-后续：
+截图必须过滤黑帧、模糊帧、过曝/欠曝和感知重复帧，并保存实际时间码、文件哈希、尺寸、选择原因以及 Section/PlaceMention/Segment 关系。当前版本使用时间码附近的候选帧与确定性画质规则避开转场；广告语义识别不使用视觉模型，属于后续独立能力。平台禁止下载或资源超限时，笔记可 `PARTIAL_SUCCESS`，但必须明确截图缺失原因。
 
-```text
-FrameExtractor
-→ VisionProvider
-```
-
-用于：
-- 店招；
-- 菜单；
-- 路牌；
-- 屏幕价格；
-- 地图画面。
-
-任务完成只永久保存真正被 Claim 引用的 Evidence Frames。
+第一版不默认把所有帧发送给 VisionProvider。店招、菜单、路牌和屏幕价格的多模态识别仍作为后续独立能力；启用时生成新的 Visual Claim/Model Version，不能覆盖 Transcript Evidence。
 
 ---
 
@@ -2995,6 +4001,7 @@ FrameExtractor
 永久：
 - transcript
 - evidence frames
+- note screenshots
 - thumbnail
 - metadata
 - claims
@@ -3031,18 +4038,6 @@ TravelDashboardVM：
 - recommended_places
 - pending_reviews
 
-MapOverviewVM：
-
-- viewport / coordinate_system
-- total_places / visible_places
-- markers / clusters
-- selected_place_id
-- selected_preview
-- filters
-- route_draft_count
-
-地图总览不依赖某个地点详情才能构造。`selected_preview` 只是当前 Marker 的轻量投影视图，完整 Observation、Evidence 与来源仍由 Place Detail ViewModel 提供。
-
 ---
 
 # 22. CMS
@@ -3060,6 +4055,3148 @@ MapOverviewVM：
 - 查看时间码 Evidence
 - 重跑地点提取
 - 重跑 POI
+
+
+---
+
+# FILE: VIDEO_AI_NOTE_PIPELINE.md
+
+# Video AI Note Pipeline
+
+> 状态：v0.4.4 需求与架构冻结候选稿
+> 更新日期：2026-08-24
+> MVP 平台：Bilibili 视频链接（含 `b23.tv`、BV 链接与分 P）
+> 参考实现：[JefferyHcool/BiliNote](https://github.com/JefferyHcool/BiliNote)，审阅基线 `f58e6182c41889873f9df98e4988e479fe9bf14f`（2026-08-11）
+
+后续实现 Agent 必须同时阅读 `VIDEO_AI_NOTE_IMPLEMENTATION_GUIDE.md`；该文件将本设计映射到当前代码、迁移、目标文件、Work Package 和验证命令。
+
+---
+
+# 1. 业务目标
+
+用户只需要粘贴一个视频链接，系统在后台完成视频页信息解析、字幕获取或语音转写、语义理解、AI 笔记生成、代表性截图提取、旅行地点提取、现实 POI 校名和地点归纳笔记生成。本文中的“转义理解”统一指“字幕/转写文本的语义理解”，不是字符转义。处理完成后，用户可以：
+
+- 阅读完整 AI 视频笔记；
+- 查看视频标题、作者、封面、时长、简介、标签和来源链接；
+- 在笔记章节、餐馆、景区和街区简介中查看与时间码对应的代表性截图；
+- 从视频笔记中的地点引用进入地点归纳笔记；
+- 从旅行地点列表进入同一地点归纳笔记；
+- 点击地图 Marker 预览地点并进入同一地点归纳笔记；
+- 从地点归纳笔记返回来源视频笔记及对应时间码；
+- 查看每个事实、作者观点和 AI 推断的来源与类型。
+
+产品成功路径固定为：
+
+```text
+粘贴视频链接
+→ 系统回复“已收下”
+→ 后台解析视频页、字幕/ASR 和语义
+→ 生成带截图的 AI 笔记
+→ 自动提取餐馆、景区、街区等细粒度地点并用高德校名
+→ 视频笔记、地点列表和中国大陆全境地图同时可用
+```
+
+用户在成功路径中不需要选择平台、下载器、字幕来源、ASR 引擎或 LLM。只有登录态缺失、平台风控、POI 歧义、模型不可用等异常才进入 `NEEDS_USER`。
+
+---
+
+# 2. MVP 范围与非目标
+
+## 2.0 当前状态说明
+
+v0.4/v0.4.1 基础 Pipeline、内容完整性和全国地图已实现；v0.4.2 第一阶段阅读能力与 v0.4.3 列表封面/CTA 已实施。v0.4.4 最新批注返工（底部证据区、目录视觉、侧排缩略图/Lightbox）、真正步骤级续跑和视频笔记删除仅完成文档/设计，不得描述成已实现。
+
+## 2.1 MVP 必须完成
+
+- 接收 Bilibili 普通链接、BV 链接、`b23.tv` 短链和带 `p=N` 的分 P 链接；
+- 解析 canonical URL、BV ID、分 P 序号、CID、标题、作者、封面、时长、发布时间和标签；
+- 优先获取平台字幕，无字幕时下载音频并调用 ASR；
+- 将字幕/ASR 统一为带时间码的 Transcript Segment；
+- 使用已配置的 DeepSeek OpenAI-compatible Provider 生成结构化 Markdown AI 笔记；
+- AI 笔记综合视频页元数据与 Transcript，而不是只总结单一文本；
+- 对长字幕进行安全分块、分块总结和层级合并；
+- 为主要章节和地点选取清晰、非重复、可回溯时间码的代表性截图；
+- 从 Transcript 中提取餐馆、景区、街区、步行街、商圈、市场、公园、博物馆等地点及菜品、价格、特色、作者观点、提醒和推荐语；
+- 通过高德 POI 服务校正转写名称并把 PlaceMention 解析成现实 Place；
+- 为同一 Place 聚合多个来源，生成版本化地点归纳笔记；
+- 保留 Source、Transcript、Claim、Evidence、模型和 Prompt 版本；
+- 支持 Job 恢复、单步骤重跑、缓存复用和幂等写入；
+- 支持从视频笔记、地点列表和地图 Marker 进入同一个 Place Detail。
+- 地图覆盖中国大陆全境，无默认城市；支持平移、缩放、聚合、搜索、视野恢复和按当前 bbox 加载；
+- 用户可以自定义添加、隐藏、恢复和删除 Marker；地图浮窗直接展示简略信息并可进入详情页。
+
+## 2.2 本阶段不做
+
+- 默认把视频帧发送给多模态模型做全视频视觉理解；
+- 下载无上限或原始最高画质视频；截图只下载满足清晰度和大小限制的最低必要视频流；
+- 评论区、弹幕和直播内容总结；
+- 自动生成或猜测 POI 经纬度；
+- 自动规划交通路线或最优行程；
+- BiliNote 的 RAG 问答、浏览器插件和桌面 UI；
+- 抖音、快手、YouTube 的生产级保证；这些平台保留 Resolver 接口，待 Bilibili 验收后逐个平台启用；
+- 批量处理收藏夹、合集或播放列表；
+- 绕过付费、权限、验证码、地区限制或平台访问控制。
+
+---
+
+# 3. BiliNote 复用策略
+
+## 3.1 复用原则
+
+BiliNote 作为经过真实使用验证的视频笔记参考实现。至简优先移植、适配或封装其成熟轮子，不重复从零实现平台细节；但业务数据、任务运行时、Evidence、POI 与 UI 仍使用至简自己的架构。
+
+允许复用或适配：
+
+- 视频 URL 校验、短链解析、BV ID 与分 P 参数提取；
+- `BilibiliSubtitleFetcher` 的 player API 字幕优先策略；
+- Bilibili Cookie 注入、字幕轨优先级与字幕 JSON 解析；
+- `yt-dlp` 的元数据、字幕、音频和必要视频下载配置；
+- Bilibili WBI/playurl 风控参数兼容经验；
+- `TranscriptResult / TranscriptSegment` 的数据语义；
+- FFmpeg 音频提取与转码策略；
+- Whisper 转写 Provider 的实现经验；
+- 长文本 Request Chunker、分块总结、层级合并、重试和 checkpoint 思路；
+- Markdown 时间跳转标记和截图后处理逻辑；BiliNote 中的可选开关不改变至简 v0.4 的截图必备要求；
+- 模型就绪门禁、代理配置和下载失败诊断经验。
+
+不直接照搬：
+
+- FastAPI `BackgroundTasks` 作为长任务运行时；
+- JSON 状态文件作为任务真相源；
+- `NoteGenerator` 单体服务和 BiliNote 独立 SQLite 表；
+- BiliNote 前端页面、路由和 UI 信息架构；
+- BiliNote 的 Provider 配置文件和明文 Secret 处理方式；
+- RAG、向量库、问答和多模态能力；
+- 与至简 Claim/Evidence/Place 模型冲突的数据结构。
+
+## 3.2 许可证要求
+
+BiliNote 使用 MIT License。若复制或实质性移植其源码，必须：
+
+- 在仓库第三方声明中保留 BiliNote 的版权与 MIT License；
+- 在移植文件头或 `THIRD_PARTY_NOTICES` 中标明来源仓库、参考 commit 和修改说明；
+- 不删除上游版权声明；
+- 对“参考思路”和“直接移植代码”分别记录，便于后续升级与安全审计。
+
+## 3.3 上游隔离
+
+所有移植代码进入受控适配层，例如：
+
+```text
+resolvers/video/
+  bilibili.py
+  url_parser.py
+  subtitle.py
+providers/media/
+  yt_dlp.py
+```
+
+Processor、数据库模型和前端不得 import BiliNote 包。上游升级通过适配层吸收，不能让第三方内部类型泄漏到业务层。
+
+---
+
+# 4. 端到端处理流程
+
+```text
+CAPTURE
+↓
+NORMALIZE_CAPTURE_INPUT
+↓
+VALIDATE_AND_CANONICALIZE_URL
+↓
+FETCH_VIDEO_METADATA
+↓
+FETCH_COVER
+↓
+FETCH_PLATFORM_SUBTITLE
+├─ 成功 → NORMALIZE_TRANSCRIPT
+└─ 失败 → DOWNLOAD_AUDIO → ASR → NORMALIZE_TRANSCRIPT
+↓
+CORRECT_TRANSCRIPT
+↓
+GENERATE_AI_NOTE
+↓
+EXTRACT_TRAVEL_FACTS
+↓
+RESOLVE_POI
+↓
+BUILD_PLACE_NOTES
+↓
+PLAN_SCREENSHOTS
+↓
+DOWNLOAD_VIDEO_FOR_FRAMES
+↓
+EXTRACT_SCREENSHOTS
+↓
+MATERIALIZE_VIEWS
+↓
+CLEAN_CACHE
+```
+
+每个箭头都是可持久化 `JobStep`，不得只在内存中推进。每一步保存输入哈希、输出引用、实现版本、开始/完成时间和错误码。
+
+## 4.1 CAPTURE
+
+输入可以是纯视频 URL，也可以是包含标题、来源说明、“复制打开”等文字的完整分享文案。Capture API：
+
+- 先提取并选择唯一内容 URL；
+- 创建 `ContentItem`、`Source` 和持久 `Job`；
+- 提取出的原始 URL 原样保留；
+- 分享文案中的标题和其他文字不进入 Resolver/Classifier/LLM；
+- 返回 `202 Accepted`、`content_id` 和 `job_id`；
+- 不在 HTTP 请求中访问 Bilibili、下载音频、运行 ASR 或调用 LLM。
+
+相同 canonical 视频重复提交时允许生成新的 Note Version，但复用有效的 Source Snapshot、Transcript 和媒体缓存。幂等键至少包含：
+
+```text
+platform + external_video_id + part_number + source_revision
+```
+
+## 4.1.1 NORMALIZE_CAPTURE_INPUT
+
+输入分类：
+
+```text
+URL_ONLY
+SHARE_TEXT_WITH_URL
+TEXT_ONLY
+MULTIPLE_URLS
+```
+
+处理规则：
+
+1. 在不修改 URL 内部字符的前提下处理 Unicode 空白、零宽字符和换行；
+2. 提取 `http/https` URL、Markdown `[标题](URL)`、`<URL>` 和已知平台无 scheme 链接；
+3. 去除 URL 外侧引号、括号及末尾中文/英文标点，保留合法 query、fragment 和百分号编码；
+4. canonicalize 后去重；
+5. 一个候选直接选择；多个候选但只有一个命中专用 Resolver 时选择该候选；多个不同内容链接仍然存在时返回 `CAPTURE_MULTIPLE_URLS`；
+6. 选中 URL 后，后续 payload 的 `text` 必须为空，不能把分享标题当正文；
+7. 无 URL 时才按 `TEXT_ONLY` 进入直接文本路径。
+
+示例：
+
+```text
+“厦门这家店太绝了！ https://b23.tv/abc123 复制打开哔哩哔哩”
+→ SHARE_TEXT_WITH_URL
+→ selected_url = https://b23.tv/abc123
+→ 其余文字不进入视频处理
+```
+
+为最小化无关内容保留，数据库默认只记录 `input_kind / selected_url / candidate_count / discarded_text_length / raw_input_hash`，不保存被丢弃分享文案全文。日志不得记录完整原始粘贴内容。
+
+## 4.2 VALIDATE_AND_CANONICALIZE_URL
+
+MVP 接受：
+
+- `https://www.bilibili.com/video/BV...`
+- 带 query 的 BV 链接；
+- `https://b23.tv/...`
+- `?p=N` 分 P 链接。
+
+输出：
+
+```text
+platform = bilibili
+canonical_url
+external_video_id = BV...
+part_number
+```
+
+短链只允许跟随有限次数的 HTTPS 重定向。最终 host 必须仍在平台 allowlist；拒绝本地地址、内网地址和非 HTTP(S) Scheme，避免 SSRF。
+
+无法识别的链接返回稳定错误 `VIDEO_URL_UNSUPPORTED`；短链失效为 `VIDEO_SHORT_URL_EXPIRED`。
+
+## 4.3 FETCH_VIDEO_METADATA
+
+优先通过平台接口或 `yt-dlp` 的 metadata-only 模式获取：
+
+- title；
+- author / uploader；
+- description；
+- cover URL；
+- duration；
+- published_at；
+- tags；
+- BV ID、CID、分 P 标题和分 P 序号；
+- 可用字幕轨；
+- 原始 metadata 哈希。
+
+元数据保存为 Source Snapshot。元数据与 Transcript 共同作为 AI Note 输入。音频下载和截图视频下载分开规划：字幕命中时仍可为了截图下载受限画质的视频流，但不得因此重复下载音频或启用全视频多模态理解。
+
+## 4.3.1 FETCH_COVER
+
+VideoAsset 的平台 `cover_url` 在元数据完成后进入独立封面步骤：HTTPS 规范化、Bilibili 图片 CDN allowlist、状态/MIME/文件头/尺寸/字节限制校验、SHA-256 去重、本地原图存储和 672×378 WebP 列表衍生图。列表只使用本地 Cover API，不长期热链远程 CDN。
+
+实现方法参考 `lanyeeee/bilibili-video-downloader` 的 CoverTask：从 `pic/cover` 获取 URL，GET 原图，根据 Content-Type 识别扩展名并写入本地；至简继续使用自己的 httpx、SSRF、缓存和 Job 体系。封面失败记录 `COVER_UNAVAILABLE`，显示占位但不阻塞 Note。完整契约见 `VIDEO_NOTE_LIST_V043_SPEC.md`。
+
+## 4.4 FETCH_PLATFORM_SUBTITLE
+
+字幕优先级固定为：
+
+1. 客户端在用户登录态下合法取得并传入的字幕；
+2. Bilibili player API 人工中文字幕；
+3. Bilibili player API AI 中文字幕；
+4. 其他中文轨；
+5. `yt-dlp` 可获得的非弹幕字幕；
+6. 没有可用字幕时进入音频下载与 ASR。
+
+Bilibili 路径：
+
+```text
+BV ID + p
+→ /x/web-interface/view 获取对应 CID
+→ /x/player/wbi/v2 获取字幕轨
+→ 选择字幕轨
+→ 获取 subtitle_url JSON
+→ Transcript Segment
+```
+
+AI 字幕可能要求有效 `SESSDATA`。Cookie 存平台 Secret Store 或受保护浏览器 Profile，不写数据库明文、不写普通日志。字幕获取失败不是整个任务失败，只要仍可合法下载音频就进入 fallback。
+
+## 4.5 DOWNLOAD_AUDIO
+
+仅在没有可用字幕时下载音频。使用 `yt-dlp` 取得 best available audio，并由 FFmpeg 转为 ASR 所需格式。约束：
+
+- `noplaylist = true`；
+- 本音频步骤不下载完整视频；截图所需的受限画质视频由后续独立步骤处理；
+- 限制单任务时长、文件大小、重定向和下载速率；
+- 下载到 `data/cache/video/<job_id>/`，不得写永久 Source 目录；
+- 校验实际 MIME、容器和 FFprobe 元数据；
+- 保存内容哈希、字节数和缓存过期时间；
+- 需要 Cookie、验证码、会员或其他权限时进入 `NEEDS_USER`，不绕过限制。
+
+错误码至少包括：
+
+- `VIDEO_LOGIN_REQUIRED`
+- `VIDEO_ACCESS_DENIED`
+- `VIDEO_DOWNLOAD_FAILED`
+- `VIDEO_TOO_LARGE`
+- `VIDEO_TOO_LONG`
+- `VIDEO_PLATFORM_RATE_LIMITED`
+
+## 4.6 ASR
+
+字幕不存在时：
+
+```text
+下载音频
+→ FFmpeg 16 kHz / mono / PCM
+→ ASRProvider
+→ timestamp segments
+```
+
+默认继续使用至简的 `WhisperCppProvider`；未来可增加 Faster Whisper 或云 ASR。ASR 输出必须包含语言、完整文本、分段开始/结束时间、置信度（若 Provider 提供）、Provider 和模型版本。
+
+ASR 与本地 LLM 不默认并行争用 GPU。模型未安装、损坏或不就绪时，任务在排队前或 ASR Step 前进入 `NEEDS_USER`，前端展示明确修复动作。
+
+## 4.7 NORMALIZE_TRANSCRIPT
+
+字幕和 ASR 都归一为同一模型：
+
+```json
+{
+  "language": "zh-CN",
+  "source_kind": "PLATFORM_SUBTITLE",
+  "segments": [
+    {"start_ms": 192480, "end_ms": 207120, "text": "……"}
+  ]
+}
+```
+
+规则：
+
+- 时间按毫秒存储；
+- Segment 顺序稳定；
+- 空段删除，相邻重复段去重；
+- 不为了“好看”改写原字幕；
+- 原始字幕/ASR 响应以哈希和可选 raw snapshot 保留；
+- 后续事实 Evidence 必须指向 Transcript Segment，而不是只指向 AI 笔记。
+
+## 4.7.1 CORRECT_TRANSCRIPT
+
+归一化后、生成笔记前必须执行 AI 校对。每个 Segment 保留 `raw_text`，并生成时间码与 ID 不变的 `corrected_text`。校对修正口音/同音字、断句、重复词、标题/作者/地名/菜名和单位，但不得新增事实或改变作者立场。
+
+校对输出必须覆盖全部 Segment，顺序和时间范围与输入一致；缺段、乱序、新增 ID 或空文本均拒绝。无法确认的地名保留待确认标记，再由高德 POI 流程校正。默认 Note、目录、页面预览和 TXT 导出使用 corrected_text；raw_text 只在证据审计中查看。完整阅读与校对规范见 `VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md`。
+
+Whisper.cpp `-oj` JSON 的 `offsets.from/to` 已经是毫秒，适配器必须直接使用，不得再乘以 10。归一化后必须校验 `max(segment.end_ms)` 与 `VideoAsset.duration_ms`：允许片尾静音和平台元数据的小幅误差，但超过视频时长 2 倍必须中止后续 Note/截图物化并记录 `TRANSCRIPT_TIMELINE_INVALID`。已受影响的历史 Transcript 不原地篡改；当末段时间与视频时长比值约为 10 时，从现有 Segment 生成修正后的新 Transcript Version，再基于新版本重建 Note Version 与截图。
+
+## 4.8 GENERATE_AI_NOTE
+
+AI 视频笔记是一级业务产物，不再只是地点抽取的中间文本。
+
+默认使用 Settings 中 `VIDEO_NOTE_SUMMARY` 能力绑定的 Provider。当前产品默认绑定已录入的 DeepSeek OpenAI-compatible 配置；API Key 从 Secret Store 读取，模型名由设置提供，不写死在业务代码。
+
+输入：
+
+- 视频标题、作者、简介、标签；
+- 视频封面、时长、发布时间和来源页 URL；
+- 带时间码 Transcript Segment；
+- 笔记模板和 Prompt Version；
+- 用户选择的语言/详细程度（未来 UI 可配置，MVP 使用系统默认）。
+
+默认输出 Markdown，并同时保存可解析结构：
+
+```text
+标题
+来源信息
+内容概览
+关键结论
+按主题组织的章节
+旅行/探店地点索引（若有）
+注意事项
+AI 总结
+```
+
+同时生成结构化目录 `toc[]`：`section_id/start_ms/heading/thesis`。heading 必须是本段明确主题，thesis 用一句话概括主旨；禁止“继续介绍”“本段讲了一些内容”等泛化句。页面正文使用校对稿生成的摘要、要点和时间线详述，不直接拼接 Transcript 原文。
+
+### 摘要与时间线完整性契约
+
+视频 AI 笔记必须同时包含两个独立层次：
+
+1. **摘要**：用较短篇幅说明视频主题、核心结论、适用对象和重要提醒，不能代替正文；
+2. **按时间线详述**：按真实视频顺序覆盖从首个有效 Segment 到末个有效 Segment 的全部内容，每节展示标题、`start_ms/end_ms` 和足够具体的正文。不能只取前 8 段、只写一个地点或把 overview 重复充当章节。
+
+时间线边界由服务端对完整 Transcript 做连续分块，综合最大 120 秒与字符预算切分；`segment_ids/start_ms/end_ms` 由服务端赋值，模型只为给定分块生成标题和详述，不再要求模型抄写数据库 ID。单块模型失败时，以该块完整转写整理成“转写整理（未总结）”章节并记录 warning，保证有效 Transcript 永远不会物化为 0 个章节。最终摘要从全部时间线章节合并生成，不允许继续使用只截取前 `video_note_chunk_chars` 的单次请求代表完整视频。
+
+理解顺序固定为两阶段：第一阶段先把视频页元数据与完整 Transcript 组织成 Video Understanding，包括总体摘要、主题章节、作者观点和初步地点线索；第二阶段再由独立结构化调用从 Transcript 中生成餐馆/景区/街区等 PlaceMention 与 PlaceBrief。第二阶段可以引用第一阶段的章节结构帮助定位，但最终事实仍必须直接绑定 Transcript Segment。
+
+每个主要章节必须保留一个或多个 `segment_id` 和起始时间码，渲染层可生成原片跳转。AI 笔记中要明确区分作者观点、来源事实和 AI 归纳。
+
+### 长字幕分块
+
+不得把完整长字幕无条件塞入一次请求。流程固定为：
+
+```text
+按 Provider 上下文与请求字节预算切块
+→ 每块生成局部笔记
+→ 保存 checkpoint
+→ 层级合并和去重
+→ Schema/Markdown 校验
+→ 保存最终 Note Version
+```
+
+切块边界优先选择自然停顿和主题边界，同时保留时间范围。合并 Prompt 只允许整理、合并和去重，不得补造原文没有的地点或事实。
+
+每个分块 checkpoint 保存服务端确定的 Segment 范围、输入哈希和局部结果；重试只重跑失败分块。最终校验至少确认：章节数大于 0、章节按时间递增、相邻章节不倒序、末节覆盖末个有效 Segment、所有引用 ID 属于当前 Transcript Version。
+
+### 重试与版本
+
+- 429、超时、5xx 使用有限指数退避；
+- 配额不足、Key 无效、模型不存在不盲目重试；
+- 每次生成保存 provider、model、prompt_version、template_version、input_hash；
+- 同一输入和同一配置可以命中缓存；
+- 用户重跑产生新 Note Version，旧版本可查看，不静默覆盖。
+
+## 4.9 EXTRACT_TRAVEL_FACTS
+
+地点提取使用 `TRAVEL_PLACE_EXTRACTION` 能力，当前默认也可绑定 DeepSeek，但它是与 AI 笔记生成分开的结构化调用。
+
+事实抽取的权威输入是 Transcript Segment；AI 笔记只能帮助组织上下文，不能成为唯一 Evidence。模型必须返回符合 Schema 的结构化 JSON：
+
+```text
+PlaceMention
+RestaurantCandidate
+DishObservation
+PriceObservation
+AuthorOpinion
+Warning
+Ranking
+RecommendedSeason
+RegionHint
+```
+
+地点粒度不得只停留在城市或行政区。MVP 必须区分并尽可能解析：
+
+- `RESTAURANT`：餐馆、咖啡店、小吃店、摊位；
+- `SCENIC_AREA`：景区、景点、自然景观；
+- `NEIGHBORHOOD`：街区、历史文化街区、社区；
+- `PEDESTRIAN_STREET`：步行街、商业街；
+- `BUSINESS_DISTRICT`：商圈、综合体；
+- `MARKET`：菜市场、夜市、集市；
+- `PARK / MUSEUM / TEMPLE / VILLAGE / TOWN`；
+- `LANDMARK / ACCOMMODATION / TRANSIT / OTHER`。
+
+每个地点还必须生成 `PlaceBrief`：地点/景区特色、推荐菜品或体验、适合人群、价格与排队信息、注意事项、作者态度和对应 Segment。城市、省份、国家只作为上下文，不因视频提及就默认创建地图 Marker。
+
+每个对象至少包含：
+
+- `raw_name`；
+- `suggested_name`；
+- `place_type`；
+- `city_hint / district_hint / nearby_landmark`；
+- `segment_ids[]`；
+- `source_quote`；
+- `claim_type`；
+- `confidence`。
+- `brief` 与结构化特色字段。
+
+无有效 `segment_ids` 的事实拒绝入库或进入 Review。地点别名、商场内分店、同名店和跨城市歧义不能由 LLM 擅自合并。
+
+## 4.10 RESOLVE_POI
+
+```text
+PlaceMention
+→ AMapPOIProvider 候选搜索
+→ 名称/别名/拼音或同音候选校正
+→ 结合城市、区县、附近地标、类别与地址上下文确定性打分
+→ CONFIRMED / REVIEW / UNRESOLVED / REJECTED
+→ Place
+```
+
+转写名称必须原样保存在 `raw_name`；高德校正后的名称保存为 `canonical_name`，不得覆盖原始 Evidence。高德返回的 POI ID、名称、别名、地址、行政区和 GCJ-02 坐标是地图事实来源。LLM 可以提供搜索词和上下文，不能自行确认经纬度。只有 `CONFIRMED` Place 默认进入主地图；歧义、同名跨城或搜索无结果进入待确认队列。
+
+多个视频提到同一高德 POI 时复用同一 Place，并新增 Mention/Observation，而不是创建重复 Marker。
+
+## 4.11 BUILD_PLACE_NOTES
+
+地点归纳笔记是 Place 的版本化聚合视图，与单个视频 AI 笔记分开。
+
+输入：
+
+- Place 基础信息和 POI 元数据；
+- 所有有效 PlaceMention；
+- Dish/Price/Opinion/Warning 等 PlaceObservation；
+- 来源视频和时间码；
+- 用户状态与已验证偏好（可选）。
+
+输出至少包括：
+
+- 地点名称、类型、地址和地图定位；
+- “为什么值得看/去”的归纳；
+- 视频作者分别怎么评价；
+- 推荐菜品、价格、排队、环境、季节和避坑信息；
+- 不同来源之间的冲突；
+- 来源视频列表与时间码；
+- AI 个性化建议，明确标为 `PERSONAL_INFERENCE`；
+- 最近生成时间、模型和版本。
+
+地点归纳笔记中的事实必须能展开到 Observation → Claim → Transcript Segment。来源冲突并列展示，不能由后一次生成静默覆盖。
+
+当 Place 新增 Mention、Observation 被修正、POI 被重新确认或 Prompt/Model 改变时，创建新的 Place Note Version。只修改用户的 SAVE/VISITED 状态时不强制重生成事实归纳。
+
+## 4.12 PLAN_SCREENSHOTS
+
+截图是视频笔记必备产物，不再是纯可选格式。截图计划同时使用：
+
+- 视频封面和元数据；
+- AI Note 章节的时间范围；
+- PlaceMention 与 PlaceBrief 的 Evidence 时间码；
+- Transcript 中的主题切换点。
+
+默认目标：每个主要地点 1–3 张，整篇笔记 3–12 张；短视频可低于 3 张，但至少保留封面和一个可用代表帧。计划结果必须保存 `timestamp_ms / segment_id / section_id / place_mention_id / selection_reason / caption`。关键帧必须对应地点外观、菜品、景区特色、路线提示、价格/菜单、关键操作或结论证据；不得仅因为“章节起始”就选取普通 talking head、片头、广告、转场、纯黑帧或重复画面。
+
+默认页面不再使用割裂的独立截图宫格。每张 READY 截图嵌入其对应时间线 Section，支持 contain 灯箱、上一张/下一张、时间码与说明、Escape/遮罩/按钮关闭和焦点恢复。
+
+截图计划不得只依赖模型章节。若章节为空或没有可用 Segment 引用，必须从已校验的 Transcript 时间范围按开场、主题转换和均匀覆盖生成 3–6 个确定性候选；非空视频得到 0 个计划属于 `SCREENSHOT_PLAN_EMPTY`，不能继续下载视频并把 `EXTRACT_SCREENSHOTS` 记为成功。只有 `plans > 0` 才进入下载步骤。
+
+## 4.13 DOWNLOAD_VIDEO_FOR_FRAMES
+
+截图需要本地可读取的视频流。下载策略：
+
+- 优先选择能满足截图清晰度的受限画质 MP4，不默认最高码率；
+- 配置最大字节数、最大时长、分辨率上限和超时；
+- 只保存到任务缓存目录，不进入永久原始文件目录；
+- 已有同一视频/分 P 且内容哈希匹配的缓存可以复用；
+- 平台不允许下载、Cookie 缺失或资源超限时，AI Note 继续交付并标记 `PARTIAL_SUCCESS`，UI 明确显示“截图不可用”的原因。
+
+### Bilibili 格式选择契约
+
+截图链路只需要可解码的视频流，不要求下载音频。Bilibili 常见 DASH 结果是 video-only MP4 与 audio-only M4A；不得使用只匹配音视频合一资源的 `best[height<=720][ext=mp4]/best[height<=720]`。该表达式还会把 `720x1280` 竖屏视频按 `height=1280` 排除，已在 `BV1JH826zEKC`、`BV1SNb966Ebs` 和 `BV1qF3t6TENn` 上造成 `Requested format is not available`。
+
+实现时参照 BiliNote 的 `bv*` 视频流优先、Referer、Cookie 与 MP4 输出处理，但保留至简自己的资源边界：优先 `bv*[ext=mp4]`，再回退任意 `bv*`/可用视频；使用 yt-dlp 的 `res:720` 排序表达“优先不超过 720p、无匹配时取最小可用格式”，不要用单一 `height<=720` 代表横竖屏分辨率。请求必须携带 `Referer: https://www.bilibili.com`，需要登录态时复用短生命周期 Netscape Cookie 文件；最终仍执行超时、最大字节数、实际文件存在性和 FFmpeg 可解码检查。若未来需要合并音视频，才启用 `bestvideo+bestaudio` 与 `merge_output_format=mp4`，截图本身不得为无用音轨付出下载和合并成本。
+
+## 4.14 EXTRACT_SCREENSHOTS
+
+FFmpeg 按计划时间码抽帧，并进行确定性质量过滤：
+
+- 清晰度/模糊度阈值；
+- 黑帧和过曝/欠曝检测；
+- 感知哈希去重；
+- 在目标时间码前后小范围搜索最佳帧；
+- 输出 WebP/JPEG、尺寸、文件哈希与实际时间码；
+- 截图绑定 Note Section、PlaceMention 和 Transcript Segment。
+
+本阶段不要求用视觉模型识别截图内容。截图是来源视频的可追溯辅助证据；若未来启用多模态理解，必须新增独立版本和审计，不能覆盖 Transcript Evidence。
+
+## 4.15 MATERIALIZE_VIEWS
+
+成功物化后至少可查询：
+
+- 视频 AI 笔记；
+- 视频页元数据、封面和章节截图；
+- 具体主旨目录与稳定 Section 锚点；
+- AI 校对稿、校对状态和 raw/corrected 审计关系；
+- Transcript；
+- 视频中提及的地点列表；
+- Place 列表；
+- 地图 Marker；
+- Place 归纳笔记；
+- 任务步骤、错误和外部调用审计。
+
+视频 AI 笔记生成成功但 POI 仍需确认时，任务允许 `PARTIAL_SUCCESS`：笔记立即可读，已确认地点进入地图，歧义地点显示“待确认”。
+
+`ContentItem.structured_json.note_id` 的公开身份必须是 `AINote.id`（`note_*`），不得写入 `AINoteVersion.id`（`ntv_*`）。所有 `/api/video-notes/{note_id}` 子资源均以 `AINote.id` 为规范参数。为保证已生成内容和旧书签可恢复，共享查询入口应在未命中 `AINote.id` 时识别历史 `AINoteVersion.id` 并解析到其父 Note；新写入数据仍必须使用规范 ID，兼容读取不得继续扩散错误身份。
+
+## 4.16 CLEAN_CACHE
+
+- AI Note、时间线章节和截图属于持久结果，不随缓存清理删除；完整 Transcript 文稿固定保留 180 天，按下述保留契约清理；
+- 临时 Cookie、Secret 和未登记 scratch 立即清理；可供步骤续跑的音频、视频、分块结果、POI 候选和截图计划登记为 Replay Cache，默认保留 24 小时，到期后由 Worker 清理；
+- 任务运行中、失败待重试或被 Note/截图引用的文件不得提前删除；
+- 清理失败记录日志但不回滚已完成业务结果；
+- 用户删除 Source 时按删除策略处理 Note、Mention、Observation 和 Evidence 引用。
+
+### 完整转写导出与 180 天保留契约
+
+视频 AI 笔记页提供“导出完整转写（TXT）”。导出由服务端按当前 Transcript Version 即时生成 UTF-8 附件，包含标题、来源 URL、转写来源、生成时间，以及所有 Segment 的 `[HH:MM:SS–HH:MM:SS] 正文`；不得只导出页面预览的前 8 段，也不在服务端保存第二份导出文件。
+
+完整 Transcript 文本从创建时起保留 180 天，独立于通用日志保留天数。`Transcript` 保存 `retention_until/purged_at`；Worker 启动时及最多每 24 小时执行一次幂等清理。到期后清空 `Transcript.text`、全部关联 `Segment.text/raw_text/corrected_text` 和 `Evidence.quote`，移除 `metadata_json` 中当前错误保存的全文 fingerprint，仅保留 SHA-256、时间码、版本和审计所需元数据。AI Note、时间线正文、章节时间范围、截图和来源链接继续保留，但页面明确显示“完整转写已按 180 天策略删除”；转写读取与导出接口返回 `410 Gone`。清理事件只记录 Transcript ID、清理时间和数量，不记录原文。
+
+---
+
+# 5. Job 状态与恢复
+
+建议步骤和进度：
+
+| Step | 建议进度 | 可复用缓存 | 可单步重跑 |
+|---|---:|---|---|
+| NORMALIZE_CAPTURE_INPUT | 2 | selected URL | 是 |
+| VALIDATE_LINK | 5 | canonical URL | 是 |
+| FETCH_METADATA | 12 | Source Snapshot | 是 |
+| FETCH_COVER | 18 | CoverAsset / local derivative | 是 |
+| FETCH_SUBTITLE | 22 | raw/normalized subtitle | 是 |
+| DOWNLOAD_AUDIO | 32 | media cache | 是 |
+| ASR | 48 | Transcript | 是 |
+| NORMALIZE_TRANSCRIPT | 60 | normalized Transcript Version | 是 |
+| CORRECT_TRANSCRIPT | 62 | corrected Transcript Version | 是 |
+| GENERATE_AI_NOTE | 65 | Note chunk/checkpoint | 是 |
+| EXTRACT_TRAVEL_FACTS | 76 | typed extraction | 是 |
+| RESOLVE_POI | 86 | provider candidates | 是 |
+| BUILD_PLACE_NOTES | 90 | Place Note Version | 是 |
+| PLAN_SCREENSHOTS | 92 | Screenshot Plan | 是 |
+| DOWNLOAD_VIDEO_FOR_FRAMES | 94 | bounded video cache | 是 |
+| EXTRACT_SCREENSHOTS | 97 | Screenshot Assets | 是 |
+| MATERIALIZE | 99 | View projection | 是 |
+| CLEAN_CACHE | 100 | 不适用 | 是 |
+
+有平台字幕时跳过 `DOWNLOAD_AUDIO/ASR`，进度直接推进，但保留 `SKIPPED` Step 记录。Worker 重启后从最后一个已完成且输入哈希一致的 Step 恢复。
+
+失败后的人工续跑不从首步骤开始。Artifact Manifest 有效时，上游 COMPLETED 步骤在新 Attempt 中标记 `REUSED`，从失败步骤开始，后续步骤顺次执行；TTL 到期或输入/版本变化时步骤级续跑不可用，只能完整重跑。完整契约见 `PIPELINE_STEP_REPLAY_V044_SPEC.md`。
+
+最终状态：
+
+- `COMPLETED`：AI 笔记完成，地点处理已完成或视频无地点；
+- `PARTIAL_SUCCESS`：AI 笔记可读，但部分地点需确认或部分增强失败；
+- `NEEDS_USER`：需要 Cookie、登录、模型配置或 POI 选择；
+- `FAILED`：当前无法自动恢复；
+- `CANCELLED`：用户取消。
+
+---
+
+# 6. 数据边界
+
+需要新增或补全的核心实体：
+
+```text
+VideoAsset
+Transcript
+TranscriptSegment（复用通用 Segment）
+AINote
+AINoteVersion
+AINoteSection
+VideoScreenshot
+PlaceMention
+PlaceObservation
+PlaceNote
+PlaceNoteVersion
+MapMarkerState
+ExternalCallAudit
+```
+
+关键关系：
+
+```text
+Source 1 ── * Snapshot
+Snapshot 1 ── 1 VideoAsset
+VideoAsset 1 ── * Transcript
+Transcript 1 ── * Segment
+ContentItem 1 ── * AINoteVersion
+AINoteVersion 1 ── * AINoteSection
+AINoteSection 1 ── * VideoScreenshot
+Segment 1 ── * Claim/Evidence
+Segment 1 ── * PlaceMention
+Place 1 ── * PlaceMention
+Place 1 ── * PlaceObservation
+Place 1 ── * PlaceNoteVersion
+Place 1 ── 0..1 MapMarkerState
+```
+
+AI Note Markdown 不能代替 Transcript、Typed Claim 或 Evidence；Place Note Markdown 不能代替 PlaceObservation。
+
+---
+
+# 7. API 契约概要
+
+Capture 继续使用统一入口：
+
+```text
+POST /api/inbox
+GET  /api/inbox/{content_id}
+```
+
+视频笔记资源：
+
+```text
+GET  /api/video-notes
+GET  /api/video-notes/{note_id}
+GET  /api/video-notes/{note_id}/transcript
+GET  /api/video-notes/{note_id}/places
+GET  /api/video-notes/{note_id}/screenshots
+POST /api/video-notes/{note_id}/regenerate
+```
+
+地点资源：
+
+```text
+GET  /api/travel/places
+GET  /api/travel/places/{place_id}
+GET  /api/travel/places/{place_id}/note
+GET  /api/travel/places/{place_id}/sources
+GET  /api/travel/map?bbox=&zoom=&place_type=&user_state=&query=
+GET  /api/travel/map/bootstrap
+POST /api/travel/map/markers
+DELETE /api/travel/map/markers/{marker_id}
+POST /api/travel/map/markers/{marker_id}/restore
+```
+
+所有入口最终使用同一个 `place_id` 和 Place Detail ViewModel。列表和 Marker 不维护第二份地点详情数据。
+
+---
+
+# 8. 多入口导航规则
+
+地点详情的 canonical route 建议固定为：
+
+```text
+/places/:placeId
+```
+
+入口包括：
+
+- 视频 AI 笔记中的地点链接；
+- 视频笔记的“本片地点”列表；
+- 全局旅行地点列表；
+- 地图 Marker 预览卡；
+- 最近发现、收藏、想去和去过列表。
+
+所有入口进入同一 Place Detail，不允许为“地图地点详情”和“列表地点详情”创建两套页面。入口上下文通过路由 state 或 query 保存：
+
+```text
+from = video-note | place-list | map | dashboard
+source_note_id
+source_segment_id
+return_state
+```
+
+从地图返回时需要恢复 viewport、筛选和选中 Marker；从视频笔记返回时恢复阅读位置。Place Detail 中点击来源时间码可打开原视频或返回视频笔记对应章节。
+
+## 8.1 中国大陆全境地图
+
+地图不是默认城市页面。首次打开且没有用户历史视野时，以中国大陆全境为初始 viewport；之后恢复用户上次的中心点、zoom、bbox 和筛选。禁止在前端请求或界面文案中硬编码厦门或其他城市。
+
+地图必须支持：
+
+- 连续平移和缩放；
+- 根据当前 `bbox + zoom` 请求 Marker；
+- 全国尺度聚合，放大后逐步展开；
+- 地点名称、别名、行政区和类型搜索；
+- 当前视野结果计数和“适配全部结果”；
+- 用户定位只作为主动操作，不改变默认全国策略；
+- 地图 Provider 不可用时显示配置/诊断入口，不用静态厦门示意图伪装真实地图。
+
+## 8.2 Marker 浮窗与详情
+
+点击 Marker 必须在地图上直接打开浮窗/侧浮层，地图不离场。简略信息至少包含：名称、类型、地址/行政区、1 张代表图、特色摘要、关键菜品/体验、来源数量、用户状态和“查看详情”。点击“查看详情”进入 canonical `/places/:placeId`；返回时恢复原地图视野和浮窗。
+
+PC 使用锚定 Marker 的浮窗或右侧浮层；Mobile 使用不遮挡主要地图操作的底部 Sheet。浮窗不是完整 Place Note，完整来源、冲突和 Evidence 仍在详情页。
+
+## 8.3 用户自定义 Marker
+
+用户可以通过地图长按/点击“添加地点”或搜索结果创建 Marker。创建时：
+
+- 优先用高德搜索/逆地理编码取得规范名称、地址和 GCJ-02 坐标；
+- 用户可以填写自定义名称、类型、简介和备注；
+- 来源标为 `USER`，与视频自动提取的 `AI_EXTRACTED` 区分；
+- 用户直接点选的坐标可以保存，但必须标记 `USER_CONFIRMED`，不能伪装成高德 POI 命中。
+
+删除语义固定为：
+
+- 用户创建的 Marker：软删除，可恢复；关联 Place/审计在保留期内不物理删除；
+- 视频/POI 自动生成的 Marker：默认执行“从地图隐藏”，不能删除 Source、Claim、Evidence 或 Place；
+- 恢复操作重新显示；
+- 只有专门的数据删除流程才能物理删除无引用对象。
+
+Marker 是 Place 的地图投影，不维护第二套地点详情数据。`marker_id` 与 `place_id` 同时返回，浮窗和详情始终以 `place_id` 查询。
+
+---
+
+# 9. 后续 UI 决策门
+
+本文件先冻结产品与后端契约，不在本阶段直接决定页面数量或开始实现。下一阶段必须基于现有页面截图和路由完成 UI 信息架构审查，并回答：
+
+1. 现有 Content Detail 能否承载完整视频 AI 笔记，还是需要独立 Video Note Detail；
+2. 现有 Content 列表是否需要“视频笔记”筛选或独立入口；
+3. 地点列表采用独立页还是地图内可切换列表视图；两者都必须共享同一 Place 数据；
+4. 现有 Place Detail 是否能容纳地点归纳、来源视频、冲突与 Evidence；
+5. 手机端长笔记、字幕时间轴、地图预览和返回状态如何组织；
+6. 任务详情是否需要显示字幕来源、下载/ASR跳过、DeepSeek 分块和 POI 部分成功。
+
+候选 UI 变化只包括：
+
+- 扩展现有投递页；
+- 扩展任务详情步骤；
+- 扩展或新增视频 AI 笔记详情；
+- 扩展地点列表/地图联动；
+- 扩展 Place Detail 为地点归纳笔记；
+- 扩展设置中的视频下载/Cookie、ASR 和 DeepSeek 角色配置。
+- 地图改为中国大陆全境交互底图，新增 Marker 浮窗、自定义新增/隐藏/删除/恢复；
+- 设置新增高德 JS Key、Security Code、Web 服务 Key 和真实连通测试。
+
+必须先生成 PC 与 Mobile UI 图并确认，再进入前端实现；UI 图不得反向改变本文件已经冻结的业务数据和 Evidence 规则。
+
+---
+
+# 10. 安全、隐私与外部服务
+
+- Bilibili Cookie 属于 Secret，不得进入 SQLite 明文字段、日志、导出或前端普通 API；
+- DeepSeek API Key 只从 Secret Store 读取；
+- 发送给 DeepSeek 的默认内容是视频元数据、字幕 Segment 和普通旅行信息，不发送招聘 Profile；
+- 外部调用审计记录 Provider、Model、输入 Segment ID、字节/Token估计、时间、状态和错误码，不记录 API Key；
+- 所有远程 URL 必须经过 SSRF 防护和平台 allowlist；
+- 下载遵守平台条款与用户合法访问权限；
+- 临时媒体不进入普通备份和导出；
+- AI 输出必须在 UI 标明模型生成及可能存在错误。
+- 高德 Web 服务 Key 保存在 Secret Store；JS Key 可作为普通设置，Security Code 按敏感设置保存并只通过受认证的地图 bootstrap 接口提供。浏览器加载地图后无法把 JS 端凭据视为绝对机密，设置页必须如实提示其客户端可见性与域名白名单要求。
+- 视频截图属于来源派生资产，默认本地保存，不在普通导出中自动包含；删除/隐藏 Marker 不删除截图 Evidence。
+
+---
+
+# 11. 验收标准
+
+## 11.1 核心成功路径
+
+给定一个公开、可访问的 Bilibili 旅行视频：
+
+1. 用户只粘贴链接即可获得 `202` 和 Job；
+2. 系统正确识别 BV ID 与分 P；
+3. 有字幕时不下载音频、不运行 ASR；
+4. 无字幕时自动下载音频并生成带时间码 Transcript；
+5. DeepSeek 生成可读、结构化、带来源时间码的 AI 笔记；
+6. 主要章节和地点拥有清晰、非重复、带时间码的代表性截图；
+7. 餐馆、景区、街区等细粒度地点被提取并绑定 Transcript Evidence；
+8. 高德完成名称与 POI 校正后，Confirmed 地点显示在列表和地图；
+9. 中国大陆全境地图无默认城市，支持平移、缩放、聚合和 bbox 加载；
+10. 点击 Marker 在地图浮窗查看简略信息，视频笔记地点链接、列表项和浮窗详情按钮均进入同一个 Place Detail；
+11. 用户可以新增、隐藏、删除和恢复自定义 Marker，自动生成 Marker 被删除时只隐藏地图投影；
+12. Place Detail 显示地点归纳笔记、来源视频、截图和时间码；
+13. 任务重跑可复用 Transcript 和有效截图，不重复下载/ASR；
+14. Worker 重启后任务可恢复；
+15. 全流程保存 Provider、Model、Prompt、Parser 和上游适配器版本。
+
+## 11.2 异常路径
+
+必须覆盖：
+
+- 短链失效；
+- 不支持平台；
+- Bilibili 无字幕；
+- Cookie 缺失或过期；
+- 平台 412/429/访问拒绝；
+- 音频超大、下载中断、FFmpeg 失败；
+- Whisper 模型未就绪；
+- DeepSeek Key 无效、余额不足、超时、429、5xx；
+- 长字幕分块中途失败后 checkpoint 恢复；
+- POI 无匹配、多匹配和同名跨城市；
+- 转写错别字/同音地点通过高德候选校名，无法唯一确认时进入 Review；
+- 截图视频不可下载、抽帧失败、黑帧、模糊帧和重复帧；
+- 高德 JS Key、Security Code 或 Web 服务 Key 缺失/无效；
+- AI 笔记成功但 POI 失败的 `PARTIAL_SUCCESS`；
+- 取消任务后的缓存和数据库一致性。
+
+## 11.3 质量门槛
+
+- 不存在无 Segment Evidence 的来源事实；
+- 不存在 LLM 生成的地图坐标；
+- 同一 POI 不因多视频来源产生重复 Marker；
+- 不存在城市级泛化 Mention 挤占细粒度餐馆/景区/街区结果；
+- 每张展示截图有实际视频时间码、文件哈希和 Segment/Section/Place 关联；
+- 分 P 字幕、元数据和原片跳转指向同一集；
+- 旧 Note Version 不被重跑覆盖；
+- 列表和地图进入的 Place Detail 数据一致；
+- 地图初始状态不包含硬编码城市，Marker 添加/删除/恢复语义符合来源类型；
+- CI 使用冻结 Fixture，真实 Bilibili URL 只作为手工验收；
+- BiliNote 移植代码保留 MIT 声明与参考 revision。
+
+---
+
+# 12. 实施顺序
+
+v0.4/v0.4.1 基础链路、v0.4.2 第一阶段与 v0.4.3 列表封面已完成。v0.4.4 后续按以下顺序实施：
+
+1. 模型级全 Segment `CORRECT_TRANSCRIPT`、覆盖验证和 fallback；
+2. Hero 缺封面空状态、正文优先、底部地点候选/完整转写；
+3. 主体设计语言目录、稳定锚点和页面内时间码跳转；
+4. 220–280px 侧排关键缩略图、语义重选与 contain Lightbox；
+5. Step Artifact Manifest、24h Replay Cache 与 Replay Options；
+6. 从错误步骤执行当前/下游，上游 REUSED，过期后完整重跑；
+7. 视频笔记列表/详情统一删除和共享数据保留；
+8. PC/Mobile 标注设计、键盘、安全和真实样本回归。
+
+
+---
+
+# FILE: VIDEO_AI_NOTE_IMPLEMENTATION_GUIDE.md
+
+# Video AI Note Implementation Guide
+
+> 用途：供后续 Codex/Agent 直接读取和实施
+> 更新日期：2026-08-24
+> 当前状态：v0.4/v0.4.1、v0.4.3 与 v0.4.4 已实施；在线库已应用 0007，API/Worker、真实视频 Pipeline 及 PC/Mobile 页面均已验收
+> UI 前置已满足：v0.4 设计稿位于 `design/ui/v0.4/`，用户已确认既有视觉方向；后续修改必须遵循防覆盖基线
+
+---
+
+# 1. Agent 必读顺序
+
+实现前按以下顺序完整阅读，不得只读本文件：
+
+1. `VIDEO_AI_NOTE_PIPELINE.md`：业务目标、端到端处理契约和异常边界，最高优先级；
+2. `TRAVEL_FOOD_PIPELINE.md`：地点、Observation、POI、偏好和地图领域规则；
+3. `DATA_MODEL.md`：持久化对象和 Evidence 关系；
+4. `API_DESIGN.md`：资源边界和 ViewModel；
+5. `AI_RUNTIME_AND_PROVIDERS.md`：DeepSeek、ASR、模型路由和版本；
+6. `SECURITY_PRIVACY.md`：Cookie、Secret、外发和 SSRF；
+7. `TESTING_AND_ACCEPTANCE.md`：验收用例；
+8. 本文件：把上述设计映射到当前代码和实施工作包。
+
+冲突优先级：
+
+```text
+用户最新明确指令
+> VIDEO_AI_NOTE_PIPELINE.md
+> 本实施指南
+> 专项领域文档
+> COMPLETE_PROJECT_SPEC.md（生成文件）
+> 旧实现行为
+```
+
+`COMPLETE_PROJECT_SPEC.md` 不能手工编辑。修改源文档后运行：
+
+```bash
+python3 scripts/build_complete_project_spec.py
+```
+
+---
+
+# 2. 已冻结的产品决策
+
+以下决策不再留给实现 Agent 自行选择：
+
+- MVP 首个平台是 Bilibili；支持 BV、`b23.tv` 和 `?p=N` 分 P；
+- 参考并复用 BiliNote 成熟轮子，不照搬其整套应用；
+- 平台字幕优先，无字幕才下载音频和运行 ASR；
+- AI 笔记必须包含代表性截图；为抽帧允许下载受限画质视频，但不做默认全视频多模态理解；
+- 视频 AI 笔记是一级、版本化业务产物；
+- 视频笔记默认使用已配置的 DeepSeek OpenAI-compatible Provider；
+- 地点结构化提取是与笔记生成分开的 Schema-first LLM 调用；
+- 地点事实的 Evidence 必须指向 Transcript Segment，AI Markdown 不能充当唯一证据；
+- PlaceMention 与现实 Place 分离；坐标只能来自高德等 POI Provider；
+- 地点粒度覆盖餐馆、景区、街区、步行街、商圈、市场、公园、博物馆等，不只停留在城市；
+- 转写地点名必须经过高德候选校正，保留 `raw_name` 与 `canonical_name`；
+- 同一 Place 聚合多个来源并生成版本化地点归纳笔记；
+- 视频笔记、地点列表和地图 Marker 全部进入同一个 `/places/:placeId`；
+- 地图使用中国大陆全境，无默认城市，按 bbox/zoom 加载和聚合；
+- Marker 支持用户新增、隐藏、删除和恢复，点击后先在地图浮窗显示简介，再进入详情；
+- 高德 JS Key、Security Code 和 Web 服务 Key 必须可在设置中填写与测试；
+- 粘贴内容先区分纯 URL、带分享文字的唯一 URL、普通文本和多 URL；唯一 URL 场景只把 URL 送入 Pipeline，周围标题不得进入 Resolver/LLM；
+- 多个不同内容 URL 不静默取第一个，返回 `CAPTURE_MULTIPLE_URLS` 候选；
+- 长任务必须走持久 Worker，不能使用 FastAPI `BackgroundTasks`；
+- 任务支持重启恢复、步骤重跑、缓存复用、部分成功和明确的 `NEEDS_USER`；
+- PC/Mobile UI 已按确认方向实施；新增页面或重构现有页面前，必须先更新 `REGRESSION_AND_CHANGE_GUARD.md`，避免覆盖已可操作能力。
+
+---
+
+# 3. 当前代码事实与差距
+
+## 3.1 当前已有
+
+- FastAPI、SQLite WAL、SQLAlchemy、Alembic、持久 Job lease 与恢复；
+- `VideoAsset / Transcript / AINote / AINoteVersion / AINoteSection / PlaceMention / PlaceNoteVersion / ExternalCallAudit`；
+- Bilibili BV/短链/分 P、metadata、平台字幕优先与 yt-dlp 音频回退；
+- FFmpeg + Whisper.cpp 时间码转写；
+- `generate_text / generate_json`、能力角色和可配置主/备用模型；
+- 版本化 AI Note、地点候选、Transcript Evidence、高德 POI 与 `PARTIAL_SUCCESS`；
+- Video Note 列表、详情、Transcript、地点、重新生成 API 和响应式页面；
+- 高德地图、Marker 选择、地点简略卡和 Place Detail；
+- SecretStore、日志、SystemEvent、Request ID 和真实 Bilibili 无字幕样本验收。
+
+## 3.2 v0.4 已实施映射
+
+- `0004_video_screenshots_and_map_markers` 已持久化 `VideoScreenshot`、`MapMarkerState`、`raw_name`、`canonical_name` 和 `PlaceBrief`；
+- Pipeline 使用 `PLAN_SCREENSHOTS → DOWNLOAD_VIDEO_FOR_FRAMES → EXTRACT_SCREENSHOTS` 显式步骤，下载受限视频，抽帧时进行时间窗搜索、黑帧/曝光/清晰度/感知去重过滤；
+- POI 候选歧义会保留候选理由并进入 `REVIEW`，不会生成正式 Marker；
+- `/api/travel/map` 使用中国大陆默认 bbox、zoom 聚合、视野恢复与 `origin` 过滤；旧地点惰性补齐独立投影状态；
+- 地图浮层已显示代表图、地址、特色、来源数、类型、状态和详情入口；用户 Marker 可新增、软删除、恢复，AI Marker 仅隐藏投影；
+- 高德 JS Key、Security Code 和 Web 服务 Key 通过设置/Keychain/Bootstrap 管理，并提供 Web 服务真实测试；
+- 厦门、思明区、城市级 `setFitView` 和路线默认城市已从产品代码移除；“偏好城市”只保留为可选个人设置，不影响地图首屏。
+
+## 3.3 历史临时行为
+
+本节原列出的厦门硬编码、环境变量地图 Key、无 Marker 生命周期和无截图行为均已移除。保留这一实施指南是为了说明 v0.4 的迁移原因；当前防覆盖检查以 `REGRESSION_AND_CHANGE_GUARD.md` 为准。
+
+## 3.4 2026-08-24 可靠性修复（已实施）
+
+本轮按以下最小闭环完成了代码、数据库兼容、运行页面与上游实现修复：
+
+1. **视频笔记身份修复**：新写入将父 `AINote.id` 写入 `ContentItem.structured_json.note_id`，并保存版本 ID 作为辅助字段；共享 `_asset_for_note` 对既有 `ntv_*` 链接提供只读兼容解析，所有详情/转写/地点/截图接口共用该根节点。
+2. **详情错误态**：`VideoNoteDetailPage` 区分 pending、错误和 success；错误态显示后端原因、返回列表与重试入口。内容详情仅在 `structured.note_id` 非空时展示链接。`SessionGate` 的 `/api/status` 检查使用 8 秒有界超时，失败进入已有“重新连接”状态。
+3. **Ollama 及时释放**：`OllamaProvider` 的每次 `/api/chat` 请求均发送 `keep_alive: 0`，覆盖任务推理、备用模型与设置页真实测试的共用调用路径。
+4. **截图格式修复**：媒体适配器使用 `bv*[ext=mp4]/bv*/best + res:720`，注入 Bilibili Referer/Cookie，保留实际大小检查和缓存策略；不再要求音视频合一或错误排除竖屏流。
+5. **状态恢复**：同一 Note Version 已有 `PLANNED` 截图计划会复用并继续物化；每次内容物化覆盖旧 `screenshot_error`，按本次 POI/截图结果决定 `COMPLETED/PARTIAL_SUCCESS`。
+
+建议只修改共享根节点及其最小测试：`providers/llm.py`、`providers/media.py`、`services/video_pipeline.py`、`api/video_notes.py`、`VideoNotesPage.tsx`、`SessionGate.tsx`，以及对应后端/前端测试。无需引入新下载器、Ollama SDK 或独立状态机。
+
+## 3.5 2026-08-24 内容完整性、截图与文稿保留修复（已实施）
+
+样本 `note_221cd61e9600493cb3f32e062e1ad013` 的现场数据为：视频元数据时长 `369000 ms`，ASR 共 232 段但末段为 `3680800 ms`，Note Version 只有 102 字 overview、0 个 `AINoteSection`、0 个截图计划。截图视频已经成功下载 `21867505` 字节，因此本次“0 张可用”不是下载失败，而是没有计划可执行。
+
+实施结果：
+
+1. Whisper.cpp JSON offset 按毫秒写入；末段时间显著超过视频时长会拒绝物化。Worker 启动时对约 10 倍的历史时间轴创建修正版 Transcript Version，不原地覆盖旧数据。
+2. 有效 Segment ID 为空时使用服务端固定分块的“转写整理”章节；模型调用失败也进入该兜底，任何有效 Transcript 至少物化一个时间线章节并覆盖末段。
+3. 无章节时 `plan_screenshots` 从有效 Transcript 生成 3–6 张确定性计划；`plans == 0` 跳过视频下载并记录 `SCREENSHOT_PLAN_EMPTY`。Worker 为历史 Note 补齐计划，但不隐式下载历史媒体。
+4. 视频笔记页分为“摘要”“按时间线详述”“代表截图”“完整转写”；完整转写显示段数、保留期、可折叠预览和即时 TXT 导出。
+5. 新增 `retention_until/purged_at` 与 Worker 每日幂等清理。到期后清空正文、Segment 文本、Evidence quote 和旧全文 fingerprint；保留时间轴/Note/截图，转写读取和导出返回 410。
+
+建议实施文件限定为 `providers/asr.py`、`services/video_support.py`、`services/video_screenshots.py`、`services/video_pipeline.py`、`services/transcript_retention.py`、`api/video_notes.py`、`worker.py`、`VideoNotesPage.tsx`、API types/tests 与一条 Alembic 迁移。导出使用标准库文本响应，不新增文档生成依赖或调度框架。
+
+## 3.6 2026-08-24 粘贴输入规范化（已实施）
+
+前端始终提交原始粘贴值，由后端统一 `InputNormalizer` 判定：
+
+- `URL_ONLY`：纯链接；
+- `SHARE_TEXT_WITH_URL`：周围有标题/分享文字但可唯一提取链接；
+- `TEXT_ONLY`：无链接普通正文；
+- `MULTIPLE_URLS`：多个不同内容链接。
+
+唯一链接被选择后，只把 `selected_url` 送入 Capture/Pipeline，`text` 为空；分享标题不参与分类、Resolver、LLM、Claim 或 Evidence。多个候选 canonical 去重后仍不唯一时返回 `CAPTURE_MULTIPLE_URLS` 和候选，不创建 Job。数据库只保留输入类型、选中 URL、候选数、丢弃长度和原始输入哈希，不保存丢弃文案全文。
+
+---
+
+# 4. 目标目录与文件映射
+
+建议新增目录：
+
+```text
+backend/src/zhijian/
+  api/
+    video_notes.py
+    travel_notes.py
+    map.py
+  domain/
+    video.py
+    notes.py
+  resolvers/
+    __init__.py
+    registry.py
+    video/
+      __init__.py
+      url_parser.py
+      bilibili.py
+      subtitles.py
+  providers/
+    media.py
+  services/
+    input_normalizer.py
+    video_pipeline.py
+    transcript.py
+    note_generator.py
+    travel_extractor.py
+    poi_resolver.py
+    place_note_builder.py
+    video_screenshots.py
+  prompts/
+    video_note_v1.md
+    travel_place_extraction_v1.md
+    place_note_v1.md
+```
+
+不要为了目录美观一次性搬迁现有招聘、认证或地图代码。新增子模块后由现有 `api/router.py` 和 `services/pipeline.py` 做最小路由接入。
+
+前端目标文件只能在 UI 方案确认后创建或修改，候选范围：
+
+```text
+frontend/src/features/content/ContentDetailPage.tsx
+frontend/src/features/video-notes/
+frontend/src/features/map/PlaceDetailPage.tsx
+frontend/src/features/map/MapOverviewPage.tsx
+frontend/src/features/map/AmapLayer.tsx
+frontend/src/features/map/MapCanvas.tsx
+frontend/src/features/tasks/TaskDetailPage.tsx
+frontend/src/features/settings/SettingsPage.tsx
+frontend/src/lib/api.ts
+frontend/src/lib/types.ts
+frontend/src/App.tsx
+frontend/src/styles/global.css
+```
+
+执行检查点：视频与地图 Work Package 0–11 的当前实施状态以各标题及 `IMPLEMENTATION_STATUS.md` 为准，不得重复从零实现或覆盖现有代码。本次新增且尚未实施的是 Work Package 6A“粘贴输入规范化”；后续 Agent 只做有测试保护的增量修改。
+
+---
+
+# 5. Work Package 0：上游与依赖基线
+
+## 目标
+
+建立可审计的 BiliNote 复用边界和运行依赖。
+
+## 修改
+
+- 在 `backend/pyproject.toml` 增加受版本范围约束的 `yt-dlp`；
+- 新增 `THIRD_PARTY_NOTICES.md` 或等效文件，包含 BiliNote MIT 声明、来源 URL、审阅 commit 和移植文件清单；
+- 在移植文件头写明来源与本项目修改；
+- 不把 BiliNote 仓库作为 Git submodule，不在运行时依赖其 Python 包；
+- 记录 FFmpeg、yt-dlp、Whisper 的运行诊断；
+- 将代理和 Cookie 作为 Adapter 配置，不散落在 Downloader 内。
+
+## 测试
+
+- 上游 notice 存在；
+- yt-dlp 可 import；
+- runtime status 可区分 READY/MISSING/DEGRADED；
+- 日志不包含 Cookie/API Key。
+
+---
+
+# 6. Work Package 1：Schema、枚举和迁移
+
+## 新增模型
+
+在 `db/models.py` 和新 Alembic `0003_video_ai_notes.py` 中新增：
+
+- `VideoAsset`；
+- `Transcript`；
+- 视频 Transcript 继续复用 `Segment`，扩展 `kind/locator_json/confidence`；
+- `AINote`；
+- `AINoteVersion`；
+- `AINoteSection`；
+- `PlaceMention`；
+- `PlaceNote`；
+- `PlaceNoteVersion`；
+- `ExternalCallAudit`。
+
+## 约束
+
+- `VideoAsset(platform, external_video_id, part_number)` 唯一；
+- `AINoteVersion(ai_note_id, version_no)` 唯一；
+- `PlaceNoteVersion(place_note_id, version_no)` 唯一；
+- `Place(external_provider, external_poi_id)` 在值非空时应唯一；
+- Transcript Segment 保存毫秒时间码；
+- Note Current Version 由外键指向，版本记录不可覆盖；
+- 迁移升级不得删除或重建现有业务表；
+- downgrade 只删除本迁移新增对象。
+
+## 枚举
+
+- `JobStatus` 增加 `PARTIAL_SUCCESS`；
+- 定义 Transcript SourceKind；
+- 定义 Note Status；
+- JobStep 名称保持字符串或单独枚举，但 API 输出必须稳定；
+- 不把 Provider/Model 名称写进枚举。
+
+## 测试
+
+- 空数据库 upgrade 到 head；
+- 已有 `0002` 数据库 upgrade 到 `0003`；
+- upgrade/downgrade/upgrade；
+- 唯一约束和外键；
+- Note Version 不被覆盖。
+
+---
+
+# 7. Work Package 2：Bilibili Resolver
+
+## 输入输出
+
+输入：原始 URL。
+
+输出 typed `ResolvedVideo`：
+
+```text
+platform
+original_url
+canonical_url
+external_video_id
+part_number
+external_part_id/cid
+title/author/description/tags
+cover_url/duration_ms/published_at
+subtitle_tracks
+raw_metadata_hash
+adapter_version
+```
+
+## 实现顺序
+
+1. URL allowlist 和 SSRF 防护；
+2. `b23.tv` 有限重定向解析；
+3. BV ID 与 `p=N` 提取；
+4. metadata-only 获取；
+5. 根据分 P 获取正确 CID；
+6. player API 字幕轨获取和优先级；
+7. yt-dlp 字幕 fallback；
+8. Typed Transcript 输出；
+9. 稳定错误映射。
+
+## BiliNote 对应轮子
+
+- `app/validators/video_url_validator.py`；
+- `app/utils/url_parser.py`；
+- `app/downloaders/bilibili_subtitle.py`；
+- `app/downloaders/bilibili_downloader.py`；
+- `app/downloaders/bilibili_dm_patch.py`。
+
+移植时替换 `requests` 为项目现有 `httpx` 约定；网络超时、代理、重定向和 headers 从配置传入，不使用模块级全局状态。
+
+## 错误码
+
+- `VIDEO_URL_UNSUPPORTED`
+- `VIDEO_SHORT_URL_EXPIRED`
+- `VIDEO_METADATA_FAILED`
+- `VIDEO_LOGIN_REQUIRED`
+- `VIDEO_ACCESS_DENIED`
+- `VIDEO_PLATFORM_RATE_LIMITED`
+- `VIDEO_SUBTITLE_UNAVAILABLE`
+
+字幕不可用是 fallback 条件，不直接把任务标为 FAILED。
+
+## 测试 Fixture
+
+- 普通 BV；
+- `b23.tv`；
+- `?p=2`；
+- 人工中文字幕；
+- AI 中文字幕；
+- 无字幕；
+- 过期 Cookie；
+- 412、429、超时；
+- 恶意重定向到 localhost/私网。
+
+---
+
+# 8. Work Package 3：媒体下载与 ASR
+
+## Media Adapter
+
+`providers/media.py` 封装 yt-dlp：
+
+- metadata-only；
+- subtitle-only；
+- audio-only；
+- future video download，不在 MVP 默认调用；
+- Cookie 临时 Netscape 文件必须 owner-only，并在任务后删除；
+- 只允许明确输出目录；
+- `noplaylist=true`；
+- 使用配置的代理和超时；
+- 下载后使用 FFprobe 验证时长、容器和大小。
+
+## ASR 改造
+
+`WhisperCppProvider` 改为返回 typed Transcript，而不是单个全文 Segment：
+
+- 优先使用 whisper.cpp JSON/SRT/VTT 等带时间输出；
+- 归一为 `start_ms/end_ms/text/confidence`；
+- 保留全文；
+- 保存 provider、model 和运行模式；
+- Metal/Vulkan/CPU fallback 只影响运行信息，不改变 Transcript Schema。
+
+## 配置
+
+在 `core/config.py` 增加：
+
+- media cache root/TTL；
+- max video duration；
+- max media bytes；
+- yt-dlp binary/module strategy；
+- network timeout；
+- redirect limit；
+- optional proxy；
+- Bilibili Cookie secret key reference。
+
+## 测试
+
+- 有字幕时确认没有音频下载调用；
+- 无字幕时 audio-only + ASR；
+- 超长、超大、损坏媒体；
+- FFmpeg/Whisper 缺失；
+- Worker 失败后缓存保留，完成后按 TTL 清理；
+- 取消任务不留下临时 Cookie 文件。
+
+---
+
+# 9. Work Package 4：DeepSeek AI Note
+
+## Provider 改造
+
+当前 `OpenAICompatibleProvider.generate()` 固定 `response_format=json_object`。改造成明确的两个能力：
+
+```python
+generate_text(...)
+generate_json(..., schema=...)
+```
+
+- Markdown 笔记调用 `generate_text`；
+- 地点抽取调用 `generate_json`；
+- Provider 统一返回 usage、request id（若有）和模型；
+- 429、408、连接错误和 5xx 有限指数退避；
+- 401/403、余额不足、模型不存在不重试；
+- 外部调用写 `ExternalCallAudit`；
+- 不记录 Key 和完整敏感正文。
+
+## Provider Role
+
+Settings 新增能力角色：
+
+- `video_note_summary`；
+- `transcript_correction`；
+- `note_toc_and_section_summary`；
+- `travel_place_extraction`；
+- `place_note_summary`。
+
+首次迁移/读取时均回退到现有 `default` DeepSeek 配置，避免要求用户重复录入 API Key。Secret 引用复用现有 `provider:default:api-key`，只有用户单独配置角色时才创建角色 Secret。
+
+## Chunk/Merge
+
+实现 `note_generator.py`：
+
+1. 根据 Provider context/request byte budget 切块；
+2. 以 Transcript 自然边界切分；
+3. 每块保存 index、time range、input hash 和 partial Markdown；
+4. 每个 partial 完成后保存 checkpoint；
+5. 层级合并，避免一次 merge 再次超限；
+6. 校验 Markdown 非空、标题结构和 Segment 引用；
+7. 保存新 Note Version；
+8. 成功后清理 checkpoint，失败时保留。
+
+Prompt 文件必须独立版本化，不把大段 Prompt 写进 service 代码。
+
+### v0.4.5 用户补充 Prompt
+
+设置页“AI 模型”在推理路由和模型库之间提供三个补充提示词输入。固定文件 Prompt 继续锁定 JSON、Schema、字段、Segment ID、顺序和证据契约；用户只可补充语气、篇幅、受众与关注重点。保存内容加入后续调用的低优先级 System Message，并写入相应 Job Step Input Hash，Prompt 变化时步骤续跑从最早受影响的 AI 阶段开始。
+
+## 测试
+
+- 短字幕单请求；
+- 长字幕多 chunk 和多层 merge；
+- 中途失败后恢复；
+- 输入/模型/Prompt 不变时缓存命中；
+- Prompt 或模型变化时生成新版本；
+- DeepSeek Markdown 请求不发送 JSON response format；
+- 地点 JSON 请求执行 Pydantic 校验；
+- Key 无效、余额不足、429、5xx 行为正确。
+
+---
+
+# 10. Work Package 5：旅行提取、POI 与地点归纳
+
+## Typed Extraction
+
+新增 Pydantic 输出 Schema，每个 PlaceMention/Observation 必须包含 `segment_ids`。禁止继续使用 `_extract_travel()` 正则作为生产主路径；正则只能用于低成本分类或测试 fallback，不能生成 CONFIRMED 事实。
+
+## Evidence
+
+- 每个 Claim 绑定模型返回的实际 Segment；
+- quote 从 Segment 原文截取并验证；
+- 无 Segment、Segment 不存在或 quote 不匹配时 Reject/Retry/Review；
+- AI 推断使用 `INFERRED`，作者原话使用 `EXTRACTED/SOURCE_OPINION`；
+- 不再把所有 Claim 绑定第一个 Segment。
+
+## POI Resolver
+
+- 用名称、城市、区县、附近地标和类别调用高德；
+- 确定性打分，不让 LLM 选经纬度；
+- `CONFIRMED/REVIEW/UNRESOLVED/REJECTED`；
+- 未解析 PlaceMention 不创建 `(0,0)` Marker；
+- 只有 Confirmed Place 有坐标并进入地图；
+- 以高德 POI ID 去重；
+- 保存候选响应哈希和 GCJ-02。
+
+## Place Note
+
+Place Note Builder 聚合 Place、Mention、Observation、来源 Note 和 Transcript Evidence。新增来源或事实变化时生成新版本；SAVE/VISITED 等用户状态变化不强制重写事实笔记。
+
+## 测试
+
+- 单视频单地点；
+- 单视频多地点；
+- 多视频同一 POI；
+- 同名跨城市；
+- 无 POI 和多候选；
+- 来源价格/观点冲突；
+- 无证据事实被拒绝；
+- Place Note 新版本与旧版本共存。
+
+---
+
+# 11. Work Package 6：持久 Pipeline 与 API
+
+## Pipeline Steps
+
+精确使用：
+
+```text
+NORMALIZE_CAPTURE_INPUT
+VALIDATE_LINK
+FETCH_METADATA
+FETCH_SUBTITLE
+DOWNLOAD_AUDIO
+ASR
+NORMALIZE_TRANSCRIPT
+CORRECT_TRANSCRIPT
+GENERATE_AI_NOTE
+EXTRACT_TRAVEL_FACTS
+RESOLVE_POI
+BUILD_PLACE_NOTES
+PLAN_SCREENSHOTS
+DOWNLOAD_VIDEO_FOR_FRAMES
+EXTRACT_SCREENSHOTS
+MATERIALIZE
+CLEAN_CACHE
+```
+
+跳过步骤写 `SKIPPED`，不能直接消失。每个 Step 保存 input hash/output reference。只有输入哈希和实现版本一致才可复用缓存。
+
+## 状态
+
+- `COMPLETED`：笔记和地点阶段完整完成，或合法判断没有地点；
+- `PARTIAL_SUCCESS`：AI Note 可读，但部分地点 Review/Unresolved 或非核心增强失败；
+- `NEEDS_USER`：Cookie、模型、Key 或 POI 人工选择；
+- `FAILED`：不可自动恢复；
+- `CANCELLED`：用户取消。
+
+## API 子 Router
+
+实现 `api/video_notes.py`：
+
+```text
+GET  /api/video-notes
+GET  /api/video-notes/{note_id}
+GET  /api/video-notes/{note_id}/transcript
+GET  /api/video-notes/{note_id}/places
+GET  /api/video-notes/{note_id}/screenshots
+POST /api/video-notes/{note_id}/regenerate
+```
+
+实现或补充 `api/travel_notes.py`：
+
+```text
+GET /api/travel/places/{place_id}/note
+GET /api/travel/places/{place_id}/sources
+GET /api/travel/map?bbox=&zoom=&place_type=&user_state=&query=
+GET /api/travel/map/bootstrap
+POST /api/travel/map/markers
+DELETE /api/travel/map/markers/{marker_id}
+POST /api/travel/map/markers/{marker_id}/restore
+```
+
+Capture 可以暂时保留现有 `/api/capture`，但 ViewModel 和文档统一语义需兼容 `/api/inbox` 的长期设计。不要在本功能中无理由全量重命名已有 API。
+
+## 测试
+
+- 端到端公开 Fixture；
+- API 鉴权；
+- Job 恢复与并发幂等；
+- retry/rerun-from-step；
+- partial success；
+- ViewModel 不泄漏 ORM/Secret；
+- Source → Note → Place → Evidence 关系完整。
+
+---
+
+# 11A. Work Package 6A：粘贴输入规范化（已实施）
+
+## 目标文件（实施时）
+
+```text
+backend/src/zhijian/domain/schemas.py
+backend/src/zhijian/services/input_normalizer.py
+backend/src/zhijian/services/capture.py
+backend/src/zhijian/api/router.py
+frontend/src/features/tasks/CapturePage.tsx
+frontend/src/lib/api.ts
+backend/tests/test_input_normalizer.py
+backend/tests/test_api.py
+```
+
+## 契约
+
+- 前端提交完整原始粘贴值，不再以 `startsWith("http")` 作为权威 URL 判定；
+- 后端输出 `URL_ONLY / SHARE_TEXT_WITH_URL / TEXT_ONLY / MULTIPLE_URLS`；
+- 支持换行、Markdown、尖括号、中文标点、零宽字符和已知平台无 scheme 链接；
+- canonical 后去重；多个候选中仅一个命中专用 Resolver 时自动选择；
+- 唯一 URL 进入 Source locator，周围文字不进入 payload text；
+- 多个内容 URL 返回 `422 CAPTURE_MULTIPLE_URLS` 和候选，不创建 Job、不发起网络请求；
+- 默认只持久化 `input_kind/selected_url/candidate_count/discarded_text_length/raw_input_hash`；
+- 分享标题不得覆盖平台正式标题。
+
+## 测试
+
+- 纯 URL；
+- 标题 + URL + “复制打开”；
+- Markdown 与尖括号链接；
+- URL 末尾中文/英文标点；
+- query/fragment 保留；
+- canonical 重复链接；
+- 多链接歧义；
+- 无链接普通正文；
+- 丢弃文案不进入 Resolver、LLM、日志和数据库全文字段。
+
+---
+
+# 12. Work Package 7：代表性截图（已实施）
+
+## 目标文件
+
+```text
+backend/src/zhijian/db/models.py
+backend/alembic/versions/0004_video_screenshots_and_map_markers.py
+backend/src/zhijian/services/video_screenshots.py
+backend/src/zhijian/services/video_pipeline.py
+backend/src/zhijian/domain/schemas.py
+backend/src/zhijian/api/router.py
+```
+
+## 实现
+
+- 新增 `VideoScreenshot`，保存 video/note section/place mention/segment、计划与实际时间码、路径、哈希、尺寸、质量分与选择原因；
+- Note 和地点抽取完成后生成 Screenshot Plan；
+- 用 yt-dlp 下载受限画质视频，禁止默认最高码率；
+- FFmpeg 抽帧，检测黑帧、模糊、过曝/欠曝并用感知哈希去重；
+- 目标时间码不可用时只在前后小窗口寻找替代帧；
+- 每个主要地点 1–3 张，全文默认 3–12 张；
+- 无法取得视频流时保留 AI Note，状态为 `PARTIAL_SUCCESS` 并记录稳定错误码；
+- 缓存视频按 TTL 清理，已物化截图持久保存。
+
+## 测试
+
+- 截图数量范围、时间码绑定与文件哈希；
+- 黑帧/模糊/重复帧淘汰；
+- 字幕命中但仍只为截图下载受限视频，不重复 ASR；
+- 下载失败时 Note 仍可读；
+- 重跑复用有效截图，Prompt/章节变化时重建截图计划。
+
+---
+
+# 13. Work Package 8：细粒度地点与高德校名（已实施）
+
+## 实现
+
+- 扩展 Place 类型：餐馆、景区、街区、步行街、商圈、市场、公园、博物馆、寺庙、村镇、地标、住宿和交通点；
+- 提取 `PlaceBrief`：景区/街区特色、菜品特色、价格、排队、适合人群、注意事项、作者态度；
+- PlaceMention 同时保存 `raw_name`、`suggested_name`、Segment 与上下文；
+- 高德候选确认后保存 `canonical_name`、别名、POI ID、地址、行政区和校正理由；
+- 城市/省份只作上下文，不默认创建 Marker；
+- 同音、错别字、简称和同名跨城市必须覆盖 Fixture；
+- 无唯一候选进入 Review，不由 LLM 自行选择坐标。
+
+## 测试
+
+- 餐馆/景区/街区同一视频混合提取；
+- 口语同音名称校正；
+- 同名跨城和商场多分店；
+- raw/canonical 名称与 Evidence 均保留；
+- Brief 中每个来源事实可回到 Segment。
+
+---
+
+# 14. Work Package 9：中国全境地图与 Marker 管理（已实施）
+
+## 后端
+
+- `GET /api/travel/map` 使用 `bbox + zoom`，城市仅是可选筛选；
+- 全国缩放级别返回聚合，城市/街区级逐步返回 Marker；
+- 新增 `MapMarkerState` 或等效实体，保存 `place_id/origin/visibility/deleted_at`；
+- `origin` 至少为 `AI_EXTRACTED / USER`；
+- 用户 Marker 创建时调用高德搜索或逆地理编码；直接点选坐标标记 `USER_CONFIRMED`；
+- 删除用户 Marker 为软删除；删除自动 Marker 只隐藏投影；支持恢复；
+- Map ViewModel 返回 `marker_id + place_id + origin + visibility + preview_image + source_count`。
+
+## 前端
+
+- 删除 `city=厦门市`、厦门标题、思明区快捷筛选和厦门 fallback SVG；
+- 首次加载使用中国大陆全境 viewport，之后恢复上次 viewport；
+- 高德 Map 实例上报 `moveend/zoomend` 后按 bbox 查询；
+- Marker 聚合、点击浮窗/侧浮层、Mobile Bottom Sheet；
+- 浮窗显示代表图、名称、类型、地址、特色、关键菜品/体验、来源数、用户状态和详情按钮；
+- 提供搜索、长按/添加地点、隐藏/删除/恢复入口；
+- “查看详情”进入 `/places/:placeId`，返回恢复地图视野和当前浮窗。
+
+## 测试
+
+- 首屏无任何默认城市参数或文案；
+- 全国 pan/zoom/bbox/cluster；
+- PC 浮窗与 Mobile Sheet；
+- 用户 Marker 新增、软删除、恢复；
+- 自动 Marker 隐藏不删除 Source/Evidence；
+- 同一 `place_id` 的列表、浮窗和详情数据一致。
+
+---
+
+# 15. Work Package 10：地图资源设置（已实施）
+
+设置页新增：
+
+- 高德 JS API Key；
+- 高德 Security Code；
+- 高德 Web 服务 Key；
+- 域名白名单提示；
+- 三项配置状态与真实测试；
+- 地图 bootstrap 诊断。
+
+Web 服务 Key 与 Security Code 经 SecretStore 保存；JS Key 可作为普通设置。地图通过受认证的 bootstrap API 获取客户端必需配置，不继续只依赖 Vite 构建变量。UI 必须提示 JS 端配置在浏览器运行时可见，安全边界依赖高德域名白名单，而不是宣称完全保密。
+
+---
+
+# 16. Work Package 11：UI（已实施）
+
+UI 图确认已完成，以下页面决策已落地：
+
+- 复用 Content Detail 还是新增 Video Note Detail；
+- 地点列表是独立页面还是 Map 的列表模式；
+- Place Detail 如何呈现归纳笔记、来源冲突和时间 Evidence；
+- PC 和 Mobile 长笔记如何导航；
+- Map 返回状态和 Video Note 阅读位置如何恢复。
+- 地图浮窗、Marker 编辑和设置表单在 PC/Mobile 的布局；详细设计稿见 `design/ui/v0.4/`。
+
+无论选择哪种页面结构，以下不变：
+
+- `/places/:placeId` 是 canonical Place Detail；
+- 视频笔记地点、列表和 Marker 使用同一 `place_id`；
+- Marker 只加载 preview，不携带完整 Place Note；
+- 地图无默认城市，使用全国 viewport；
+- 用户 Marker 与 AI Marker 有可识别但不过度抢眼的状态差异；
+- 时间码可以返回视频笔记章节或原片；
+- AI 归纳、作者观点和来源事实视觉区分；
+- `PARTIAL_SUCCESS/NEEDS_USER` 有明确修复入口；
+- 前端不接触 Cookie/API Key 明文。
+
+---
+
+# 16A. Work Package 12：视频笔记阅读体验 v0.4.2（待实施）
+
+## 后端
+
+- `CORRECT_TRANSCRIPT / VALIDATE_CORRECTION`；
+- Segment raw_text/corrected_text、校对状态、模型、置信度和原因；
+- 全覆盖、顺序、ID 与时间码校验；
+- 主旨目录 `heading/thesis/section_id/start_ms`；
+- Section summary/bullets/place refs/稳定 anchor；
+- corrected/raw Transcript API 与 TXT 导出；
+- Screenshot caption/content_role/section_id。
+
+## 前端
+
+- Hero 使用真实 CoverAsset，缺省时为空/收起；
+- 摘要、主旨目录、按时间线详述依次排列，地点候选与完整转写放文章底部；
+- 地点/Transcript/目录/截图时间码页面内跳转、聚焦与高亮；
+- 截图以 220–280px 缩略图放在对应 Section 文字侧面，移除默认独立宫格/全宽 talking head；
+- contain Lightbox、前后切换、Escape/遮罩关闭和焦点恢复；
+- “导出 TXT”改用统一次级按钮并默认导出校对稿；
+- PC/Mobile/键盘与历史锚点回归。
+
+## 约束
+
+- 页面正文不是原始转录堆叠；
+- AI 校对不改变 Segment ID、顺序和时间码，不新增事实；
+- 目录不得输出泛化套话；
+- 普通 talking head 或“章节起始帧”不自动视为关键截图；
+- 具体契约以 `VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md` 为准。
+
+---
+
+# 16B. Work Package 13：视频笔记列表封面与 CTA v0.4.3（待实施）
+
+## 后端
+
+- VideoCoverAsset 数据与迁移；
+- `FETCH_COVER` 步骤；
+- Bilibili cover URL HTTPS/host/SSRF/MIME/文件头/尺寸/字节校验；
+- 原图 SHA-256 存储与 672×378 WebP；
+- 本地封面图片 API、ETag 和 immutable cache；
+- Video Note List cover ViewModel；
+- 封面失败占位但不阻塞 Note。
+
+## 前端
+
+- CTA 改为“添加视频链接”；
+- 复用 40px/14px 全局 Primary Button；
+- 列表真实封面 16:9、object-fit cover、lazy loading；
+- 时长徽标、skeleton、失败占位和 alt；
+- PC/Mobile/键盘回归。
+
+## 参考
+
+借鉴 `lanyeeee/bilibili-video-downloader` commit `1254c6bf...` 的 `pic/cover → HTTPS GET → status/Content-Type → ext → bytes → local file` 方法，不引入其 Rust/Tauri 任务系统。直接移植实质代码时补充 MIT Notice。完整契约见 `VIDEO_NOTE_LIST_V043_SPEC.md`。
+
+---
+
+# 16C. Work Package 14：步骤级续跑 v0.4.4（源码已实施）
+
+- Step Artifact Manifest 和 24h Replay Cache；
+- `replay-options / retry-from-step / retry-full`；
+- 上游 REUSED、失败/下游 RETRYING、旧输出 INVALIDATED；
+- TTL 到期、输入/版本变化和 lease 门禁；
+- 任务详情/日志“从错误步骤继续”、剩余时间和完整重跑；
+- `job.step_replay.*` 审计和多 Attempt；
+- 不允许前端任意 from_step。
+
+完整契约见 `PIPELINE_STEP_REPLAY_V044_SPEC.md`。
+
+---
+
+# 16D. Work Package 15：视频笔记删除 v0.4.4（已实施并通过 API 测试）
+
+- 列表/详情 `…` 菜单；
+- 共用 Note Delete Service/API；
+- 删除 Note/Version/Section/TOC/Content 投影；
+- 保留 Source/Asset/Cover/Transcript/Place/Evidence；
+- 活跃 Job 门禁和不可恢复确认；
+- 清理专属派生文件、缓存刷新、旧 URL 已删除状态和审计。
+
+完整契约见 `VIDEO_NOTE_DELETE_V044_SPEC.md`。
+
+---
+
+# 17. 建议提交与执行顺序
+
+不要一次提交全部功能。建议：
+
+1. `feat(video): add domain schema and migration`；
+2. `feat(video): add bilibili url metadata and subtitle resolver`；
+3. `feat(video): add yt-dlp audio and timestamp asr fallback`；
+4. `feat(notes): add deepseek chunked video note generation`；
+5. `feat(travel): add typed place extraction and evidence`；
+6. `feat(travel): add poi resolution and place note versions`；
+7. `feat(api): expose video and place note resources`；
+8. `feat(ui): implement approved video note and place flows`；
+9. `feat(video): add evidence-bound representative screenshots`；
+10. `feat(travel): add granular place briefs and amap name correction`；
+11. `feat(map): add china viewport clustering and marker lifecycle`；
+12. `feat(settings): add amap runtime configuration and diagnostics`；
+13. `feat(ui): implement approved map popup and marker management`；
+14. `test(video): add screenshot map recovery security and real-url acceptance`；
+15. `docs(video): record final implementation and third-party notices`。
+
+每个提交都必须保持已有招聘、文件上传、地图和认证测试通过。
+
+---
+
+# 18. Agent 每阶段输出格式
+
+Agent 完成一个 Work Package 后必须输出：
+
+```text
+Work Package
+完成内容
+未完成内容
+修改文件
+新增迁移
+新增/变更 API
+第三方代码来源
+新增测试
+运行命令
+测试结果
+真实链接验收结果
+安全检查
+已知风险
+下一 Work Package
+```
+
+不得只写“已经实现”。若真实 Bilibili 或 DeepSeek 因外部条件没有验收，必须明确写“仅 Fixture 通过”，不得宣称端到端完成。
+
+---
+
+# 19. 验证命令
+
+后端：
+
+```bash
+.venv/bin/ruff check backend/src backend/tests
+.venv/bin/pytest backend/tests
+```
+
+迁移：
+
+```bash
+cd backend
+../.venv/bin/alembic upgrade head
+../.venv/bin/alembic downgrade -1
+../.venv/bin/alembic upgrade head
+```
+
+前端（UI 阶段）：
+
+```bash
+pnpm --dir frontend verify
+```
+
+文档：
+
+```bash
+python3 scripts/build_complete_project_spec.py
+python3 -m json.tool "dev docs/manifest.json"
+git diff --check
+```
+
+运行命令前确认 Node.js 满足 Vite 要求并使用项目 `.venv`。测试不得依赖实时 Bilibili/DeepSeek；CI 使用冻结 Fixture，真实 URL/API 只做显式手工验收。
+
+---
+
+# 20. 禁止事项
+
+- 不覆盖或清理当前未提交的无关改动；
+- 不为视频功能重写整个现有架构；
+- 不使用 FastAPI BackgroundTasks 执行长任务；
+- 不把 BiliNote 整仓复制进项目；
+- 不遗漏 MIT notice；
+- 不把 Cookie/API Key 写入 SQLite 明文或日志；
+- 不绕过平台权限或验证码；
+- 不下载无上限或原始最高画质视频；为截图只能下载受配置限制的最低必要视频流；
+- 不把 AI Note 当事实 Evidence；
+- 不让 LLM 生成 POI 坐标；
+- 不使用 `(0,0)` 代表未解析 Place；
+- 不静默覆盖 Note Version；
+- 不在 UI 图确认前实现新页面；
+- 不在没有真实验收时宣称完整支持 Bilibili。
+- 不在地图请求、标题、fallback 或路线创建中硬编码厦门或其他默认城市；
+- 不把 Marker 删除等同于删除 Place、Source 或 Evidence；
+- 不把转写名称校正后覆盖 `raw_name`；
+- 不把高德客户端配置宣称为浏览器不可见的绝对 Secret。
+
+---
+
+# 21. 最终 Definition of Done
+
+只有同时满足以下条件才算视频 AI 笔记功能完成：
+
+1. 用户粘贴 Bilibili/BV/短链/分 P 后立即得到持久 Job；
+2. 字幕优先路径与无字幕 ASR fallback 均通过；
+3. DeepSeek 生成带时间码、版本化的完整 AI Note；
+4. 长字幕分块和 checkpoint 恢复通过；
+5. 主要章节及地点拥有清晰、去重、带时间码的代表性截图；
+6. 餐馆、景区、街区等细粒度地点结果全部有 Transcript Evidence；
+7. 高德保留 raw/canonical 名称校正链，Confirmed 地点进入列表和地图，同一 POI 不重复；
+8. 中国大陆全境地图无默认城市，bbox、zoom、聚合和 viewport 恢复通过；
+9. Marker 浮窗可看简介并进入详情；用户 Marker 新增、隐藏、删除和恢复通过；
+10. Place Note 聚合多个来源并保留冲突；
+11. 视频笔记、列表和 Marker 进入同一 Place Detail；
+12. 高德三项配置可在设置中填写、测试和诊断；
+13. Worker 重启、重试、取消和部分成功行为通过；
+14. Cookie、API Key、SSRF、临时文件、截图资产和外部调用审计通过；
+15. BiliNote MIT notice 和移植记录完整；
+16. 后端、前端、迁移、文档验证全部通过；
+17. PC/Mobile 实际 UI 与已确认设计图一致；
+18. 至少一个有字幕和一个无字幕的真实 Bilibili 样本完成手工验收。
+19. 纯 URL、标题/分享文案中的唯一 URL、普通文本和多 URL 歧义均按 Input Normalizer 契约处理，丢弃文字不进入下游。
+20. 全部可用 Transcript Segment 拥有 corrected_text 或明确 Review 状态，raw_text 仍可审计。
+21. 地点候选与完整转写位于文章最底部；Hero 缺少 CoverAsset 时为空/收起。
+22. 主旨目录具体且可跳转；正文是 AI 校对后的时间线提纲/详述，不是原始转写堆叠。
+23. 截图嵌入对应 Section，关键内容选择、caption 和 Lightbox 交互通过。
+24. 时间码页面内跳转、聚焦、高亮和历史恢复通过。
+25. TXT 按钮符合统一视觉，默认导出完整 corrected Transcript。
+26. Video Note List 使用本地真实封面、16:9 Card 和时长徽标，失败占位不抖动。
+27. 顶部主按钮为“添加视频链接”，PC/Mobile 尺寸符合统一 Button Token。
+28. ERROR 步骤在中间产物有效期内只执行当前及下游，上游显示 REUSED；过期后只能完整重跑。
+29. 视频笔记列表和详情提供同一删除能力，并保留共享 Source/Transcript/Place/Evidence。
+
+
+---
+
+# FILE: VIDEO_NOTE_RENDERING_AND_TASK_MODEL_CONTEXT_SPEC.md
+
+# 至简 视频笔记渲染与任务模型上下文规格
+
+版本：v0.9，更新日期：2026-08-22，状态：`IMPLEMENTED / BROWSER_VERIFIED`。
+
+本文件中的封面、错误态、Markdown 安全渲染和任务模型摘要仍是已实施基线。视频笔记页面的信息顺序、Transcript AI 校对、主旨目录、时间码跳转、随文截图、Lightbox 与 TXT 按钮返工以 `VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md` 为最新待实施契约；不得据本文件保留独立截图宫格或原始 Transcript 正文堆叠。
+
+## 1. 任务模型上下文
+
+任务摘要的 Provider/模型表示当前或最近一次 LLM 调用，不表示当前所有步骤都在调用模型。任务接口从最近 LLM 步骤或保存的主模型路由中补齐 Provider、模型与 `model_step`；ASR、下载、解析和缓存清理不得把本地二进制或模型文件路径填入此字段。
+
+界面标签为“最近模型调用”，下方显示对应步骤名称；没有任何 LLM 调用时显示“本任务尚未调用模型”。值列必须可换行/截断，完整值通过 title 可查看，不能越过摘要面板。
+
+## 2. 部分完成
+
+`PARTIAL_SUCCESS` 的全部流水线步骤已结束，进度满格是正确的执行状态。页面文案必须为“处理流程已完成”，紧随解释说明：`AI 笔记已生成；5 个地点待确认`、`未配置高德 POI，地图补充未执行`等。它不得称为“核心结果”或让用户误以为某个隐形步骤仍在运行。
+
+## 3. 视频封面
+
+当前已实施基线是 API 将远程封面规范化为 HTTPS，加载失败显示 Clapperboard 占位。v0.4.3 将列表封面升级为服务端下载、校验、按哈希本地保存并生成 672×378 WebP，列表只使用本地 Cover API；详情页仍可复用同一 CoverAsset。封面失败不影响笔记阅读。最新契约见 `VIDEO_NOTE_LIST_V043_SPEC.md`。
+
+## 4. 安全 Markdown 渲染
+
+视频笔记章节正文按受限 Markdown 渲染：段落、二三级标题、无序/有序列表、粗体、斜体、行内代码与引用。Markdown 不允许 HTML 注入、脚本、图片、任意链接协议或原始 HTML。模型生成的未识别语法以纯文本降级显示。
+
+## 5. 已实施基线与 v0.4.2 替代规则
+
+当前实现已经具备摘要、时间线、独立截图区、完整转写预览和 TXT 导出，并能区分 `PLANNING / READY / PARTIAL / UNAVAILABLE`。最新批注返工将页面顺序替换为：Hero → 摘要 → 主旨目录 → 按时间线详述 → 地点候选/完整转写；截图从独立宫格/全宽图迁移为对应 Section 文字侧面的缩略图。
+
+完整转写区继续显示 Segment 总数、来源、180 天保留截止和导出，但默认展示/导出 AI corrected_text；raw_text 只在证据审计入口使用。导出按钮和 Lightbox 视觉、时间码锚点及 responsive 规则以 `VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md` 为准。
+
+## 6. 验收
+
+1. `EXTRACT_TRAVEL_FACTS` 等 LLM 步骤在任务摘要中显示实际路由的 Provider/模型和步骤名。
+2. `PARTIAL_SUCCESS` 显示“处理流程已完成”及明确的待确认/未配置原因，不显示“部分完成 · 100%”。
+3. Bilibili `http://` 封面在浏览器请求 HTTPS，失败时显示占位。
+4. AI 笔记中的 `**粗体**`、列表和标题被渲染为对应 HTML，原始标记不再直接显示。
+5. 同一页面同时可见摘要和按时间线详述；时间线章节按时间递增并覆盖视频末段。
+6. 0 张截图时显示 `SCREENSHOT_PLAN_EMPTY` 或实际失败原因，不显示无解释的“0 张可用”。
+7. 完整转写区显示总段数、保留截止时间；TXT 导出包含全部段落，过期后显示 180 天清理状态。
+
+
+---
+
+# FILE: VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md
+
+# Video Note Reading Experience v0.4.2
+
+> 状态：第一阶段已实施；2026-08-24 批注返工已冻结、待实施
+> 更新日期：2026-08-24
+> 适用页面：`/video-notes/:noteId`
+> 现场样本：`note_221cd61e9600493cb3f32e062e1ad013`
+> 标注设计：`design/ui/v0.4.4/video-note-detail-pc-annotated.png`、`video-note-detail-mobile-annotated.png`
+
+---
+
+# 1. 返工目标
+
+当前页面已经具备视频元数据、摘要、时间线章节、截图、地点候选、完整转写预览与 TXT 导出，但信息顺序和内容语义仍不符合“先定位、再阅读、随文看图、需要时核对原文”的阅读目标。
+
+本次返工固定解决：
+
+- 地点候选和完整转写入口移到文章最底部，作为集中回查区；
+- 所有时间码可以跳到对应时间线段落；
+- 目录展示各段主旨，不输出泛化套话；
+- 页面正文使用 AI 校对后的提纲与详述，不直接铺转录原文；
+- 转写内容在进入总结前执行 AI 校对，保留原始版本供审计；
+- 截图嵌入对应章节，不再作为割裂的独立图库；
+- 截图可点击放大、切换并关闭；
+- TXT 导出使用项目统一按钮视觉。
+
+本文件不授权直接实施。实现前仍需遵守 `REGRESSION_AND_CHANGE_GUARD.md`。
+
+---
+
+# 2. 页面信息顺序
+
+除返回栏和视频 Hero 外，页面顺序固定为：
+
+```text
+Video Hero：封面、标题、作者、时长、来源
+↓
+AI 摘要
+↓
+主旨目录
+↓
+按时间线详述（随文嵌入截图）
+↓
+Bottom Evidence Zone
+  ├─ 地点候选
+  └─ 完整转写入口/预览
+↓
+来源、冲突、生成版本与审计信息
+```
+
+## 2.1 Video Hero 封面
+
+Hero 有 READY CoverAsset 时展示真实封面；封面缺失、失败或未下载时不显示场记板/图标占位，封面区域为空并收起，标题/来源内容自然占据可用宽度。不得用视频截图冒充平台封面。
+
+## 2.2 Bottom Evidence Zone
+
+地点候选和完整转写必须位于文章正文最底部，在所有时间线详述之后、来源/版本审计之前。它们是回查工具，不抢占首屏阅读顺序。
+
+PC：双列布局，地点候选在左，完整转写在右；两卡顶部对齐。Mobile：按“地点候选 → 完整转写”纵向排列，不横向挤压。
+
+地点候选显示：
+
+- canonical/raw 名称；
+- 类型；
+- POI 状态；
+- 一句特色简介；
+- 来源时间码；
+- 点击时间码跳转到对应正文；
+- Confirmed 地点可进入 Place Detail。
+
+完整转写卡显示：
+
+- 总段数；
+- AI 校对状态与模型；
+- 保留截止日期；
+- 前 8 段校对稿预览；
+- “展开更多”和“导出完整转写”；
+- 原始转写只在证据/校对差异入口中查看，不作为默认阅读正文。
+
+---
+
+# 3. Transcript 双版本与 AI 校对
+
+## 3.1 数据原则
+
+每个时间码 Segment 同时保留：
+
+```text
+raw_text
+corrected_text
+start_ms / end_ms
+correction_status
+correction_confidence
+correction_reason
+correction_provider / model / prompt_version
+```
+
+`raw_text` 是 ASR/平台字幕原文，永久只读直到保留期清理；`corrected_text` 是默认展示、总结和导出的校对稿。AI 校对不得覆盖 raw，也不得改变时间范围和 Segment ID。
+
+## 3.2 校对目标
+
+AI 校对处理：
+
+- 口齿不清、口音造成的同音字；
+- ASR 断句与重复词；
+- 视频标题、作者、地名、菜名和专有名词；
+- 明显语法残缺和无意义填充词；
+- 数字、计量单位和常见旅行表达。
+
+校对不得：
+
+- 增加原文没有的事实；
+- 改写作者立场；
+- 猜测无法确认的地名；
+- 把城市、景区、寺庙等候选擅自合并；
+- 删除影响 Evidence 的否定、价格和提醒。
+
+不确定内容使用 `［待确认：…］` 或低置信标记；地名在高德确认后再写 canonical name。
+
+## 3.3 Pipeline
+
+```text
+NORMALIZE_TRANSCRIPT
+→ CORRECT_TRANSCRIPT
+→ VALIDATE_CORRECTION
+→ GENERATE_AI_NOTE
+```
+
+校对按固定 Segment 块执行，每个输出必须引用原 Segment ID。服务端校验 Segment 覆盖率、顺序、时间范围和文本非空；不得接受缺段、乱序或新增 ID。
+
+优先使用配置的主模型，失败时使用备用模型。全部模型不可用时，Transcript 保留 `UNCORRECTED`，最终 AI Note 不得伪装为完整完成；任务进入 `NEEDS_USER` 或明确的 `PARTIAL_SUCCESS`，页面显示“转写尚未校对”。
+
+---
+
+# 4. 摘要、目录与正文语义
+
+## 4.1 摘要
+
+摘要只回答：视频讲什么、核心结论、主要地点/体验、最值得注意什么。建议 120–300 中文字，不直接拼接 Transcript。
+
+## 4.2 主旨目录
+
+目录由服务端基于校对稿和时间线章节生成。每项包含：
+
+```text
+start_ms
+heading
+thesis
+target_section_id
+```
+
+规则：
+
+- `heading` 是明确主题，例如“避开国庆人流的筛选方法”；
+- `thesis` 用 20–50 字概括本段主旨；
+- 禁止“本段介绍了一些内容”“作者继续讲解”等无信息句；
+- 目录按时间递增；
+- 最多两级；
+- 点击整行或时间码跳转对应正文。
+
+目录视觉必须使用产品主体设计语言，而不是表格：暖白纸面、不使用硬边框网格；标题使用现有衬线标题体系，时间码使用朱砂红小号等宽数字，heading 为主要文字，thesis 使用较浅正文色；行间用细分隔线和留白组织。hover/focus 使用轻暖底色，当前 Section 使用左侧短朱砂标记和文字状态，不能只靠颜色。
+
+## 4.3 按时间线详述
+
+页面“全文/正文”统一改称“按时间线详述”。它不是 Transcript 原文，而是基于完整 AI 校对稿生成的提纲挈领内容。
+
+每个 Section 固定包含：
+
+- 时间范围和可点击起始时间码；
+- 主旨标题；
+- 1 段结论性概述；
+- 2–6 条关键要点；
+- 相关地点/菜品/注意事项；
+- 嵌入的关键截图；
+- “查看对应校对稿”和“打开原片”两个不同动作。
+
+Section 必须覆盖完整 Transcript，不因摘要长度限制只处理前 12000 字符。禁止在正文中直接连续铺满原始转录句子。
+
+---
+
+# 5. 时间码跳转规则
+
+页面内所有时间码默认执行本地段落跳转：
+
+- 地点候选时间码 → 包含该 PlaceMention 的时间线 Section；
+- 完整转写 Segment 时间码 → 最近的 Section，并定位/展开对应校对稿；
+- 目录时间码 → 对应 Section；
+- 截图时间码 → 截图所在 Section；
+- Section 时间码 → 当前 Section 顶部。
+
+跳转后：
+
+- 使用稳定锚点 `#section-<id>` 或 `#t=<milliseconds>`；
+- 将目标滚动到固定 Header 下方；
+- 目标短暂高亮 2 秒；
+- 将标题容器设为可聚焦并移动键盘焦点；
+- 浏览器前进/后退恢复锚点；
+- “打开原片”必须是独立按钮，不与页面内跳转混用。
+
+---
+
+# 6. 截图随文排版
+
+独立“代表截图”宫格不再作为默认主阅读区。截图必须嵌入相关时间线 Section：
+
+- PC 单张图默认作为 220–280px 缩略图放在文字侧面，正文占 60–68%，图片占 32–40%；
+- 图片可在章节间左右交替，但同一页面保持可预测节奏，不做机械锯齿；
+- 两张图可在侧栏上下堆叠；只有全景或强视觉章节才允许全宽主图；
+- Mobile 缩略图放在该段文字之后并占满内容宽度，不产生横向滚动；
+- 图片使用 `object-fit: contain`，不得裁掉菜单、店招、景区主体或文字。
+
+截图选择必须对应关键内容：地点外观、菜品、景区特色、路线提示、价格/菜单、关键操作或结论证据。仅因为“章节起始时间”而选取普通 talking head、片头、转场或无信息帧不合格。
+
+每张截图保存并展示：
+
+- 实际时间码；
+- 简短内容说明，而不是统一“章节起始时间码代表帧”；
+- selection_reason；
+- Section/PlaceMention/Segment 关系。
+
+## 6.1 Lightbox
+
+点击截图打开灯箱：
+
+- 完整 `contain` 显示；
+- 支持上一张/下一张；
+- 显示时间码与说明；
+- 点击遮罩、关闭按钮或 Escape 关闭；
+- 打开后锁定背景滚动；
+- 关闭后焦点回到原截图；
+- Mobile 支持触控但不要求复杂手势缩放；
+- 图片加载失败显示占位与来源时间码。
+
+---
+
+# 7. 导出按钮规范
+
+“导出完整转写（TXT）”使用项目统一次级按钮：
+
+- 与现有 `.button / .button--outline` 体系一致；
+- 统一 36–40px 高度、圆角、边框、图标尺寸和 hover/focus 状态；
+- 文案简化为“导出 TXT”，旁边以辅助文字说明“完整 AI 校对稿”；
+- 不使用浏览器原生灰色按钮样式；
+- 导出进行中、成功、失败均有状态；
+- 默认导出 `corrected_text`，文件头记录校对模型和生成时间；原始稿只通过审计型独立导出提供。
+
+---
+
+# 8. API 与 ViewModel
+
+Video Note Detail 增加：
+
+```text
+toc[]: section_id / start_ms / heading / thesis
+transcript.correction_status
+transcript.correction_provider/model
+transcript.preview[].raw_text/corrected_text
+sections[].summary/bullets/place_refs/screenshots
+screenshots[].caption/selection_reason/section_id
+```
+
+时间码 API 必须使用稳定 Section ID；历史 Note Version 的锚点不能因重新排序随机变化。
+
+Transcript 导出：
+
+```text
+GET /api/video-notes/{note_id}/transcript/export?version=corrected
+GET /api/video-notes/{note_id}/transcript/export?version=raw
+```
+
+默认页面只调用 corrected；raw 入口放在证据/审计区域。
+
+---
+
+# 9. 响应式与视觉层级
+
+PC 首屏优先看到 Hero、摘要和主旨目录；地点候选与完整转写位于文章底部。Mobile 同样先阅读正文，底部 Transcript 默认只显示 4–8 段并可展开。
+
+视觉层级：
+
+- 地点候选和完整转写是文章底部的工具/证据卡；
+- 摘要和目录是阅读导航；
+- 时间线详述是主正文；
+- 截图是随文内容，不是独立附件区；
+- 原始转写和模型审计是次级信息。
+
+所有时间码、截图和按钮需要键盘可达、可见焦点、中文 aria-label；不能只靠朱砂色表达选中或错误。
+
+---
+
+# 10. 验收标准
+
+1. Hero 后依次进入摘要、目录和正文；地点候选与完整转写位于文章最底部；
+2. Hero 有封面时使用真实 CoverAsset，缺省时封面区域为空/收起，不显示场记板占位；
+3. 地点、Transcript、目录、截图时间码均跳转到正确 Section；
+4. 跳转后 Section 高亮、聚焦，前进/后退可恢复；
+5. 目录使用暖白、朱砂时间码、衬线标题、细分隔线和明确 focus，不呈现硬边框表格；
+6. 目录每项包含具体 heading 和 thesis，无泛化套话；
+7. 正文是 AI 校对后的时间线提纲/详述，不连续铺转录原文；
+8. 232 段 Transcript 全部拥有 corrected_text 或明确待确认状态；
+9. AI 校对不改变 Segment ID、顺序和时间范围；
+10. 地名不确定时进入待确认，不由校对模型编造；
+11. 关键截图以 220–280px 缩略图放在对应文字侧面，不再只显示独立宫格或默认全宽大图；
+12. 截图说明具体，普通 talking head/片头/转场不作为关键帧；
+13. 点击截图打开灯箱，Escape/遮罩/关闭按钮均可关闭；
+14. Lightbox 使用 contain，PC/Mobile 无裁切和横向溢出；
+15. TXT 按钮符合统一视觉，默认导出完整 AI 校对稿；
+16. raw Transcript、corrected Transcript、Note 和 Evidence 版本关系可审计；
+17. 校对模型不可用时页面不伪装为完整完成。
+
+---
+
+# 11. 实施边界
+
+本轮只完成文档。后续实现应拆为：
+
+1. Transcript Correction 数据/API/Pipeline；
+2. TOC thesis 与稳定锚点；
+3. Hero CoverAsset/缺省空状态和 Bottom Evidence Zone 重排；
+4. 时间码页面内跳转；
+5. Section 结构化正文；
+6. 侧排缩略图、关键帧重新选取和 Lightbox；
+7. 导出按钮与 corrected/raw 导出；
+8. PC/Mobile、键盘和真实样本验收。
+
+
+---
+
+# FILE: VIDEO_NOTE_LIST_V043_SPEC.md
+
+# Video Note List v0.4.3
+
+> 状态：已实施；后续回归受 `REGRESSION_AND_CHANGE_GUARD.md` 保护
+> 更新日期：2026-08-24
+> 适用页面：`/video-notes`
+> 参考实现：[lanyeeee/bilibili-video-downloader](https://github.com/lanyeeee/bilibili-video-downloader)，审阅基线 `1254c6bf2a09a590163091e67651bfc9942171e2`
+
+---
+
+# 1. 目标
+
+本次只返工视频笔记列表页的两个问题：
+
+1. 顶部操作按钮文案、字号和尺寸符合现有设计系统；
+2. 每条视频笔记下载并展示真实视频封面，不再长期显示通用场记板占位。
+
+本文件不授权直接实施。
+
+---
+
+# 2. 顶部操作按钮
+
+## 2.1 文案
+
+“投递视频链接”改为：
+
+> **添加视频链接**
+
+原因：
+
+- “投递”偏系统术语，不符合普通用户表达；
+- 页面已经说明系统会把视频整理成笔记，按钮只需说明下一动作；
+- 文案更短，PC/Mobile 都不容易换行。
+
+## 2.2 视觉规格
+
+按钮复用项目统一 `.button.button--primary`，不得单独创建超大红色按钮：
+
+```text
+height: 40px
+padding-inline: 16–18px
+font-size: 14px
+font-weight: 600
+icon-size: 16px（可选 Link/Plus 图标）
+border-radius: 使用全局按钮 token
+white-space: nowrap
+```
+
+PC：位于介绍卡右侧，宽度由内容决定，与介绍卡垂直居中。Mobile：介绍文字与按钮分行，按钮可占满内容宽度，但高度和字号不放大。
+
+状态：hover、focus-visible、active、disabled 使用统一 Button Token；不能使用浏览器原生样式、内联字号或局部特殊圆角。
+
+---
+
+# 3. 封面来源
+
+## 3.1 元数据优先
+
+Bilibili Resolver 从视频元数据保存：
+
+```text
+VideoAsset.cover_url
+```
+
+普通视频通常来自 Bilibili `view` 数据的 `pic` 字段；分 P 默认使用所属视频主封面，未来若平台提供独立分 P 封面再覆盖。封面 URL 不由 LLM 推断。
+
+## 3.2 参考实现
+
+参考仓库的做法：
+
+- `normal_info.pic / episode.cover` 作为 CoverTask URL；
+- `ensureHttps` 把 `http://` 转成 `https://`；
+- `BiliClient.get_cover_data_and_ext` 发起 GET；
+- 检查 HTTP 200；
+- 根据 `Content-Type` 识别 PNG/WebP/AVIF，其他图像回退 JPEG；
+- 读取原始 bytes 并写入本地文件；
+- 列表展示使用 `@672w_378h_1c.webp` 等 16:9 CDN 变体。
+
+至简只借鉴封面 URL、HTTPS、响应校验、Content-Type 和本地写入方法，不复制其 Tauri/Rust 任务系统。若未来直接移植实质源码，必须在 `THIRD_PARTY_NOTICES.md` 加入其 MIT 声明和参考 commit。
+
+---
+
+# 4. 至简封面处理流程
+
+```text
+FETCH_METADATA
+→ FETCH_COVER
+→ VALIDATE_COVER
+→ STORE_COVER_ORIGINAL
+→ GENERATE_LIST_DERIVATIVE
+→ MATERIALIZE_VIDEO_NOTE_LIST
+```
+
+## 4.1 FETCH_COVER
+
+- 将协议相对或 HTTP URL 规范为 HTTPS；
+- 只允许 Bilibili 已知图片 CDN host，例如受配置 allowlist 管理的 `*.hdslb.com / *.biliimg.com`；
+- 请求携带合理 User-Agent 和 Bilibili Referer；
+- 限制重定向、超时和最大字节数；
+- 不因为元数据含 URL 就绕过 SSRF 检查；
+- 下载失败不阻塞 AI Note，记录 `COVER_UNAVAILABLE` 并使用占位图。
+
+## 4.2 VALIDATE_COVER
+
+- HTTP 状态必须为 200；
+- `Content-Type` 必须为允许的 `image/jpeg / image/png / image/webp / image/avif`；
+- 文件头必须与 MIME 一致；
+- 图片可解码且宽高合理；
+- 拒绝 HTML、SVG、超大文件和 0 字节响应；
+- 原始内容使用 SHA-256 去重。
+
+## 4.3 本地存储
+
+```text
+data/permanent/video-covers/<sha256>.<ext>
+data/permanent/video-covers/derivatives/<sha256>-672x378.webp
+```
+
+原始封面按内容哈希永久保存，列表衍生图可重建。不同 Note/Version 引用同一 VideoAsset 时复用封面，不重复下载。
+
+列表 API 返回本地受控图片 URL，不直接长期热链 Bilibili CDN。图片响应使用内容哈希 ETag 和 immutable Cache-Control。
+
+---
+
+# 5. 列表卡封面布局
+
+```text
+aspect-ratio: 16 / 9
+object-fit: cover
+desktop width: 184–200px
+border-radius: 使用 Card token
+background: 当前 paper placeholder token
+```
+
+- 封面填满当前左侧缩略图区；
+- 时长徽标保留在右下角，不遮挡重要主体；
+- 图片 alt 使用视频标题；
+- 图片 lazy-load；首屏第一张允许 eager；
+- 加载时使用低对比 skeleton；
+- 下载失败才显示现有场记板占位，并提供不打断阅读的“封面不可用”语义；
+- 封面点击行为仍属于整张 Card 导航，不新增独立下载动作；
+- PC/Mobile 保持 16:9，不拉伸、不使用 contain 留大面积空白。
+
+---
+
+# 6. 数据模型
+
+推荐新增 `video_cover_assets`：
+
+```text
+id
+video_asset_id
+source_url
+local_path
+derivative_path
+content_hash
+content_type
+width
+height
+byte_size
+status
+error_code
+fetched_at
+created_at
+```
+
+`status`：`PENDING / READY / UNAVAILABLE / INVALID`。
+
+VideoAsset 保留平台 `cover_url`；CoverAsset 表示已下载、本地可服务的派生资产。不得用远程 URL 是否存在代表本地封面已经可用。
+
+---
+
+# 7. API
+
+Video Note List Item 增加：
+
+```text
+cover_status
+cover_image_url
+cover_width
+cover_height
+cover_error
+```
+
+图片资源：
+
+```text
+GET /api/video-covers/{cover_id}/image
+```
+
+或使用等价的 VideoAsset cover endpoint，但必须：
+
+- 只服务数据库已登记路径；
+- 防止任意文件路径读取；
+- 返回正确 Content-Type、ETag、Cache-Control；
+- READY 以外返回稳定占位/404，不代理任意用户 URL。
+
+---
+
+# 8. Job 与重试
+
+`FETCH_COVER` 位于 `FETCH_METADATA` 之后，可独立重试和缓存复用。封面失败属于非核心增强：
+
+- 不把整个视频笔记标为 FAILED；
+- Job/Note 可以 COMPLETED 或 PARTIAL_SUCCESS；
+- 列表使用占位；
+- 后续重新生成或封面专项重试可补齐；
+- 错误日志只保存 host、状态、MIME、字节数和错误码，不记录 Cookie。
+
+---
+
+# 9. 验收标准
+
+1. 顶部按钮文案为“添加视频链接”；
+2. PC 按钮高度 40px、14px 字号，与全局 Primary Button 一致；
+3. Mobile 按钮可全宽但不放大字号/高度；
+4. Bilibili 元数据 cover URL 能规范为 HTTPS；
+5. 参考样本下载原始封面并生成 672×378 WebP 列表图；
+6. 封面使用本地 API URL，不长期热链远程 CDN；
+7. 同一 VideoAsset 多 Note Version 只下载一次；
+8. JPEG/PNG/WebP/AVIF MIME 和文件头校验通过；
+9. HTML、SVG、超大和损坏响应被拒绝；
+10. 列表缩略图保持 16:9、object-fit cover、时长徽标可读；
+11. 加载 skeleton 和失败占位不导致布局跳动；
+12. 封面失败不阻塞视频笔记阅读；
+13. PC/Mobile 无裁切异常、拉伸和横向溢出；
+14. 键盘焦点、alt 和 Card 导航保持可用；
+15. 若直接复用参考项目代码，MIT Notice 完整。
+
+---
+
+# 10. 实施边界
+
+本轮只完成文档。后续实现拆为：
+
+1. CoverAsset 数据与迁移；
+2. `FETCH_COVER` Provider/Service；
+3. 本地原图与 16:9 衍生图；
+4. 封面图片 API；
+5. Video Note List ViewModel；
+6. 列表真实封面与按钮视觉；
+7. Fixture、网络失败、安全、PC/Mobile 回归；
+8. 必要时补充第三方 MIT Notice。
+
+
+---
+
+# FILE: PIPELINE_STEP_REPLAY_V044_SPEC.md
+
+# Pipeline Step Replay v0.4.4
+
+> 实施状态：源码、自动测试、在线库 `0007`、服务重启与真实步骤续跑均已完成。
+
+> 状态：已实施并验收
+> 更新日期：2026-08-24
+> 适用入口：任务详情、运行日志 ERROR/CRITICAL 详情
+> 标注设计：`design/ui/v0.4.4/pipeline-step-replay-and-delete-pc-annotated.png`
+
+---
+
+# 1. 正确语义
+
+“从错误恢复”不是把所属任务从第一步重新执行。Pipeline 在运行期间暂存每个已完成步骤的可复用中间产物；某一步产生 ERROR 时，只要所需中间产物仍在有效期内，用户可以从该失败步骤重新执行，并让所有后续步骤顺次运行。失败步骤之前已经完成的步骤不再执行。
+
+```text
+STEP A COMPLETED ─┐
+STEP B COMPLETED ─┼─ 复用，不重跑
+STEP C FAILED    ─┘
+        ↓ 用户确认“从此步骤继续”
+STEP C RETRYING
+→ STEP D
+→ STEP E
+→ ...
+```
+
+中间产物到期清理后，步骤级续跑不可用；用户只能选择“完整重跑”。
+
+---
+
+# 2. 中间产物生命周期
+
+默认复用窗口使用现有 `video_cache_ttl_hours=24`，允许未来配置但第一版不在 UI 暴露任意值。
+
+## 2.1 立即清理
+
+- 临时 Cookie 文件；
+- API Key/Authorization 临时值；
+- 未登记的 scratch 文件；
+- 被取消的未完成写入。
+
+## 2.2 24 小时 Replay Cache
+
+- canonical URL 与 metadata Snapshot；
+- 平台字幕/ASR Transcript Version；
+- corrected Transcript Version；
+- Note 分块 checkpoint；
+- Place extraction JSON；
+- POI candidates；
+- Screenshot Plan；
+- 已下载且校验通过的音频/截图视频；
+- 已生成但尚未成为最终投影的截图/派生文件。
+
+## 2.3 持久结果
+
+- Source/Snapshot/Transcript/Segment；
+- AINote/Version/Section；
+- Claim/Evidence；
+- PlaceMention/Place/PlaceNote；
+- READY Screenshot/CoverAsset；
+- 审计事件。
+
+`CLEAN_CACHE` 不能在任务结束时立即删除 Replay Cache；它只清理 secrets/scratch，并登记 replayable_until。Worker 定时清理在 TTL 到期后删除 Replay Cache。
+
+---
+
+# 3. Step Artifact Manifest
+
+每个可重放步骤保存：
+
+```text
+job_id
+attempt_id
+step_name
+artifact_type
+artifact_ref/path
+input_hash
+content_hash
+schema_version
+producer_version
+created_at
+replayable_until
+status
+```
+
+Artifact 状态：`AVAILABLE / EXPIRED / INVALIDATED / MISSING`。
+
+只有输入哈希、Schema、Producer Version 与依赖 Artifact 均有效时才能复用。模型、Prompt 或用户输入变化导致依赖失效时，服务端自动把真正受影响的最早步骤作为 replay_from_step；前端不能绕过。
+
+---
+
+# 4. 可续跑判定
+
+步骤级续跑必须同时满足：
+
+1. Job 当前为 `FAILED / NEEDS_USER / PARTIAL_SUCCESS`，且没有活跃 lease；
+2. ERROR/CRITICAL 事件规范关联该 Job 和失败 Step；
+3. 请求 step_name 等于服务端判定的最早失败/失效步骤；
+4. 该步骤所有上游 Artifact 均 AVAILABLE 且未过期；
+5. Source、模型路由、Prompt、Parser 和配置没有使上游输入哈希失效；
+6. 没有另一个 replay 正在排队或执行。
+
+不满足时返回不可续跑原因：
+
+- `REPLAY_ARTIFACT_EXPIRED`
+- `REPLAY_ARTIFACT_MISSING`
+- `REPLAY_INPUT_CHANGED`
+- `REPLAY_STEP_MISMATCH`
+- `REPLAY_ALREADY_RUNNING`
+- `REPLAY_LEASE_ACTIVE`
+
+---
+
+# 5. 执行行为
+
+提交步骤级续跑后：
+
+- 创建同一 Job 的新 Attempt；
+- 上游已完成步骤记录为 `REUSED`，保留原始 started/finished 和 Artifact 引用；
+- 失败步骤及其所有下游步骤重置为 `PENDING`；
+- 下游旧中间输出标记 `INVALIDATED`，最终版本不原地覆盖；
+- `current_step` 设置为 replay_from_step；
+- Worker 从该步骤开始顺序执行；
+- 写入 `job.step_replay.queued/started/completed/failed` 审计链；
+- 新 Attempt 再失败时保留旧 ERROR 和旧 Attempt。
+
+完整重跑是不同动作：从 Pipeline 首个步骤开始，可按缓存策略复用，但不保证跳过任何步骤。
+
+取消不是失败步骤。步骤续跑仍只在有明确失败步骤与有效 Artifact 时可用。完整重跑是独立动作：任何状态下均可从右上角提交；若原 Job 正在排队或运行，服务端先将其标记为协作式取消，再创建新的 `QUEUED` Job。单 Worker 会在旧流程到达安全边界并释放 lease 后领取新任务，避免两个流程并发写同一结果。
+
+---
+
+# 6. API
+
+```text
+GET /api/jobs/{job_id}/replay-options
+POST /api/jobs/{job_id}/retry-from-step
+POST /api/jobs/{job_id}/retry-full
+```
+
+`GET /api/jobs/{job_id}/replay-options` 还返回：
+
+```json
+{
+  "full_replay_available": true,
+  "full_replay_reason": "将停止当前流程并创建新的完整任务"
+}
+```
+
+右上角始终展示“从头重新运行”。失败恢复卡仅在 `step_replay_available=true` 时展示步骤续跑按钮；不可续跑时只展示原因并引导用户使用右上角完整重跑，不重复放置完整重跑按钮。
+
+Replay Options：
+
+```json
+{
+  "step_replay_available": true,
+  "replay_from_step": "GENERATE_AI_NOTE",
+  "replayable_until": "...",
+  "remaining_seconds": 53210,
+  "reused_steps": ["VALIDATE_LINK", "FETCH_METADATA", "FETCH_SUBTITLE"],
+  "rerun_steps": ["GENERATE_AI_NOTE", "EXTRACT_TRAVEL_FACTS", "..."],
+  "reason": null
+}
+```
+
+步骤续跑请求：
+
+```json
+{
+  "step_name": "GENERATE_AI_NOTE",
+  "source_event_id": "evt_..."
+}
+```
+
+服务端不接受任意 from_step。`step_name` 只是用户确认值，最终必须与 Replay Options 一致。
+
+---
+
+# 7. 任务详情与日志 UI
+
+失败 Step 行显示：
+
+- “从此步骤继续”；
+- “将复用前 N 个步骤”；
+- “中间产物保留至 … / 剩余 …”；
+- 将重新执行的下游步骤列表；
+- 完整重跑作为次级动作。
+
+日志 ERROR/CRITICAL 抽屉不再使用“重跑所属任务”作为唯一动作。规则：
+
+- Artifact 可用：主按钮“从错误步骤继续”；
+- Artifact 已过期：不显示步骤续跑按钮，说明“中间产物已清理”，引导使用右上角完整重跑；
+- Job 已运行/完成：不显示过期 ERROR 的续跑按钮；
+- 点击后确认框明确列出复用步骤和重跑步骤。
+
+页面不得让用户逐个手动点击后续步骤；Worker 自动顺次执行。
+
+---
+
+# 8. 验收
+
+1. C 步骤失败且 A/B Artifact 有效时，续跑只执行 C 及下游；
+2. 上游步骤显示 REUSED，不产生新的外部请求；
+3. 下游旧输出被 INVALIDATED，新版本不覆盖历史；
+4. 24 小时内 Replay Options 返回可用和剩余时间；
+5. TTL 到期后返回 `REPLAY_ARTIFACT_EXPIRED`，只能完整重跑；
+6. Cookie/scratch 立即清理，Replay Cache 保留到 TTL；
+7. 输入/模型/Prompt 变化时从服务端计算的最早失效步骤开始；
+8. 日志按钮语义为“从错误步骤继续”，不再误导为整任务重跑；
+9. 重复点击、活跃 lease、错误事件不匹配均被拒绝；
+10. 审计可追踪旧 Attempt、来源 ERROR、复用 Artifact 和新 Attempt。
+11. 运行中点击右上角完整重跑会取消旧 Job、创建新 Job，并导航到新任务；旧 Worker 在安全边界停止后再领取新 Job。
+12. 复用 canonical VideoAsset 时，步骤续跑以 `FETCH_METADATA` Artifact 的 `video_asset_id` 定位资产，不假设当前 Capture Source 与资产原 Source 相同。
+
+
+---
+
+# FILE: VIDEO_NOTE_DELETE_V044_SPEC.md
+
+# Video Note Delete v0.4.4
+
+> 实施状态：列表/详情菜单、后端删除边界与保留式删除测试已完成。
+
+> 状态：规格已冻结，待实施
+> 更新日期：2026-08-24
+> 标注设计：`design/ui/v0.4.4/pipeline-step-replay-and-delete-pc-annotated.png`
+
+---
+
+# 1. 入口
+
+删除能力同时提供两个合理入口，但共用同一个后端动作：
+
+- 视频笔记列表：每行右侧 `…` 菜单 → “删除笔记”；
+- 视频笔记详情：顶栏 `…` 菜单 → “删除笔记”。
+
+不在页面正文或首屏放常驻红色删除按钮。删除属于低频破坏性操作，放入溢出菜单；PC/Mobile 均保持至少 44px 点击区域和键盘操作。
+
+---
+
+# 2. 删除边界
+
+删除 Video Note：
+
+- 删除 AINote、Note Version、Section、TOC 和 ContentItem 投影；
+- 删除只属于该 Note 的截图关联与本地派生文件；共享 Screenshot/CoverAsset 保留；
+- 删除 Note 专属的模型生成结果和索引；
+- 写审计事件。
+
+不得连带删除：
+
+- Source 与原始 URL；
+- VideoAsset 与共享 CoverAsset；
+- Place、Route、Marker 和地点笔记；
+- 仍被其他内容或 Note 引用的共享 Source/资产；
+- Route、Marker 和地点笔记。
+
+v0.4.6 起，最后一个内容/Note 引用消失且无活跃 Job 时，同一事务删除孤立 Source，并由外键级联清理其 Snapshot、Segment、VideoAsset、Transcript、Cover 与截图；Place 和路线不随 Source 删除。
+
+---
+
+# 3. 状态与门禁
+
+- 有活跃生成/重生成 Job 时返回 409，提示先取消或等待结束；
+- Note 不存在返回 404；
+- 重复删除返回幂等 404/410，不产生重复审计；
+- 删除后详情页返回列表，列表、内容、概览、地点来源和搜索缓存全部刷新；
+- 旧书签访问已删除 Note 显示“笔记已删除”，不永久 loading；
+- 删除确认文案必须显示笔记标题和保留边界。
+
+第一版沿用现有内容删除策略，不新增回收站；这是不可恢复操作，确认框必须明确说明。若未来增加回收站，再单独迁移为 soft delete。
+
+---
+
+# 4. API
+
+```text
+DELETE /api/video-notes/{note_id}
+```
+
+响应：
+
+```json
+{
+  "status": "DELETED",
+  "note_id": "note_...",
+  "preserved": ["places"],
+  "source_deleted": true
+}
+```
+
+实现必须复用统一 Content/Note 删除 Service，列表页和详情页不能各自维护删除语义。
+
+---
+
+# 5. 确认框
+
+标题：`删除视频笔记？`
+
+正文示例：
+
+> 将删除《中秋国庆人少景美又便宜的地方》及其内容投影。若来源已无其他内容或活跃任务，来源视频、完整转写和审计记录会一并清理；地点与路线保留。此操作目前无法撤销。
+
+按钮：`取消` / `确认删除`。确认按钮使用 destructive variant；默认焦点在取消。
+
+---
+
+# 6. 验收
+
+1. 列表和详情 `…` 菜单都有删除入口；
+2. 删除前显示标题、保留边界和不可恢复提示；
+3. 活跃 Job 阻止删除；
+4. 删除 Note 后列表立即移除，旧 URL 显示已删除；
+5. Source、VideoAsset、Transcript、Place、Evidence 仍存在；
+6. Note 专属版本、Section、TOC 和无共享引用截图被清理；
+7. 共享 Cover/Screenshot 不被删除；
+8. 审计事件不包含 Transcript 正文或 Secret；
+9. PC/Mobile 菜单与确认框可键盘操作；
+10. 列表和详情调用同一 API/Service。
+
+
+---
+
+# FILE: PROMPT_SUPPLEMENTS_V045_SPEC.md
+
+# Prompt Supplements v0.4.5
+
+> 状态：已实施并验收。
+> 设计图：`design/ui/v0.4.5/prompt-supplements-settings-annotated.png`
+
+## 目标
+
+用户可为三个 AI 阶段增加表达偏好，而不能修改会影响解析和持久化的核心契约。
+
+| 阶段 | 可编辑补充 | 不可编辑核心契约 |
+| --- | --- | --- |
+| `transcript_correction` | 语气、口语保留程度、简洁度、专有名词关注点 | JSON、Segment ID 唯一性/顺序、字段、Schema、时间码边界 |
+| `video_note_summary` | 摘要篇幅、目标读者、行程/风险侧重点、措辞 | JSON、章节字段、有效 Segment 证据、章节结构 |
+| `travel_place_extraction` | 优先地点类型、体验/价格/人群关注点 | JSON、地点字段、有效 Segment 证据、不得生成坐标 |
+
+每项最多 1000 字符。补充文本只作为低优先级 System Message 插入固定核心 Prompt 与用户输入之间；核心 Prompt 不会通过 API 返回或编辑。
+
+## 保护与审计
+
+1. 设置页按每个阶段完整展示 6 条只读核心规则摘要与可编辑补充输入框；摘要可压缩措辞，但不得省略 JSON/Schema、字段、Segment ID、顺序/身份、Evidence/事实边界和坐标/锚点等契约类别，也不展示可编辑的 JSON 模板。
+2. `PromptSupplementsConfig` 在 API 写入时拒绝覆盖/忽略系统规则、修改 JSON/Schema/字段/键名/ID/顺序等越权表述。
+3. 即使补充文本绕过语义过滤，现有 JSON 解析、字段白名单、Segment ID 有效性与顺序校验仍在模型输出之后执行。
+4. 设置写入 `prompt:supplements`，审计事件只记录启用阶段和哈希，不记录用户文本。
+5. 保存仅影响之后发起的 AI 请求；已经完成的 Note/Transcript/Place 版本不原地修改。
+
+## API
+
+```text
+GET /api/settings/prompt-supplements
+PUT /api/settings/prompt-supplements
+```
+
+GET 返回三个补充文本、只读核心规则摘要、最大长度和每个阶段的哈希。PUT 只接收：
+
+```json
+{
+  "transcript_correction": "保留自然口语风格。",
+  "video_note_summary": "面向首次到访者，突出风险。",
+  "travel_place_extraction": "优先提取餐馆和街区。"
+}
+```
+
+## Pipeline 与续跑
+
+每个 AI Step Input 写入对应 `prompt_supplement_hash`。失败 Job 读取 Replay Options 时，系统比较历史 Input Hash 与当前设置；若哈希变化，从三个 AI 步骤中最早受影响步骤开始续跑，前端不能指定更晚步骤绕过变更。
+
+```text
+补充转写校对 Prompt 变更 → CORRECT_TRANSCRIPT 起续跑
+补充视频笔记 Prompt 变更 → GENERATE_AI_NOTE 起续跑
+补充地点提取 Prompt 变更 → EXTRACT_TRAVEL_FACTS 起续跑
+```
+
+## UI
+
+入口位于“设置 → AI 模型”，固定插入“推理路由”与“已保存模型”之间，不新增导航项或独立页面。每一行包含：阶段名、锁定核心契约说明、补充文本框、字符计数与“清空补充”。页面顶部提供统一“保存补充提示词”操作。
+
+
+---
+
+# FILE: MODEL_AND_RETENTION_UI_SPEC.md
+
+# 至简 模型配置与历史清理规格
+
+版本：v0.4，更新日期：2026-08-21，状态：`IMPLEMENTED / BROWSER_VERIFIED`。适用部署：Mac mini 单节点。
+
+## 1. 自定义模型库与路由
+
+模型设置不再固定展示 DeepSeek、MiMo、Ollama 等预置槽位。用户可新增、编辑、真实测试并保存任意 OpenAI 兼容或 Ollama 模型配置；每条配置至少包括显示名称、Provider 标识、Base URL、模型名、超时和 API Key。API Key 只进入 macOS Keychain，接口和 SQLite 仅返回“已保存/未保存”状态。
+
+“推理路由”独立于模型编辑：主模型与备用模型均从已保存的模型库中选择。转写校对另有可选的主/备用模型，两项均优先于推理路由，对应项留空时分别继承推理主/备用模型。主模型是唯一默认调用目标；仅在网络、HTTP、超时或 Provider 不可用等可恢复调用错误发生时才尝试备用模型。备用模型可留空；所有有效路由都未选择主模型时，依赖模型的任务必须进入 `NEEDS_USER`，不得回退到硬编码模型。
+
+已被主/备用路由引用的模型不能删除；先切换路由才能删除。每次保存、路由切换、真实测试、自动备用切换和删除均写入审计日志，不含 Key。
+
+## 2. 历史删除
+
+任务列表与内容列表提供独立的“删除历史”入口。删除不是归档：操作需要确认，成功后列表立即移除并写审计事件。
+
+- 仅 `COMPLETED`、`PARTIAL_SUCCESS`、`FAILED`、`CANCELLED`、`NEEDS_USER` 状态的任务可以删除；排队或运行中任务必须先取消，防止 Worker 写入已删除记录。
+- 删除任务会级联删除其步骤和执行事件；已生成内容不会被连带删除，用户可在内容页单独判断是否删除。
+- 删除内容会删除该内容及其专属 Claim/Evidence；若同一 Source 已无其他内容、视频笔记或活跃 Job，则同步删除其来源审计记录、Snapshot/Segment 与专属视频资产。Place、路线和已独立持久化的地点信息保留。
+- 来源审计页支持手动删除孤立 Source；存在内容、视频笔记、排队/运行任务或取消清理 lease 时返回 409，并显示各类阻塞数量。
+- 前端确认文案必须说明上述边界；操作成功后刷新任务/内容/待办/概览缓存。
+
+### 2.1 视频完整转写 180 天自动清理（已实施）
+
+视频完整转写采用固定 180 天保留期，不复用当前通用 `data_retention_days`/日志保留配置，也不增加可变的用户设置。保留截止时间从 Transcript 创建时计算，并显示在视频 AI 笔记页；有效期内可导出完整时间码 TXT。
+
+Worker 启动时及最多每 24 小时执行幂等清理：正文、Segment 文本、Evidence quote 和 metadata 全文 fingerprint 被物理清空，保留 Transcript ID、版本、哈希、时间码元数据、`retention_until/purged_at`、AI Note 与截图。过期后页面显示“完整转写已按 180 天策略删除”，导出和完整转写接口返回 410。浏览器已下载到用户设备的文件不受服务端清理控制。
+
+### 2.2 视频笔记删除（已实施，v0.4.6 更新）
+
+视频笔记列表和详情均在 `…` 菜单提供“删除笔记”，共用 `DELETE /api/video-notes/{note_id}`。删除 AINote、版本、Section、TOC 和 Content 投影；若 Source 已无其他内容或活跃 Job，再清理 Source、VideoAsset、CoverAsset、Transcript、截图与 Segment Evidence。Place、路线及独立地点信息保留。活跃生成 Job 阻止删除，第一版不提供回收站。
+
+## 3. 页面与响应式
+
+模型页先显示“推理路由”两条选择框与状态摘要，随后是可展开的“已保存模型”列表和“新增自定义模型”入口。窄桌面下路由选择框垂直排布，编辑卡仍使用既有暖白、朱砂红与细线体系，不引入第三方品牌图标。
+
+任务与内容行的删除入口默认隐藏于行尾操作区；窄桌面保留最小 40×40px 触控区域，删除前使用原生确认对话框并附带对象名称。删除控件不得覆盖行的详情跳转区域。
+
+## 4. API 契约与验收
+
+模型库接口：`GET/POST /api/settings/model-profiles`、`PUT/DELETE /api/settings/model-profiles/{id}`、`POST /api/settings/model-profiles/{id}/test`；通用/转写路由：`GET/PUT /api/settings/model-routing`；转写参数：`GET/PUT /api/settings/transcript-processing`。任务删除：`DELETE /api/jobs/{id}`；内容删除：`DELETE /api/content/{id}`；孤立来源删除：`DELETE /api/sources/{id}`。
+
+验收：新增两个自定义模型后，可分别选为主/备用；已被引用模型无法删除；主模型连接失败时视频笔记记录实际备用模型并写入审计；没有主模型时任务明确需配置。终态任务和内容均可删除，运行中任务返回可理解的冲突提示，删除后刷新不再出现且相关审计日志可查询。
+
+
+---
+
+# FILE: MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md
+
+# 至简 移动会话、视频诊断与任务控制规格
+
+版本：v0.8，更新日期：2026-08-25，状态：`IMPLEMENTED / BROWSER_VERIFIED`。适用：Mac mini 局域网服务与手机浏览器。
+
+## 1. 可信会话刷新
+
+局域网配对成功后，服务以 HttpOnly 会话 Cookie 保存授权，不保存原始 4 位配对码。SQLite 读取到的 `AccessSession.expires_at` 必须统一按 UTC 解释后比较；无时区数据库值不得抛出 500。Cookie 使用根路径、7 天 Max-Age、显式 Expires 与 `SameSite=Lax`，HTTP 局域网环境仅在非 HTTPS 时不设置 Secure。
+
+手机刷新时，前端只在 `/api/status` 返回 401/403 时进入配对页。500、网络不可达或其他服务错误必须进入“暂时无法连接 Mac mini”状态并提供重试，不得要求用户再次输入配对码。配对成功后刷新页面仍必须保留已授权状态，直至 Cookie 过期、配对码轮换撤销会话或用户清除浏览器数据。
+
+## 2. 手机投递与视频资产复用
+
+手机投递链接的 HTTP 请求仅创建 Source/Job 并立即返回持久 Job；认证错误、参数错误和后台视频处理错误必须分层显示。重复投递同一 Bilibili canonical URL 时，VideoAsset 按 canonical URL 复用，不得再次插入并触发唯一约束。数据库写入异常必须回滚当前事务，再用干净 Session 写入稳定错误码和审计事件，Worker 不得因 `PendingRollback` 退出。
+
+## 3. 阶段诊断日志
+
+视频任务每个阶段最少记录“开始、外部请求、关键检查点、完成/失败”四类审计事件。`FETCH_METADATA` 必须可区分：Bilibili 元数据请求、BV/CID 解析、视频资产查询、资产复用/创建、元数据写入。日志 detail 必须包含 `job_id`、`step`、`phase`、非敏感耗时与可人工判断的对象标识（BV、CID、字幕轨数量、缓存命中），不得包含 Cookie、Key、完整请求正文。
+
+任务详情错误卡显示稳定错误码、可读原因与“查看关联日志”入口。阶段日志中的每个错误需要给出可操作提示，例如 `VIDEO_METADATA_FAILED` 提示检查链接/网络，`VIDEO_LOGIN_REQUIRED` 提示补充 Cookie，`ATTEMPT_TIMEOUT` 提示查看该步骤日志后重试。
+
+## 4. 取消与重试门禁
+
+取消是协作式停止：API 先将 Job 和当前 Step 标为 `CANCELLED`，保留 lease owner 直到 Worker 在当前可中断边界确认取消。视频与通用 Pipeline 在每个步骤开始、外部调用返回后、物化写入前检查 Job 状态；若已取消，停止后续步骤、清理临时音频/Cookie、写入 `job.cancel.observed`，再释放 lease。取消后不得生成内容、覆盖结果或重新入队。
+
+“重试”只允许终态 Job，且取消中的 Job 必须等待 Worker 确认并释放 lease 后才能重试；否则返回 409 和“正在停止当前阶段”。重试重置 Job 的运行字段与所有未完成 Step 的运行状态/错误，增加 `retry_count`，再入队。Worker 启动时会释放已过期的取消 lease，避免崩溃后永久占锁。
+
+### 4.1 长模型步骤的取消观察与完整重跑（已实施）
+
+`CORRECT_TRANSCRIPT`、长字幕总结、地点提取等会连续发出多批模型请求。每一批请求开始前、请求返回后、递归拆分前和数据库物化前都读取持久 Job 状态；发现 `CANCELLED` 即抛出统一取消信号，停止尚未开始的批次、释放 lease 并写入 `job.cancel.observed`。已经发出的单次 HTTP 请求不能被 SQLite 状态反向中断，因此转写校对单批超时上限为 90 秒，不沿用模型配置的 300 秒上限。
+
+429、5xx、网络错误和超时不再通过递归二分放大外部调用；只有响应结构校验失败才缩小批次。校对按最多 2400 字符、16 段组织批次，每一批开始和结束写入 `batch_index / batch_total / provider / duration_ms` 的脱敏活动事件。
+
+取消中的页面状态必须是“正在停止当前步骤；确认停止后可从头重新运行”，而不是把禁用的“从头重新运行”伪装成可点击操作。`CANCELLED` 且 lease 已释放时允许完整重跑；仍持有 lease 时后端返回不可用原因。前端不得硬编码终态名单，而应读取服务端返回的操作能力。
+
+## 5. 验收
+
+1. 使用非 localhost 会话访问 `/api/status`、`/api/capture`、`/api/content` 不再产生无时区比较 500；刷新手机页面保持会话。
+2. 已授权手机在服务临时 500 时看到连接诊断与重试，不回到配对页。
+3. 重复 Bilibili 链接创建新 Job 时复用现有 VideoAsset，不发生 canonical URL 唯一约束失败。
+4. `FETCH_METADATA` 日志可定位到外部请求、CID、资产复用/创建和元数据写入；日志不泄露 Secret。
+5. 取消运行任务后，当前流程在下一个可中断边界停止，临时文件清理，lease 释放；取消确认前重试返回 409，确认后可入队重试。
+6. 取消处于多批模型校对的任务后，至多等待当前受控 HTTP 请求结束，不再发起下一批；`job.cancel.observed` 在 lease 释放前出现。
+7. 已取消且 lease 已释放的任务可从详情页完整重跑；取消进行中显示服务端原因并持续刷新，不存在永久禁用按钮。
+
+
+---
+
+# FILE: RUNTIME_MONITOR_AND_MODEL_PRESETS_SPEC.md
+
+# 至简 运行监控与模型预设规格
+
+版本：v0.5，更新日期：2026-08-21，状态：`IMPLEMENTED / BROWSER_VERIFIED`。适用部署：Mac mini 单节点，局域网可信会话访问。
+
+## 1. 目的
+
+本规格落实设置页审阅的七项意见：局域网访问时资源指标必须稳定显示；监控采样由后端持久化而非浏览器实时探测；模型路由与控件保持“至简”视觉语言；新增模型在保存前可做真实测试；用户既可选择主流 Provider，也可保留手工填写；选择 Provider 后自动带出模型与 Base URL；本地模型不要求远端连接字段；内存统一以百分比展示。
+
+## 2. 持久化运行监控
+
+Mac mini API 进程是唯一采样者。它在启动时立即采样一次，此后每 30 秒采样一次，将最新记录写入 SQLite `settings` 的 `runtime:metrics-sample`。采样包含 `sampled_at`、CPU 百分比、内存百分比、数据盘百分比、每项不可用原因及 Worker 心跳快照；不得写入用户内容、密钥或访问 Token。
+
+`GET /api/status` 只读取该持久化快照并返回其原始采样时间，不因请求来源是 `127.0.0.1`、局域网 IP 或已经可信配对的移动端而改用浏览器或即时伪造的指标。API 启动到第一条样本落库前返回“等待首个采样”；样本超过 75 秒时标为“指标延迟”，前端保留数值并同时显示延迟状态。侧栏和弹层每 30 秒刷新一次，与采样频率一致。
+
+侧栏完整状态卡显示 CPU、内存、数据盘三个百分比与 Worker 心跳；内存不再显示“已用 / 总量”。可访问名称仍保留具体采样时间，展开弹层显示“采样于 …”。采集失败的单项显示 `—` 与“暂未采集”，不得显示 `0%`。
+
+## 3. 模型路由视觉与交互
+
+推理路由说明必须位于卡片正文的 20px 内边距中，紧邻路由选择而不贴在卡片左边线。主模型和备用模型使用统一的“选择框外壳”：40px 高、暖灰底、细线圆角、右侧定制 Chevron，不使用浏览器默认的黑色原生 select 外观。窄桌面时两项纵向排列。
+
+主模型是必选的已保存模型，备用模型可空且不得与主模型相同。只有网络、超时、HTTP 服务错误或 Provider 不可用才触发备用模型；模型输出格式错误、结构化校验失败和用户取消不触发回退。该规则保留在路由卡的内嵌说明中。
+
+## 4. Provider 预设与自定义模型
+
+新增和编辑模型的 Provider 控件同时支持预设选择与手工填写：预设清单为 DeepSeek、MiMo、Moonshot / Kimi、智谱 GLM、通义千问、OpenAI 兼容、Ollama（本地），末项为“自定义”。选择预设会填入 Provider 标识、推荐 Base URL 和可选模型清单；模型名可从同一 Provider 的常用模型下拉选择，也始终允许自行输入。切换 Provider 只自动填充仍为空或仍等于前一预设默认值的字段，不覆盖用户明确修改过的值。
+
+| Provider | 默认 Base URL | 模型建议 | 凭据 |
+| --- | --- | --- | --- |
+| DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat`、`deepseek-reasoner` | 必填 |
+| MiMo | `https://api.xiaomimimo.com/v1` | `mimo-v2-flash`、`mimo-v2-pro` | 必填 |
+| Moonshot / Kimi | `https://api.moonshot.cn/v1` | `kimi-k2.6`、`kimi-k2.5` | 必填 |
+| 智谱 GLM | `https://open.bigmodel.cn/api/paas/v4` | `glm-5-turbo`、`glm-5`、`glm-4.7` | 必填 |
+| 通义千问 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus`、`qwen-max` | 必填 |
+| OpenAI 兼容 | 留空，由用户填写 | 自行输入或常见模型建议 | 依服务而定 |
+| Ollama（本地） | `http://127.0.0.1:11434` | 读取/填写本机模型名 | 不要求 |
+| 自定义 | 留空，由用户填写 | 自行输入 | 依服务而定 |
+
+Ollama 本地模型模式隐藏 API Key 与 Base URL 的必填提示，Base URL 可使用默认本机地址；显示“本机运行，不需要 API Key”。默认超时为 **300 秒**，允许 5–900 秒。所有 API Key 仅存 macOS Keychain。
+
+新增模型即使尚未保存，也必须提供“真实测试”：前端把当前表单作为临时配置提交到 `POST /api/settings/model-profiles/test-draft`，后端只用请求内容发起一次最小真实请求，不写入 SQLite、Keychain 或模型库。测试结果只展示连通性、Provider 和模型，不回显 Key。保存后的模型继续使用持久化测试接口。
+
+## 5. API 与数据契约
+
+- `GET /api/status`：返回持久化 `metrics`、`metrics.sampled_at` 与 `metrics.freshness`（`FRESH` / `STALE` / `PENDING`）。
+- `POST /api/settings/model-profiles/test-draft`：接收完整临时模型配置，执行真实连接测试，不产生配置、密钥或审计持久化副作用。
+- 原有模型库 CRUD、已保存模型测试、主/备路由接口保持兼容。
+
+## 6. 验收
+
+1. 使用局域网 IP 访问并完成可信配对后，侧栏在首次 30 秒采样完成后持续显示与数据库快照一致的 CPU、内存、磁盘百分比和采样时间。
+2. 断开实时采样超过 75 秒，侧栏明确显示“指标延迟”，不以 `0%` 代替。
+3. 路由说明与两项选择控件有统一 20px 内边距，选择框不出现浏览器默认黑色边框/箭头。
+4. 新建未保存配置可点击“真实测试”；测试后模型库数量、SQLite `settings` 与 Keychain 不新增该草稿。
+5. 选择 DeepSeek、MiMo、通义、Ollama 后，推荐 Base URL 和模型建议正确出现；切换为本地 Ollama 时不要求 Key。
+6. 新增模型默认超时为 300 秒，内存显示为百分比。
+
+
+---
+
+# FILE: RUNTIME_MONITOR_AND_PROVIDER_SWITCH_V06_SPEC.md
+
+# 至简 运行监控口径与 Provider 联动规格
+
+版本：v0.7，更新日期：2026-08-25，状态：`IMPLEMENTED / BROWSER_VERIFIED`。适用部署：Mac mini 单节点。
+
+## 1. 问题与目标
+
+本规格处理本轮设置页与任务详情审阅意见：侧栏内存百分比不能把 macOS 可回收文件缓存算作业务已用内存；运行状态浮窗需要提供足够的单机运维信息；切换模型 Provider 时，上一 Provider 自动带入的 Base URL 与模型名不得残留；重试后的任务不得把旧尝试时间误显示为本次运行时长。
+
+## 2. macOS 内存口径
+
+macOS 指标使用 `vm_stat` 物理页统计。`active`、`wired down`、`occupied by compressor` 构成工作集参考；`free`、`inactive` 与 `speculative` 视为可立即或可回收内存，不能计入“已用”。
+
+接口返回字段：
+
+| 字段 | 定义 |
+| --- | --- |
+| `memory.used_bytes` | `total - (free + inactive + speculative)`，用于侧栏百分比与浮窗主数值 |
+| `memory.available_bytes` | `free + inactive + speculative` |
+| `memory.cached_bytes` | `inactive + speculative`，仅作诊断 |
+| `memory.compressed_bytes` | `occupied by compressor`，仅作诊断 |
+| `memory.method` | `macos-reclaimable-pages`；非 macOS 返回实际采集方法或不可用原因 |
+
+页面不得以 `active + inactive + wired + compressor` 求和，因为这些页集合存在缓存与压缩页重叠，会把内存占用虚高。单项无法读取时返回 `null` 和原因，不显示伪造数值。
+
+## 3. 侧栏与运行浮窗
+
+侧栏继续保持紧凑：CPU、内存、数据盘均展示百分比，内存值使用上述工作集口径。浮窗展开后显示：
+
+- CPU：百分比与采样来源；
+- 内存：`已用 GB / 总 GB`、百分比、可回收 GB、压缩 GB；
+- 数据盘：`已用 GB / 总 GB` 与可用 GB；
+- 服务：API、Worker、SQLite、Ollama 的真实状态；
+- 采样时间、指标新鲜度、Worker 最近心跳。
+
+API 每 30 秒写入 SQLite 的同一快照仍是局域网与本机的唯一数据源。超过 75 秒未更新时浮窗明确显示“指标延迟”。
+
+## 4. Provider 预设切换
+
+每个模型编辑器单独维护 `model` 和 `base_url` 的“用户手填”状态：
+
+1. 新增模型和与预设匹配的已保存模型，两个字段初始均为自动值。
+2. 每次选择 DeepSeek、MiMo、Moonshot / Kimi、智谱 GLM、通义千问、OpenAI 兼容或 Ollama，所有仍为自动值的字段必须立即替换为该 Provider 当前预设；不得保留上一个 Provider 的默认值。
+3. 用户在模型名或 Base URL 输入框亲自修改后，该字段标为手填；之后切换 Provider 时保留该字段，另一个未手填字段仍会更新。
+4. 选择“自定义”后不再写入任何默认值；用户可自行填写。Ollama 仍隐藏 Key 与 Base URL 必填提示。
+
+## 5. 任务尝试时间与停滞语义
+
+每次 Job 被重新领取或某个已存在步骤被再次开始时，该步骤的 `started_at` 必须重置为本次尝试时间，`finished_at` 清空；历史开始时间只保留在审计事件中。任务接口额外返回 `runtime_state`、`last_activity_age_seconds` 与 `last_activity_source`：普通运行步骤 90 秒没有活动时为 `STALLED`；`GENERATE_AI_NOTE / EXTRACT_TRAVEL_FACTS / BUILD_PLACE_NOTES` 等 LLM 步骤使用 300 秒预警阈值，避免正常 2–3 分钟模型调用被误报；真正终止尝试仍使用 900 秒。
+
+任务停滞只能由该 Job 自身的 `heartbeat_at`、当前步骤活动时间或该 Job 的审计事件判断；绝不能使用 `runtime:worker-heartbeat` 等全局 Worker 心跳。全局 Worker 正常只说明执行器进程仍在运行，不能证明当前任务正在推进。任务页字段统一写作“该任务最后活动”，必要时显示来源字段。
+
+全局 `runtime:worker-heartbeat` 由独立于 Job 执行循环的守护线程每 `worker_heartbeat_seconds` 写入进程存活信号。同步 Pipeline 被外部模型、FFmpeg 或网络调用阻塞时，心跳仍持续；它只表达“Worker 进程存活”，不更新任何 Job 的 `heartbeat_at`，也不掩盖任务停滞。
+
+### 5.1 尝试超时错误规则
+
+`job_attempt_timeout_seconds` 默认 900 秒。运行中的任务从其自身最后活动起超过此阈值后，Worker 将该次尝试终止为 `FAILED`，而不是无限自动重新领取。错误码固定为 `ATTEMPT_TIMEOUT`；错误原因必须包含当前步骤、人类可读开始时间、该任务最后活动时间与无进度分钟数，示例：`本次“获取元信息”自 2026-08-21 17:22 开始，已 15 分钟未收到该任务进度更新，已停止本次尝试。`
+
+超时事件写入 `SystemEvent`：`job.attempt.timeout`，关联该 Job 与当前步骤。当前 `JobStep` 同时标为 `FAILED` 并保存相同原因。用户可以通过“重试”显式开始下一次尝试，系统增加 `retry_count` 并重新设置 Job 与步骤的开始时间；不得静默循环重试。
+
+任务详情不再以 `489:03` 形式展示分钟与秒。时长小于一小时显示“xx 分 xx 秒”，大于等于一小时显示“x 小时 xx 分”。停滞任务不得使用“当前尝试 / 本次尝试”等术语；卡片必须用完整句表达：`开始于 昨天 17:22`、`8 小时未收到进度更新`、`任务可能停滞，建议查看日志或重试`。这表示 Worker 自该开始时间后未报告进度，不表示模型或视频内容正常处理了 8 小时。时间线使用同一语义并附最后活动时间，不把旧事件伪装为实时进度。
+
+## 6. 步骤独立进度
+
+任务 `progress` 是全流程总进度，只允许出现在任务标题或列表的总进度条。`JobStep.progress` 改为步骤自身 0–100 的进度：步骤开始为 0，完成为 100；有真实子任务数据（例如字幕段落、下载字节、地点条目）时才更新中间值。时间线不得复用全局 12%、15% 等里程碑数字。
+
+步骤无法产生可量化中间值时显示“进行中，等待下一项活动”，不显示伪造的 0% 或总任务百分比。事件会同时记录 `job_progress` 与 `step_progress`，以便日志与页面均可明确区分两个维度。
+
+## 7. 验收
+
+1. 以包含 `inactive` 和 `occupied by compressor` 的 macOS 页统计输入，内存占比按可回收口径计算，不再接近 95% 的缓存误计结果。
+2. 浮窗显示 `已用 GB / 总 GB`、可回收、压缩、磁盘容量、四项服务状态、采样与 Worker 心跳。
+3. 新增模型依次选择 Moonshot 与智谱，模型名/Base URL 依次变为各自预设；不保存草稿即可观察到变化。
+4. 手工改写模型名或 Base URL 后切换 Provider，该单项保留，未手填项仍更新。
+5. 对重试过的步骤，API 返回的 `current_step_started_at` 为当前尝试而非初始旧时间。
+6. 普通步骤运行中 90 秒无活动、LLM 步骤 300 秒无活动时显示“任务可能停滞”，并显示开始时间和“x 分钟未收到进度更新”；正常任务保留实时连接或轮询信息。
+7. 超过 900 秒没有该任务自身活动的任务返回 `ATTEMPT_TIMEOUT` 与可读原因；全局 Worker 仍正常时也必须正确触发，不得把全局心跳当作任务进度。
+8. 标题总进度与时间线步骤进度不会混用；已完成步骤为 100%，运行步骤显示自身进度或“进行中”。
+9. API 状态、浏览器控制台、Ruff、后端测试、前端 lint/test/build 均通过。
+10. 长模型调用持续超过全局心跳阈值时，服务状态仍为 Worker 运行中；若同一 Job 超过其 LLM 活动阈值未产生 batch/阶段事件，只有任务详情显示“任务可能停滞”。
+
+
+---
+
+# FILE: TASK_SUMMARY_AND_PARTIAL_SUCCESS_SPEC.md
+
+# 至简 任务摘要与部分完成语义规格
+
+版本：v0.8，更新日期：2026-08-22，状态：`IMPLEMENTED / BROWSER_VERIFIED`。
+
+## 1. 运行摘要字段
+
+任务摘要中的 `Provider` 与 `模型` 仅在当前步骤实际调用 LLM 时展示。ASR、下载、解析、清理等非 LLM 步骤不得把本地二进制路径、Whisper 模型文件路径或缓存路径填入“模型”字段；应显示“当前步骤不调用模型”。
+
+摘要采用可收缩双列：值列最小宽度为 0，长 Provider、模型 ID、路径、错误码等必须在容器内换行或截断，不得越过右侧面板。截断字段保留完整 `title` 属性供查看。
+
+## 2. PARTIAL_SUCCESS
+
+`PARTIAL_SUCCESS` 表示所有后台处理步骤已结束，已交付结果中仍有待人工确认或待配置的补充项；它不是“总流程只处理了一部分”。视频笔记场景中，AI 笔记、时间码与已确认地点均已交付，但可能有地点待确认或未配置高德 POI。
+
+任务标题卡使用“处理流程已完成”作为状态文案，不与 `100%` 并列。其下展示简短原因，如“所有处理步骤已完成；AI 笔记已生成，3 个地点待确认”或“所有处理步骤已完成；未配置高德 POI”。进度条仍可满格，语义是后台处理已结束；页面必须同时展示补充原因和进入内容/地图/日志的后续入口。
+
+## 3. 验收
+
+1. ASR 取消或运行中的任务摘要不显示 Whisper 文件路径为 LLM 模型。
+2. 摘要长值不越界，窄侧栏与完整桌面均可读。
+3. `PARTIAL_SUCCESS` 不再显示“部分完成 · 100%”或“核心结果已完成”；显示“处理流程已完成”与具体补充原因。
 
 
 ---
@@ -3122,6 +7259,8 @@ class LLMProvider:
 默认：
 `LOCAL_FIRST`
 
+视频 AI 笔记是明确例外：MVP 的 `VIDEO_NOTE_SUMMARY` 与 `TRAVEL_PLACE_EXTRACTION` 默认绑定用户已配置的 DeepSeek OpenAI-compatible Provider，以满足长字幕总结质量要求；用户仍可在 Settings 中改为其他兼容模型。业务代码只声明能力，不写死模型 ID 或直接读取 API Key。
+
 ---
 
 # 4. Local First
@@ -3136,6 +7275,12 @@ class LLMProvider:
 ```
 
 外部模型是增强，不是核心依赖。
+
+## 4.1 Ollama 模型释放契约（已实施）
+
+Mac mini 只有 16 GB 统一内存，本地模型调用不得依赖 Ollama 默认的 5 分钟驻留。`OllamaProvider` 对 `/api/chat` 的每次非流式请求都必须发送 `keep_alive: 0`，让模型在响应完成后立即卸载；任务推理、备用模型调用和设置页“真实测试”遵守同一规则。该参数是 Ollama 官方 API 对 `ollama stop <model>` 的等价能力，优先于为每次 HTTP 请求另起 CLI 子进程。
+
+若兼容旧 Ollama 而保留 CLI 兜底，必须记录本次实际使用的本地模型，并在调用边界的 `finally` 中限时执行 `ollama stop <model>`；推理失败、JSON 解析失败、备用模型切换和用户取消也必须进入清理。停止失败只记录脱敏告警，不能把已成功的业务结果改成失败，也不能停止未由本次调用触发的其他模型。验收以响应返回后 `ollama ps` 在短时间内不再列出该模型为准。
 
 ---
 
@@ -3152,11 +7297,10 @@ Settings 支持：
 
 正式版本不把 Key 明文放 SQLite。
 
-平台 Secret Store：
-- Windows PC：DPAPI / Windows Credential Manager；
-- Mac mini：macOS Keychain。
+生产环境：
+- macOS Keychain
 
-SQLite 只存平台无关的 key reference，业务代码通过 `SecretStore` 接口访问，不判断操作系统。
+SQLite 只存 key reference。
 
 开发环境允许 `.env`，但不得提交 Git。
 
@@ -3181,6 +7325,9 @@ SQLite 只存平台无关的 key reference，业务代码通过 `SecretStore` �
 - VISION
 - SEMANTIC_MATCH
 - VERIFY
+- SCREENSHOT_PLANNING
+- TRANSCRIPT_CORRECTION
+- NOTE_TOC_AND_SECTION_SUMMARY
 
 Router 决定 Provider + Model。
 
@@ -3188,25 +7335,18 @@ Router 决定 Provider + Model。
 
 # 7. 本地硬件策略
 
-方案 A，WILLIAM-PC：
-- 5800X
-- 32 GB
-- RX 7900 XT 20 GB
-
-方案 B，Mac mini：
-- Apple M4，10 核 CPU
+Mac mini：
+- Apple M4
 - 16 GB 统一内存
-- arm64 / Metal
+- Metal
 
-两者都应验证本地承担：
+可以本地承担：
 - 分类；
 - 结构化提取；
 - Recruitment DSL；
 - Travel Trait；
 - ASR；
 - 未来视觉理解。
-
-Windows PC 可优先验证更大的本地模型与未来视觉模型。Mac mini 从 7B/8B 量化档起步，16 GB 统一内存下不承诺与 RX 7900 XT 相同的模型容量、吞吐或并发；复杂任务允许按数据策略转外部 Provider。两套结果分别记录，不互相推算。
 
 ---
 
@@ -3292,10 +7432,8 @@ WhisperCppProvider
 - FasterWhisperProvider
 - CloudASRProvider
 
-运行时：
-- Windows PC：whisper.cpp Vulkan；
-- Mac mini：whisper.cpp Metal，可选验证 Core ML encoder；
-- FasterWhisper/CloudASR 仍只作为可替换 Provider，不改变 Transcript 与 Evidence 模型。
+原因：
+macOS arm64 / Metal 环境。
 
 ---
 
@@ -3320,7 +7458,7 @@ AUTO：
 
 CMS 可配置。
 
-避免 ASR + 大模型同时争用显存或统一内存导致稳定性问题。Windows 与 Mac 分别通过 Phase 0A 确定可用模型和资源阈值。
+避免 ASR + 大模型同时抢占显存导致稳定性问题。
 
 ---
 
@@ -3335,6 +7473,27 @@ CMS 可配置。
 - schema_version
 
 支持以后 Replay 与对比。
+
+视频笔记还必须保存：
+
+- note_template_version；
+- chunker_version；
+- merge_prompt_version；
+- transcript_id / input_hash；
+- checkpoint 状态；
+- 外部调用审计引用。
+
+长 Transcript 使用 Provider 能力预算进行分块、局部总结和层级合并。所有 Pipeline AI 请求统一读取 `app:general` 调用策略：默认请求前等待 3 秒；429、408、409、425、超时、连接失败、可恢复 5xx 与空响应默认重试 1 次，每次至少等待 5 秒；429 优先采用 `Retry-After`。主模型耗尽重试后才切换不同故障域的备用模型。401/403、余额不足和模型不存在不做无效重试。
+
+`SCREENSHOT_PLANNING` 只根据视频元数据、Note Section、PlaceMention 和 Transcript 时间范围提出候选时间码；最终抽帧、清晰度、黑帧与感知重复检测由确定性代码完成。MVP 不要求把所有视频帧发送给多模态模型。
+
+`TRANSCRIPT_CORRECTION` 在 Note 生成前按字符预算与 Segment 数双门槛分块。默认每批 12,000 字符、最多 128 Segment、单次超时 180 秒；设置页基础校验范围分别为 2,000–24,000、16–256、30–300 秒。转写专属主/备用模型优先于推理路由，任一选项留空时继承对应推理模型。模型只能返回原 Segment ID 对应的 corrected_text、置信度和原因；服务端验证覆盖率、顺序与时间码，不接受新增/缺失 ID。
+
+`NOTE_TOC_AND_SECTION_SUMMARY` 输出具体 heading、20–50 字 thesis、summary 和 bullets。禁止无信息套话；Section ID 和时间范围由服务端提供，模型不得自行编造锚点。
+
+## Prompt Supplements v0.4.5
+
+固定核心 Prompt 继续负责 JSON、Schema、字段、Segment ID、顺序和证据契约。设置页只允许用户给 `transcript_correction / video_note_summary / travel_place_extraction` 添加低优先级表达偏好，例如语气、篇幅、目标读者和关注重点。保存时服务端拒绝试图覆盖系统规则、JSON、字段、ID 或顺序的内容；模型返回仍经过原有解析和证据校验。默认入口及完整契约见 `PROMPT_SUPPLEMENTS_V045_SPEC.md`。
 
 ---
 
@@ -3390,10 +7549,8 @@ Control Center 不是普通 CMS，而是：
 - Today Done
 - Recruitment processing
 - Travel processing
-- 本地加速器当前任务
+- GPU 当前任务
 - 最近错误
-- 当前后端节点（Windows PC / Mac mini）
-- 服务在线、Worker、LAN 地址与本地 AI Runtime
 
 例：
 
@@ -3430,9 +7587,10 @@ POI 31/43
 
 操作：
 
-- retry
+- 从错误步骤继续（Artifact 有效时）
+- 完整重跑（独立动作）
 - cancel
-- rerun
+- 查看 Replay Cache 保留截止/复用步骤/重跑步骤
 - rerun from step
 - external model rerun
 - view logs
@@ -3489,8 +7647,6 @@ Travel：
 # 7. Settings
 
 ## General
-- deployment target（只读：Windows PC / Mac mini）
-- node name / OS / architecture
 - data directory
 - cache limit
 - cleanup policy
@@ -3507,12 +7663,13 @@ Travel：
 - Base URL
 - connection test
 - outbound data policy / per-run sensitive authorization
+- Transcript Correction 能力角色、主/备用模型、校对 Prompt 版本与真实测试
 
 ## ASR
 - engine
 - model
 - mode
-- accelerator test（Windows Vulkan / Mac Metal）
+- GPU test
 
 ## Browser
 - profile status
@@ -3521,7 +7678,11 @@ Travel：
 
 ## POI
 - provider（MVP: AMap）
-- API key
+- 高德 JS API Key
+- 高德 Security Code
+- 高德 Web 服务 Key
+- 三项配置状态与真实测试
+- 域名白名单和浏览器端凭据可见性提示
 - country/region preference
 - coordinate system（China: GCJ02）
 
@@ -3533,6 +7694,9 @@ Travel：
 ## Travel
 - auto POI threshold
 - review threshold
+- screenshot count / quality / max video bytes
+- China map initial viewport（不可设置硬编码默认城市）
+- Marker hidden/deleted management
 
 ---
 
@@ -3568,6 +7732,8 @@ Claim
 
 支持“报告错误”和单步重跑。
 
+运行日志中的 `ERROR/CRITICAL` Job 事件查询 Replay Options。中间产物有效时提供“从错误步骤继续”，复用上游完成步骤并顺次执行当前/下游；过期时只提供“完整重跑”。日志页不能直接更改步骤或 Provider，完整契约见 `PIPELINE_STEP_REPLAY_V044_SPEC.md`。
+
 ---
 
 # 10. POI Review
@@ -3575,6 +7741,9 @@ Claim
 待确认地点：
 
 - raw name
+- suggested/canonical name
+- place type（餐馆/景区/街区/商圈等）
+- name correction reason
 - source
 - context
 - candidate POIs
@@ -3607,6 +7776,179 @@ Claim
 - 为什么得出某个结论；
 - 如何重跑。
 
+---
+
+# 13. 运维与任务可观测性增补
+
+2026-08-21 页面审阅提出的缩放对齐、实时步骤诊断、日志工作台和侧栏硬件指标已按 `OPERATIONS_UI_SPEC.md` 实施。设计稿位于 `design/ui/operations-v0.3/`，实际回归与防覆盖规则见 `REGRESSION_AND_CHANGE_GUARD.md`；尚未实现的仅限该规格明确标注的后续增强项。
+
+
+---
+
+# FILE: OPERATIONS_UI_SPEC.md
+
+# 至简 PC 运维与任务可观测性 UI 规格
+
+版本：v0.4，更新日期：2026-08-25，状态：`IMPLEMENTED / BROWSER_VERIFIED`，适用部署：Mac mini 单节点后端。
+
+## 1. 目的与范围
+
+本规格把 2026-08-21 页面审阅中的四条批注固化为可实施、可测试的产品契约：浏览器缩放或窗口变窄时任务列表仍然对齐；运行中的任务必须实时说明“当前具体在做什么、已持续多久、最后一次活动是什么”；日志页必须达到单机运维工作台的可用程度；PC 左侧栏底部必须持续展示 Mac mini 的真实资源与 Worker 活性。
+
+本轮已交付响应式任务列表、任务详情 WebSocket 实时快照（断线回退 3 秒轮询）、步骤状态事件、游标日志查询/详情抽屉和侧栏实时指标。对应实装审阅图位于 `design/ui/operations-v0.3/`；未实现的增强能力必须保留为待办，不能以效果图替代。
+
+## 2. 共通设计原则
+
+- 延用既有“至简”视觉体系：暖白底、墨黑正文、朱砂红主强调色、苔绿正常状态、灰色结构线，不增加品牌色或彩色应用图标。
+- 状态不可只依赖颜色；必须同时显示文字、数值或图标语义。
+- 页面展示真实采集值；无数据时显示“暂未采集/等待心跳”，不得用演示硬件、虚构进度或随机曲线填充。
+- 时间统一以本机时区展示，诊断详情同时保留 ISO 8601 原始时间；所有实时区域显示“更新于/心跳于”。
+- Job ID、Request ID、Provider、Model、Worker 和事件类型是可检索、可复制、可串联日志的运维字段，不只放在人类可读消息中。
+
+## 3. 浏览器缩放与窄桌面适配
+
+### 3.1 适配模型
+
+不检测浏览器缩放倍率，统一按 CSS 有效视口宽度重排。这样浏览器 125%/150%/200% 缩放与窗口变窄得到同一套确定行为。
+
+| 有效视口 | 页面结构 | 任务列表布局 |
+| --- | --- | --- |
+| `>= 1180px` | 196px 完整侧栏 | 标题、元信息、进度、状态/操作四列 |
+| `820–1179px` | 72px 图标侧栏；悬停/聚焦显示名称 | 两层栅格：首行标题+状态，次行元信息+整行进度 |
+| `720–819px` | 72px 图标侧栏 | 单列任务卡；进度与操作位于卡片底部 |
+| `< 720px` | 手机导航规则 | 使用手机端任务列表，不压缩 PC 表格 |
+
+### 3.2 任务行约束
+
+- 标题列 `min-width: 0`，URL 或长文件名只能在自身区域省略，不得把进度和状态挤出容器。
+- 进度条最小可用宽度 160px；空间不足时独占次行，不得与状态文本重叠。
+- 百分比使用等宽数字并紧邻进度条；状态列最小宽度 72px，操作按钮最小触控区域 40×40px。
+- 页面在 200% 缩放下不得产生整页横向滚动；日志数据表是唯一允许在自身容器内横向滚动的区域。
+- 键盘焦点、下拉菜单和侧栏提示不得被 `overflow: hidden` 截断。
+
+## 4. 任务列表与实时运行详情
+
+### 4.1 列表页
+
+任务列表已显示标题/来源、业务类型、当前人类可读阶段、总体进度、运行状态和最后活动时间。运行中任务显示“当前步骤 · 已持续 02:18”，而不是只显示技术枚举或百分比；普通步骤超过 90 秒、LLM 步骤超过 300 秒无任务活动时状态显示“需关注”。
+
+详情页已采用 WebSocket 快照推送，断线后回退为 3 秒轮询；列表页目前按 4 秒刷新，更新不改变排序或整页布局。列表级事件推送是后续增强项。
+
+### 4.2 任务详情顶部“当前处理”卡
+
+运行中任务在概要卡下方固定显示当前处理卡，字段如下：
+
+| 字段 | 示例 | 说明 |
+| --- | --- | --- |
+| 人类可读步骤 | 生成 AI 笔记 | 首要信息 |
+| 技术步骤 | `GENERATE_AI_NOTE` | 支持复制和日志检索 |
+| 子状态 | 等待模型首个响应 | 由执行器上报，不由前端推测 |
+| 已运行 | `02:18` | 使用单调计时显示，重连后由 `started_at` 恢复 |
+| 最后活动 | `2 秒前` | 同时保留 `last_activity_at` |
+| Worker | `mac-mini-worker-1` | 显示实例与活性 |
+| Provider / Model | `DeepSeek / deepseek-chat` | 仅在该步骤确实调用模型时显示 |
+| 最近事件 | 已提交第 3/8 个分块 | 非敏感、可理解的执行事件 |
+
+卡片提供“查看关联日志”入口，跳转后自动以 `job_id` 筛选；“取消任务”和“重试当前步骤”只有在后端返回允许操作时可用。禁止用前端计时自行判断任务失败。
+
+### 4.3 执行时间线
+
+- 时间线必须按 Pipeline 定义的执行顺序排序，不得按数据库返回顺序或更新时间倒排。
+- 步骤状态为 `PENDING / RUNNING / COMPLETED / SKIPPED / RETRYING / FAILED / CANCELLED`；当前步骤自动展开，完成步骤可折叠。
+- 当前步骤展开区已显示开始时间、已运行时间、最近一条步骤事件和脱敏错误摘要；最近 3 条步骤事件、下次重试时间和步骤级操作权限仍待执行器提供字段后实现。
+- 时间线严格按 Pipeline 定义排序；所有技术阶段必须有人类可读中文名称，每行同时显示状态、进度与本步骤用时。只有 Job 和 JobStep 都处于 `RUNNING` 时才显示当前标记；终态任务不把 `CLEAN_CACHE` 或其他最后步骤永久标成当前步骤。
+- Worker 心跳超过 30 秒标记“心跳延迟”，超过 90 秒标记“疑似停滞”；阈值由后端配置返回，前端只负责展示。
+
+### 4.4 实时事件契约
+
+当前 WebSocket 每秒推送真实 Job 快照，包含任务/步骤状态、进度、心跳和最后活动；断线后客户端重新请求快照。带 `event_id` 的增量补发、`attempt` 与分块进度字段属于后续增强，不能由前端虚构。
+
+### 4.5 取消停止期与“从头重新运行”（已实施）
+
+任务详情的完整重跑按钮由 `replay-options.full_replay_available` 决定，不由前端硬编码 `FAILED / NEEDS_USER / PARTIAL_SUCCESS`。当 Job 为 `CANCELLED` 但 lease 尚未释放时，按钮显示“正在停止当前步骤”，不可提交，并保持轮询或连接直到操作能力改变；Worker 确认停止后显示“从头重新运行”。
+
+用户点击完整重跑前，确认框说明会从 Pipeline 首步骤创建新 attempt、可能再次访问来源或调用模型；确认后调用 `retry-full`。成功显示“已重新入队”，任务状态为排队中；409 显示最新的 lease/状态原因。不得出现视觉上标为“从头重新运行”却永久禁用且没有原因的按钮。
+
+长模型步骤在时间线中展示最近 batch 活动，例如“AI 校对 12/29 · 上次响应 18 秒前”。侧栏 Worker 进程状态与任务活动分开呈现：前者表示进程是否存活，后者表示该任务是否在推进。
+
+## 5. 运维级日志工作台
+
+### 5.1 页面结构
+
+日志页由健康摘要、筛选工具条、事件表格和详情抽屉组成。健康摘要显示 API、Worker、最近 ERROR、近 1 小时 WARNING 数量和日志写入状态；它只用于快速定位，不替代首页系统状态。
+
+### 5.2 筛选与控制
+
+- 时间范围：已实现最近 15 分钟、1 小时、24 小时和全部时间；7 天与自定义起止时间待补。
+- 级别：多选 `DEBUG / INFO / WARNING / ERROR / CRITICAL`。
+- 组件与事件类型：可搜索多选。
+- 关联标识：Job ID、Request ID、实体 ID 精确筛选。
+- 全文检索：搜索消息与允许索引的结构化详情，不搜索密钥或正文。
+- 实时模式：默认每 5 秒增量刷新；“实时跟随”开启时置顶新事件，用户滚动查看历史后自动暂停并给出“有 N 条新日志”。
+- 已支持重置筛选、关联 Job 链接和单条脱敏 JSON 导出；筛选链接复制、JSONL/CSV 批量导出待补。
+
+### 5.3 表格与详情
+
+表格最少包含时间、级别、组件/事件、关联对象、耗时/状态码、消息。长消息在单元格内最多两行，点击行打开详情抽屉；窄桌面下表格可在自身容器横向滚动，固定时间和级别列。
+
+详情抽屉显示完整时间、事件类型、Job/Request/实体标识、结构化 detail、异常摘要和经过脱敏的堆栈。标识均可复制，并提供“仅看同一任务”“仅看同一请求”“打开任务”快捷动作。API Key、Cookie、配对码、Authorization、正文、上传内容和完整个人档案永不展示或导出。
+
+### 5.3.1 从错误步骤继续（现有整任务按钮待返工）
+
+当选中事件为 `ERROR/CRITICAL` 且规范关联现存 Job/Step 时，详情抽屉加载 Replay Options。中间产物有效时，在“打开任务”旁显示主操作“从错误步骤继续”；过期时显示“中间产物已清理”，只提供次级“完整重跑”。
+
+确认框展示任务名称、失败步骤、事件时间、复用步骤、重新执行步骤、中间产物保留截止和当前重试次数。确认前不发送请求；不能允许用户任意选择 from_step。
+
+提交中按钮禁用并显示“正在从该步骤恢复”；成功后展示 REUSED/RETRYING 状态和“查看续跑进度”。失败显示稳定 `REPLAY_*` 原因。完整契约见 `PIPELINE_STEP_REPLAY_V044_SPEC.md`。
+
+### 5.4 查询契约
+
+日志查询需要支持游标分页和组合筛选：`from/to`、重复 `level`、重复 `component`、`event_type`、`job_id`、`request_id`、`entity_id`、`query`、`cursor`、`limit`、`sort`。返回 `items`、`next_cursor`、`server_time` 与 `applied_filters`。页面初始限制 100 条，滚动加载，不一次性读取全部日志。
+
+## 6. 侧栏 Mac mini 实时指标
+
+### 6.1 完整侧栏
+
+左下角系统卡固定显示：节点在线状态、CPU 使用率、内存已用/总量、数据盘使用率、Worker 最后心跳。CPU/内存/磁盘使用细进度条和数字，默认每 5 秒刷新；超过 15 秒未更新时显示“指标延迟”，不保留看似实时的旧值。
+
+### 6.2 收窄侧栏
+
+72px 图标侧栏只保留节点状态按钮和异常徽标；点击或键盘聚焦后弹出同一组完整指标。弹层不得遮挡当前任务的主要操作，Escape 可关闭。
+
+### 6.3 指标数据契约
+
+状态接口至少返回：`sampled_at`、`hostname`、`cpu.percent`、`memory.used_bytes/total_bytes/percent`、`disk.used_bytes/total_bytes/percent`、`services.api.status`、`services.worker.status/heartbeat_at`。所有值来自当前 Mac mini；采集失败时单项返回 `null` 与 `unavailable_reason`，其他指标继续显示。
+
+## 7. 状态与告警语义
+
+| 语义 | 颜色 | 文案要求 |
+| --- | --- | --- |
+| 正常 | 苔绿 | 在线、运行中、刚刚更新 |
+| 处理中 | 朱砂红 | 当前步骤、实时进度、主动操作 |
+| 延迟/需关注 | 琥珀棕 | 必须给出延迟秒数或原因 |
+| 故障 | 深红 | 必须给出可执行入口，如关联日志/重试 |
+| 未采集 | 中性灰 | 明确写“暂未采集”，不得显示 0% 冒充真实值 |
+
+## 8. 验收标准
+
+1. Chrome/Safari 在 935×886 CSS 视口下，任务列表标题、进度、状态和操作不重叠；125%、150%、200% 缩放均无整页横向滚动。
+2. 运行任务的当前步骤、子状态、已运行时间和最后活动在 3 秒内更新；断开 WebSocket 后自动进入轮询并显示连接状态。
+3. 人工停止 Worker 后，普通步骤 90 秒、LLM 步骤 300 秒出现任务疑似停滞提示，并可一键进入该 Job 的过滤日志；Worker 全局心跳仍使用独立阈值。
+4. 时间线按 Pipeline 定义排序，当前步骤自动展开，失败/重试/跳过均有独立语义。
+5. 日志可按时间、级别、组件、事件、Job ID、Request ID 和关键词组合筛选；详情抽屉可复制标识、关联任务，分页加载稳定。
+6. 日志页面、单条导出文件和浏览器网络响应中均不存在 API Key、Cookie、配对码、Authorization、正文和完整个人档案。
+7. 侧栏指标与状态 API 的真实值一致；采集失败显示不可用原因，超过 15 秒不再把旧值显示为实时。
+8. 键盘可完成侧栏系统卡、任务详情、日志筛选与详情抽屉全部操作，焦点可见，状态不只依赖颜色。
+
+## 9. 设计稿映射
+
+| 文件 | 规格重点 |
+| --- | --- |
+| `design/ui/operations-v0.3/01-tasks-responsive-pc.png` | 935px 缩放/窄桌面任务列表重排 |
+| `design/ui/operations-v0.3/02-task-detail-live-pc.png` | 当前处理诊断卡、实时事件与有序时间线 |
+| `design/ui/operations-v0.3/03-logs-operations-pc.png` | 健康摘要、组合筛选、运维表格与详情入口 |
+| `design/ui/operations-v0.3/04-sidebar-runtime-pc.png` | 完整侧栏的真实 CPU/内存/磁盘/心跳指标 |
+
 
 ---
 
@@ -3627,10 +7969,35 @@ Claim
 
 ```json
 {
-  "input_type": "url",
-  "value": "https://..."
+  "value": "视频标题\nhttps://b23.tv/...\n复制打开 App"
 }
 ```
+
+`value` 是原始粘贴值。服务端是输入判定的权威方，不依赖前端 `startsWith("http")`。现有 `{url}` / `{text}` 字段可保持向后兼容，但都应进入同一 Input Normalizer。
+
+唯一链接识别成功时返回：
+
+```json
+{
+  "item_id": "...",
+  "job_id": "...",
+  "status": "QUEUED",
+  "input_kind": "SHARE_TEXT_WITH_URL",
+  "selected_url": "https://b23.tv/..."
+}
+```
+
+存在多个无法唯一选择的内容链接时不创建处理 Job，返回 `422`：
+
+```json
+{
+  "code": "CAPTURE_MULTIPLE_URLS",
+  "message": "检测到多个链接，请选择要处理的内容",
+  "details": {"candidates": ["https://...", "https://..."]}
+}
+```
+
+选择规则：canonical 去重后仅一个候选直接使用；多个候选中仅一个命中专用 Resolver 时自动选择；仍有多个内容候选时不得静默选择第一个。选中 URL 后，周围标题/分享文案不发送给 Resolver、Classifier 或 LLM。
 
 返回：
 `202 Accepted`
@@ -3727,6 +8094,62 @@ Filters：
 
 # 3. Travel API
 
+## Video Note API
+
+```text
+GET  /api/video-notes
+GET  /api/video-notes/{note_id}
+GET  /api/video-notes/{note_id}/transcript
+GET  /api/video-notes/{note_id}/transcript/export
+GET  /api/video-notes/{note_id}/places
+GET  /api/video-notes/{note_id}/screenshots
+POST /api/video-notes/{note_id}/regenerate
+DELETE /api/video-notes/{note_id}
+GET  /api/video-covers/{cover_id}/image
+```
+
+`GET /api/video-notes` 的每项增加 `cover_status/cover_image_url/cover_width/cover_height/cover_error`。READY 时必须返回本地受控图片 API URL；非 READY 使用统一占位，不能把远程 CDN URL 当成已下载封面。
+
+`GET /api/video-covers/{cover_id}/image` 只读取数据库已登记的 CoverAsset 路径，返回正确 Content-Type、内容哈希 ETag 和 immutable Cache-Control；禁止接受任意文件路径或代理任意 URL。
+
+`DELETE /api/video-notes/{note_id}` 由列表和详情共用。删除 Note/Version/Section/TOC/Content 投影，保留 Source、VideoAsset、CoverAsset、Transcript、Place 和 Evidence；活跃生成 Job 返回 409。完整契约见 `VIDEO_NOTE_DELETE_V044_SPEC.md`。
+
+`GET /api/video-notes/{note_id}` 返回当前 Note Version、视频页元数据、封面、摘要、主旨目录 `toc[]`、按时间线详述章节、地点引用和文稿校对状态；代表性截图仍由独立的 `GET /api/video-notes/{note_id}/screenshots` 返回，前端按 `section_id` 随文嵌入，避免详情首屏传输图片数据。`regenerate` 创建新版本，不覆盖旧版本。
+
+Video Note Detail ViewModel 的默认页面顺序为 Hero → 摘要 → 目录 → 时间线详述 → 地点候选/完整转写。Hero 返回 cover_status/local cover URL；非 READY 时前端收起封面区域，不返回场记板占位。`toc[]` 至少返回 `section_id/start_ms/heading/thesis`；Section 返回 `summary/bullets/place_refs/anchor_id`，Screenshot 返回 `section_id/caption/selection_reason/target_section_id`。
+
+详情响应同时返回 `transcript_status`（`AVAILABLE / EXPIRED / NOT_READY`）、`transcript_correction_status`、`transcript_correction_provider/model`、`transcript_segment_count`、`transcript_retention_until`、`screenshot_status`（`PLANNING / READY / PARTIAL / UNAVAILABLE`）和脱敏 `screenshot_error`。空截图列表必须可区分“尚在规划”“计划为空”和“下载/抽帧失败”。
+
+`GET .../transcript` 在可用期返回全部 Segment 的 `raw_text/corrected_text/start_ms/end_ms/target_section_id`；默认页面使用 corrected_text，raw 只在证据审计入口展示。导出支持：
+
+```text
+GET /api/video-notes/{note_id}/transcript/export?version=corrected
+GET /api/video-notes/{note_id}/transcript/export?version=raw
+```
+
+默认 corrected，返回 `text/plain; charset=utf-8` 与安全的附件文件名，逐行输出完整 AI 校对稿、时间码、校对模型和生成时间；raw 仅由证据/审计入口调用。导出即时生成且不在服务端落第二份文件。文稿满 180 天清理后两个 Transcript 接口返回 `410 Gone`，Note 详情、时间线章节和截图仍可读取。
+
+## Prompt Supplements API v0.4.5
+
+```text
+GET /api/settings/prompt-supplements
+PUT /api/settings/prompt-supplements
+```
+
+API 只允许读写三个低优先级补充文本：`transcript_correction`、`video_note_summary`、`travel_place_extraction`。响应附带不可编辑的 `core_contracts` 摘要、`max_length=1000` 与哈希；固定核心 Prompt 正文不通过 API 返回。PUT 在服务端拒绝修改/覆盖 JSON、Schema、字段、键名、ID 或顺序的越权语言，并将变更写入审计事件。完整边界见 `PROMPT_SUPPLEMENTS_V045_SPEC.md`。
+
+## 转写路由、参数与来源清理 API v0.4.6
+
+`GET/PUT /api/settings/model-routing` 在通用 `primary_id/fallback_id` 之外返回可空的 `transcript_primary_id/transcript_fallback_id`；转写专属值优先，空值继承通用对应项。`GET/PUT /api/settings/transcript-processing` 管理 `chunk_chars/batch_size/timeout_seconds`，缺省为 `12000/128/180` 并执行数值范围校验。
+
+`GET /api/sources/{id}` 返回 `deletion.allowed/content_count/video_note_count/active_job_count`。`DELETE /api/sources/{id}` 只删除孤立来源；仍有关联业务内容或活跃 Job 时返回 409。删除最后一个内容或视频笔记后，服务端自动执行同一孤立判断并按需清理来源。
+
+地点候选、Transcript Segment、目录和截图 ViewModel 都返回 `target_section_id`。页面内时间码使用稳定 `anchor_id` 跳转对应 Section；“打开原片”使用独立外链字段，不能与页面内跳转混用。
+
+`note_id` 的规范值为 `AINote.id`（`note_*`），`AINoteVersion.id`（`ntv_*`）只表示一次版本快照，不能写入内容页入口。为兼容已生成内容和旧书签，共享 Note 查询器可把历史 `ntv_*` 解析到所属 `AINote`，但响应和后续写入必须返回规范 `note_*`。未知 ID 返回 404；前端必须展示错误与重试/返回入口，不能把 error 状态继续渲染为 loading。
+
+当前实现使用统一 `POST /api/capture`（文件为 `/api/capture/file`）投递；长期 `/api/inbox` 命名保留为兼容演进方向。响应只确认入队；字幕获取、媒体下载、ASR、总结和 POI 解析全部由 Worker 完成。
+
 ## GET /api/travel/dashboard
 
 ```json
@@ -3744,63 +8167,83 @@ Filters：
 Filters：
 - city
 - place_type
-- status
-- source
-- preference
 - user_state
+- origin
+- query
+
+`source`、偏好打分和复杂状态组合属于后续查询增强；当前通过 `/sources`、地点详情和用户状态分别下钻，避免在单机 SQLite 上预先构建不可用的大型筛选索引。
 
 ## GET /api/travel/places/{id}
 
 返回：
-- place
-- mentions
-- observations
-- evidence
-- preference explanation
+- 地点预览、坐标系、坐标、POI Provider 与元数据；
+- 观察摘要；
+- 详细来源/时间码由 `/api/travel/places/{id}/sources` 返回；
+- 地点归纳笔记与其 Evidence 数由 `/api/travel/places/{id}/note` 返回。
+
+## GET /api/travel/places/{id}/note
+
+返回地点归纳笔记、当前版本、来源冲突、Observation 摘要和 Evidence 引用。
+
+## GET /api/travel/places/{id}/sources
+
+返回提到该地点的视频/图文来源、Note、Mention、时间码和原片跳转信息。
 
 ## GET /api/travel/map
 
-返回独立 `MapOverviewVM`，只包含 Confirmed Place。请求参数：
+参数：
 
-- `bbox`：当前地图可视区域；
-- `zoom`：缩放级别；
-- `city` / `district`；
+- `bbox=min_lng,min_lat,max_lng,max_lat`；
+- `zoom`；
 - `place_type`；
 - `user_state`；
-- `selected_place_id`（可选，用于恢复页面状态）。
+- `origin`；
+- `query`；
+- `selected_place_id`。
 
-响应包含：
+首次进入由前端使用中国大陆全境 viewport；API 不提供默认城市。全国尺度返回 clusters，放大后返回 Marker。响应保存当前 viewport、总数、可见数、聚合和 selected preview。
 
-```json
-{
-  "coordinate_system": "GCJ02",
-  "total_places": 12,
-  "visible_places": 8,
-  "markers": [],
-  "clusters": [],
-  "selected_place_id": "place_03",
-  "selected_preview": {},
-  "route_draft_count": 2
-}
+地点列表、视频笔记中的地点链接和地图 Marker 必须使用同一 `place_id`。Marker 返回：
+
+```text
+marker_id
+place_id
+origin
+visibility
+canonical_name
+place_type
+latitude / longitude
+address
+preview_image
+brief
+key_observations
+source_count
+user_state
 ```
 
-Marker 只返回地图绘制和轻量预览所需字段，不携带完整 Observation/Evidence。点击 Marker 更新前端 `selected_place_id` 并切换预览卡；只有点击“查看详情”才进入 Place Detail API。地图 viewport、zoom、filters 与 selected Marker 应保存在页面路由状态中，从详情返回时恢复。
+完整归纳笔记统一从 Place Detail/Note API 获取。
 
-## GET /api/travel/places/{id}/preview
+## GET /api/travel/map/bootstrap
 
-返回 Marker 底部预览卡所需的名称、地址、地点类型、关键 Observation、Evidence 摘要和用户状态，不返回完整详情。
+返回受认证用户加载高德 JS 所需的 JS Key、Security Code、配置状态、默认中国大陆 viewport 和 Provider 诊断。不得返回高德 Web 服务 Key。
 
-## GET /api/travel/route-drafts
-## POST /api/travel/route-drafts
-## PUT /api/travel/route-drafts/{id}/items
+## POST /api/travel/map/markers
 
-路线清单只保存 `place_id` 与 `sort_order`。第一版不返回自动路线几何、最优顺序、距离或交通耗时；这些字段只能来自未来路线 Provider。
+当前实现支持用户点选坐标与 `longitude/latitude + custom_name`，生成 `USER_CONFIRMED` Place 并返回 `marker_id + place_id`。高德搜索候选直接创建属于后续增强；已由视频链路确认的 POI 仍通过 `RESOLVE_POI` 生成 Provider-confirmed Place。
+
+## DELETE /api/travel/map/markers/{marker_id}
+
+用户 Marker 软删除；自动 Marker 只隐藏地图投影。不得级联删除 Source、Claim、Evidence、PlaceMention 或 Place Note。
+
+## POST /api/travel/map/markers/{marker_id}/restore
+
+恢复软删除/隐藏 Marker。
 
 ## POST /api/travel/places/{id}/save
 ## POST /api/travel/places/{id}/dismiss
 ## POST /api/travel/places/{id}/visited
 
-写 PreferenceEvent / VisitEvent。
+写入用户地点状态与可审计事件；独立 PreferenceEvent / VisitEvent 领域模型属于后续增强。
 
 ## POST /api/travel/export
 
@@ -3809,25 +8252,47 @@ Marker 只返回地图绘制和轻量预览所需字段，不携带完整 Observ
 - json
 - geojson
 
+当前以 `POST /api/travel/export?format=csv|json|geojson` 提供。GeoJSON 顶层及每个 Feature 的属性均明确标注 `GCJ02`；只导出当前可见 Marker 投影，不导出已隐藏/软删除的投影。
+
 ---
 
 # 4. Control Center API
+
+当前任务控制接口为：
+
+```text
+GET  /api/jobs/{job_id}
+GET  /api/jobs/{job_id}/replay-options
+POST /api/jobs/{job_id}/retry-from-step
+POST /api/jobs/{job_id}/retry-full
+POST /api/jobs/{job_id}/cancel
+```
+
+`GET replay-options` 由服务端根据失败步骤、Artifact Manifest、输入哈希和 TTL 返回：可否步骤续跑、replay_from_step、复用步骤、需重跑步骤、replayable_until 和不可用原因。
+
+`POST retry-from-step`：
+
+```json
+{
+  "step_name": "GENERATE_AI_NOTE",
+  "source_event_id": "evt_..."
+}
+```
+
+服务端只接受与 Replay Options 一致的失败步骤，不允许前端任意指定 from_step。新 Attempt 复用之前 COMPLETED 且 Artifact 有效的步骤，将它们标记为 REUSED；失败步骤和所有下游步骤重新执行。下游旧输出 INVALIDATED，新版本不覆盖旧版本。
+
+Artifact 已过期/缺失、输入变化、活跃 lease、事件归属不匹配或已有 replay 时返回 409 和稳定 `REPLAY_*` code。`retry-full` 是独立动作，从首步骤创建新的完整 Job；原 Job 正在运行时先请求取消旧流程。响应返回 `job_id / replaced_job_id / stopped_active_job`，客户端导航到新 Job。完整契约见 `PIPELINE_STEP_REPLAY_V044_SPEC.md`。
+
+`replay-options` 还返回 `full_replay_available / full_replay_reason`。完整重跑在所有状态可提交；运行态 reason 明确提示“将停止当前流程并创建新的完整任务”。步骤恢复卡不重复放置完整重跑按钮。
 
 ## GET /api/admin/dashboard
 ## GET /api/admin/jobs
 ## GET /api/admin/jobs/{id}
 
-## POST /api/admin/jobs/{id}/retry
+## GET /api/admin/jobs/{id}/replay-options
+## POST /api/admin/jobs/{id}/retry-from-step
+## POST /api/admin/jobs/{id}/retry-full
 ## POST /api/admin/jobs/{id}/cancel
-
-## POST /api/admin/jobs/{id}/rerun
-
-```json
-{
-  "from_step": "EXTRACT_PLACES",
-  "provider_override": null
-}
-```
 
 ## POST /api/admin/jobs/{id}/rerun-external
 
@@ -3842,6 +8307,16 @@ Marker 只返回地图绘制和轻量预览所需字段，不携带完整 Observ
 
 ## GET /api/admin/settings
 ## PUT /api/admin/settings
+
+地图设置至少包括：
+
+```text
+amap_js_key
+amap_security_code
+amap_web_service_key
+```
+
+提供独立真实测试，分别报告 JS 配置、Web 服务搜索和域名白名单提示。Web 服务 Key 不回传明文；Security Code 只通过地图 bootstrap 提供给已认证客户端。
 
 ---
 
@@ -3900,7 +8375,7 @@ API 返回给产品前端的是 ViewModel，而不是 ORM Row。
 - localhost 与 LAN UI 使用同一 API；
 - 手机首次配对通过 `POST /api/auth/session` 在请求体提交访问 Token，服务端换发短期 HttpOnly、SameSite Session Cookie；
 - 后续 REST 与 WebSocket 握手统一验证 Session Cookie；脚本型客户端可使用 `Authorization: Bearer <access-token>`；
-- Token 由本机生成并支持轮换；Windows PC 存入 Windows Credential Manager/DPAPI，Mac mini 存入 macOS Keychain；
+- Token 由 Mac mini 生成、存入 macOS Keychain，并支持轮换；
 - CORS 使用明确 Origin allowlist；
 - 长期 Token 不放在查询字符串、localStorage 或普通日志中；
 - 未授权请求统一返回稳定错误码 `AUTH_REQUIRED` / `AUTH_INVALID`。
@@ -3918,7 +8393,7 @@ API 返回给产品前端的是 ViewModel，而不是 ORM Row。
 
 Local First。
 
-第一版业务数据默认只在用户选定的本地后端节点（Windows PC 或 Mac mini）。
+第一版业务数据默认只在用户的 Mac mini。
 
 ---
 
@@ -3947,8 +8422,7 @@ Local First。
 # 3. API Key
 
 正式版本：
-- Windows PC 使用 Windows Credential Manager / DPAPI；
-- Mac mini 使用 macOS Keychain；
+- macOS Keychain；
 - 数据库只保存引用。
 
 开发 `.env`：
@@ -3972,6 +8446,22 @@ Local First。
 - 普通导出；
 - 默认云备份。
 
+Bilibili 字幕或下载可能使用用户 Cookie。Cookie 与 `SESSDATA` 适用同一安全等级：只存平台 Secret Store 或受保护 Browser Profile；不得写入 SQLite 明文、普通日志、错误详情、导出文件或前端通用 Settings API。短链解析和媒体下载必须执行平台 host allowlist、DNS/IP 检查、重定向上限和私网地址拒绝，避免 SSRF。
+
+视频截图属于来源派生资产，默认只保存在本机，不自动进入普通数据导出或云备份。任务缓存视频按 TTL 清理；已被 Note/Place 页面引用的截图保留哈希、时间码和来源关系。隐藏/删除 Marker 不得级联删除截图或 Evidence。
+
+视频封面下载只允许经 Bilibili Resolver 取得且命中图片 CDN allowlist 的 HTTPS URL；执行 DNS/IP、重定向、Content-Type、文件头、尺寸和最大字节校验。封面图片 API 只服务数据库登记路径，禁止任意路径读取和通用 URL 代理。封面原图属于本地派生资产，默认不进入普通导出。
+
+Transcript AI 校对会把视频字幕/ASR 文本发送给所选 LLM Provider，适用 `NORMAL` 来源外发策略并写 ExternalCallAudit。raw_text 与 corrected_text 都受 180 天文稿保留策略约束；默认 UI/导出使用 corrected_text，raw 仅用于本地 Evidence/差异审计。审计日志只能记录 Segment ID、模型、覆盖率和变更计数，不记录原始或校对全文。
+
+完整视频转写属于可导出的来源正文，只在已认证的视频笔记详情提供 TXT 下载。导出由服务端即时生成，不写入缓存目录，不包含 Cookie、模型 Prompt、API Key、内部绝对路径或审计 detail。文件名只使用清洗后的标题与 Transcript Version。
+
+## 用户补充 Prompt
+
+用户在设置页保存的补充 Prompt 属于本地设置数据，写入 SQLite `prompt:supplements`，不写入 Keychain，也不进入 Transcript TXT 导出。审计事件只保留启用阶段与内容哈希，不写入原文，避免运行日志泄露用户表达偏好。核心 Prompt 文件和 JSON/Schema/ID 契约不经 API 提供编辑能力。
+
+完整转写正文固定保留 180 天。清理必须覆盖 `Transcript.text`、`Segment.text/raw_text/corrected_text`、`Evidence.quote` 以及 `metadata_json` 中可能重复保存的全文 fingerprint；只保留哈希、时间范围、数量、版本和 `purged_at`。派生 AI Note 与截图可继续保留，但 UI 必须说明完整转写已过期，不能假装 Evidence 仍可展开。
+
 ---
 
 # 5. 外部大模型数据边界
@@ -3987,6 +8477,8 @@ Local First 默认尽可能本地处理。
 - `LOCAL_ONLY` 永不外发；
 - 发送审计记录只保存字段类别与 Evidence/Segment 引用，不复制敏感正文。
 
+高德 Web 服务 Key 与 Security Code 使用 SecretStore；JS API Key 可保存为普通配置。由于 JS Key/Security Code 最终需要提供给已认证浏览器运行时，系统不得宣称其对客户端不可见，必须依赖高德控制台的域名白名单、配额与服务端 Web Key 隔离。Web 服务 Key 永不返回前端。
+
 ---
 
 # 6. 本地 Web 安全
@@ -3994,7 +8486,7 @@ Local First 默认尽可能本地处理。
 MVP 明确支持手机局域网访问：
 
 - 首次安装默认生成高熵访问 Token；
-- Control Center 显示当前后端节点、LAN 地址并允许复制/轮换 Token；
+- Mac mini Control Center 显示 LAN 地址并允许复制/轮换 Token；
 - 手机首次访问输入 Token，通过 `POST /api/auth/session` 换取短期 HttpOnly、SameSite Session Cookie；
 - 浏览器不把长期 Token 保存到 localStorage，REST 与 WebSocket 统一验证 Session；
 - localhost 之外的请求缺少/无效 Token 一律拒绝；
@@ -4005,8 +8497,6 @@ MVP 明确支持手机局域网访问：
 - Token 不写入 URL、普通日志或导出文件。
 
 LAN 传输只允许用户明确配置的可信家庭/办公网络。Phase 0A 必须比较本地 HTTPS 与可信 LAN HTTP 的安装/配对体验；若 MVP 不能可靠部署 HTTPS，UI 必须明确提示不得在公共 Wi-Fi、访客网络或不可信热点中启用 LAN，并将 HTTPS 列为发布前风险项。
-
-Mac mini 作为无显示器常驻节点时，不能只依赖 `.local` 主机名发现；必须同时显示当前 IP，并建议在路由器配置 DHCP 保留地址。Windows PC 与 Mac mini 都必须关闭自动公网暴露，平台防火墙只放行已选 LAN Profile/接口与应用端口。
 
 ---
 
@@ -4033,6 +8523,8 @@ MVP 不强制实现。
 
 对敏感 Profile 做字段级掩码。
 
+粘贴分享文案的 Input Normalizer 不在普通日志记录原始全文。URL 任务默认仅持久化选中 URL、输入类型、候选数量、丢弃文本长度和原始输入哈希；周围标题、聊天内容或分享话术不发送给外部 LLM。提取出的每个候选在网络访问前仍需执行 scheme/host allowlist、DNS/IP 与重定向检查，不能因为它出现在文本中就自动抓取。
+
 ---
 
 # 9. 数据导出
@@ -4048,12 +8540,15 @@ MVP 不强制实现。
 - Travel Places
 - Evidence
 - Settings（无 secret）
+- 在 180 天有效期内导出单条视频的完整时间码转写 TXT
 
 ---
 
 # 10. 删除
 
-未来应支持：
+视频笔记删除仅删除 Note 阅读产物，保留共享 Source、VideoAsset、CoverAsset、Transcript、Place 和 Evidence；活跃生成 Job 阻止删除。确认框必须说明不可恢复和保留边界，审计不记录 Transcript 正文。完整契约见 `VIDEO_NOTE_DELETE_V044_SPEC.md`。
+
+其他未来删除能力：
 - 删除 Source；
 - 删除 Snapshot；
 - 删除 Profile；
@@ -4062,12 +8557,16 @@ MVP 不强制实现。
 
 删除业务对象时注意 Evidence 引用与审计完整性。
 
+步骤级 Replay Cache 默认保留 24 小时，但临时 Cookie、Secret 和未登记 scratch 必须立即清理；Artifact 日志只记录哈希、路径引用、类型、版本和到期时间，不记录正文或凭据。
+
 
 ---
 
 # FILE: TESTING_AND_ACCEPTANCE.md
 
 # Testing & Acceptance
+
+> 实施回归的不可回退功能清单见 `REGRESSION_AND_CHANGE_GUARD.md`。每次跨模块改动均应先过该清单，再执行本文件的专项验收。
 
 ## 1. 测试原则
 
@@ -4093,6 +8592,7 @@ MVP 不强制实现。
 - Information Gain
 - Preference scoring
 - Job state transition
+- Capture Input Normalizer
 
 ## Fixture
 - HTML Resolver
@@ -4103,9 +8603,11 @@ MVP 不强制实现。
 - scanned PDF / image OCR
 - Transcript
 - POI candidates
+- share text with embedded URL
 
 ## Integration
 - Capture → Job
+- raw paste → selected URL → Source locator
 - Recruitment End-to-End
 - Travel End-to-End
 - External LLM fallback
@@ -4115,6 +8617,21 @@ MVP 不强制实现。
 - Dashboard
 - Control Center
 - Evidence drill-down
+
+## Capture Input Normalizer
+
+至少覆盖：
+
+1. 前后空白的纯 URL → `URL_ONLY`；
+2. 标题 + 换行 + Bilibili URL + “复制打开” → `SHARE_TEXT_WITH_URL`，后续 payload 只有 URL；
+3. Markdown `[标题](URL)` 与 `<URL>`；
+4. URL 后的 `。`、`，`、`)`、`】`、引号被正确剥离，query/fragment 保留；
+5. 相同 URL 或 canonical 后相同的短链去重；
+6. 多个候选但只有一个命中专用 Resolver时自动选择；
+7. 多个不同内容 URL → `CAPTURE_MULTIPLE_URLS`，不创建 Job、不访问网络；
+8. 无 URL 普通文段 → `TEXT_ONLY`；
+9. 分享标题不覆盖平台正式标题，不进入 LLM/Claim/Evidence；
+10. 日志和数据库不保存被丢弃分享文案全文。
 
 ---
 
@@ -4203,20 +8720,93 @@ Fixture 包含：
 
 Fixture：
 - 本地 Transcript
+- Bilibili metadata/subtitle/无字幕响应
+- DeepSeek 分块与合并响应
+- 视频帧、黑帧、模糊帧和重复帧 Fixture
 - 地点候选
 - Mock POI Provider
+- 中国大陆 bbox/zoom/cluster 和 Marker 生命周期
 
 验收：
 - PlaceMention；
 - POI；
 - Dedup；
 - Preference；
-- MapOverviewVM；
-- 同一区域多 Marker 分布与密集点聚合；
-- 依次点击 Marker 只切换地点预览，地图 viewport 不重置；
-- 从地点详情返回恢复 zoom、filters 与 selected Marker；
-- 路线清单按手动顺序保存 Place，且不生成未经 Route Provider 验证的距离/耗时；
+- Map ViewModel；
 - Evidence timestamp。
+- AI Note Version；
+- Place Note Version；
+- 视频笔记、列表和 Marker 进入同一 Place Detail。
+
+视频专项验收：
+
+1. BV、`b23.tv` 与 `?p=N` 均能 canonicalize；
+2. 平台字幕命中时 `DOWNLOAD_AUDIO/ASR` 为 `SKIPPED`；
+3. 无字幕时 yt-dlp + FFmpeg + ASR fallback；
+4. 长 Transcript 分块失败后可从 checkpoint 恢复；
+5. DeepSeek 429/5xx 有限重试，Key/余额错误不盲重试；
+6. AI Note 成功、POI 歧义时为 `PARTIAL_SUCCESS`；
+7. 每个地点事实引用 Transcript Segment，不只引用 AI Markdown；
+8. 同一高德 POI 来自多个视频时只有一个 Marker；
+9. 重跑复用 Transcript 并新增 Note Version；
+10. BiliNote 移植文件保留 MIT 声明和参考 revision。
+11. 每个主要地点 1–3 张、全文默认 3–12 张截图，均有时间码与来源绑定；
+12. 黑帧、模糊帧和感知重复帧不会进入 Note；
+13. 餐馆、景区、街区、步行街、商圈和市场可区分；
+14. 转写同音/错别字名称经高德校正，raw/canonical 同时保留；
+15. 首次地图加载无默认城市参数、标题或厦门 fallback；
+16. 全国 bbox/zoom/cluster 和 viewport 恢复；
+17. Marker 点击在地图浮窗查看简介并进入统一详情；
+18. 用户 Marker 新增、软删除、恢复；
+19. 自动 Marker 隐藏不删除 Source/Evidence；
+20. 高德 JS Key、Security Code、Web 服务 Key 可配置并分别诊断。
+21. 内容页写入并跳转 `AINote.id`；历史 `AINoteVersion.id` 链接仍能由共享 API 兼容解析，未知 ID 返回可见 404，不永久显示“正在读取视频笔记”。
+22. `/api/status` 不响应时 SessionGate 在有界时间内进入可重试状态；服务恢复后无需重新配对即可进入目标页面。
+23. Ollama 请求体包含 `keep_alive: 0`；成功、HTTP 失败、JSON 解析失败、备用模型与设置页真实测试后均释放本次模型，清理失败不覆盖原结果。
+24. Bilibili 横屏与竖屏 Fixture 都能选择 video-only DASH 流；真实样本 `BV1JH826zEKC` 不再出现 `Requested format is not available`，并生成至少一张 `READY` 截图。
+25. Whisper.cpp JSON offset `2800` 写入后仍为 `2800 ms`，不得变成 `28000 ms`；末段时间显著超过视频时长时，Note 与截图步骤不得继续物化。
+26. 样本 `note_221cd61e9600493cb3f32e062e1ad013` 的 10 倍历史时间轴生成修正版 Transcript Version，页面时长、章节时间码、导出时间码和截图定位一致。
+27. 任意非空 Transcript 均同时得到摘要和至少一个“按时间线详述”章节；章节按时间递增并覆盖末个 Segment。模型返回全部无效 `segment_ids` 时使用服务端分块引用和转写整理兜底，不得得到 0 章节。
+28. 无 Note Section 时截图计划仍从有效 Transcript 生成 3–6 个候选；`plans == 0` 不下载视频、不把截图步骤记为成功，并显示稳定错误原因。
+29. “导出完整转写（TXT）”包含所有 Segment、完整时间范围和来源元数据，不只包含页面前 8 段；响应为附件且服务端不产生持久导出文件。
+30. Transcript 创建后第 179 天仍可读取/导出，第 180 天清理任务幂等清空正文、Segment 文本、Evidence quote 和全文 fingerprint；Note/时间线/截图仍可读，Transcript/导出返回 410，审计日志不包含原文。
+31. 全部 Segment 生成 corrected_text，Segment ID、顺序和时间范围不变；缺段/新增 ID/乱序的模型输出被拒绝。
+32. 口音、同音字、断句、重复词和专有名词校对符合人工答案；不确定地名进入 Review，不编造事实。
+33. 默认 Transcript 预览、Note 和 TXT 导出使用 corrected_text；raw_text 只从审计入口读取。
+34. Hero 后进入摘要/目录/正文；地点候选与完整转写在文章最底部，PC 双列、Mobile 纵向，无横向溢出。
+35. 地点、Transcript Segment、目录和截图时间码均跳转正确 Section，更新锚点、聚焦并短暂高亮；前进/后退恢复。
+36. 目录每项具有具体 heading 与 20–50 字 thesis，不出现“本段继续介绍”等泛化套话。
+37. “按时间线详述”由 summary/bullets/place refs 组成，不连续铺原始转录句子，并覆盖完整校对稿。
+38. READY 截图以 220–280px 缩略图放在对应 Section 文字侧面；仅章节起始 talking head、片头、转场不作为关键帧。
+39. 截图 caption 说明实际关键内容，不统一显示“章节起始时间码代表帧”。
+40. 点击截图打开 contain 灯箱，上一张/下一张、Escape、遮罩和关闭按钮均可用，关闭后焦点恢复。
+41. “导出 TXT”使用统一次级按钮视觉，默认导出 corrected 版本；raw 导出只在审计区域。
+42. VideoAsset.cover_url 的 HTTP/协议相对 URL 规范为 HTTPS，只有允许的 Bilibili 图片 CDN host 可下载。
+43. JPEG/PNG/WebP/AVIF 封面按状态、MIME、文件头、尺寸和最大字节验证，HTML/SVG/损坏响应被拒绝。
+44. 原始封面按 SHA-256 去重并生成 672×378 WebP；同一 VideoAsset 多 Note Version 不重复下载。
+45. Video Note List 使用本地 cover_image_url、16:9 object-fit cover 和时长徽标；失败时布局稳定显示占位。
+46. 列表顶部主按钮文案为“添加视频链接”，PC 40px/14px，Mobile 不放大且符合全局 Primary Button 状态。
+47. C 步骤 ERROR 且 A/B Artifact 有效时，续跑只执行 C 及下游；A/B 记录 REUSED 且不产生新外部调用。
+48. Replay Cache 24 小时内可用并显示剩余时间；到期后返回 `REPLAY_ARTIFACT_EXPIRED`，只能完整重跑。
+49. 输入/模型/Prompt 改变时，服务端从最早失效步骤续跑；前端不能任意指定 from_step。
+50. 任务详情和日志显示“从错误步骤继续”、复用/重跑步骤；旧“重跑所属任务”不再代表整 Job 重跑。
+51. 视频笔记列表/详情删除共用同一 API；删除 Note 后 Source、VideoAsset、CoverAsset、Transcript、Place 和 Evidence 仍存在。
+52. 活跃生成 Job 阻止删除；确认框展示标题、保留边界和不可恢复。
+53. Hero 缺封面时区域为空/收起，不显示场记板占位；地点候选和完整转写位于文章最底部。
+54. 目录符合主体暖白/朱砂/衬线/细分隔线语言；截图以 220–280px 缩略图侧排并可打开 contain Lightbox。
+
+55. 单 Worker 运行超过 `worker_heartbeat_seconds * 3` 的模型批次时，`/api/status.services.worker` 仍为 `RUNNING` 且进程心跳持续推进；该 Job 的停滞只依据自身活动时间。
+56. `CORRECT_TRANSCRIPT` 进入多批模型请求后取消：当前受控 HTTP 请求结束后不再发起下一批，写入 `job.cancel.observed` 并释放 lease。
+57. 429/5xx/超时不会通过递归二分放大同一批外部请求；仅 payload/结构问题允许缩小批次，batch 开始/结束均写入非敏感进度事件。
+58. 运行或排队中的 Job 点击右上角“从头重新运行”：旧 Job 进入协作式取消，新 Job 立即创建为 `QUEUED`，响应返回新旧 Job ID，前端导航到新 Job。
+59. 步骤恢复卡仅在 Replay Options 可用时显示续跑按钮；不可续跑时仅提示原因，不重复显示完整重跑按钮。
+60. 通用设置默认返回 `ai_retry_count=2 / ai_retry_wait_seconds=5 / ai_request_interval_seconds=1`，保存后下一次 Pipeline AI 调用生效。
+61. 429/408/409/425、超时、连接失败、可恢复 5xx 与空响应按设置有限重试；每次调用前执行配置间隔，重试事件记录 attempt、limit、wait 和脱敏原因。
+62. LLM 步骤在 600 秒内不显示“可能停滞”；900 秒真实 Attempt 终止阈值保持独立。
+63. `GET /api/settings/prompt-supplements` 默认返回三项空补充、只读核心规则摘要与 1000 字符上限；保存语气/篇幅偏好后可读回。
+64. PUT 包含“忽略系统规则”“修改 JSON/字段/ID/顺序”等越权语言返回 422，且原设置不变。
+65. 补充文本会作为低优先级 System Message 插入三个对应 LLM 阶段；固定 Prompt、JSON 解析和 Segment ID 校验仍保持生效。
+66. 失败 Job 在某个补充 Prompt 哈希改变后，Replay Options 返回最早受影响的 AI 步骤，不允许从更晚步骤绕过重算。
 
 ---
 
@@ -4230,6 +8820,17 @@ Fixture：
 5. 新 Worker 接管。
 
 验收：不丢任务、不重复写最终结果。
+
+运行日志手动重跑专项验收：
+
+1. 点击普通 INFO/WARNING 或无 Job 关联事件，只打开详情，不显示重跑按钮；
+2. 点击 `ERROR/CRITICAL + entity_type=job` 事件，抽屉显示所属任务当前状态、步骤和重试次数；
+3. `FAILED / PARTIAL_SUCCESS / NEEDS_USER` 与 lease 已释放的 `CANCELLED` 可确认重跑；`QUEUED / RUNNING / COMPLETED`、取消未释放、已删除 Job 均不可误触发；
+4. 确认前没有请求；连续双击只产生一次重入队，第二次由 pending 禁用或服务端 409 拒绝；
+5. 请求携带 `source_event_id`，服务端拒绝非 ERROR/CRITICAL、归属不匹配或不存在的事件；
+6. 成功后 Job 为 `QUEUED`、`retry_count + 1`，产生包含来源事件 ID 的 `job.retry.queued`，日志页保持同一 Job 筛选并可进入重跑进度；
+7. Worker 按 Pipeline 定义顺序执行，前端不需要逐步点击；输入哈希一致的缓存是否复用由 Pipeline 决定；
+8. 新 attempt 再次失败时生成新 ERROR 事件，旧事件仍保留；敏感正文、Cookie、Key 不进入确认框或审计 detail。
 
 ---
 
@@ -4254,15 +8855,16 @@ Mock：
 
 ---
 
-# 12. Target Node Hardware Acceptance
+# 12. PC Hardware Acceptance
 
-共同安装诊断：
+安装诊断：
 
 - Python
 - SQLite
 - ffmpeg
 - Playwright browser
 - Ollama
+- Apple Silicon / Metal runtime detected
 - whisper.cpp
 - model availability
 - disk writable
@@ -4271,25 +8873,7 @@ Mock：
 - AMap API / map render
 - DeepSeek / Xiaomi MiMo connection
 
-方案 A 额外验收：
-
-- Windows Credential Manager / DPAPI；
-- AMD GPU detected；
-- Ollama AMD 结构化输出；
-- whisper.cpp Vulkan；
-- Windows 重启、休眠/唤醒与服务恢复。
-
-方案 B 额外验收：
-
-- macOS Keychain；
-- Apple Metal detected；
-- Ollama Metal 结构化输出与统一内存峰值；
-- whisper.cpp Metal，Core ML encoder 如启用则单独记录；
-- arm64 OCR、Playwright、ffmpeg 与 legacy `.xls` 依赖；
-- `launchd` 在崩溃、退出登录和 Mac mini 重启后的服务恢复；
-- mDNS 不可用时通过固定 IP/DHCP 保留地址访问。
-
-CMS 显示当前后端类型、硬件、运行时和诊断结果。两套平台的性能结果必须分别记录。
+CMS 显示诊断结果。
 
 ---
 
@@ -4306,17 +8890,37 @@ CMS 显示当前后端类型、硬件、运行时和诊断结果。两套平台�
 7. 用户可粘贴 Bilibili 链接；
 8. 能得到字幕或 ASR；
 9. 能提取并确认地点；
-10. 多个地点可同时出现在独立地图总览，点击 Marker 可切换预览并进入详情；
+10. 地点可出现在地图 ViewModel；
 11. 可 SAVE / DISMISS / VISITED；
-12. 选中的后端节点重启后任务可恢复；
+12. PC 重启任务可恢复；
 13. 外部模型 API Key 可配置且可测试；
 14. 所有核心长任务可从 CMS 重试。
 15. 手机可在同一局域网安全访问，未授权请求无法读取业务或管理数据；
 16. DOCX、扫描 PDF 与图片公告可归一化并保留 Evidence 定位；
 17. 高德 POI/地图可用，GCJ-02 在存储与导出中明确标注；
 18. DeepSeek、Xiaomi MiMo 可通过兼容 Provider 配置和测试；
-19. 地点可加入路线清单并手动排序，系统不伪造自动最优路线、距离或交通耗时；
-20. `GOLDEN_SAMPLES.md` 的安全与正确性门槛全部通过。
+19. `GOLDEN_SAMPLES.md` 的安全与正确性门槛全部通过。
+20. Bilibili 视频可生成完整、带时间码和版本记录的 AI 笔记；
+21. 地点可生成跨来源归纳笔记，视频笔记、列表和地图 Marker 均进入同一地点详情；
+22. 已配置 DeepSeek Provider 可完成长字幕分块总结，外部调用可审计且 API Key 不进入日志。
+23. 视频笔记包含与章节/地点时间码绑定的代表性截图；
+24. 餐馆、景区、街区等细粒度地点具有特色简介并通过高德校名；
+25. 地图以中国大陆全境为首次视野，不使用默认城市，支持 bbox、zoom、cluster 和视野恢复；
+26. Marker 浮窗、用户新增、隐藏、软删除和恢复均可用，且不破坏 Place/Evidence；
+27. 设置页可填写并测试高德 JS Key、Security Code 和 Web 服务 Key。
+28. 粘贴标题/分享话术与唯一链接时只处理该 URL；多个不同内容链接返回候选且不静默选择。
+29. 视频笔记阅读体验符合 `VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md`：顶部证据区、AI 校对稿、主旨目录、段落跳转、随文截图与灯箱全部通过。
+30. 视频笔记列表符合 `VIDEO_NOTE_LIST_V043_SPEC.md`：按钮文案/尺寸和真实本地封面全部通过。
+31. 步骤级续跑符合 `PIPELINE_STEP_REPLAY_V044_SPEC.md`；中间产物有效时不重跑上游，过期后只允许完整重跑。
+32. 视频笔记删除符合 `VIDEO_NOTE_DELETE_V044_SPEC.md`，共享数据和证据不受影响。
+
+---
+
+# 14. PC 运维 UI v0.3 验收
+
+下一实施阶段必须执行 `OPERATIONS_UI_SPEC.md` 第 8 节的全部验收，至少覆盖：935×886 有效视口和 125%/150%/200% 缩放下无重叠；当前步骤、子状态、计时与最后活动 3 秒内更新；Worker 心跳延迟/疑似停滞阈值；时间线按 Pipeline 顺序；日志组合筛选、游标分页、详情深链和脱敏导出；侧栏 CPU/内存/数据盘/Worker 心跳与真实状态接口一致；键盘全流程与不依赖颜色的状态表达。
+
+该验收组的代码实现已完成：任务详情采用 WebSocket/轮询回退，日志页支持组合筛选、游标分页、详情抽屉与脱敏导出，侧栏读取持久化运行指标。自动回归见 `REGRESSION_AND_CHANGE_GUARD.md`；原生 PC/手机浏览器缩放点击回归需在具备 Computer Use 或 Browser 控制器的会话补录，不能以设计稿代替。
 
 
 ---
@@ -4325,7 +8929,7 @@ CMS 显示当前后端类型、硬件、运行时和诊断结果。两套平台�
 
 # 日志系统设计架构
 
-版本：v0.1，更新日期：2026-08-19，适用部署：Mac mini 单节点。
+版本：v0.2，更新日期：2026-08-24，适用部署：Mac mini 单节点。
 
 ## 1. 目标与边界
 
@@ -4384,6 +8988,28 @@ Request ID 由 API 生成或接受客户端 `X-Request-ID`，并通过响应头�
 
 验收必须满足：PC 日志页能看到设置/档案/配对/任务事件；API 响应带 Request ID；`api.jsonl` 与 `worker.jsonl` 为合法逐行 JSON；任务失败可从 Job ID 定位事件；日志中搜索不到配对码、Cookie、API Key 与请求正文。
 
+## 7. 运维查询与界面契约（v0.3 设计基线）
+
+当前 `/api/logs` 的基础检索不足以支撑日常排障。下一实施版必须增加时间范围、多个级别/组件、事件类型、Job ID、Request ID、实体 ID、全文检索、游标分页与排序，并允许任务详情携带 Job ID 深链到日志页。日志详情需要保留结构化 detail、耗时/状态码和脱敏异常摘要；导出与页面使用同一脱敏层。
+
+页面交互、实时跟随、详情抽屉、固定列和验收规则以 `OPERATIONS_UI_SPEC.md` 第 5 节为准。该节目前是设计契约，不代表查询 API 或日志页已经实施。
+
+## 8. 错误事件触发步骤级续跑（已实施入口需返工）
+
+运行日志是诊断与操作入口，不拥有 Job 状态机。ERROR/CRITICAL 事件关联 Job/Step 后，日志页先查询 Job Replay Options：
+
+- `level` 为 `ERROR` 或 `CRITICAL`；
+- `entity_type == "job"` 且 `entity_id` 对应仍存在的 Job；
+- `detail.step` 对应本次失败步骤；
+- Job 没有活跃 lease；
+- 上游 Step Artifact 未过期且输入/版本有效。
+
+Artifact 可用时主按钮为“从错误步骤继续”，确认框列出复用的上游步骤、重新执行的当前/下游步骤和 replayable_until；调用统一 `POST /api/jobs/{job_id}/retry-from-step`。Artifact 已清理时禁用步骤续跑并显示“中间产物已清理”，只提供独立的“完整重跑”。
+
+新任务错误事件必须保存非敏感 `step/error_code/attempt`。服务端验证 source_event_id、失败 Step 与 Replay Options 一致；日志页面不得写 JobStep 或指定任意 from_step。
+
+新 Attempt 把上游有效步骤标为 REUSED，从失败步骤开始顺次执行；下游旧输出 INVALIDATED。新尝试再次失败时保留旧事件和旧 Attempt。完整契约见 `PIPELINE_STEP_REPLAY_V044_SPEC.md`。
+
 
 ---
 
@@ -4391,7 +9017,7 @@ Request ID 由 API 生成或接受客户端 `X-Request-ID`，并通过响应头�
 
 # 日志系统实施文档
 
-版本：v0.1，更新日期：2026-08-19。
+版本：v0.2，更新日期：2026-08-24。
 
 ## 1. 已实施组件
 
@@ -4464,6 +9090,24 @@ record_event(
 
 第二阶段可增加审计事件导出、按 Request ID/Job ID 深链、90 天定时清理、磁盘低水位告警和日志完整性哈希。未达到单机查询瓶颈前不引入外部日志栈。
 
+## 7. 运维工作台 v0.3（已实施）
+
+`OPERATIONS_UI_SPEC.md` 定义的健康摘要、组合筛选、Job/Request 深链、游标分页、实时跟随暂停、结构化详情抽屉和单条脱敏导出均已实施。日志页还支持 15 分钟/1 小时/24 小时/7 天/自定义时间范围、DEBUG 至 CRITICAL 级别、Request ID 与实体 ID 精确筛选；服务端支持 `from/to`、游标与 `asc/desc` 排序。批量 CSV/JSONL 导出、筛选链接复制和完整性哈希仍是后续增强，不计入当前完成项。
+
+## 8. 日志错误事件步骤续跑返工（待实施）
+
+现有“重跑所属任务”整任务重入队语义错误，需要改为 Replay Options 驱动的步骤级续跑：
+
+1. 详情抽屉按需调用 `GET /api/jobs/{job_id}/replay-options`；
+2. Artifact 可用时显示“从错误步骤继续”，并列出复用步骤、重跑步骤与剩余保留时间；
+3. 调用 `POST /api/jobs/{job_id}/retry-from-step`，提交 step_name/source_event_id；
+4. Artifact 过期时禁用步骤续跑，显示“中间产物已清理”，提供“完整重跑”；
+5. 成功后跟随 `job.step_replay.*` 审计事件；
+6. 409 展示 `REPLAY_ARTIFACT_EXPIRED / INPUT_CHANGED / LEASE_ACTIVE` 等稳定原因；
+7. 页面不得直接修改 JobStep、调用 Processor 或允许任意 from_step。
+
+完整语义见 `PIPELINE_STEP_REPLAY_V044_SPEC.md`。完整重跑和步骤续跑必须是两个独立按钮/API。
+
 
 ---
 
@@ -4473,11 +9117,11 @@ record_event(
 
 ## ADR-001：第一版取消云端
 **Decision**
-全部核心数据与计算运行在用户选中的本地后端节点：Windows PC 或 Mac mini。
+全部核心数据与计算运行在用户 PC。
 
 **Reason**
 - 单用户；
-- 可接受选中节点离线时暂不处理；
+- 可接受 PC 关机时暂不处理；
 - 用户明确希望先走通链路；
 - 降低云部署与成本复杂度。
 
@@ -4505,7 +9149,7 @@ FastAPI。
 
 **Reason**
 - ASR/视频/LLM 长任务；
-- 后端节点重启恢复；
+- PC 重启恢复；
 - CMS 可视化状态；
 - 不引入 Redis/Celery。
 
@@ -4604,7 +9248,7 @@ Semantic Major Match 不自动 PASS。
 LLMProvider 抽象，默认 LOCAL_FIRST。
 
 **Reason**
-- 利用所选节点的 RX 7900 XT 或 Apple Metal；
+- 利用 Mac mini 的本地 Metal 运行时；
 - 可离线；
 - 外部强模型用于增强；
 - 不锁厂商。
@@ -4613,7 +9257,7 @@ LLMProvider 抽象，默认 LOCAL_FIRST。
 
 ## ADR-013：ASR 抽象
 **Decision**
-ASRProvider：Windows AMD 首选 whisper.cpp Vulkan，Mac mini 首选 whisper.cpp Metal；Core ML encoder 仅作为 Mac Spike 后的可选加速。
+ASRProvider，Mac mini 首选 whisper.cpp Metal 路线。
 
 **Reason**
 避免锁 CUDA/faster-whisper。
@@ -4658,7 +9302,7 @@ UI 窄，接口宽。
 
 ## ADR-018：MVP 支持可信局域网手机访问
 **Decision**
-选中的 Windows PC 或 Mac mini 仍是唯一数据与计算节点；PC 浏览器与手机通过同一可信局域网访问响应式 Web。REST/WebSocket/Admin API 必须验证本机生成的访问 Token，不自动暴露公网。
+PC 仍是唯一数据与计算节点；手机通过同一可信局域网访问响应式 Web。REST/WebSocket/Admin API 必须验证本机生成的访问 Token，不自动暴露公网。
 
 **Reason**
 - 手机是“随手分享/查看结果”的必要入口；
@@ -4709,18 +9353,115 @@ DeepSeek、Xiaomi MiMo 等通过 OpenAICompatibleProvider 配置；模型名不�
 
 ---
 
-## ADR-023：MVP 保留两套单节点部署方案，实施时二选一
+## ADR-023：视频 AI 笔记参考 BiliNote，但由至简领域模型承接
 **Decision**
-保留 `windows_pc` 与 `mac_mini` 两套部署适配。两套方案共享业务代码、数据库模型与 API；只在安装、进程托管、Secret Store、本地 AI Runtime 和硬件诊断层分叉。进入 Phase 0A 前由用户选择一个 `DEPLOYMENT_TARGET`，MVP 不同时交付两套生产安装包，也不跨机器共享 SQLite。
+Bilibili 视频链路优先适配 BiliNote 已验证的 URL/分 P 解析、平台字幕优先、yt-dlp 音频 fallback、Transcript、长文本分块与 Markdown 后处理轮子。BiliNote 代码只进入第三方适配层；任务运行使用至简持久 Worker，结果使用至简 Source/Snapshot/Segment/Claim/Evidence/Place/Note Version。MVP 默认以已配置 DeepSeek Provider 生成视频 AI 笔记和旅行结构化结果。
 
 **Reason**
-- Windows PC 的 RX 7900 XT 20 GB 更适合优先验证较大的本地模型；
-- Mac mini M4 更适合低功耗常驻，使 PC 与手机在后端在线时都可随时访问；
-- 当前尚无两台设备上可直接比较的真实吞吐、兼容性和稳定性数据；
-- 业务架构本身不需要因操作系统而分叉。
+- 平台字幕、Cookie、风控和媒体下载存在大量已知边界，重复实现风险高；
+- BiliNote 的单体 NoteGenerator、BackgroundTasks 和 JSON 状态文件不满足至简的恢复、审计与 Evidence 要求；
+- AI 视频笔记和地点归纳笔记是产品一级产物，不能只把视频当地点抽取中间件；
+- 适配层隔离便于跟踪上游修复并履行 MIT License。
 
-**Decision Gate**
-分别执行 `DEPLOYMENT_OPTIONS.md` 和 `GOLDEN_SAMPLES.md` 的 Phase 0A 项，以 `PASS / DEGRADED / BLOCKED`、模型容量、ASR 时间、统一内存/显存峰值、功耗和常驻恢复结果支持最终选择。
+完整契约见 `VIDEO_AI_NOTE_PIPELINE.md`。
+
+---
+
+## ADR-024：代表性截图、细粒度地点与中国全境地图
+**Decision**
+视频 AI 笔记必须生成与章节/地点时间码绑定的代表性截图；默认通过受限画质视频下载和 FFmpeg 确定性抽帧，不启用全视频多模态理解。旅行地点粒度扩展到餐馆、景区、街区、步行街、商圈、市场等，并由高德校正名称与 POI。地图以中国大陆全境为初始 viewport，按 bbox/zoom 加载和聚合，无默认城市；Marker 支持用户新增、隐藏、软删除和恢复，点击后先显示地图浮窗，再进入统一 Place Detail。
+
+**Reason**
+- 纯文字笔记难以快速建立视频场景记忆，代表帧能显著提升地点和菜品辨识；
+- ASR 容易产生同音错字，真实地图 Provider 校名比 LLM 猜测可靠；
+- 旅行内容跨中国多个城市，硬编码厦门会错误限制产品范围；
+- Marker 是 Place 的地图投影，用户管理可见性不能破坏来源、Evidence 与跨来源聚合；
+- JS 地图和 Web POI 使用不同 Key/安全边界，需要在设置中分别配置与诊断。
+
+---
+
+## ADR-025：粘贴分享文案先规范化为唯一链接
+**Decision**
+Capture 接受完整原始粘贴值，并在创建 Source/Job 前区分纯 URL、带标题/分享话术的唯一 URL、无链接正文和多 URL。唯一 URL 被选中后，只有 URL 进入 Resolver、Classifier 与 LLM；周围标题和分享文字被丢弃。多个不同内容 URL 无法唯一确定时返回 `CAPTURE_MULTIPLE_URLS`，不静默选第一个。
+
+**Reason**
+- 手机和内容平台复制出的通常是“标题 + 链接 + 复制打开”整段文案；
+- 以 `startsWith("http")` 判断会把合法分享链接误当正文；
+- 分享标题可能不准确或包含推广文字，不能覆盖来源正式元数据；
+- 多链接静默取第一个可能处理错误内容并触发非预期网络访问；
+- 只持久化选中 URL 和最小审计字段可以减少无关聊天/分享文字留存。
+
+---
+
+## ADR-026：运行日志通过 Job 服务触发步骤级续跑
+
+**Decision**
+`ERROR/CRITICAL` 审计事件规范关联 Job/Step 后，日志页查询 Replay Options。中间产物有效时，调用 Job 服务从失败步骤继续；上游完成步骤标记 REUSED，当前及下游顺次执行。中间产物过期后禁用步骤续跑，只允许完整重跑。日志模块不得写 JobStep、调用 Processor 或允许任意 from_step。
+
+**Reason**
+- 当前错误事件已经通过 `entity_type=job / entity_id` 建立可靠关联，现场 ERROR 事件均可定位所属 Job；
+- 步骤中间产物默认保留 24 小时，可以可靠避免重复下载、ASR 和上游模型调用；
+- 点击历史错误时任务可能已重新运行或完成，必须读取 Job 当前状态，不能按旧消息直接执行；
+- 把来源事件 ID 写入 `job.step_replay.queued` 可形成“错误 → 用户确认 → 新 attempt → 当前/下游步骤”的审计链；
+- Artifact、输入哈希、版本与 TTL 由 Job 服务统一判断，日志 UI 只展示可用动作；
+- 完整重跑仍保留，但不能冒充步骤级恢复。
+
+---
+
+## ADR-027：视频笔记以 AI 校对稿和时间线主旨组织阅读
+
+**Decision**
+视频笔记详情在 Hero 后优先显示摘要、主旨目录和时间线正文，地点候选与完整转写放文章底部；Hero 使用真实 CoverAsset，缺省时为空/收起。Transcript 保留 raw/corrected 双版本，Note、目录、默认预览和 TXT 导出使用 AI corrected_text。目录由具体 heading/thesis 组成，所有时间码跳转稳定 Section 锚点。正文是按时间线组织的摘要、要点和地点引用；关键截图以侧排缩略图嵌入 Section 并提供 contain Lightbox。
+
+**Reason**
+- 地点和 Transcript 是回查工具，应在正文底部集中呈现而不打断阅读；
+- 口音和 ASR 错字会污染摘要、地名和目录，必须先校对再总结；
+- 原始转录堆叠不等于可读笔记，目录套话也无法帮助定位；
+- 时间码若不能跳到段落，就失去阅读导航价值；
+- 独立截图宫格割裂上下文，章节起始帧也未必是关键内容；
+- raw Transcript 仍需保留以满足 Evidence 和校对审计。
+
+---
+
+## ADR-028：视频笔记列表使用本地持久封面资产
+
+**Decision**
+VideoAsset 元数据中的 Bilibili `pic/cover` URL 进入独立 `FETCH_COVER`：HTTPS/host/SSRF、状态、MIME、文件头、尺寸和字节校验后，按 SHA-256 保存原图并生成 672×378 WebP。列表只使用本地 Cover API，封面失败显示稳定占位但不阻塞 Note。顶部主操作文案统一为“添加视频链接”，复用全局 Primary Button。
+
+**Reason**
+- 长期远程热链受协议、Referer、CDN 变化和网络状态影响；
+- 视频元数据已经提供原始封面，无需 LLM 或从视频帧猜测；
+- 本地派生图便于缓存、离线浏览和统一 16:9 布局；
+- 封面属于非核心增强，不应导致完整视频笔记失败；
+- “投递”是系统术语，“添加视频链接”更符合用户动作；
+- 参考项目已验证 `pic/cover → GET → Content-Type → 本地文件` 的可行性。
+
+---
+
+## ADR-029：删除视频笔记不删除共享来源与证据
+
+**Decision**
+列表和详情通过统一 Delete Service 删除 AINote、版本、Section、TOC 和 Content 投影；保留 Source、VideoAsset、CoverAsset、Transcript、Place、Claim/Evidence 和其他对象引用的 Screenshot。活跃生成 Job 阻止删除，第一版确认后不可恢复。
+
+**Reason**
+- 同一视频资产、转写和地点可被多个 Note/Place 复用；
+- 删除阅读产物不应破坏来源审计和地图；
+- 同步级联删除大文件风险高，孤立资产应由引用计数和保留策略清理；
+- 列表与详情需要一致语义，不能各自维护删除边界。
+
+---
+
+## ADR-030：Worker 存活心跳、任务活动与取消确认分离
+
+**Decision**
+Worker 进程使用独立于同步 Job 执行循环的周期性心跳报告存活；Job 只在真实阶段、批次开始/结束或可观测外部调用边界更新自身活动时间。长模型步骤在每次批量请求前后检查取消状态，停止未开始批次，并在释放 lease 后才允许完整重跑。任务详情的完整重跑能力由服务端返回，不由前端按状态字符串硬编码。
+
+**Reason**
+- 单 Worker 被长模型请求占用时，外层领取循环不能刷新全局心跳，造成“Worker 延迟”的误报；
+- 将全局心跳写入 Job 会掩盖真实任务无进度，因此两者不能复用；
+- 转写校对会把 232 段拆为约 29 个模型批次，取消只在整步结束观察会继续消耗模型与占用 Worker；
+- 已取消但 lease 未释放时必须防止并发完整重跑，释放后又不能因为 UI 漏掉 `CANCELLED` 而永久不可操作；
+- 操作能力由服务端统一生成可消除任务详情、日志抽屉与未来客户端之间的状态分歧。
 
 
 ---
@@ -4802,6 +9543,26 @@ DeepSeek、Xiaomi MiMo 等通过 OpenAICompatibleProvider 配置；模型名不�
 - 人工校验的 PlaceMention/Observation；
 - 脱敏后的 Mock 高德 POI 候选响应；
 - Confirmed/Review/Unresolved 期望状态。
+- 餐馆、景区、街区等细粒度类型与 PlaceBrief 人工答案；
+- raw_name、同音/错字候选与高德 canonical_name 期望结果；
+- 合法的短小抽帧 Fixture，包含正常、黑帧、模糊和重复画面；
+- 代表性截图期望时间码和淘汰原因；
+- 至少覆盖中国东部、西部、南部和北部的 Mock Marker，用于全国 bbox/zoom/cluster；
+- USER/AI Marker 新增、隐藏、软删除和恢复期望状态。
+- 纯 URL、标题+URL+分享话术、Markdown 链接、末尾中文标点、多 URL 歧义的 Capture 输入 Fixture；
+- 期望的 `input_kind / selected_url / discarded_text_length`，并验证丢弃文案不进入 Resolver/LLM。
+- raw/corrected Transcript 对照，覆盖口音、同音地名、菜名、断句、重复词和不确定内容；
+- 人工标注的主旨目录 `heading/thesis/start_ms/section_id`；
+- 时间码 → Section 锚点期望映射；
+- 每个 Section 的 summary、bullets、Place refs 与关键截图期望；
+- talking head/片头/转场等不合格截图 Fixture；
+- Lightbox、顶部地点/转写区和 corrected/raw TXT 导出的 UI 验收截图。
+- Bilibili `pic/cover` URL、HTTP→HTTPS、JPEG/PNG/WebP/AVIF、HTML/损坏/超大响应 Fixture；
+- 原图 SHA-256、672×378 WebP 衍生图和本地 Cover API 期望；
+- 列表 16:9 封面、时长徽标、加载 skeleton、失败占位和“添加视频链接”按钮 PC/Mobile 验收截图。
+- A/B 完成、C ERROR、Artifact 有效/过期/输入变化的 Replay Fixture，标注 REUSED/RETRYING/INVALIDATED 期望；
+- 视频笔记删除前后对象引用 Fixture，验证共享 Source/Transcript/Place/Evidence 保留；
+- Hero 有封面/缺省为空、底部地点与转写、主体语言目录、侧排缩略图与 Lightbox 的 PC/Mobile 标注图。
 
 不把完整受版权保护的视频提交到 Git。测试仓库仅保存短小、必要、合法的派生 Fixture；本地媒体放入被忽略的数据目录。
 
@@ -4809,19 +9570,17 @@ DeepSeek、Xiaomi MiMo 等通过 OpenAICompatibleProvider 配置；模型名不�
 
 # 4. Phase 0A 技术 Spike
 
-正式业务实施前必须在用户选中的目标节点完成；若要比较两套方案，则在 Windows PC 与 Mac mini 上分别执行并保存结果：
+正式业务实施前必须在目标 Mac mini 完成：
 
 1. `LAN_ACCESS`：手机通过同一局域网访问前后端，验证 Token-to-Session、CORS、WebSocket 重连、Admin API 保护，并比较本地 HTTPS 与可信 LAN HTTP 的可部署性。
 2. `WECHAT_RESOLVER`：R-001/R-002 至少一个可通过持久浏览器 Profile 获取正文并发现下钻链接；失败时能进入 `NEEDS_USER`。
 3. `DOCUMENT_MATRIX`：验证 HTML、PDF、扫描 PDF、DOCX、XLS/XLSX、PNG/JPEG 的文本与定位信息。
 4. `OCR`：中文 OCR 输出页码/边界框/置信度，低置信内容进入 Review，不直接生成高风险事实。
-5. `LOCAL_LLM`：Windows 记录 RX 7900 XT/Ollama 的显存占用与吞吐；Mac mini 记录 M4/Ollama Metal 的统一内存峰值与吞吐；两者都记录 JSON Schema 成功率。
-6. `ASR`：Windows 验证 whisper.cpp Vulkan；Mac mini 验证 whisper.cpp Metal，并在启用时单独验证 Core ML encoder；两者都输出中文时间码 Transcript。
+5. `LOCAL_LLM`：RX 7900 XT 上 Ollama 结构化输出、显存占用、吞吐与 JSON Schema 成功率。
+6. `ASR`：whisper.cpp Vulkan 在 RX 7900 XT 上输出中文时间码 Transcript。
 7. `EXTERNAL_LLM`：DeepSeek 与 Xiaomi MiMo 至少各完成一次 OpenAI-compatible 连接测试、结构化输出测试与审计记录测试。
 8. `AMAP`：高德 Web 服务 POI 搜索、JS API 2.0 地图渲染、GCJ-02 坐标与配额错误路径。
 9. `SQLITE_MULTI_PROCESS`：FastAPI + Worker 下 WAL、原子 Job Lease、崩溃恢复与幂等写入。
-10. `SERVICE_SUPERVISION`：Windows 验证 launcher/服务或计划任务，Mac mini 验证 `launchd`；崩溃和重启后 API、Worker 与未完成 Job 均可恢复。
-11. `PLATFORM_SECRET_STORE`：Windows 验证 Credential Manager/DPAPI，Mac mini 验证 Keychain；SQLite、日志和导出均不得出现 Secret 明文。
 
 每项记录：环境版本、命令、输入、结果、耗时、资源占用、失败原因、是否阻塞后续 Phase。
 
@@ -4837,6 +9596,8 @@ DeepSeek、Xiaomi MiMo 等通过 OpenAICompatibleProvider 配置；模型名不�
 - Excel 岗位行：不得静默丢行，无法可靠识别的行必须进入 Review 并报告计数；
 - OCR：低于配置阈值的文字不得作为无需复核的关键日期或硬性资格依据；
 - POI：只有高置信且候选唯一时自动 `CONFIRMED`；黄金样本中的误确认数必须为 0，其余进入 `REVIEW/UNRESOLVED`；
+- Screenshot：黑帧、模糊帧和感知重复帧不得进入 Note；展示帧 100% 有实际时间码和来源关联；
+- Map：首次加载无默认城市，全国 bbox/zoom/cluster 正确；Marker 生命周期不破坏 Place/Evidence；
 - Job：崩溃恢复不丢任务，业务结果幂等，不重复生成最终实体；
 - LAN：未携带有效 Token 的 API、WebSocket 和 Admin 请求全部拒绝。
 
@@ -5103,10 +9864,9 @@ MVP 代码不得提前承担这些复杂度。
 
 # 14. Travel Vision
 
-当前 Transcript First。
+当前仍以 Transcript First 为事实主链，但 v0.4 已要求按时间码抽取代表性截图，并完成黑帧、模糊和重复过滤。截图用于阅读和来源回看，不等于视觉理解。
 
 未来：
-- 关键帧抽取；
 - 店招；
 - 菜单；
 - OCR；
@@ -5121,12 +9881,7 @@ VisualEvidence 与 TranscriptEvidence 并存。
 
 # 15. Travel Planning
 
-MVP 已提供：
-- 独立地图空间总览；
-- Marker 地点预览；
-- 路线清单选点与手动排序。
-
-未来在真实 Route Provider 基础上增加：
+未来：
 - Trip
 - itinerary
 - route
@@ -5135,7 +9890,7 @@ MVP 已提供：
 - city clustering
 - multi-day plan
 
-当前 Place 用户状态、RouteDraft 与顺序项已为未来 PLANNED/RoutePlan 留口子；未来计算结果必须记录 Provider、策略版本与坐标系，不由 LLM 编造距离或时长。
+当前 Place 用户状态已为未来 PLANNED 留口子。
 
 ---
 
@@ -5188,9 +9943,8 @@ Input
 ## Codex / Agent 可执行实施计划
 
 > 项目：AI Personal Inbox / Personal Scout  
-> 目标平台：二选一——Windows 11 PC 或 Mac mini（实施前设置 `DEPLOYMENT_TARGET`）
-> 候选硬件 A：Ryzen 7 5800X / 32GB / RX 7900 XT 20GB
-> 候选硬件 B：Apple M4 10-core / 16GB unified memory / arm64
+> 目标平台：Mac mini（macOS arm64）
+> 当前硬件：Apple M4 / 16GB 统一内存 / Metal
 > 当前范围：Recruitment + Travel/Food  
 > 架构：FastAPI + React/TS/Vite + SQLite + Worker + Playwright + Ollama/External LLM + whisper.cpp  
 > 原则：产品做窄，内核留宽
@@ -5216,11 +9970,11 @@ Agent 在实现过程中必须：
 
 ---
 
-# Phase 0A — Target Node Feasibility Spikes（在 Phase 0 最小 Bootstrap 后执行）
+# Phase 0A — Mac mini Feasibility Spikes（在 Phase 0 最小 Bootstrap 后执行）
 
 ## Goal
 
-在搭建完整业务代码前，先从 `windows_pc` 与 `mac_mini` 中选择一个 `DEPLOYMENT_TARGET`，并在该目标节点消除高风险外部依赖的不确定性。若用户需要比较两套方案，则分别运行同一套 Fixture 与记录模板，但不同时开发两套生产安装包。
+在搭建完整业务代码前，用目标 Mac mini / Metal 主机消除高风险外部依赖的不确定性。
 
 ## Spikes
 
@@ -5228,8 +9982,8 @@ Agent 在实现过程中必须：
 - 微信持久 Playwright Profile 与 `NEEDS_USER`；
 - HTML/PDF/扫描 PDF/DOCX/XLS/XLSX/PNG/JPEG 文档矩阵；
 - 中文 OCR 定位与置信度；
-- Windows：Ollama AMD 结构化输出、whisper.cpp Vulkan 时间码 ASR、Credential Manager/DPAPI、服务恢复；
-- Mac mini：Ollama Metal 结构化输出、whisper.cpp Metal 时间码 ASR、Keychain、arm64 依赖和 `launchd` 服务恢复；
+- Ollama Metal 结构化输出；
+- whisper.cpp Metal 时间码 ASR；
 - DeepSeek / Xiaomi MiMo OpenAI-compatible 连接；
 - 高德 POI Web 服务 / JS API 2.0 / GCJ-02；
 - SQLite WAL 多进程、原子 Lease 与幂等恢复。
@@ -5238,7 +9992,7 @@ Agent 在实现过程中必须：
 
 - 每项有可复现记录与 `PASS / DEGRADED / BLOCKED` 结论；
 - `BLOCKED` 项在进入依赖它的 Phase 前必须选定替代方案或调整范围；
-- 性能门槛使用目标 PC 实测值回填 `GOLDEN_SAMPLES.md`。
+- 性能门槛使用 Mac mini 实测值回填 `GOLDEN_SAMPLES.md`。
 
 ---
 
@@ -5303,7 +10057,7 @@ LAN 安全基线：
 - frontend 启动；
 - health 正常；
 - 手机在同一局域网携带 Token 可访问，未授权请求被拒绝；
-- 所选平台 README 安装与启动命令可用。
+- Mac mini launchd 安装、状态与重启命令可用。
 
 ---
 
@@ -5397,7 +10151,7 @@ WebSocket progress。
 - recovery
 
 ## Acceptance
-后端节点/Worker 异常停止后任务可恢复。
+PC/Worker 异常停止后任务可恢复。
 
 ---
 
@@ -5709,14 +10463,14 @@ Semantic similarity 永远不会自动 PASS。
 # Phase 14 — ASR Runtime
 
 ## Goal
-实现所选后端节点的本地视频转录。
+实现 Mac mini Metal 本地视频转录。
 
 ## Tasks
 - ffmpeg detection
 - whisper.cpp provider
 - model management
 - timestamp transcript
-- 加速器诊断：Windows Vulkan / Mac Metal
+- GPU diagnostic
 - ASR mode
 - cache cleanup
 
@@ -5725,20 +10479,161 @@ Semantic similarity 永远不会自动 PASS。
 
 ---
 
+# Phase 14A — Capture Input Normalization
+
+## Goal
+完整分享文案 → 唯一 URL 或明确多链接歧义。
+
+## Tasks
+- `URL_ONLY / SHARE_TEXT_WITH_URL / TEXT_ONLY / MULTIPLE_URLS`；
+- URL/Markdown/尖括号/中文标点/零宽字符提取；
+- canonical 去重和专用 Resolver 唯一命中；
+- 选中 URL 后丢弃周围标题/分享话术，不进入 Resolver/LLM；
+- `CAPTURE_MULTIPLE_URLS` 候选响应；
+- raw input hash 与最小审计字段；
+- 前端提交原始粘贴值，后端权威判定。
+
+## Acceptance
+标题+链接分享文案与纯链接进入同一 URL Pipeline；普通正文保持 TEXT_ONLY；多内容链接不静默选第一个且不创建 Job。
+
+---
+
 # Phase 15 — Bilibili Resolver
+
+> Phase 15–18 的实施必须同时遵循 `VIDEO_AI_NOTE_PIPELINE.md` 与 `VIDEO_AI_NOTE_IMPLEMENTATION_GUIDE.md`，按指南中的 Work Package 拆分提交，不得一次性重写 Pipeline 或提前实现未确认 UI。
 
 ## Goal
 B站视频进入 Travel Pipeline。
 
 ## Tasks
-- metadata
-- subtitle-first
-- media fallback
-- ASR fallback
-- snapshot / transcript storage
+- 建立 BiliNote MIT 第三方声明与上游 revision 记录；
+- 移植/适配 URL 校验、短链、BV ID、分 P 和 CID 解析；
+- metadata-only 解析；
+- Bilibili player API 字幕优先与字幕轨选择；
+- yt-dlp 字幕和音频 fallback；
+- Cookie/代理/412/429/登录态错误映射；
+- ASR fallback；
+- timestamp Transcript、Snapshot 和缓存存储；
+- 持久 JobStep、幂等、恢复和单步重跑。
 
 ## Acceptance
-测试视频 Fixture 或真实样本可得到 Transcript。
+测试视频 Fixture 或真实样本可得到 Transcript；有字幕时不下载音频，无字幕时自动 ASR；分 P 的字幕、元数据和时间跳转属于同一集。详细标准见 `VIDEO_AI_NOTE_PIPELINE.md`。
+
+---
+
+# Phase 15A — DeepSeek Video AI Note
+
+## Goal
+Transcript → 版本化 AI 视频笔记。
+
+## Tasks
+- `VIDEO_NOTE_SUMMARY` Provider Role，默认使用已配置 DeepSeek；
+- 长 Transcript 分块预算；
+- 局部总结、checkpoint 和层级合并；
+- Markdown + structured sections；
+- Segment/timecode binding；
+- Note Version、缓存、重跑和历史版本；
+- Provider/Model/Prompt/Chunker 审计。
+
+## Acceptance
+长视频可生成完整中文 AI 笔记；失败后从 checkpoint 继续；重跑不覆盖旧版本；章节可回到 Transcript 时间码。
+
+---
+
+# Phase 15B — Representative Screenshots
+
+## Goal
+为 AI Note 章节与地点生成可追溯代表性截图。
+
+## Tasks
+- Screenshot Plan：Section/PlaceMention/Segment 时间码；
+- 受限画质视频下载与缓存；
+- FFmpeg 抽帧；
+- 黑帧、模糊、曝光与感知重复检测；
+- VideoScreenshot 数据模型与 API；
+- 每地点 1–3 张、全文默认 3–12 张；
+- 下载不可用时 `PARTIAL_SUCCESS`。
+
+## Acceptance
+截图具有实际时间码、文件哈希和来源关系；重复/无效帧不进入 Note；失败不阻塞已完成笔记。
+
+---
+
+# Phase 15C — Transcript Correction
+
+## Goal
+raw Transcript → 时间码不变、可审计的 AI 校对稿。
+
+## Tasks
+- `CORRECT_TRANSCRIPT / VALIDATE_CORRECTION`；
+- raw_text / corrected_text / status / provider / model / prompt version；
+- 固定 Segment 分块和全覆盖校验；
+- 口音、同音字、断句、重复词、地名/菜名/专有名词校对；
+- 不确定内容 Review，不新增事实；
+- corrected/raw 预览与 TXT 导出。
+
+## Acceptance
+全部 Segment ID、顺序和时间码不变；默认 Note/预览/导出使用 corrected_text；模型不可用时不伪装完成。
+
+---
+
+# Phase 15D — Video Note Reading Experience
+
+## Goal
+重构视频详情的信息顺序、目录、段落跳转、随文截图和灯箱。
+
+## Tasks
+- Hero CoverAsset/缺省空状态；地点候选 + 完整转写放文章底部；
+- 具体 heading/thesis 目录与稳定 Section 锚点；
+- 时间码本地跳转、聚焦、高亮与历史恢复；
+- summary/bullets/place refs 的时间线详述；
+- 截图重新选取并以侧排缩略图嵌入 Section；
+- contain Lightbox、切换、Escape/遮罩关闭；
+- 统一“导出 TXT”按钮；
+- PC/Mobile/键盘回归。
+
+## Acceptance
+完整执行 `VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md` 第 10 节，不得以独立截图宫格或原始转录堆叠代替。
+
+---
+
+# Phase 15E — Video Note List Cover & CTA
+
+## Goal
+列表展示真实本地封面，并统一顶部添加按钮。
+
+## Tasks
+- 主按钮文案“添加视频链接”和 40px/14px Button Token；
+- VideoAsset.cover_url HTTPS 规范化；
+- Bilibili 图片 CDN allowlist、MIME/文件头/尺寸/字节校验；
+- 原始封面 SHA-256 存储与 672×378 WebP；
+- CoverAsset、`FETCH_COVER`、本地图片 API；
+- Video Note List cover ViewModel；
+- 16:9、object-fit cover、lazy loading、时长徽标、skeleton 和失败占位；
+- PC/Mobile/安全/缓存回归。
+
+## Acceptance
+完整执行 `VIDEO_NOTE_LIST_V043_SPEC.md` 第 9 节；封面失败不得阻塞 Note，不得长期热链远程 CDN。
+
+---
+
+# Phase 15F — Video Note Delete
+
+## Goal
+在列表和详情安全删除视频笔记，不破坏共享数据。
+
+## Tasks
+- 列表/详情 `…` 菜单；
+- 共用 `DELETE /api/video-notes/{note_id}`；
+- 删除 AINote/Version/Section/TOC/Content 投影；
+- 保留 Source/VideoAsset/Transcript/Place/Evidence/Cover；
+- 清理无共享引用的 Note 专属截图；
+- 活跃 Job 409 门禁；
+- 标题/保留边界/不可恢复确认；
+- 缓存刷新、旧链接已删除状态和审计。
+
+## Acceptance
+完整执行 `VIDEO_NOTE_DELETE_V044_SPEC.md`，列表和详情入口使用同一 Service。
 
 ---
 
@@ -5751,11 +10646,13 @@ Transcript → PlaceMention / Observations。
 - TravelFood classifier
 - Place extractor
 - Restaurant extractor
-- dish/price/opinion/warning
+- scenic area / neighborhood / pedestrian street / business district / market extractor
+- PlaceBrief：景区/街区特色、菜品、价格、排队、适合人群、warning
 - Evidence timestamp binding
+- Place Note Builder 与版本化地点归纳笔记
 
 ## Acceptance
-每个事实可回到字幕 segment。
+每个事实可回到字幕 segment；餐馆、景区、街区等粒度可区分；同一 Place 可聚合多个视频来源并生成带冲突与来源时间码的归纳笔记。
 
 ---
 
@@ -5770,17 +10667,20 @@ PlaceMention → Place。
 - AMap Web Service Key / quota error handling
 - GCJ-02 coordinate metadata
 - candidate search
-- name/location matching
+- raw_name / canonical_name / aliases
+- 同音错字、简称、名称和 location matching
 - confidence
 - Confirmed/Review/Unresolved
 - CMS POI Review
 - deduplicate
 - AMap JS API 2.0 map view
+- 高德 JS Key / Security Code / Web 服务 Key 设置与测试
 
 ## Acceptance
 LLM 不参与经纬度生成。
 两个来源提同一家店最终可归并为一个 Place。
 GeoJSON 明确携带坐标系，不把 GCJ-02 静默声明为 WGS84。
+转写名称校正后仍保留 raw_name；歧义名称进入 Review。
 
 ---
 
@@ -5799,16 +10699,15 @@ GeoJSON 明确携带坐标系，不把 GCJ-02 静默声明为 WGS84。
 - VisitEvent
 - days_since_last_trip
 - TravelDashboardVM
-- MapOverviewVM：viewport、markers、clusters、filters、selected preview
-- 独立地图总览页；Marker 点击切换底部预览，详情为下一级页面
-- 地图路由状态恢复：viewport / zoom / filters / selected_place_id
-- route_drafts / route_draft_items
-- 路线清单选点与手动排序
+- 中国大陆全境 map view，无默认城市
+- bbox/zoom query、cluster 和 viewport restore
+- Marker popup / mobile sheet
+- user marker add/hide/soft-delete/restore
 - list view
 
 ## Acceptance
 SAVE/DISMISS/VISITED 会影响后续推荐解释。
-同一区域多个 Confirmed Place 可在地图总览中同时显示；依次点击 Marker 只切换地点预览，不离开地图；进入详情再返回后保留原地图状态。路线清单不伪造最优顺序、距离或交通时间。
+首次地图请求不携带默认城市；Marker 浮窗可看简介并进入统一详情；用户 Marker 生命周期与自动 Marker 隐藏语义通过验收。
 
 ---
 
@@ -5833,8 +10732,14 @@ SAVE/DISMISS/VISITED 会影响后续推荐解释。
 实现长任务体验。
 
 ## Tasks
-- rerun from step
-- versioned step output
+- Step Artifact Manifest 与默认 24h Replay Cache
+- `GET replay-options`
+- `POST retry-from-step`：失败步骤及下游顺次执行
+- 上游步骤 REUSED、下游旧输出 INVALIDATED
+- TTL 到期后禁用步骤续跑，只允许完整重跑
+- 任务详情/日志“从错误步骤继续”与剩余时间
+- 完整重跑独立 API/按钮
+- versioned attempt/step output
 - partial publish
 - stale result invalidation
 - CMS controls
@@ -5842,6 +10747,7 @@ SAVE/DISMISS/VISITED 会影响后续推荐解释。
 ## Acceptance
 Travel 可在 43 个地点未全部完成时展示已确认地点。
 Recruitment 可单独重跑 DSL/Major Matching。
+ERROR 步骤在 Artifact 有效期内只重跑当前及下游；上游不产生新外部调用。完整执行 `PIPELINE_STEP_REPLAY_V044_SPEC.md`。
 
 ---
 
@@ -5919,7 +10825,7 @@ Tauri 或其他薄壳：
 - Export。
 
 ### Platform
-- selected local node only（Windows PC 或 Mac mini）；
+- PC only；
 - Job recovery；
 - Control Center；
 - Ollama；

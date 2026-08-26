@@ -45,7 +45,7 @@ class MacVisionOCRProvider:
 
 
 class TesseractOCRProvider:
-    """TSV adapter retaining page/line bounding boxes for Windows deployments."""
+    """TSV adapter retaining page/line bounding boxes for local OCR processing."""
 
     def __init__(self, binary: str = "tesseract", languages: str = "chi_sim+eng", timeout: int = 180) -> None:
         self.binary = shutil.which(binary) or binary

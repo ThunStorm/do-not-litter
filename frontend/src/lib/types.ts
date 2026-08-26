@@ -10,9 +10,24 @@ export interface JobView {
   progress: number
   title: string
   error: string | null
+  error_code: string | null
   created_at: string
   started_at: string | null
   finished_at: string | null
+  retry_count: number
+  worker_id: string | null
+  heartbeat_at: string | null
+  last_activity_at: string | null
+  current_step_status: string | null
+  current_step_started_at: string | null
+  current_step_message: string | null
+  runtime_state: 'ACTIVE' | 'STALLED' | 'IDLE' | 'UNKNOWN'
+  last_activity_age_seconds: number | null
+  last_activity_source: string | null
+  completion_summary: string | null
+  model_step: string | null
+  provider: string | null
+  model: string | null
 }
 
 export interface ContentView {
@@ -63,6 +78,14 @@ export interface StatusView {
     lan_ip: string
     disk: { total_gb: number; used_gb: number; free_gb: number }
   }
+  metrics: {
+    sampled_at: string
+    freshness: 'FRESH' | 'STALE' | 'PENDING'
+    cpu: { percent: number | null; unavailable_reason: string | null; source?: string | null }
+    memory: { used_bytes: number | null; total_bytes: number | null; available_bytes: number | null; cached_bytes: number | null; compressed_bytes: number | null; percent: number | null; method: string | null; unavailable_reason: string | null }
+    disk: { used_bytes: number | null; total_bytes: number | null; percent: number | null; unavailable_reason: string | null }
+    worker: { heartbeat_at: string | null; heartbeat_age_seconds: number | null }
+  }
   runtime_checks: RuntimeCheck[]
 }
 
@@ -75,6 +98,19 @@ export interface SourceView {
   snapshot_count: number
   content_count: number
   updated_at: string
+}
+
+export interface SourceDetailView {
+  id: string
+  source_type: string
+  locator: string
+  title: string | null
+  authority: string
+  metadata: Record<string, unknown>
+  snapshots: Array<{ id: string; content_hash: string; raw_path: string | null; captured_at: string }>
+  segment_count: number
+  contents: ContentView[]
+  deletion: { allowed: boolean; content_count: number; video_note_count: number; active_job_count: number }
 }
 
 export interface TodoView {
@@ -106,7 +142,48 @@ export interface LogEventView {
   actor: string
   entity_type: string | null
   entity_id: string | null
+  request_id: string | null
   detail: Record<string, unknown>
+}
+
+export interface LogsView {
+  items: LogEventView[]
+  next_cursor: string | null
+  server_time: string
+  applied_filters: Record<string, unknown>
+}
+
+export interface ModelProfileView {
+  id: string
+  name: string
+  provider: string
+  base_url: string
+  model: string
+  timeout_seconds: number
+  api_key_saved: boolean
+}
+
+export interface ModelRoutingView {
+  primary_id: string | null
+  fallback_id: string | null
+  transcript_primary_id: string | null
+  transcript_fallback_id: string | null
+}
+
+export interface TranscriptProcessingView {
+  chunk_chars: number
+  batch_size: number
+  timeout_seconds: number
+}
+
+export interface PromptSupplementsView {
+  transcript_correction: string
+  video_note_summary: string
+  travel_place_extraction: string
+  core_contracts: Record<string, string[]>
+  max_length: number
+  version: string
+  hashes: Record<string, string>
 }
 
 export interface PlaceObservation {
@@ -127,12 +204,21 @@ export interface PlacePreview {
 
 export interface MapMarker {
   id: string
+  marker_id: string | null
+  place_id: string | null
+  origin: string
+  visibility: string
   name: string
+  canonical_name: string
   place_type: string
   latitude: number
   longitude: number
   user_state: UserState
   summary: string
+  address: string
+  preview_image: string | null
+  brief: Record<string, unknown>
+  source_count: number
 }
 
 export interface MapOverviewView {
@@ -144,6 +230,7 @@ export interface MapOverviewView {
   selected_place_id: string | null
   selected_preview: PlacePreview | null
   route_draft_count: number
+  viewport: { bbox: number[]; zoom: number; is_default_china: boolean }
 }
 
 export interface RouteDraftView {
@@ -160,6 +247,11 @@ export interface VideoNoteView {
   title: string
   canonical_url: string
   cover_url: string | null
+  cover_status?: string
+  cover_image_url?: string | null
+  cover_width?: number | null
+  cover_height?: number | null
+  cover_error?: string | null
   uploader: string
   duration_ms: number | null
   current_version_id: string | null
@@ -171,5 +263,24 @@ export interface VideoNoteView {
 export interface VideoNoteDetail extends VideoNoteView {
   markdown: string
   warnings: string[]
-  sections: Array<{ id: string; heading: string; body_markdown: string; segment_ids: string[]; start_ms: number | null; end_ms: number | null }>
+  needs_regeneration: boolean
+  sections: Array<{ id: string; heading: string; thesis: string; summary: string; bullets: string[]; anchor_id: string; body_markdown: string; segment_ids: string[]; start_ms: number | null; end_ms: number | null }>
+  transcript_status: 'AVAILABLE' | 'EXPIRED' | 'NOT_READY'
+  transcript_segment_count: number
+  transcript_retention_until: string | null
+  screenshot_status: 'PLANNING' | 'READY' | 'PARTIAL' | 'UNAVAILABLE'
+}
+
+export interface VideoScreenshotView {
+  id: string
+  section_id: string | null
+  place_mention_id?: string | null
+  segment_id?: string | null
+  planned_timestamp_ms: number
+  actual_timestamp_ms: number | null
+  image_url: string | null
+  selection_reason: string
+  caption: string
+  content_role: string
+  status: 'PLANNED' | 'READY' | 'REJECTED'
 }

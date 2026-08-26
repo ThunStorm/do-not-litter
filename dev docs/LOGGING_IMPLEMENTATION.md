@@ -1,6 +1,6 @@
 # 日志系统实施文档
 
-版本：v0.1，更新日期：2026-08-19。
+版本：v0.2，更新日期：2026-08-24。
 
 ## 1. 已实施组件
 
@@ -72,3 +72,21 @@ record_event(
 ## 6. 后续增强
 
 第二阶段可增加审计事件导出、按 Request ID/Job ID 深链、90 天定时清理、磁盘低水位告警和日志完整性哈希。未达到单机查询瓶颈前不引入外部日志栈。
+
+## 7. 运维工作台 v0.3（已实施）
+
+`OPERATIONS_UI_SPEC.md` 定义的健康摘要、组合筛选、Job/Request 深链、游标分页、实时跟随暂停、结构化详情抽屉和单条脱敏导出均已实施。日志页还支持 15 分钟/1 小时/24 小时/7 天/自定义时间范围、DEBUG 至 CRITICAL 级别、Request ID 与实体 ID 精确筛选；服务端支持 `from/to`、游标与 `asc/desc` 排序。批量 CSV/JSONL 导出、筛选链接复制和完整性哈希仍是后续增强，不计入当前完成项。
+
+## 8. 日志错误事件步骤续跑返工（待实施）
+
+现有“重跑所属任务”整任务重入队语义错误，需要改为 Replay Options 驱动的步骤级续跑：
+
+1. 详情抽屉按需调用 `GET /api/jobs/{job_id}/replay-options`；
+2. Artifact 可用时显示“从错误步骤继续”，并列出复用步骤、重跑步骤与剩余保留时间；
+3. 调用 `POST /api/jobs/{job_id}/retry-from-step`，提交 step_name/source_event_id；
+4. Artifact 过期时禁用步骤续跑，显示“中间产物已清理”，提供“完整重跑”；
+5. 成功后跟随 `job.step_replay.*` 审计事件；
+6. 409 展示 `REPLAY_ARTIFACT_EXPIRED / INPUT_CHANGED / LEASE_ACTIVE` 等稳定原因；
+7. 页面不得直接修改 JobStep、调用 Processor 或允许任意 from_step。
+
+完整语义见 `PIPELINE_STEP_REPLAY_V044_SPEC.md`。完整重跑和步骤续跑必须是两个独立按钮/API。

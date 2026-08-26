@@ -73,6 +73,26 @@
 - 人工校验的 PlaceMention/Observation；
 - 脱敏后的 Mock 高德 POI 候选响应；
 - Confirmed/Review/Unresolved 期望状态。
+- 餐馆、景区、街区等细粒度类型与 PlaceBrief 人工答案；
+- raw_name、同音/错字候选与高德 canonical_name 期望结果；
+- 合法的短小抽帧 Fixture，包含正常、黑帧、模糊和重复画面；
+- 代表性截图期望时间码和淘汰原因；
+- 至少覆盖中国东部、西部、南部和北部的 Mock Marker，用于全国 bbox/zoom/cluster；
+- USER/AI Marker 新增、隐藏、软删除和恢复期望状态。
+- 纯 URL、标题+URL+分享话术、Markdown 链接、末尾中文标点、多 URL 歧义的 Capture 输入 Fixture；
+- 期望的 `input_kind / selected_url / discarded_text_length`，并验证丢弃文案不进入 Resolver/LLM。
+- raw/corrected Transcript 对照，覆盖口音、同音地名、菜名、断句、重复词和不确定内容；
+- 人工标注的主旨目录 `heading/thesis/start_ms/section_id`；
+- 时间码 → Section 锚点期望映射；
+- 每个 Section 的 summary、bullets、Place refs 与关键截图期望；
+- talking head/片头/转场等不合格截图 Fixture；
+- Lightbox、顶部地点/转写区和 corrected/raw TXT 导出的 UI 验收截图。
+- Bilibili `pic/cover` URL、HTTP→HTTPS、JPEG/PNG/WebP/AVIF、HTML/损坏/超大响应 Fixture；
+- 原图 SHA-256、672×378 WebP 衍生图和本地 Cover API 期望；
+- 列表 16:9 封面、时长徽标、加载 skeleton、失败占位和“添加视频链接”按钮 PC/Mobile 验收截图。
+- A/B 完成、C ERROR、Artifact 有效/过期/输入变化的 Replay Fixture，标注 REUSED/RETRYING/INVALIDATED 期望；
+- 视频笔记删除前后对象引用 Fixture，验证共享 Source/Transcript/Place/Evidence 保留；
+- Hero 有封面/缺省为空、底部地点与转写、主体语言目录、侧排缩略图与 Lightbox 的 PC/Mobile 标注图。
 
 不把完整受版权保护的视频提交到 Git。测试仓库仅保存短小、必要、合法的派生 Fixture；本地媒体放入被忽略的数据目录。
 
@@ -80,19 +100,17 @@
 
 # 4. Phase 0A 技术 Spike
 
-正式业务实施前必须在用户选中的目标节点完成；若要比较两套方案，则在 Windows PC 与 Mac mini 上分别执行并保存结果：
+正式业务实施前必须在目标 Mac mini 完成：
 
 1. `LAN_ACCESS`：手机通过同一局域网访问前后端，验证 Token-to-Session、CORS、WebSocket 重连、Admin API 保护，并比较本地 HTTPS 与可信 LAN HTTP 的可部署性。
 2. `WECHAT_RESOLVER`：R-001/R-002 至少一个可通过持久浏览器 Profile 获取正文并发现下钻链接；失败时能进入 `NEEDS_USER`。
 3. `DOCUMENT_MATRIX`：验证 HTML、PDF、扫描 PDF、DOCX、XLS/XLSX、PNG/JPEG 的文本与定位信息。
 4. `OCR`：中文 OCR 输出页码/边界框/置信度，低置信内容进入 Review，不直接生成高风险事实。
-5. `LOCAL_LLM`：Windows 记录 RX 7900 XT/Ollama 的显存占用与吞吐；Mac mini 记录 M4/Ollama Metal 的统一内存峰值与吞吐；两者都记录 JSON Schema 成功率。
-6. `ASR`：Windows 验证 whisper.cpp Vulkan；Mac mini 验证 whisper.cpp Metal，并在启用时单独验证 Core ML encoder；两者都输出中文时间码 Transcript。
+5. `LOCAL_LLM`：RX 7900 XT 上 Ollama 结构化输出、显存占用、吞吐与 JSON Schema 成功率。
+6. `ASR`：whisper.cpp Vulkan 在 RX 7900 XT 上输出中文时间码 Transcript。
 7. `EXTERNAL_LLM`：DeepSeek 与 Xiaomi MiMo 至少各完成一次 OpenAI-compatible 连接测试、结构化输出测试与审计记录测试。
 8. `AMAP`：高德 Web 服务 POI 搜索、JS API 2.0 地图渲染、GCJ-02 坐标与配额错误路径。
 9. `SQLITE_MULTI_PROCESS`：FastAPI + Worker 下 WAL、原子 Job Lease、崩溃恢复与幂等写入。
-10. `SERVICE_SUPERVISION`：Windows 验证 launcher/服务或计划任务，Mac mini 验证 `launchd`；崩溃和重启后 API、Worker 与未完成 Job 均可恢复。
-11. `PLATFORM_SECRET_STORE`：Windows 验证 Credential Manager/DPAPI，Mac mini 验证 Keychain；SQLite、日志和导出均不得出现 Secret 明文。
 
 每项记录：环境版本、命令、输入、结果、耗时、资源占用、失败原因、是否阻塞后续 Phase。
 
@@ -108,6 +126,8 @@
 - Excel 岗位行：不得静默丢行，无法可靠识别的行必须进入 Review 并报告计数；
 - OCR：低于配置阈值的文字不得作为无需复核的关键日期或硬性资格依据；
 - POI：只有高置信且候选唯一时自动 `CONFIRMED`；黄金样本中的误确认数必须为 0，其余进入 `REVIEW/UNRESOLVED`；
+- Screenshot：黑帧、模糊帧和感知重复帧不得进入 Note；展示帧 100% 有实际时间码和来源关联；
+- Map：首次加载无默认城市，全国 bbox/zoom/cluster 正确；Marker 生命周期不破坏 Place/Evidence；
 - Job：崩溃恢复不丢任务，业务结果幂等，不重复生成最终实体；
 - LAN：未携带有效 Token 的 API、WebSocket 和 Admin 请求全部拒绝。
 

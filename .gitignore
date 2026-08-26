@@ -16,6 +16,7 @@ frontend/*.tsbuildinfo
 frontend/vite.config.js
 frontend/vite.config.d.ts
 deploy/macos/generated/
+deploy/windows/generated/
 frontend/.vite/
 playwright-report/
 test-results/

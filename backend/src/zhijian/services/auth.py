@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from zhijian.core.config import Settings, get_settings
 from zhijian.core.secret_store import SecretStore, build_secret_store
-from zhijian.core.time import utc_now
+from zhijian.core.time import as_utc, utc_now
 from zhijian.db.models import AccessSession
 from zhijian.db.session import get_db
 
@@ -111,7 +111,7 @@ def require_session(
     now = utc_now()
     db.execute(delete(AccessSession).where(AccessSession.expires_at < now))
     session = db.scalar(select(AccessSession).where(AccessSession.token_hash == token_hash(session_token)))
-    if session is None or session.expires_at < now:
+    if session is None or as_utc(session.expires_at) < now:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="会话已失效")
     session.last_seen_at = now
     db.commit()

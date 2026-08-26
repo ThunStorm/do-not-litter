@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     worker_poll_seconds: float = 1.0
     worker_lease_seconds: int = 90
     worker_heartbeat_seconds: int = 20
+    job_attempt_timeout_seconds: int = 900
+    runtime_metrics_interval_seconds: int = 30
     auth_max_attempts: int = 5
     auth_window_seconds: int = 300
     auth_lockout_seconds: int = 600

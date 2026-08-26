@@ -24,7 +24,7 @@ export function ContentDetailPage() {
             <section className="detail-section"><h2>我的条件核验</h2>{eligibility.length ? eligibility.map((rule) => <EligibilityRow key={rule.label} rule={rule} />) : <p>个人档案信息不足，暂不自动给出通过结论。</p>}</section>
           </>
         ) : item.content_type === 'VIDEO_NOTE' ? (
-          <section className="detail-section"><h2><FileText />视频 AI 笔记</h2><p>已生成可回溯时间码的笔记、地点候选与 POI 确认状态。</p><Link className="text-action" to={`/video-notes/${String(structured.note_id ?? '')}`}>打开视频笔记</Link></section>
+          <section className="detail-section"><h2><FileText />视频 AI 笔记</h2><p>已生成可回溯时间码的笔记、地点候选与 POI 确认状态。</p>{structured.note_id ? <Link className="text-action" to={`/video-notes/${String(structured.note_id)}`}>打开视频笔记</Link> : <p>笔记入口正在生成，请从视频笔记列表打开或稍后刷新。</p>}</section>
         ) : (
           <section className="detail-section"><h2><MapPin />地点与观察</h2><p>地点信息将在高德 POI 确认后进入独立地图总览。</p><Link className="text-action" to="/map">前往地图总览</Link></section>
         )}

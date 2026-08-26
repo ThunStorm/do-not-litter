@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 
 class MediaDownloadError(RuntimeError):
@@ -8,7 +9,7 @@ class MediaDownloadError(RuntimeError):
 
 
 class YtDlpMediaProvider:
-    """Temporary audio-only adapter. Its caller has already passed Bilibili URL validation."""
+    """Bounded temporary media adapter. Its caller has already validated the Bilibili URL."""
 
     def __init__(self, cache_dir: Path, *, max_bytes: int, timeout: int, proxy_url: str = "") -> None:
         self.cache_dir = cache_dir
@@ -17,14 +18,26 @@ class YtDlpMediaProvider:
         self.proxy_url = proxy_url
 
     def download_audio(self, url: str, cookie_file: Path | None = None) -> Path:
+        return self._download(url, cookie_file, "bestaudio/best")
+
+    def download_video(self, url: str, cookie_file: Path | None = None) -> Path:
+        # Bilibili DASH normally exposes video-only MP4 plus audio-only M4A.
+        # Do not demand a combined stream or treat a portrait frame's height
+        # as its quality cap; yt-dlp's res sort chooses the nearest 720p
+        # candidate and falls back to the smallest usable video stream.
+        return self._download(url, cookie_file, "bv*[ext=mp4]/bv*/best", video_only=True)
+
+    def _download(
+        self, url: str, cookie_file: Path | None, video_format: str, *, video_only: bool = False
+    ) -> Path:
         try:
             import yt_dlp
         except ImportError as exc:
             raise MediaDownloadError("yt-dlp 尚未安装") from exc
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         template = str(self.cache_dir / "%(id)s.%(ext)s")
-        options = {
-            "format": "bestaudio/best",
+        options: dict[str, Any] = {
+            "format": video_format,
             "outtmpl": template,
             "noplaylist": True,
             "quiet": True,
@@ -34,7 +47,10 @@ class YtDlpMediaProvider:
             "max_filesize": self.max_bytes,
             "overwrites": False,
             "restrictfilenames": True,
+            "http_headers": {"Referer": "https://www.bilibili.com"},
         }
+        if video_only:
+            options["format_sort"] = ["res:720"]
         if self.proxy_url:
             options["proxy"] = self.proxy_url
         if cookie_file:
@@ -42,10 +58,11 @@ class YtDlpMediaProvider:
         try:
             with yt_dlp.YoutubeDL(options) as ydl:
                 info = ydl.extract_info(url, download=True)
-                path = Path(ydl.prepare_filename(info))
+                requested = info.get("requested_downloads") or []
+                path = Path(requested[0].get("filepath")) if requested else Path(ydl.prepare_filename(info))
         except Exception as exc:
             raise MediaDownloadError(f"媒体提取失败：{str(exc)[:300]}") from exc
         if not path.is_file() or path.stat().st_size > self.max_bytes:
             path.unlink(missing_ok=True)
-            raise MediaDownloadError("音频文件不存在或超过安全大小限制")
+            raise MediaDownloadError("媒体文件不存在或超过安全大小限制")
         return path

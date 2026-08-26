@@ -4,17 +4,52 @@ import logging
 import os
 import socket
 import time
+from datetime import timedelta
+from threading import Event, Thread
+
+from sqlalchemy import select
 
 from zhijian.core.config import get_settings
 from zhijian.core.logging import configure_logging
 from zhijian.core.time import utc_now
-from zhijian.db.models import Setting
+from zhijian.db.models import Setting, VideoAsset, VideoCoverAsset
 from zhijian.db.session import SessionLocal, init_database
 from zhijian.services.audit import record_event
-from zhijian.services.jobs import lease_next_job, recover_stale_jobs
+from zhijian.services.jobs import (
+    lease_next_job,
+    purge_expired_step_artifacts,
+    recover_stale_jobs,
+    release_expired_cancelled_jobs,
+)
 from zhijian.services.pipeline import process_job
+from zhijian.services.transcript_retention import purge_expired_transcripts
+from zhijian.services.video_cover import materialize_cover
+from zhijian.services.video_screenshots import ensure_missing_screenshot_plans
+from zhijian.services.video_support import repair_legacy_transcript_timing
 
 logger = logging.getLogger("zhijian.worker")
+
+
+def _persist_worker_heartbeat(owner: str) -> None:
+    with SessionLocal() as db:
+        heartbeat = db.get(Setting, "runtime:worker-heartbeat")
+        now = utc_now()
+        value = {"owner": owner, "pid": os.getpid(), "at": now.isoformat()}
+        if heartbeat is None:
+            db.add(Setting(key="runtime:worker-heartbeat", value_json=value))
+        else:
+            heartbeat.value_json = value
+            heartbeat.updated_at = now
+        db.commit()
+
+
+def _heartbeat_loop(owner: str, interval_seconds: float, stopped: Event) -> None:
+    while not stopped.is_set():
+        try:
+            _persist_worker_heartbeat(owner)
+        except Exception:
+            logger.exception("Worker heartbeat update failed")
+        stopped.wait(interval_seconds)
 
 
 def worker_loop(once: bool = False) -> None:
@@ -22,6 +57,17 @@ def worker_loop(once: bool = False) -> None:
     configure_logging(settings, "worker")
     init_database()
     owner = f"{socket.gethostname()}:{os.getpid()}"
+    last_transcript_cleanup = utc_now() - timedelta(days=1)
+    repaired_legacy_timing = False
+    planned_legacy_screenshots = False
+    backfilled_covers = False
+    heartbeat_stopped = Event()
+    heartbeat_thread = Thread(
+        target=_heartbeat_loop,
+        args=(owner, settings.worker_heartbeat_seconds, heartbeat_stopped),
+        name="zhijian-worker-heartbeat",
+        daemon=True,
+    )
     logger.info("Worker started: %s", owner)
     with SessionLocal() as db:
         record_event(
@@ -32,28 +78,42 @@ def worker_loop(once: bool = False) -> None:
             actor="system",
             detail={"owner": owner},
         )
-    while True:
-        with SessionLocal() as db:
-            heartbeat = db.get(Setting, "runtime:worker-heartbeat")
-            value = {"owner": owner, "pid": os.getpid(), "at": utc_now().isoformat()}
-            if heartbeat is None:
-                heartbeat = Setting(key="runtime:worker-heartbeat", value_json=value)
-                db.add(heartbeat)
-            else:
-                heartbeat.value_json = value
-                heartbeat.updated_at = utc_now()
-            db.commit()
-            recover_stale_jobs(db)
-            job = lease_next_job(db, owner, settings.worker_lease_seconds)
-            if job:
-                logger.info("Processing %s (%s)", job.id, job.job_type)
-                try:
-                    process_job(db, job)
-                except Exception:
-                    logger.exception("Job failed: %s", job.id)
-        if once:
-            return
-        time.sleep(settings.worker_poll_seconds)
+    heartbeat_thread.start()
+    try:
+        while True:
+            with SessionLocal() as db:
+                release_expired_cancelled_jobs(db)
+                recover_stale_jobs(db, settings.job_attempt_timeout_seconds)
+                if utc_now() - last_transcript_cleanup >= timedelta(days=1):
+                    purge_expired_transcripts(db)
+                    purge_expired_step_artifacts(db)
+                    last_transcript_cleanup = utc_now()
+                if not repaired_legacy_timing:
+                    repair_legacy_transcript_timing(db)
+                    repaired_legacy_timing = True
+                if not planned_legacy_screenshots:
+                    ensure_missing_screenshot_plans(db)
+                    planned_legacy_screenshots = True
+                if not backfilled_covers:
+                    for asset in db.scalars(select(VideoAsset)).all():
+                        if db.query(VideoCoverAsset).filter_by(video_asset_id=asset.id).one_or_none() is None:
+                            materialize_cover(db, settings, asset)
+                    backfilled_covers = True
+                job = lease_next_job(db, owner, settings.worker_lease_seconds)
+                if job:
+                    job_id = job.id
+                    logger.info("Processing %s (%s)", job_id, job.job_type)
+                    try:
+                        process_job(db, job)
+                    except Exception:
+                        db.rollback()
+                        logger.exception("Job failed: %s", job_id)
+            if once:
+                return
+            time.sleep(settings.worker_poll_seconds)
+    finally:
+        heartbeat_stopped.set()
+        heartbeat_thread.join(timeout=1)
 
 
 def run() -> None:

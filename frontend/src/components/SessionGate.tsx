@@ -4,7 +4,8 @@ import { FormEvent, type ReactNode, useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { Brand } from './Brand'
 
-type GateState = 'checking' | 'login' | 'ready'
+type GateState = 'checking' | 'login' | 'ready' | 'unavailable'
+const STATUS_TIMEOUT_MS = 8_000
 
 export function SessionGate({ children }: { children: ReactNode }) {
   const [state, setState] = useState<GateState>('checking')
@@ -12,12 +13,22 @@ export function SessionGate({ children }: { children: ReactNode }) {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  useEffect(() => {
+  async function checkSession() {
+    setState('checking')
     const controller = new AbortController()
-    fetch('/api/status', { credentials: 'include', signal: controller.signal })
-      .then((response) => setState(response.ok ? 'ready' : 'login'))
-      .catch(() => setState('login'))
-    return () => controller.abort()
+    const timeout = window.setTimeout(() => controller.abort(), STATUS_TIMEOUT_MS)
+    try {
+      const response = await fetch('/api/status', { credentials: 'include', cache: 'no-store', signal: controller.signal })
+      setState(response.ok ? 'ready' : response.status === 401 || response.status === 403 ? 'login' : 'unavailable')
+    } catch {
+      setState('unavailable')
+    } finally {
+      window.clearTimeout(timeout)
+    }
+  }
+
+  useEffect(() => {
+    void checkSession()
   }, [])
 
   async function submit(event: FormEvent) {
@@ -37,6 +48,7 @@ export function SessionGate({ children }: { children: ReactNode }) {
 
   if (state === 'ready') return children
   if (state === 'checking') return <div className="session-checking"><Brand /><span>正在连接 Mac mini…</span></div>
+  if (state === 'unavailable') return <main className="session-page"><section className="session-card"><Brand /><div className="session-card__icon"><LockKeyhole /></div><p className="detail-context">Mac mini 暂时无法响应</p><h1>正在保留本次配对</h1><p>已配对设备不需要重新输入 4 位码。请确认 Mac mini 服务仍在运行，随后重试连接。</p><button className="button button--primary" onClick={() => void checkSession()}>重新连接</button><small>只有服务明确返回“会话已失效”时，才需要重新配对。</small></section></main>
   return (
     <main className="session-page">
       <section className="session-card">

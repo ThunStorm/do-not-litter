@@ -20,25 +20,43 @@ from zhijian.db.models import (
 from zhijian.domain.enums import ContentType, JobStatus, JobType, ResolutionStatus
 from zhijian.services.audit import record_event
 from zhijian.services.classifier import classify_capture
+from zhijian.services.jobs import JobCancelled, ensure_job_active
 from zhijian.services.resolver import resolve_payload
 
 STEPS = ("RECEIVED", "RESOLVE", "SEGMENT", "EXTRACT", "MATERIALIZE")
 
 
 def _upsert_step(db: Session, job: Job, name: str, progress: int, status: str) -> JobStep:
+    ensure_job_active(db, job)
     step = db.scalar(select(JobStep).where(JobStep.job_id == job.id, JobStep.step_name == name))
     if step is None:
         step = JobStep(job_id=job.id, step_name=name, status=status, progress=progress)
         db.add(step)
     step.status = status
-    step.progress = progress
-    if status == "RUNNING" and step.started_at is None:
+    step.progress = 100 if status == "COMPLETED" else 0 if status == "RUNNING" else progress
+    if status == "RUNNING":
         step.started_at = utc_now()
+        step.finished_at = None
     if status == "COMPLETED":
         step.finished_at = utc_now()
     job.current_step = name
     job.progress = progress
     job.heartbeat_at = utc_now()
+    record_event(
+        db,
+        f"job.step.{status.lower()}",
+        f"{name} {status.lower()}",
+        component="worker",
+        entity_type="job",
+        entity_id=job.id,
+        detail={
+            "step": name,
+            "step_status": status,
+            "job_progress": progress,
+            "step_progress": step.progress,
+        },
+        commit=False,
+    )
     db.commit()
     return step
 
@@ -87,6 +105,8 @@ def process_job(db: Session, job: Job) -> None:
 
         process_video_job(db, job)
         return
+    job_id = job.id
+    ensure_job_active(db, job)
     job.status = JobStatus.RUNNING.value
     job.started_at = job.started_at or utc_now()
     db.commit()
@@ -175,7 +195,30 @@ def process_job(db: Session, job: Job) -> None:
             commit=False,
         )
         db.commit()
+    except JobCancelled:
+        db.rollback()
+        cancelled = db.get(Job, job_id)
+        if cancelled and cancelled.status == JobStatus.CANCELLED.value:
+            step = _upsert_cancelled_step(db, cancelled)
+            cancelled.lease_owner = cancelled.lease_expire_at = None
+            cancelled.heartbeat_at = utc_now()
+            record_event(
+                db,
+                "job.cancel.observed",
+                "Worker 已停止该任务的当前阶段并释放执行 lease",
+                component="worker",
+                entity_type="job",
+                entity_id=cancelled.id,
+                detail={"step": step.step_name if step else cancelled.current_step},
+                commit=False,
+            )
+            db.commit()
     except Exception as exc:
+        db.rollback()
+        failed = db.get(Job, job_id)
+        if failed is None:
+            raise
+        job = failed
         job.status = JobStatus.FAILED.value
         job.error = str(exc)[:4000]
         job.finished_at = utc_now()
@@ -193,6 +236,15 @@ def process_job(db: Session, job: Job) -> None:
         )
         db.commit()
         raise
+
+
+def _upsert_cancelled_step(db: Session, job: Job) -> JobStep | None:
+    step = db.scalar(select(JobStep).where(JobStep.job_id == job.id, JobStep.step_name == job.current_step))
+    if step:
+        step.status = "CANCELLED"
+        step.finished_at = utc_now()
+        step.error = None
+    return step
 
 
 def _title_from_text(text: str) -> str:

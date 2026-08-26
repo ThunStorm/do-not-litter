@@ -1,16 +1,27 @@
 import { useEffect, useRef, useState } from 'react'
 
+import { api } from '../../lib/api'
 import type { MapMarker } from '../../lib/types'
 
 interface AmapLayerProps {
   markers: MapMarker[]
   selectedId: string | null
   onSelect: (id: string) => void
+  viewport: { bbox: number[]; zoom: number }
   onReady: (ready: boolean) => void
+  onViewportChange: (viewport: { bbox: number[]; zoom: number }) => void
 }
 
 type AmapMarker = { on: (event: string, callback: () => void) => void }
-type AmapMap = { add: (items: AmapMarker[]) => void; destroy: () => void; setFitView: () => void }
+type AmapLngLat = { getLng: () => number; getLat: () => number }
+type AmapBounds = { getSouthWest: () => AmapLngLat; getNorthEast: () => AmapLngLat }
+type AmapMap = {
+  add: (items: AmapMarker[]) => void
+  destroy: () => void
+  on: (event: string, callback: () => void) => void
+  getBounds: () => AmapBounds
+  getZoom: () => number
+}
 type AmapRuntime = {
   Map: new (container: HTMLElement, options: Record<string, unknown>) => AmapMap
   Marker: new (options: Record<string, unknown>) => AmapMarker
@@ -41,20 +52,39 @@ function loadAmap(key: string, securityCode: string) {
   return loader
 }
 
-export function AmapLayer({ markers, selectedId, onSelect, onReady }: AmapLayerProps) {
+export function AmapLayer({ markers, selectedId, onSelect, viewport, onReady, onViewportChange }: AmapLayerProps) {
   const container = useRef<HTMLDivElement>(null)
   const [error, setError] = useState('')
-  const apiKey = import.meta.env.VITE_AMAP_JS_KEY as string | undefined
-  const securityCode = import.meta.env.VITE_AMAP_SECURITY_CODE as string | undefined
+  const [config, setConfig] = useState<{ js_key: string; security_code: string; default_viewport: { zoom: number } } | null>(null)
 
   useEffect(() => {
-    if (!apiKey || !container.current) return
+    let active = true
+    api.mapBootstrap().then((value) => { if (active) setConfig(value) }).catch(() => { if (active) setError('地图配置读取失败') })
+    return () => { active = false }
+  }, [])
+
+  useEffect(() => {
+    if (!config?.js_key || !container.current) return
     let map: AmapMap | undefined
     let cancelled = false
-    loadAmap(apiKey, securityCode ?? '')
+    loadAmap(config.js_key, config.security_code)
       .then((AMap) => {
         if (cancelled || !container.current) return
-        map = new AMap.Map(container.current, { zoom: 12, mapStyle: 'amap://styles/whitesmoke' })
+        const [west, south, east, north] = viewport.bbox
+        map = new AMap.Map(container.current, {
+          zoom: viewport.zoom || config.default_viewport.zoom,
+          center: [(west + east) / 2, (south + north) / 2],
+          mapStyle: 'amap://styles/whitesmoke',
+        })
+        const syncViewport = () => {
+          if (!map) return
+          const bounds = map.getBounds()
+          const southWest = bounds.getSouthWest()
+          const northEast = bounds.getNorthEast()
+          onViewportChange({ bbox: [southWest.getLng(), southWest.getLat(), northEast.getLng(), northEast.getLat()], zoom: map.getZoom() })
+        }
+        map.on('moveend', syncViewport)
+        map.on('zoomend', syncViewport)
         const mapMarkers = markers.map((marker) => {
           const selected = marker.id === selectedId
           const element = document.createElement('button')
@@ -71,7 +101,6 @@ export function AmapLayer({ markers, selectedId, onSelect, onReady }: AmapLayerP
           return item
         })
         map.add(mapMarkers)
-        if (mapMarkers.length) map.setFitView()
         onReady(true)
       })
       .catch((reason) => {
@@ -83,8 +112,8 @@ export function AmapLayer({ markers, selectedId, onSelect, onReady }: AmapLayerP
       map?.destroy()
       onReady(false)
     }
-  }, [apiKey, markers, onReady, onSelect, securityCode, selectedId])
+  }, [config, markers, onReady, onSelect, onViewportChange, selectedId, viewport])
 
-  if (!apiKey || error) return null
+  if (!config?.js_key || error) return null
   return <div className="amap-layer" ref={container} aria-label="高德地图底图" />
 }

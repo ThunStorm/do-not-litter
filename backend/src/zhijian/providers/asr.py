@@ -73,9 +73,9 @@ class WhisperCppProvider:
                     continue
                 offsets = item.get("offsets") or {}
                 if offsets:
-                    # whisper.cpp exposes offsets in 10 ms ticks.
-                    start_ms = int(offsets.get("from", 0)) * 10
-                    end_ms = int(offsets.get("to", offsets.get("from", 0))) * 10
+                    # Current whisper.cpp JSON offsets are already milliseconds.
+                    start_ms = int(offsets.get("from", 0))
+                    end_ms = int(offsets.get("to", offsets.get("from", 0)))
                 else:
                     start_ms = int(float(item.get("start", 0)) * 1000)
                     end_ms = int(float(item.get("end", item.get("start", 0))) * 1000)

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import logging
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from time import perf_counter
 from uuid import uuid4
@@ -20,6 +21,7 @@ from zhijian.core.secret_store import build_secret_store
 from zhijian.db.session import SessionLocal, init_database
 from zhijian.services.audit import record_event
 from zhijian.services.auth import ensure_lan_token
+from zhijian.services.runtime_monitor import persist_runtime_metrics_sample
 from zhijian.services.seed import seed_demo_data
 
 
@@ -30,11 +32,21 @@ class SPAStaticFiles(StaticFiles):
         try:
             response = await super().get_response(path, scope)
             if response.status_code != 404 or path.startswith("assets/"):
-                return response
+                return self._with_cache_policy(response, path)
         except StarletteHTTPException as exc:
             if exc.status_code != 404 or path.startswith("assets/"):
                 raise
-        return await super().get_response("index.html", scope)
+        response = await super().get_response("index.html", scope)
+        return self._with_cache_policy(response, "index.html")
+
+    @staticmethod
+    def _with_cache_policy(response: object, path: str) -> object:
+        headers = getattr(response, "headers", None)
+        if headers is not None:
+            headers["Cache-Control"] = (
+                "public, max-age=31536000, immutable" if path.startswith("assets/") else "no-cache"
+            )
+        return response
 
 
 @asynccontextmanager
@@ -49,7 +61,24 @@ async def lifespan(_: FastAPI):
     if settings.app_env == "development":
         with SessionLocal() as db:
             seed_demo_data(db)
-    yield
+    async def sample_runtime_metrics() -> None:
+        while True:
+            try:
+                def persist() -> None:
+                    with SessionLocal() as db:
+                        persist_runtime_metrics_sample(db, settings)
+                await asyncio.to_thread(persist)
+            except Exception:
+                logging.getLogger("zhijian.runtime-monitor").exception("runtime metric sampling failed")
+            await asyncio.sleep(settings.runtime_metrics_interval_seconds)
+
+    monitor_task = asyncio.create_task(sample_runtime_metrics())
+    try:
+        yield
+    finally:
+        monitor_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await monitor_task
 
 
 def create_app() -> FastAPI:

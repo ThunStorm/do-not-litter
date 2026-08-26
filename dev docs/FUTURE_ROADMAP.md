@@ -244,10 +244,9 @@ MVP 代码不得提前承担这些复杂度。
 
 # 14. Travel Vision
 
-当前 Transcript First。
+当前仍以 Transcript First 为事实主链，但 v0.4 已要求按时间码抽取代表性截图，并完成黑帧、模糊和重复过滤。截图用于阅读和来源回看，不等于视觉理解。
 
 未来：
-- 关键帧抽取；
 - 店招；
 - 菜单；
 - OCR；
@@ -262,12 +261,7 @@ VisualEvidence 与 TranscriptEvidence 并存。
 
 # 15. Travel Planning
 
-MVP 已提供：
-- 独立地图空间总览；
-- Marker 地点预览；
-- 路线清单选点与手动排序。
-
-未来在真实 Route Provider 基础上增加：
+未来：
 - Trip
 - itinerary
 - route
@@ -276,7 +270,7 @@ MVP 已提供：
 - city clustering
 - multi-day plan
 
-当前 Place 用户状态、RouteDraft 与顺序项已为未来 PLANNED/RoutePlan 留口子；未来计算结果必须记录 Provider、策略版本与坐标系，不由 LLM 编造距离或时长。
+当前 Place 用户状态已为未来 PLANNED 留口子。
 
 ---
 

@@ -52,6 +52,13 @@ class Segment(Base):
     ordinal: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     locator_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False)
+    raw_text: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    corrected_text: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    correction_status: Mapped[str] = mapped_column(String(32), default="UNCORRECTED", nullable=False)
+    correction_confidence: Mapped[float | None] = mapped_column(Float)
+    correction_reason: Mapped[str] = mapped_column(String(500), default="", nullable=False)
+    correction_provider: Mapped[str] = mapped_column(String(64), default="", nullable=False)
+    correction_model: Mapped[str] = mapped_column(String(160), default="", nullable=False)
     confidence: Mapped[float | None] = mapped_column(Float)
 
 
@@ -132,6 +139,27 @@ class JobStep(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class JobStepArtifact(Base, TimestampMixin):
+    __tablename__ = "job_step_artifacts"
+    __table_args__ = (
+        UniqueConstraint("job_id", "step_name", "artifact_type", name="uq_job_step_artifact"),
+        Index("ix_job_step_artifacts_expiry", "status", "replayable_until"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("artifact"))
+    job_id: Mapped[str] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"))
+    step_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    artifact_type: Mapped[str] = mapped_column(String(64), default="STEP_OUTPUT", nullable=False)
+    artifact_ref_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    input_hash: Mapped[str | None] = mapped_column(String(128))
+    content_hash: Mapped[str | None] = mapped_column(String(128))
+    schema_version: Mapped[str] = mapped_column(String(32), default="1", nullable=False)
+    producer_version: Mapped[str] = mapped_column(String(32), default="video-v1", nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="AVAILABLE", nullable=False)
+    replayable_until: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    invalidated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class Place(Base, TimestampMixin):
     __tablename__ = "places"
     __table_args__ = (Index("ix_places_city_status", "city", "resolution_status"),)
@@ -139,6 +167,8 @@ class Place(Base, TimestampMixin):
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("plc"))
     content_item_id: Mapped[str | None] = mapped_column(ForeignKey("content_items.id", ondelete="SET NULL"))
     name: Mapped[str] = mapped_column(String(300), nullable=False)
+    canonical_name: Mapped[str] = mapped_column(String(300), default="", nullable=False)
+    origin: Mapped[str] = mapped_column(String(32), default="AI_EXTRACTED", nullable=False)
     place_type: Mapped[str] = mapped_column(String(64), nullable=False)
     country: Mapped[str] = mapped_column(String(64), default="中国", nullable=False)
     province: Mapped[str] = mapped_column(String(64), default="", nullable=False)
@@ -187,6 +217,24 @@ class VideoAsset(Base, TimestampMixin):
     metadata_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
 
 
+class VideoCoverAsset(Base, TimestampMixin):
+    __tablename__ = "video_cover_assets"
+    __table_args__ = (UniqueConstraint("video_asset_id", name="uq_cover_asset_video"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("cover"))
+    video_asset_id: Mapped[str] = mapped_column(ForeignKey("video_assets.id", ondelete="CASCADE"))
+    source_url: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    local_path: Mapped[str | None] = mapped_column(Text)
+    derivative_path: Mapped[str | None] = mapped_column(Text)
+    content_hash: Mapped[str | None] = mapped_column(String(128))
+    content_type: Mapped[str] = mapped_column(String(80), default="", nullable=False)
+    width: Mapped[int | None] = mapped_column(Integer)
+    height: Mapped[int | None] = mapped_column(Integer)
+    byte_size: Mapped[int | None] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(32), default="PENDING", nullable=False)
+    error_code: Mapped[str | None] = mapped_column(String(64))
+
+
 class Transcript(Base, TimestampMixin):
     __tablename__ = "transcripts"
     __table_args__ = (UniqueConstraint("video_asset_id", "version", name="uq_transcript_asset_version"),)
@@ -198,6 +246,8 @@ class Transcript(Base, TimestampMixin):
     language: Mapped[str] = mapped_column(String(24), default="zh-CN", nullable=False)
     text: Mapped[str] = mapped_column(Text, default="", nullable=False)
     segment_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    retention_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    purged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     metadata_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
 
 
@@ -235,10 +285,42 @@ class AINoteSection(Base):
     ai_note_version_id: Mapped[str] = mapped_column(ForeignKey("ai_note_versions.id", ondelete="CASCADE"))
     ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
     heading: Mapped[str] = mapped_column(String(500), nullable=False)
+    thesis: Mapped[str] = mapped_column(String(500), default="", nullable=False)
+    summary: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    bullets_json: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    anchor_id: Mapped[str] = mapped_column(String(96), default="", nullable=False)
     body_markdown: Mapped[str] = mapped_column(Text, nullable=False)
     segment_ids_json: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     start_ms: Mapped[int | None] = mapped_column(Integer)
     end_ms: Mapped[int | None] = mapped_column(Integer)
+
+
+class VideoScreenshot(Base, TimestampMixin):
+    __tablename__ = "video_screenshots"
+    __table_args__ = (Index("ix_video_screenshots_asset", "video_asset_id", "status"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("shot"))
+    video_asset_id: Mapped[str] = mapped_column(ForeignKey("video_assets.id", ondelete="CASCADE"))
+    ai_note_version_id: Mapped[str | None] = mapped_column(
+        ForeignKey("ai_note_versions.id", ondelete="SET NULL")
+    )
+    ai_note_section_id: Mapped[str | None] = mapped_column(
+        ForeignKey("ai_note_sections.id", ondelete="SET NULL")
+    )
+    place_mention_id: Mapped[str | None] = mapped_column(ForeignKey("place_mentions.id", ondelete="SET NULL"))
+    segment_id: Mapped[str | None] = mapped_column(ForeignKey("segments.id", ondelete="SET NULL"))
+    planned_timestamp_ms: Mapped[int] = mapped_column(Integer, nullable=False)
+    actual_timestamp_ms: Mapped[int | None] = mapped_column(Integer)
+    image_path: Mapped[str | None] = mapped_column(Text)
+    content_hash: Mapped[str | None] = mapped_column(String(128))
+    perceptual_hash: Mapped[str | None] = mapped_column(String(128))
+    width: Mapped[int | None] = mapped_column(Integer)
+    height: Mapped[int | None] = mapped_column(Integer)
+    quality_score: Mapped[float | None] = mapped_column(Float)
+    selection_reason: Mapped[str] = mapped_column(String(500), default="", nullable=False)
+    caption: Mapped[str] = mapped_column(String(500), default="", nullable=False)
+    content_role: Mapped[str] = mapped_column(String(64), default="KEY_FRAME", nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="PLANNED", nullable=False)
 
 
 class PlaceMention(Base, TimestampMixin):
@@ -251,6 +333,8 @@ class PlaceMention(Base, TimestampMixin):
         ForeignKey("ai_note_versions.id", ondelete="SET NULL")
     )
     name: Mapped[str] = mapped_column(String(300), nullable=False)
+    raw_name: Mapped[str] = mapped_column(String(300), default="", nullable=False)
+    suggested_name: Mapped[str] = mapped_column(String(300), default="", nullable=False)
     city_hint: Mapped[str] = mapped_column(String(64), default="", nullable=False)
     province_hint: Mapped[str] = mapped_column(String(64), default="", nullable=False)
     place_type: Mapped[str] = mapped_column(String(64), default="UNKNOWN", nullable=False)
@@ -262,6 +346,20 @@ class PlaceMention(Base, TimestampMixin):
     resolution_status: Mapped[str] = mapped_column(String(32), default="UNRESOLVED", nullable=False)
     place_id: Mapped[str | None] = mapped_column(ForeignKey("places.id", ondelete="SET NULL"))
     metadata_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    brief_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class MapMarkerState(Base, TimestampMixin):
+    __tablename__ = "map_marker_states"
+    __table_args__ = (UniqueConstraint("place_id", name="uq_map_marker_place"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("marker"))
+    place_id: Mapped[str] = mapped_column(ForeignKey("places.id", ondelete="CASCADE"))
+    origin: Mapped[str] = mapped_column(String(32), default="AI_EXTRACTED", nullable=False)
+    visibility: Mapped[str] = mapped_column(String(32), default="VISIBLE", nullable=False)
+    custom_label: Mapped[str | None] = mapped_column(String(300))
+    created_by: Mapped[str] = mapped_column(String(64), default="system", nullable=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class PlaceNoteVersion(Base, TimestampMixin):

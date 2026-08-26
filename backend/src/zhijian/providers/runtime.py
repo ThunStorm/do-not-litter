@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+import os
 import platform
 import re
 import shutil
 import socket
 import subprocess
 from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
 
@@ -138,6 +140,131 @@ def hardware_report() -> dict:
     else:
         report["os_version"] = platform.release()
     return report
+
+
+def runtime_metrics(data_dir: Path, worker_heartbeat_at: datetime | None = None) -> dict:
+    """Return live host readings without caching hardware configuration.
+
+    The first implementation intentionally uses only the standard library.  On macOS
+    `getloadavg` is a genuine kernel reading; on platforms without it the CPU field is
+    explicitly unavailable rather than represented as a made-up zero.
+    """
+    sampled_at = datetime.now(UTC)
+    cpu_count = os.cpu_count() or 1
+    try:
+        cpu_percent: float | None = round(min(100.0, max(0.0, os.getloadavg()[0] / cpu_count * 100)), 1)
+        cpu_reason: str | None = "1 分钟系统负载 / 逻辑核心数"
+    except (AttributeError, OSError):
+        cpu_percent, cpu_reason = None, "当前系统无法读取 CPU 负载"
+
+    memory_data = _memory_metrics()
+
+    try:
+        disk = shutil.disk_usage(data_dir)
+        disk_data = {
+            "used_bytes": disk.used,
+            "total_bytes": disk.total,
+            "percent": round(disk.used / disk.total * 100, 1) if disk.total else None,
+            "unavailable_reason": None,
+        }
+    except OSError as exc:
+        disk_data = {
+            "used_bytes": None,
+            "total_bytes": None,
+            "percent": None,
+            "unavailable_reason": str(exc)[:160],
+        }
+
+    heartbeat = worker_heartbeat_at
+    if heartbeat and heartbeat.tzinfo is None:
+        heartbeat = heartbeat.replace(tzinfo=UTC)
+    heartbeat_age = round((sampled_at - heartbeat).total_seconds(), 1) if heartbeat else None
+    return {
+        "sampled_at": sampled_at,
+        "cpu": {
+            "percent": cpu_percent,
+            "unavailable_reason": cpu_reason if cpu_percent is None else None,
+            "source": cpu_reason,
+        },
+        "memory": {
+            **memory_data,
+        },
+        "disk": disk_data,
+        "worker": {"heartbeat_at": heartbeat, "heartbeat_age_seconds": heartbeat_age},
+    }
+
+
+def _memory_metrics() -> dict:
+    if platform.system() == "Darwin":
+        try:
+            return _macos_memory_metrics(_run(["/usr/bin/vm_stat"]).stdout)
+        except (OSError, ValueError):
+            return _unavailable_memory("当前系统无法读取 macOS 内存页统计")
+    try:
+        page_size = os.sysconf("SC_PAGE_SIZE")
+        total = int(page_size * os.sysconf("SC_PHYS_PAGES"))
+        available = int(page_size * os.sysconf("SC_AVPHYS_PAGES"))
+        used = max(0, total - available)
+        return {
+            "used_bytes": used,
+            "total_bytes": total,
+            "available_bytes": available,
+            "cached_bytes": None,
+            "compressed_bytes": None,
+            "percent": round(used / total * 100, 1) if total else None,
+            "method": "posix-available-pages",
+            "unavailable_reason": None,
+        }
+    except (AttributeError, OSError, ValueError):
+        return _unavailable_memory("当前系统无法读取内存页统计")
+
+
+def _macos_memory_metrics(vm_stat: str) -> dict:
+    """Compute memory usage without treating inactive file cache as application memory."""
+    page_match = re.search(r"page size of (\d+) bytes", vm_stat)
+    total_match = re.search(r"\((\d+) pages with a page size", vm_stat)
+    if not page_match:
+        raise ValueError("无法解析 macOS 内存统计")
+    page_size = int(page_match.group(1))
+    total = int(total_match.group(1)) if total_match else int(os.sysconf("SC_PHYS_PAGES"))
+    pages = {
+        name: int(value)
+        for name, value in re.findall(
+            r"Pages (free|active|inactive|speculative|wired down|occupied by compressor):\s+(\d+)",
+            vm_stat,
+        )
+    }
+    required = {"free", "inactive", "speculative"}
+    if not required.issubset(pages):
+        raise ValueError("macOS 内存页字段不完整")
+    available_pages = pages["free"] + pages["inactive"] + pages["speculative"]
+    available = min(total * page_size, available_pages * page_size)
+    used = max(0, total * page_size - available)
+    cached = (pages["inactive"] + pages["speculative"]) * page_size
+    compressed = pages.get("occupied by compressor", 0) * page_size
+    return {
+        "used_bytes": used,
+        "total_bytes": total * page_size,
+        "available_bytes": available,
+        "cached_bytes": cached,
+        "compressed_bytes": compressed,
+        "percent": round(used / (total * page_size) * 100, 1) if total else None,
+        "method": "macos-reclaimable-pages",
+        "unavailable_reason": None,
+    }
+
+
+def _unavailable_memory(reason: str) -> dict:
+    return {
+        "used_bytes": None,
+        "total_bytes": None,
+        "available_bytes": None,
+        "cached_bytes": None,
+        "compressed_bytes": None,
+        "percent": None,
+        "method": None,
+        "unavailable_reason": reason,
+    }
 
 
 def local_ip() -> str:

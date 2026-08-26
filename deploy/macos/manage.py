@@ -14,9 +14,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 GENERATED = ROOT / "deploy" / "macos" / "generated"
 LAUNCH_AGENTS = Path.home() / "Library" / "LaunchAgents"
+LAUNCH_LOGS = Path.home() / "Library" / "Logs" / "Zhijian"
+PYTHON = (ROOT / ".venv" / "bin" / "python").resolve()
+PYTHONPATH = ":".join(
+    (str(ROOT / "backend" / "src"), str(ROOT / ".venv" / "lib" / "python3.12" / "site-packages"))
+)
 SERVICES = {
-    "api": ("cn.zhijian.api", ROOT / ".venv" / "bin" / "zhijian-api"),
-    "worker": ("cn.zhijian.worker", ROOT / ".venv" / "bin" / "zhijian-worker"),
+    "api": ("cn.zhijian.api", "zhijian.main"),
+    "worker": ("cn.zhijian.worker", "zhijian.worker"),
 }
 
 
@@ -24,6 +29,7 @@ def environment() -> dict[str, str]:
     return {
         "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
         "PYTHONUNBUFFERED": "1",
+        "PYTHONPATH": PYTHONPATH,
         "ZHIJIAN_ENV": "production",
         "ZHIJIAN_HOST": "0.0.0.0",
         "ZHIJIAN_PORT": "8787",
@@ -36,29 +42,28 @@ def environment() -> dict[str, str]:
     }
 
 
-def plist(service: str, label: str, executable: Path) -> dict[str, object]:
-    logs = ROOT / "data" / "logs"
+def plist(service: str, label: str, module: str) -> dict[str, object]:
     return {
         "Label": label,
-        "ProgramArguments": [str(executable)],
-        "WorkingDirectory": str(ROOT),
+        "ProgramArguments": [str(PYTHON), "-m", module],
+        "WorkingDirectory": str(Path.home()),
         "EnvironmentVariables": environment(),
         "RunAtLoad": True,
         "KeepAlive": {"SuccessfulExit": False},
         "ProcessType": "Background",
         "ThrottleInterval": 5,
-        "StandardOutPath": str(logs / f"{service}.stdout.log"),
-        "StandardErrorPath": str(logs / f"{service}.stderr.log"),
+        "StandardOutPath": str(LAUNCH_LOGS / f"{service}.stdout.log"),
+        "StandardErrorPath": str(LAUNCH_LOGS / f"{service}.stderr.log"),
     }
 
 
 def render(destination: Path = GENERATED) -> list[Path]:
     destination.mkdir(parents=True, exist_ok=True)
     rendered: list[Path] = []
-    for service, (label, executable) in SERVICES.items():
+    for service, (label, module) in SERVICES.items():
         target = destination / f"{label}.plist"
         with target.open("wb") as handle:
-            plistlib.dump(plist(service, label, executable), handle, sort_keys=False)
+            plistlib.dump(plist(service, label, module), handle, sort_keys=False)
         rendered.append(target)
     return rendered
 
@@ -70,11 +75,7 @@ def launchctl(*arguments: str, check: bool = True) -> subprocess.CompletedProces
 
 
 def validate_install() -> None:
-    missing = [
-        str(executable)
-        for _, executable in SERVICES.values()
-        if not executable.is_file()
-    ]
+    missing = [str(PYTHON)] if not PYTHON.is_file() else []
     if not (ROOT / "frontend" / "dist" / "index.html").is_file():
         missing.append(str(ROOT / "frontend" / "dist" / "index.html"))
     if missing:
@@ -85,7 +86,7 @@ def validate_install() -> None:
 
 def install() -> None:
     validate_install()
-    (ROOT / "data" / "logs").mkdir(parents=True, exist_ok=True)
+    LAUNCH_LOGS.mkdir(parents=True, exist_ok=True)
     LAUNCH_AGENTS.mkdir(parents=True, exist_ok=True)
     generated = render()
     domain = f"gui/{os.getuid()}"
@@ -98,8 +99,9 @@ def install() -> None:
             backup = target.with_suffix(f".plist.{timestamp}.bak")
             shutil.copy2(target, backup)
         shutil.copy2(source, target)
-        if not loaded:
-            launchctl("bootstrap", domain, str(target))
+        if loaded:
+            launchctl("bootout", f"{domain}/{label}", check=False)
+        launchctl("bootstrap", domain, str(target))
         launchctl("kickstart", "-k", f"{domain}/{label}")
         print(f"已启动 {label}")
 

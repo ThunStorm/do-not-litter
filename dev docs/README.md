@@ -1,10 +1,10 @@
 # AI Personal Inbox / Personal Scout
 ## 项目文档索引
 
-> 文档版本：v0.4
-> 更新日期：2026-08-19
-> 当前阶段：Mac mini 可用化实施与真实运行时验收
-> 第一阶段部署形态：文档保留 Windows 11 PC 与 Mac mini 两套单节点方案；当前实施分支选择 Mac mini 作为后端与 AI Worker，手机通过可信局域网访问
+> 文档版本：v0.4.5
+> 更新日期：2026-08-26
+> 当前阶段：视频阅读、步骤续跑、笔记删除、AI 调用重试与提示词补充均已实施；以 `IMPLEMENTATION_STATUS.md` 为唯一实施状态来源
+> 第一阶段部署形态：Mac mini 作为完整后端与 AI Worker，PC/手机通过可信局域网访问
 > 第一阶段业务范围：北京市公务员/事业单位招聘 + 中国范围 Travel/Food
 
 ---
@@ -85,38 +85,48 @@
 
 | 文档 | 用途 |
 |---|---|
-| [DEPLOYMENT_OPTIONS.md](./DEPLOYMENT_OPTIONS.md) | Windows PC / Mac mini 双部署方案、选择矩阵与决策门 |
 | [PRODUCT_REQUIREMENTS.md](./PRODUCT_REQUIREMENTS.md) | 产品需求、用户场景、功能边界、MVP |
 | [SYSTEM_ARCHITECTURE.md](./SYSTEM_ARCHITECTURE.md) | 总体架构、模块边界、运行方式 |
 | [DATA_MODEL.md](./DATA_MODEL.md) | 领域对象、数据库表、Claim/Evidence 数据模型 |
 | [RECRUITMENT_PIPELINE.md](./RECRUITMENT_PIPELINE.md) | 招聘完整处理链、DSL、MajorMatcher、资格判断 |
 | [TRAVEL_FOOD_PIPELINE.md](./TRAVEL_FOOD_PIPELINE.md) | 视频/图文处理、ASR、POI、偏好学习、地图 |
+| [VIDEO_AI_NOTE_PIPELINE.md](./VIDEO_AI_NOTE_PIPELINE.md) | 视频页/Transcript 理解、代表性截图、细粒度地点、高德校名、中国全境地图与 Marker 生命周期 |
+| [VIDEO_AI_NOTE_IMPLEMENTATION_GUIDE.md](./VIDEO_AI_NOTE_IMPLEMENTATION_GUIDE.md) | Agent 实施入口：v0.4/v0.4.1 已有能力、v0.4.2 Work Package 12、测试与 DoD |
 | [AI_RUNTIME_AND_PROVIDERS.md](./AI_RUNTIME_AND_PROVIDERS.md) | 本地/外部模型、ASR、模型路由、Provider 抽象 |
 | [CONTROL_CENTER.md](./CONTROL_CENTER.md) | CMS/控制后台设计 |
+| [OPERATIONS_UI_SPEC.md](./OPERATIONS_UI_SPEC.md) | PC 缩放适配、实时任务诊断、运维日志工作台与 Mac mini 指标 UI 契约 |
+| [MODEL_AND_RETENTION_UI_SPEC.md](./MODEL_AND_RETENTION_UI_SPEC.md) | 自定义模型库、主/备用路由与任务/内容历史删除契约 |
+| [RUNTIME_MONITOR_AND_MODEL_PRESETS_SPEC.md](./RUNTIME_MONITOR_AND_MODEL_PRESETS_SPEC.md) | 持久化 Mac mini 指标、Provider 预设与草稿真实测试契约 |
+| [RUNTIME_MONITOR_AND_PROVIDER_SWITCH_V06_SPEC.md](./RUNTIME_MONITOR_AND_PROVIDER_SWITCH_V06_SPEC.md) | macOS 内存口径、运维浮窗与 Provider 默认值联动契约 |
+| [MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md](./MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md) | 手机会话刷新、视频阶段诊断、取消与重试控制契约 |
+| [TASK_SUMMARY_AND_PARTIAL_SUCCESS_SPEC.md](./TASK_SUMMARY_AND_PARTIAL_SUCCESS_SPEC.md) | 任务摘要字段语义、长文本收缩与部分完成表达契约 |
+| [TASK_STATUS_AND_BEIJING_TIME_SPEC.md](./TASK_STATUS_AND_BEIJING_TIME_SPEC.md) | 终态任务文案与全站北京时间显示契约 |
+| [VIDEO_NOTE_RENDERING_AND_TASK_MODEL_CONTEXT_SPEC.md](./VIDEO_NOTE_RENDERING_AND_TASK_MODEL_CONTEXT_SPEC.md) | 视频笔记封面、Markdown 渲染、部分完成与模型调用摘要契约 |
+| [VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md](./VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md) | 地点/转写前置、AI 校对稿、主旨目录、段落跳转、随文截图与 Lightbox 返工契约 |
+| [VIDEO_NOTE_LIST_V043_SPEC.md](./VIDEO_NOTE_LIST_V043_SPEC.md) | “添加视频链接”按钮、Bilibili 封面下载、本地缓存与 16:9 列表卡契约 |
+| [PIPELINE_STEP_REPLAY_V044_SPEC.md](./PIPELINE_STEP_REPLAY_V044_SPEC.md) | 24h 中间产物、从错误步骤续跑、上游复用和过期后完整重跑契约 |
+| [VIDEO_NOTE_DELETE_V044_SPEC.md](./VIDEO_NOTE_DELETE_V044_SPEC.md) | 视频笔记列表/详情删除入口、共享数据保留和确认门禁契约 |
+| [PROMPT_SUPPLEMENTS_V045_SPEC.md](./PROMPT_SUPPLEMENTS_V045_SPEC.md) | 不可变核心 Prompt 契约、可编辑补充偏好、哈希续跑与设置 UI 契约 |
 | [API_DESIGN.md](./API_DESIGN.md) | REST / WebSocket API 边界 |
 | [SECURITY_PRIVACY.md](./SECURITY_PRIVACY.md) | 本地优先、API Key、浏览器登录态、敏感数据 |
 | [TESTING_AND_ACCEPTANCE.md](./TESTING_AND_ACCEPTANCE.md) | 测试策略、关键验收用例 |
 | [GOLDEN_SAMPLES.md](./GOLDEN_SAMPLES.md) | 首批真实样本、Fixture 规则、技术 Spike 与质量门槛 |
 | [PROJECT_PLAN.md](./PROJECT_PLAN.md) | Codex/Agent 可直接执行的工程实施计划 |
+| [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) | 当前已实现能力、真实验收状态与下一实施项 |
+| [PROJECT_HANDOVER.md](./PROJECT_HANDOVER.md) | 当前代码/文档/运行状态核验后的正式维护交接说明 |
+| [CODEX_CONTEXT.md](./CODEX_CONTEXT.md) | Codex 新任务默认读取的精简项目上下文与文档路由 |
+| [CODEX_TASK_TEMPLATES.md](./CODEX_TASK_TEMPLATES.md) | 诊断、修复、迁移、UI 与文档任务的低额度提示模板 |
+| [REGRESSION_AND_CHANGE_GUARD.md](./REGRESSION_AND_CHANGE_GUARD.md) | 已确认需求的防覆盖基线、变更规则与回归矩阵 |
 | [FUTURE_ROADMAP.md](./FUTURE_ROADMAP.md) | GenericProcessor、移动端、云、多 Worker、C 级自动化 |
 | [ARCHITECTURE_DECISIONS.md](./ARCHITECTURE_DECISIONS.md) | 关键设计决策与原因 |
-| [LOGGING_ARCHITECTURE.md](./LOGGING_ARCHITECTURE.md) | 本地结构化日志、审计事件、安全与保留架构 |
-| [LOGGING_IMPLEMENTATION.md](./LOGGING_IMPLEMENTATION.md) | 日志代码、接口、部署、测试与回退操作 |
 
 `COMPLETE_PROJECT_SPEC.md` 是由上述分文档自动生成的合订本，不作为独立编辑源。修改分文档后运行 `python scripts/build_complete_project_spec.py` 重新生成。
 
 ---
 
-## 4. 当前硬件基线与待选部署
+## 4. 当前硬件基线
 
-### 方案 A：Windows PC 后端
-
-- 设备名：`WILLIAM-PC`
-- OS：Windows 11 x64
-- CPU：AMD Ryzen 7 5800X，8C/16T
-- RAM：32 GB
-- GPU：AMD Radeon RX 7900 XT，20 GB VRAM
-- 存储：总 4.61 TB，当前已使用约 3.30 TB
+开发/运行主机为 Mac mini（Apple M4、16 GB 统一内存、arm64）。CPU、内存、磁盘、运行时与 Worker 心跳均以 `/api/status` 的实时结果为准；安装与常驻规则见 `DEPLOYMENT_OPTIONS.md`。
 
 这台机器承担：
 
@@ -130,18 +140,6 @@
 - 独立 Worker；
 - Web Control Center；
 - 本地文件存储。
-
-### 方案 B：Mac mini 后端
-
-- 设备：Mac mini（`Mac16,10`）
-- OS：macOS 26.6.2（当前实际探测值）
-- 芯片：Apple M4，10 核 CPU
-- RAM：16 GB 统一内存
-- 架构：arm64
-
-这台机器可独立承担同一套 FastAPI、SQLite、Playwright、文档/OCR、Worker、Web Control Center 与本地文件存储；本地 AI 改用 Ollama Metal 与 whisper.cpp Metal，Secret 改存 macOS Keychain，服务由 `launchd` 常驻托管。完整差异与选择条件见 `DEPLOYMENT_OPTIONS.md`。
-
-两套方案互斥选择，不在 MVP 中让 Windows PC 与 Mac mini 共享同一个 SQLite 文件，也不同时维护两套生产安装包。
 
 ---
 
@@ -251,5 +249,5 @@ V1.x
 6. **不得因为未来可能需要而提前实现大平台。**
 7. **允许定义扩展接口，但不提前实现不属于 MVP 的能力。**
 8. **Pipeline 必须可重放、可重跑、可审计。**
-9. **长任务必须持久化，所选后端节点重启后可恢复。**
+9. **长任务必须持久化，PC 重启后可恢复。**
 10. **原始证据优先，AI 解释次之。**

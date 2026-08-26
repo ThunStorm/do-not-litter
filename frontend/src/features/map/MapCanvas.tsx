@@ -6,8 +6,11 @@ import { AmapLayer } from './AmapLayer'
 
 interface MapCanvasProps {
   markers: MapMarker[]
+  clusters: Array<Record<string, unknown>>
   selectedId: string | null
   onSelect: (id: string) => void
+  viewport: { bbox: number[]; zoom: number }
+  onViewportChange: (viewport: { bbox: number[]; zoom: number }) => void
 }
 
 const roads = [
@@ -20,24 +23,26 @@ const roads = [
   'M-20 760 C170 700 290 780 480 730 S700 710 880 800',
 ]
 
-export function MapCanvas({ markers, selectedId, onSelect }: MapCanvasProps) {
+export function MapCanvas({ markers, clusters, selectedId, onSelect, viewport, onViewportChange }: MapCanvasProps) {
   const bounds = markerBounds(markers)
   const [amapReady, setAmapReady] = useState(false)
   const [zoom, setZoom] = useState(1)
   const [locationMessage, setLocationMessage] = useState('')
   const handleAmapReady = useCallback((ready: boolean) => setAmapReady(ready), [])
   return (
-    <div className="map-canvas" aria-label="厦门地点地图总览">
+    <div className="map-canvas" aria-label="中国大陆地点地图总览">
       <svg className={`map-canvas__roads ${amapReady ? 'is-hidden' : ''}`} style={{ transform: `scale(${zoom})` }} viewBox="0 0 853 900" aria-hidden="true">
         <rect width="853" height="900" fill="#f4f3f0" />
         <path d="M690 0 H853 V900 H760 C700 760 780 650 720 520 C680 410 750 240 690 0Z" fill="#e8ecee" />
         {roads.map((road) => <path key={road} d={road} fill="none" stroke="#d4d2cd" strokeWidth="8" />)}
         {roads.map((road) => <path key={`inner-${road}`} d={road} fill="none" stroke="#faf9f6" strokeWidth="5" />)}
-        <g fill="#817f79" fontSize="20" fontFamily="PingFang SC, sans-serif">
-          <text x="250" y="260">中山路步行街</text><text x="480" y="460">厦门大学</text><text x="145" y="600">思明区</text><text x="660" y="690">白城沙滩</text>
-        </g>
+        <text x="310" y="420" fill="#817f79" fontSize="18" fontFamily="PingFang SC, sans-serif">中国大陆地图预览</text>
       </svg>
       <div className={`map-canvas__markers ${amapReady ? 'is-hidden' : ''}`} style={{ transform: `scale(${zoom})` }}>
+        {clusters.map((cluster) => {
+          const point = clusterPosition(cluster)
+          return <span className="map-cluster" key={String(cluster.id)} style={{ left: `${point.left}%`, top: `${point.top}%` }}>{String(cluster.count)}</span>
+        })}
         {markers.map((marker) => {
           const { left, top } = markerPosition(marker, bounds)
           const selected = marker.id === selectedId
@@ -53,12 +58,21 @@ export function MapCanvas({ markers, selectedId, onSelect }: MapCanvasProps) {
           )
         })}
       </div>
-      <AmapLayer markers={markers} selectedId={selectedId} onSelect={onSelect} onReady={handleAmapReady} />
+      <AmapLayer markers={markers} selectedId={selectedId} onSelect={onSelect} viewport={viewport} onReady={handleAmapReady} onViewportChange={onViewportChange} />
       <div className="map-canvas__tools"><button aria-label="定位" onClick={() => navigator.geolocation?.getCurrentPosition((position) => setLocationMessage(`当前位置 ${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`), () => setLocationMessage('无法读取当前位置'))}><LocateFixed /></button><button aria-label="放大" onClick={() => setZoom((value) => Math.min(1.6, value + .15))}><Plus /></button><button aria-label="缩小" onClick={() => setZoom((value) => Math.max(.7, value - .15))}><Minus /></button><button className="fit-all" onClick={() => setZoom(1)}><Maximize />适配全部</button></div>
       {locationMessage && <span className="map-location-message" role="status">{locationMessage}</span>}
       <span className="map-attribution">高德地图 · GCJ-02</span>
     </div>
   )
+}
+
+function clusterPosition(cluster: Record<string, unknown>) {
+  const longitude = Number(cluster.longitude)
+  const latitude = Number(cluster.latitude)
+  return {
+    left: 6 + ((longitude - 73.5) / (135.1 - 73.5)) * 86,
+    top: 8 + (1 - (latitude - 18) / (53.6 - 18)) * 80,
+  }
 }
 
 function markerBounds(markers: MapMarker[]) {

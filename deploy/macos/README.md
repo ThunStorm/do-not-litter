@@ -1,6 +1,6 @@
 # Mac mini 部署
 
-当前实现使用两个用户级 `launchd` 服务：`cn.zhijian.api` 提供同源前端与 API，`cn.zhijian.worker` 处理持久任务。前端生产资源由 FastAPI 同端口提供，Windows PC 和手机都只是浏览器客户端。
+当前实现使用两个用户级 `launchd` 服务：`cn.zhijian.api` 提供同源前端与 API，`cn.zhijian.worker` 处理持久任务。前端生产资源由 FastAPI 同端口提供，PC 浏览器和手机都只是浏览器客户端。
 
 ## 安装
 

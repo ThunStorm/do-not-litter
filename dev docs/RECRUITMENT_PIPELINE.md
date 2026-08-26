@@ -155,7 +155,7 @@ OCR 必须保留页码、边界框、OCR 置信度与原始图片引用。低置
 - 备注列；
 - 列名差异。
 
-`.xlsx` 先用 openpyxl 读取；旧 `.xls` 通过独立 SpreadsheetReader 适配器处理，Phase 0A 在 xlrd/python-calamine 中按所选目标平台的安装、arm64/x64 格式覆盖和维护状态选择，不允许把 `.xls` 伪装成 openpyxl 支持。
+`.xlsx` 先用 openpyxl 读取；旧 `.xls` 通过独立 SpreadsheetReader 适配器处理，Phase 0A 按 macOS arm64 安装、格式覆盖和维护状态选择，不允许把 `.xls` 伪装成 openpyxl 支持。
 
 AI 只做 Column Mapping：
 

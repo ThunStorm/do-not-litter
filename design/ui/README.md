@@ -34,6 +34,22 @@
 | 手机日常入口 | `20-home-mobile.png` 至 `24-profile-mobile.png` |
 | 手机地图父页面与地点详情 | `25-map-mobile.png`、`26-place-detail-mobile.png` |
 
+## operations-v0.3 运维审阅稿
+
+`operations-v0.3/` 保存 2026-08-21 根据实际页面批注形成的定向改版稿，状态为“设计完成、尚未实施”。它不重做既有视觉体系，只冻结四项后续实现契约：935px/浏览器缩放下的任务列表重排、可诊断的实时任务步骤、运维级日志工作台、Mac mini 真实资源指标。详细字段、阈值和验收规则见 `../../dev docs/OPERATIONS_UI_SPEC.md`。
+
+## v0.4 视频地点与全国地图
+
+`v0.4/` 保存视频截图、细粒度地点和全国地图的新界面审阅稿。地图设计以中国大陆首屏、bbox/zoom 聚合、Marker 浮层与可恢复生命周期为基线；高德三项配置与诊断见同目录设置稿。实现状态与接口边界见 `../../dev docs/VIDEO_AI_NOTE_PIPELINE.md`。
+
+## v0.4.4 视频阅读、步骤续跑与删除
+
+`v0.4.4/` 保存 PC/Mobile 视频笔记阅读返工，以及 ERROR 步骤续跑与删除确认的标注稿。最新方案把地点候选/完整转写放文章底部，截图改为正文侧排缩略图；步骤续跑使用 24h Replay Cache，上游 REUSED，失败步骤及下游顺次执行。详细覆盖关系见同目录 `README.md`。
+
+## v0.4.6 转写设置与来源清理
+
+`v0.4.6/` 冻结转写独立模型路由、分段参数、完整 Prompt 核心契约展示和来源删除状态。定版截图来自真实 PC 页面，详细边界见 `../../dev docs/AI_ROUTING_SOURCE_RETENTION_V046_SPEC.md`。
+
 ## 实施约束
 
 - PC 是 CMS 与运维主入口，但首页必须同时展示少量结构化结果；数据不足时使用叙事式列表、详情预览和自然留白，不用空统计窗格或虚构数量填满页面。
@@ -46,12 +62,12 @@
 - 路线清单第一版只负责选点和手动排序，不展示未经真实 Route Provider 计算的最优路线、距离或交通时间。
 - 投递入口统一承接 URL、DOCX、PDF、图片和 OCR；手机离开进度页后，可信局域网内的 PC Worker 仍可继续处理。
 - 密钥只显示掩码。外部 Provider 是可选能力，敏感内容优先本地处理，并保留脱敏与最小审计信息。
-- 部署方案二选一：`00-home-pc.png` 对应原 Windows PC 本地节点语境；`02-home-pc-mac-mini-backend.png` 对应 PC 浏览器连接 Mac mini 后端。两者共用页面结构，实施时根据 `DEPLOYMENT_TARGET` 显示节点、硬件与 Runtime，不维护两套业务 UI。
+- 当前唯一部署基线为 Mac mini。`02-home-pc-mac-mini-backend.png` 对应 PC 浏览器连接常驻 Mac mini 后端；旧的非 Mac 节点概念稿只保留历史审阅价值，不作为实施依据。
 
 ## 文档映射
 
 - 页面与 CMS 职责：`../../dev docs/CONTROL_CENTER.md`
-- Windows PC / Mac mini 部署选择：`../../dev docs/DEPLOYMENT_OPTIONS.md`
+- Mac mini 部署基线：`../../dev docs/DEPLOYMENT_OPTIONS.md`
 - 产品范围与手机局域网访问：`../../dev docs/PRODUCT_REQUIREMENTS.md`
 - Source、Snapshot、Segment、Claim、Evidence：`../../dev docs/DATA_MODEL.md`
 - DeepSeek、MiMo、Ollama 与 Provider 路由：`../../dev docs/AI_RUNTIME_AND_PROVIDERS.md`

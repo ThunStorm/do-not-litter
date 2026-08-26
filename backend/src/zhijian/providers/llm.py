@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
+from time import monotonic, sleep
 from typing import Any, Protocol
 
 import httpx
+
+AttemptCallback = Callable[[str, str, str, int, int, "LLMResult | None", "Exception | None"], None]
 
 
 @dataclass(slots=True)
@@ -34,6 +38,7 @@ class OllamaProvider:
                 "model": model,
                 "messages": messages,
                 "stream": False,
+                "keep_alive": 0,
                 **({"format": "json"} if json_mode else {}),
             },
             timeout=self.timeout,
@@ -94,3 +99,144 @@ class OpenAICompatibleProvider:
 
     def generate(self, messages: list[dict[str, str]], *, model: str) -> LLMResult:
         return self.generate_json(messages, model=model)
+
+
+class FallbackLLMProvider:
+    """Use a second saved model only when a different provider can help."""
+
+    _blocked_until: dict[str, float] = {}
+
+    def __init__(
+        self,
+        primary: LLMProvider,
+        primary_model: str,
+        fallback: LLMProvider | None,
+        fallback_model: str | None,
+        before_fallback: Callable[[], None] | None = None,
+        retry_count: int = 2,
+        retry_wait_seconds: float = 5,
+        request_interval_seconds: float = 1,
+        on_retry: Callable[[int, Exception], None] | None = None,
+        on_attempt: AttemptCallback | None = None,
+        sleeper: Callable[[float], None] = sleep,
+    ) -> None:
+        self.primary = primary
+        self.primary_model = primary_model
+        self.fallback = fallback
+        self.fallback_model = fallback_model
+        self.primary_disabled = False
+        self.before_fallback = before_fallback
+        self.retry_count = retry_count
+        self.retry_wait_seconds = retry_wait_seconds
+        self.request_interval_seconds = request_interval_seconds
+        self.on_retry = on_retry
+        self.on_attempt = on_attempt
+        self.sleeper = sleeper
+
+    @staticmethod
+    def _endpoint(provider: LLMProvider) -> str:
+        return str(getattr(provider, "base_url", "")).rstrip("/").lower()
+
+    @staticmethod
+    def _retry_after(exc: Exception) -> float:
+        if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 429:
+            try:
+                return max(1.0, float(exc.response.headers.get("Retry-After", "60")))
+            except ValueError:
+                return 60.0
+        return 0.0
+
+    @staticmethod
+    def _retryable(exc: Exception) -> bool:
+        if isinstance(exc, httpx.HTTPStatusError):
+            return exc.response.status_code in {408, 409, 425, 429} or exc.response.status_code >= 500
+        return isinstance(exc, (httpx.HTTPError, TimeoutError, ConnectionError, ValueError))
+
+    def _invoke(
+        self, provider: LLMProvider, method: str, messages: list[dict[str, str]], model: str, route: str
+    ) -> LLMResult:
+        endpoint = self._endpoint(provider)
+        input_chars = sum(len(str(message.get("content") or "")) for message in messages)
+        for attempt in range(self.retry_count + 1):
+            if endpoint and self._blocked_until.get(endpoint, 0.0) > monotonic():
+                exc = httpx.HTTPStatusError(
+                    "provider cooling down after rate limit",
+                    request=httpx.Request("POST", endpoint),
+                    response=httpx.Response(429, request=httpx.Request("POST", endpoint)),
+                )
+                if self.on_attempt:
+                    self.on_attempt(
+                        getattr(provider, "name", "ollama"),
+                        model,
+                        route,
+                        attempt + 1,
+                        input_chars,
+                        None,
+                        exc,
+                    )
+                raise exc
+            if self.request_interval_seconds:
+                self.sleeper(self.request_interval_seconds)
+            if self.before_fallback:
+                self.before_fallback()
+            try:
+                result = getattr(provider, method)(messages, model=model)
+                if not result.content or not result.content.strip():
+                    raise ValueError("模型返回了空内容")
+                if self.on_attempt:
+                    self.on_attempt(
+                        result.provider, result.model, route, attempt + 1, input_chars, result, None
+                    )
+                return result
+            except Exception as exc:
+                if self.on_attempt:
+                    self.on_attempt(
+                        getattr(provider, "name", "ollama"),
+                        model,
+                        route,
+                        attempt + 1,
+                        input_chars,
+                        None,
+                        exc,
+                    )
+                cooldown = self._retry_after(exc)
+                if cooldown and endpoint:
+                    self._blocked_until[endpoint] = monotonic() + cooldown
+                if attempt >= self.retry_count or not self._retryable(exc):
+                    raise
+                if self.on_retry:
+                    self.on_retry(attempt + 1, exc)
+                wait_seconds = max(self.retry_wait_seconds, cooldown)
+                if wait_seconds:
+                    self.sleeper(wait_seconds)
+                if cooldown and endpoint:
+                    self._blocked_until.pop(endpoint, None)
+        raise RuntimeError("模型重试状态异常")
+
+    def _call(self, method: str, messages: list[dict[str, str]]) -> LLMResult:
+        if not self.primary_disabled:
+            try:
+                return self._invoke(self.primary, method, messages, self.primary_model, "primary")
+            except (httpx.HTTPError, TimeoutError, ConnectionError, ValueError):
+                self.primary_disabled = True
+                if (
+                    self.fallback is None
+                    or not self.fallback_model
+                    or (
+                        self._endpoint(self.primary)
+                        and self._endpoint(self.primary) == self._endpoint(self.fallback)
+                    )
+                ):
+                    raise
+        if self.fallback is None or not self.fallback_model:
+            raise ValueError("主模型不可用且未配置备用模型")
+        return self._invoke(self.fallback, method, messages, self.fallback_model, "fallback")
+
+    def generate_text(self, messages: list[dict[str, str]], *, model: str) -> LLMResult:
+        return self._call("generate_text", messages)
+
+    def generate_json(self, messages: list[dict[str, str]], *, model: str) -> LLMResult:
+        return self._call("generate_json", messages)
+
+    def generate(self, messages: list[dict[str, str]], *, model: str) -> LLMResult:
+        return self._call("generate", messages)

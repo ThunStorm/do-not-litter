@@ -92,7 +92,7 @@ class BilibiliResolver:
             title=str(page.get("part") or video.get("title") or "未命名视频"),
             uploader=str((video.get("owner") or {}).get("name") or ""),
             duration_ms=int(float(page.get("duration") or video.get("duration") or 0) * 1000) or None,
-            cover_url=video.get("pic"),
+            cover_url=_https_url(video.get("pic")),
             subtitles=subtitles,
             metadata={
                 "pubdate": video.get("pubdate"),
@@ -176,3 +176,12 @@ class BilibiliResolver:
         return sorted(
             tracks, key=lambda track: (0 if track.language.lower().startswith("zh") else 1, track.language)
         )
+
+
+def _https_url(value: object) -> str | None:
+    url = str(value or "")
+    if url.startswith("//"):
+        return "https:" + url
+    if url.startswith("http://"):
+        return "https://" + url.removeprefix("http://")
+    return url or None

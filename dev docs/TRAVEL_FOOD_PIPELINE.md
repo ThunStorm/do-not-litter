@@ -1,5 +1,7 @@
 # Travel / Food Pipeline
 
+> 视频链接到 AI 笔记、BiliNote 复用边界、DeepSeek 分块总结、地点归纳笔记与多入口导航的冻结契约见 `VIDEO_AI_NOTE_PIPELINE.md`。本文件继续定义 Travel/Food 的领域抽取、POI、偏好和地图规则；发生冲突时，专项文档中的视频链路规则优先。
+
 ## 1. 目标
 
 将视频/图文中的旅行与探店信息转换成：
@@ -49,6 +51,27 @@ MATERIALIZE
 CLEAN_CACHE
 ```
 
+`FETCH_SUBTITLE / DOWNLOAD_MEDIA / ASR` 之前必须完成平台 URL 规范化和视频元数据抓取；`SEGMENT` 后先生成版本化 AI 视频笔记，再执行地点结构化抽取。AI 笔记是用户可阅读的一级产物，但地点事实仍必须引用 Transcript Segment，不得只引用 AI Markdown。
+
+完整顺序为：
+
+```text
+VALIDATE_LINK
+→ FETCH_METADATA
+→ FETCH_SUBTITLE
+→ DOWNLOAD_AUDIO / ASR（仅字幕不可用时）
+→ NORMALIZE_TRANSCRIPT
+→ GENERATE_AI_NOTE
+→ EXTRACT_PLACES
+→ RESOLVE_POI
+→ BUILD_PLACE_NOTES
+→ PLAN_SCREENSHOTS
+→ DOWNLOAD_VIDEO_FOR_FRAMES
+→ EXTRACT_SCREENSHOTS
+→ MATERIALIZE
+→ CLEAN_CACHE
+```
+
 ---
 
 # 3. Transcript First
@@ -82,6 +105,8 @@ segment_id
 ```
 
 后续餐厅/景点 Claim 直接挂该 segment。
+
+每个 Segment 同时保留 raw_text 与 AI corrected_text。地点/菜品/特色提取默认使用 corrected_text，Evidence 详情允许对照 raw；校对不得改变 Segment ID 和时间码。无法确定的同音地名先标 Review，再交给高德候选校正，不能由校对模型直接生成 canonical Place。
 
 ---
 
@@ -146,41 +171,24 @@ PlaceMention
 
 MVP 实现 `AMapPOIProvider`：使用高德 Web 服务进行候选搜索，优先传城市/adcode 与 `citylimit` 收敛歧义；保存 Provider、POI ID、原始候选响应哈希与 `GCJ02` 坐标系。前端使用高德地图 JS API 2.0。
 
-## 7.1 地图是空间总览，不是地点附件
+POI 解析同时承担名称校正：保留转写原文 `raw_name`，高德候选命中后保存 `canonical_name` 与 aliases。必须结合地点类型、城市/区县、附近地标、地址上下文和视频其他地点进行确定性打分；无法唯一确认时进入 Review。城市/省份只作为上下文，不因为被提及就默认创建 Marker。
 
-旅行信息架构固定为：
+## 7.1 地点类型与简介
 
-```text
-内容 > 旅行 > 地图总览
-             ├─ Marker A → 地点预览 A → 地点详情 A
-             ├─ Marker B → 地点预览 B → 地点详情 B
-             └─ 路线清单 → 手动排序 → 后续路线规划
-```
+第一版地点粒度至少包括餐馆、景区、街区、步行街、商圈、市场、公园、博物馆、寺庙、村镇、地标、住宿和交通点。每个 PlaceMention 生成结构化 `PlaceBrief`：
 
-地图总览是独立主页面，默认展示当前区域内全部符合筛选条件的 `CONFIRMED Place` 分布。地点详情是从 Marker 预览进入的下一级页面；不得先进入某个地点详情，再把地图作为该地点的附属卡片。
+- 景区/街区/店铺特色；
+- 推荐菜品或核心体验；
+- 价格、排队、环境与营业提示；
+- 适合人群、季节与注意事项；
+- 作者态度和引用时间码；
+- AI 归纳，明确与来源观点区分。
 
-地图总览必须支持：
+## 7.2 中国大陆全境地图
 
-- 按城市、行政区、地点类型与用户状态筛选；
-- 根据当前 viewport/bbox 返回 Marker，并在密集区域聚合；
-- 一键适配全部当前结果；
-- 点击 Marker 只更新 `selected_place_id` 和底部地点预览，不重建或离开地图；
-- 预览卡显示当前序号、名称、地址、关键观察、Evidence 摘要及“查看详情”；
-- 从详情返回后恢复原 viewport、zoom、筛选与 selected Marker；
-- 上一处/下一处按当前可见 Marker 的稳定顺序切换，不改变地图父级关系；
-- 无选中 Marker 时仍完整展示区域分布，不能强制打开某个地点详情。
+地图首次进入显示中国大陆全境，不设置默认城市；之后恢复用户上次 viewport。请求以 `bbox + zoom` 为主，city/district 只作为可选筛选。全国尺度使用聚合，放大后展开 Marker。点击 Marker 在地图内打开浮窗/侧浮层，显示代表图、地址、特色、关键菜品/体验、来源数和用户状态，再通过“查看详情”进入统一 Place Detail。
 
-Marker 只表示现实 `Place`，不能直接用 `PlaceMention` 或 LLM 生成坐标。`REVIEW/UNRESOLVED` 不默认进入主地图，可通过“待确认地点”入口单独处理。
-
-## 7.2 路线清单边界
-
-第一版地图提供“加入路线清单”和手动排序，用于保存用户希望串联的地点。它不是自动路线优化：
-
-- 清单存 `Place ID + 手动顺序`；
-- 不在没有地图路线服务结果时生成距离、交通时长或最优顺序；
-- 清单中的 Marker 可使用顺序编号，但普通总览 Marker 不强制编号；
-- 真正的驾车/步行/公共交通路线计算、日期行程与导航跳转留给后续 Trip Planner；
-- 后续接入路线 Provider 时复用清单，不改变 Place、Observation 与 Evidence。
+用户可创建 Marker：搜索/逆地理编码优先取得规范 POI，直接点选坐标时标为 `USER_CONFIRMED`。用户 Marker 删除为软删除；自动 Marker 删除只改变地图可见性，不删除 Place/Evidence。所有 Marker 返回 `marker_id + place_id + origin + visibility`。
 
 ---
 
@@ -350,26 +358,13 @@ Preference 有权重。
 
 ---
 
-# 18. 视觉能力预留
+# 18. 视频截图与视觉边界
 
-数据模型保留：
-`VisualEvidence`
+代表性截图属于第一版视频笔记必备产物，不再只做未来预留。系统根据 Note Section、PlaceMention 和 Transcript 时间码生成计划，下载受限画质视频流并用 FFmpeg 抽帧；每个主要地点 1–3 张，整篇默认 3–12 张。
 
-后续：
+截图必须过滤黑帧、模糊帧、过曝/欠曝和感知重复帧，并保存实际时间码、文件哈希、尺寸、选择原因以及 Section/PlaceMention/Segment 关系。当前版本使用时间码附近的候选帧与确定性画质规则避开转场；广告语义识别不使用视觉模型，属于后续独立能力。平台禁止下载或资源超限时，笔记可 `PARTIAL_SUCCESS`，但必须明确截图缺失原因。
 
-```text
-FrameExtractor
-→ VisionProvider
-```
-
-用于：
-- 店招；
-- 菜单；
-- 路牌；
-- 屏幕价格；
-- 地图画面。
-
-任务完成只永久保存真正被 Claim 引用的 Evidence Frames。
+第一版不默认把所有帧发送给 VisionProvider。店招、菜单、路牌和屏幕价格的多模态识别仍作为后续独立能力；启用时生成新的 Visual Claim/Model Version，不能覆盖 Transcript Evidence。
 
 ---
 
@@ -383,6 +378,7 @@ FrameExtractor
 永久：
 - transcript
 - evidence frames
+- note screenshots
 - thumbnail
 - metadata
 - claims
@@ -418,18 +414,6 @@ TravelDashboardVM：
 - recent_discoveries
 - recommended_places
 - pending_reviews
-
-MapOverviewVM：
-
-- viewport / coordinate_system
-- total_places / visible_places
-- markers / clusters
-- selected_place_id
-- selected_preview
-- filters
-- route_draft_count
-
-地图总览不依赖某个地点详情才能构造。`selected_preview` 只是当前 Marker 的轻量投影视图，完整 Observation、Evidence 与来源仍由 Place Detail ViewModel 提供。
 
 ---
 

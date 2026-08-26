@@ -1,7 +1,7 @@
 {
   "project": "AI Personal Inbox / Personal Scout",
-  "version": "0.4",
-  "updated_date": "2026-08-19",
+  "version": "0.4.5",
+  "frozen_date": "2026-08-26",
   "mvp_processors": [
     "Recruitment",
     "TravelFood"
@@ -11,47 +11,41 @@
     "ConfigurableProcessor",
     "OtherDedicatedProcessors"
   ],
-  "deployment_decision": "mac_mini selected for current implementation; windows_pc retained as documented alternative",
-  "deployment_options": [
-    {
-      "id": "windows_pc",
-      "role": "single local backend and AI worker",
-      "os": "Windows 11 x64",
-      "cpu": "AMD Ryzen 7 5800X",
-      "ram_gb": 32,
-      "accelerator": "AMD Radeon RX 7900 XT",
-      "accelerator_memory_gb": 20,
-      "local_ai": ["Ollama AMD", "whisper.cpp Vulkan"],
-      "secret_store": "Windows Credential Manager / DPAPI"
-    },
-    {
-      "id": "mac_mini",
-      "role": "single local backend and AI worker",
-      "os": "macOS arm64",
-      "model_identifier": "Mac16,10",
-      "chip": "Apple M4 10-core CPU",
-      "unified_memory_gb": 16,
-      "local_ai": ["Ollama Metal", "whisper.cpp Metal"],
-      "secret_store": "macOS Keychain",
-      "service_manager": "launchd"
-    }
-  ],
+  "deployment": "Mac mini local-first single node with trusted-LAN browser access",
   "recruitment_scope": "Beijing civil service and public institution recruitment",
   "travel_scope": "China",
   "map_provider": "AMap",
   "document_inputs": ["HTML", "PDF", "scanned PDF", "DOCX", "XLS", "XLSX", "PNG", "JPEG"],
   "external_llm_targets": ["DeepSeek", "Xiaomi MiMo", "custom OpenAI-compatible"],
+  "hardware": {
+    "cpu": "Apple M4",
+    "ram_gb": 16,
+    "gpu": "Apple M4 Metal",
+    "vram_gb": null
+  },
   "documents": [
     "AI_RUNTIME_AND_PROVIDERS.md",
     "API_DESIGN.md",
     "ARCHITECTURE_DECISIONS.md",
-    "LOGGING_ARCHITECTURE.md",
-    "LOGGING_IMPLEMENTATION.md",
     "CONTROL_CENTER.md",
+    "OPERATIONS_UI_SPEC.md",
     "DATA_MODEL.md",
-    "DEPLOYMENT_OPTIONS.md",
     "FUTURE_ROADMAP.md",
     "GOLDEN_SAMPLES.md",
+    "IMPLEMENTATION_STATUS.md",
+    "PROJECT_HANDOVER.md",
+    "CODEX_CONTEXT.md",
+    "CODEX_TASK_TEMPLATES.md",
+    "DEPLOYMENT_OPTIONS.md",
+    "LOGGING_ARCHITECTURE.md",
+    "LOGGING_IMPLEMENTATION.md",
+    "MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md",
+    "MODEL_AND_RETENTION_UI_SPEC.md",
+    "REGRESSION_AND_CHANGE_GUARD.md",
+    "RUNTIME_MONITOR_AND_MODEL_PRESETS_SPEC.md",
+    "RUNTIME_MONITOR_AND_PROVIDER_SWITCH_V06_SPEC.md",
+    "TASK_STATUS_AND_BEIJING_TIME_SPEC.md",
+    "TASK_SUMMARY_AND_PARTIAL_SUCCESS_SPEC.md",
     "PRODUCT_REQUIREMENTS.md",
     "PROJECT_PLAN.md",
     "README.md",
@@ -59,7 +53,15 @@
     "SECURITY_PRIVACY.md",
     "SYSTEM_ARCHITECTURE.md",
     "TESTING_AND_ACCEPTANCE.md",
-    "TRAVEL_FOOD_PIPELINE.md"
+    "TRAVEL_FOOD_PIPELINE.md",
+    "VIDEO_AI_NOTE_PIPELINE.md",
+    "VIDEO_AI_NOTE_IMPLEMENTATION_GUIDE.md",
+    "VIDEO_NOTE_RENDERING_AND_TASK_MODEL_CONTEXT_SPEC.md",
+    "VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md",
+    "VIDEO_NOTE_LIST_V043_SPEC.md",
+    "PIPELINE_STEP_REPLAY_V044_SPEC.md",
+    "VIDEO_NOTE_DELETE_V044_SPEC.md",
+    "PROMPT_SUPPLEMENTS_V045_SPEC.md"
   ],
   "generated_documents": {
     "COMPLETE_PROJECT_SPEC.md": "python scripts/build_complete_project_spec.py"
