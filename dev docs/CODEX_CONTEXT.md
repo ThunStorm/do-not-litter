@@ -28,7 +28,7 @@
 
 | 任务 | 必读 | 可选补充 |
 | --- | --- | --- |
-| 当前状态/交接 | `IMPLEMENTATION_STATUS.md` | `README.md`、`deploy/macos/README.md` |
+| 当前状态/交接 | `CURRENT_HANDOFF.md`、`IMPLEMENTATION_STATUS.md` 命中段 | `README.md`、`deploy/macos/README.md` |
 | Capture/文件/OCR | `PRODUCT_REQUIREMENTS.md` | `SYSTEM_ARCHITECTURE.md`、`SECURITY_PRIVACY.md` |
 | 招聘 | `RECRUITMENT_PIPELINE.md` | `DATA_MODEL.md`、`TESTING_AND_ACCEPTANCE.md` |
 | 视频 Pipeline | `VIDEO_AI_NOTE_IMPLEMENTATION_GUIDE.md` | `VIDEO_AI_NOTE_PIPELINE.md` |

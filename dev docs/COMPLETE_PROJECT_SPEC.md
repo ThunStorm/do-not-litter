@@ -123,6 +123,7 @@
 | [GOLDEN_SAMPLES.md](./GOLDEN_SAMPLES.md) | 首批真实样本、Fixture 规则、技术 Spike 与质量门槛 |
 | [PROJECT_PLAN.md](./PROJECT_PLAN.md) | Codex/Agent 可直接执行的工程实施计划 |
 | [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) | 当前已实现能力、真实验收状态与下一实施项 |
+| [CURRENT_HANDOFF.md](./CURRENT_HANDOFF.md) | 当前服务、未闭环条件与低 token 接手顺序；短期快照，不进入合订本 |
 | [CODEX_CONTEXT.md](./CODEX_CONTEXT.md) | Codex 新任务默认读取的精简项目上下文与文档路由 |
 | [CODEX_TASK_TEMPLATES.md](./CODEX_TASK_TEMPLATES.md) | 诊断、修复、迁移、UI 与文档任务的低额度提示模板 |
 | [REGRESSION_AND_CHANGE_GUARD.md](./REGRESSION_AND_CHANGE_GUARD.md) | 已确认需求的防覆盖基线、变更规则与回归矩阵 |
@@ -296,7 +297,7 @@ V1.x
 
 | 任务 | 必读 | 可选补充 |
 | --- | --- | --- |
-| 当前状态/交接 | `IMPLEMENTATION_STATUS.md` | `README.md`、`deploy/macos/README.md` |
+| 当前状态/交接 | `CURRENT_HANDOFF.md`、`IMPLEMENTATION_STATUS.md` 命中段 | `README.md`、`deploy/macos/README.md` |
 | Capture/文件/OCR | `PRODUCT_REQUIREMENTS.md` | `SYSTEM_ARCHITECTURE.md`、`SECURITY_PRIVACY.md` |
 | 招聘 | `RECRUITMENT_PIPELINE.md` | `DATA_MODEL.md`、`TESTING_AND_ACCEPTANCE.md` |
 | 视频 Pipeline | `VIDEO_AI_NOTE_IMPLEMENTATION_GUIDE.md` | `VIDEO_AI_NOTE_PIPELINE.md` |
