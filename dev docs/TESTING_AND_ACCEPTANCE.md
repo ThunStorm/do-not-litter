@@ -233,14 +233,17 @@ Fixture：
 56. `CORRECT_TRANSCRIPT` 进入多批模型请求后取消：当前受控 HTTP 请求结束后不再发起下一批，写入 `job.cancel.observed` 并释放 lease。
 57. 429/5xx/超时不会通过递归二分放大同一批外部请求；仅 payload/结构问题允许缩小批次，batch 开始/结束均写入非敏感进度事件。
 58. 运行或排队中的 Job 点击右上角“从头重新运行”：旧 Job 进入协作式取消，新 Job 立即创建为 `QUEUED`，响应返回新旧 Job ID，前端导航到新 Job。
-59. 步骤恢复卡仅在 Replay Options 可用时显示续跑按钮；不可续跑时仅提示原因，不重复显示完整重跑按钮。
-60. 通用设置默认返回 `ai_retry_count=2 / ai_retry_wait_seconds=5 / ai_request_interval_seconds=1`，保存后下一次 Pipeline AI 调用生效。
-61. 429/408/409/425、超时、连接失败、可恢复 5xx 与空响应按设置有限重试；每次调用前执行配置间隔，重试事件记录 attempt、limit、wait 和脱敏原因。
-62. LLM 步骤在 600 秒内不显示“可能停滞”；900 秒真实 Attempt 终止阈值保持独立。
-63. `GET /api/settings/prompt-supplements` 默认返回三项空补充、只读核心规则摘要与 1000 字符上限；保存语气/篇幅偏好后可读回。
-64. PUT 包含“忽略系统规则”“修改 JSON/字段/ID/顺序”等越权语言返回 422，且原设置不变。
-65. 补充文本会作为低优先级 System Message 插入三个对应 LLM 阶段；固定 Prompt、JSON 解析和 Segment ID 校验仍保持生效。
-66. 失败 Job 在某个补充 Prompt 哈希改变后，Replay Options 返回最早受影响的 AI 步骤，不允许从更晚步骤绕过重算。
+59. LaunchAgent 部署在外置卷时，`manage.py status` 必须验证 `/health`、首页正文非空和 75 秒内 Worker 心跳；`launchctl running` 不能单独判定健康。
+60. Worker 启动时无法冷导入视频 Pipeline 则不领取 Job；处理中的未捕获异常立即返回 `FAILED/WORKER_UNHANDLED_EXCEPTION`、释放 lease 并写审计。
+61. 步骤恢复卡仅在 Replay Options 可用时显示续跑按钮；不可续跑时仅提示原因，不重复显示完整重跑按钮。
+62. 通用设置默认返回 `ai_retry_count=2 / ai_retry_wait_seconds=5 / ai_request_interval_seconds=1`，保存后下一次 Pipeline AI 调用生效。
+63. 429/408/409/425、超时、连接失败、可恢复 5xx 与空响应按设置有限重试；每次调用前执行配置间隔，重试事件记录 attempt、limit、wait 和脱敏原因。
+64. LLM 步骤在 600 秒内不显示“可能停滞”；900 秒真实 Attempt 终止阈值保持独立。
+65. `GET /api/settings/prompt-supplements` 默认返回三项空补充、只读核心规则摘要与 1000 字符上限；保存语气/篇幅偏好后可读回。
+66. PUT 包含“忽略系统规则”“修改 JSON/字段/ID/顺序”等越权语言返回 422，且原设置不变。
+67. 补充文本会作为低优先级 System Message 插入三个对应 LLM 阶段；固定 Prompt、JSON 解析和 Segment ID 校验仍保持生效。
+68. 失败 Job 在某个补充 Prompt 哈希改变后，Replay Options 返回最早受影响的 AI 步骤，不允许从更晚步骤绕过重算。
+69. 生产 LaunchAgent 的 `program` 均指向 `/Volumes/D/Library/Application Support/Zhijian/venv/bin/python`，解释器为 Python `3.14.6`；切换后 `/health`、首页正文、Worker 心跳、Keychain 可用性和外置卷 deny 日志均符合部署手册要求。
 
 ---
 

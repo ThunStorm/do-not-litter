@@ -1,9 +1,9 @@
 # AI Personal Inbox / Personal Scout
 ## 项目文档索引
 
-> 文档版本：v0.4.5
-> 更新日期：2026-08-26
-> 当前阶段：视频阅读、步骤续跑、笔记删除、AI 调用重试与提示词补充均已实施；以 `IMPLEMENTATION_STATUS.md` 为唯一实施状态来源
+> 文档版本：v0.4.6
+> 更新日期：2026-08-28
+> 当前阶段：v0.4.6 功能、Python 3.14 生产运行时与外置卷 LaunchAgent 健康门禁均已实施；以 `IMPLEMENTATION_STATUS.md` 为唯一实施状态来源
 > 第一阶段部署形态：Mac mini 作为完整后端与 AI Worker，PC/手机通过可信局域网访问
 > 第一阶段业务范围：北京市公务员/事业单位招聘 + 中国范围 Travel/Food
 
@@ -113,14 +113,13 @@
 | [GOLDEN_SAMPLES.md](./GOLDEN_SAMPLES.md) | 首批真实样本、Fixture 规则、技术 Spike 与质量门槛 |
 | [PROJECT_PLAN.md](./PROJECT_PLAN.md) | Codex/Agent 可直接执行的工程实施计划 |
 | [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) | 当前已实现能力、真实验收状态与下一实施项 |
-| [PROJECT_HANDOVER.md](./PROJECT_HANDOVER.md) | 当前代码/文档/运行状态核验后的正式维护交接说明 |
 | [CODEX_CONTEXT.md](./CODEX_CONTEXT.md) | Codex 新任务默认读取的精简项目上下文与文档路由 |
 | [CODEX_TASK_TEMPLATES.md](./CODEX_TASK_TEMPLATES.md) | 诊断、修复、迁移、UI 与文档任务的低额度提示模板 |
 | [REGRESSION_AND_CHANGE_GUARD.md](./REGRESSION_AND_CHANGE_GUARD.md) | 已确认需求的防覆盖基线、变更规则与回归矩阵 |
 | [FUTURE_ROADMAP.md](./FUTURE_ROADMAP.md) | GenericProcessor、移动端、云、多 Worker、C 级自动化 |
 | [ARCHITECTURE_DECISIONS.md](./ARCHITECTURE_DECISIONS.md) | 关键设计决策与原因 |
 
-`COMPLETE_PROJECT_SPEC.md` 是由上述分文档自动生成的合订本，不作为独立编辑源。修改分文档后运行 `python scripts/build_complete_project_spec.py` 重新生成。
+`COMPLETE_PROJECT_SPEC.md` 是由上述分文档自动生成的合订本，不作为独立编辑源。修改分文档后运行 `.venv/bin/python scripts/build_complete_project_spec.py` 重新生成。
 
 ---
 
@@ -155,7 +154,7 @@
 - 手机第一版通过同一可信局域网访问响应式 Web
 
 ### Backend
-- Python 3.12+
+- Python 3.12+；Mac mini 生产 LaunchAgent 固定使用 Python 3.14.6 外置生产 venv
 - FastAPI
 - Uvicorn
 - Pydantic

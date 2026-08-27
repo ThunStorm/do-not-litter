@@ -10,6 +10,7 @@
 
 - 文档版本：v0.4.6；唯一实施状态源：`IMPLEMENTATION_STATUS.md`。
 - 部署：`cn.zhijian.api` + `cn.zhijian.worker`，FastAPI 同源提供前端。
+- 生产运行时：Python `3.14.6`，固定路径 `/Volumes/D/Library/Application Support/Zhijian/venv`；LaunchAgent 通过 `PYTHONPATH` 读取当前仓库 `backend/src`。
 - 数据库：Alembic `0008`，SQLite/WAL。
 - 验证基线：后端 pytest、Ruff；前端 Vitest 10 项、ESLint、TypeScript、Vite build。
 - 主要高危文件：
@@ -27,7 +28,7 @@
 
 | 任务 | 必读 | 可选补充 |
 | --- | --- | --- |
-| 当前状态/交接 | `IMPLEMENTATION_STATUS.md`、`PROJECT_HANDOVER.md` | `README.md` |
+| 当前状态/交接 | `IMPLEMENTATION_STATUS.md` | `README.md`、`deploy/macos/README.md` |
 | Capture/文件/OCR | `PRODUCT_REQUIREMENTS.md` | `SYSTEM_ARCHITECTURE.md`、`SECURITY_PRIVACY.md` |
 | 招聘 | `RECRUITMENT_PIPELINE.md` | `DATA_MODEL.md`、`TESTING_AND_ACCEPTANCE.md` |
 | 视频 Pipeline | `VIDEO_AI_NOTE_IMPLEMENTATION_GUIDE.md` | `VIDEO_AI_NOTE_PIPELINE.md` |

@@ -1,6 +1,6 @@
 # 回归基线与变更防覆盖清单
 
-更新日期：2026-08-24。本文把本会话已确认的需求收敛为可执行的保护清单。任何后续 Agent 在改动前必须先阅读本文和对应契约；不能以原型截图、静态数据或“构建成功”替代真实实现。
+更新日期：2026-08-28。本文把已确认需求收敛为可执行的保护清单。任何后续 Agent 在改动前必须先阅读本文和对应契约；不能以原型截图、静态数据或“构建成功”替代真实实现。
 
 ## 1. 变更规则
 
@@ -8,7 +8,7 @@
 2. 改动数据模型时必须添加 Alembic 迁移并验证 `alembic current`；不得改动历史 Source、Claim、Evidence 或 Note 来实现地图隐藏。
 3. 改动 Job、模型、视频或地图链路时，必须同时更新任务步骤、可读日志、API、UI 与验收用例。
 4. 每次实施后运行后端 pytest、前端 ESLint/Vitest/TypeScript/Vite 构建，并在没有活跃 Job 时重启 API/Worker；不得为发布中断用户正在运行的任务。
-5. `COMPLETE_PROJECT_SPEC.md` 仅由源文档生成。修改本目录文档后运行 `python scripts/build_complete_project_spec.py`。
+5. `COMPLETE_PROJECT_SPEC.md` 仅由源文档生成。修改本目录文档后运行 `.venv/bin/python scripts/build_complete_project_spec.py`。
 
 ## 2. 已冻结的功能基线
 
@@ -25,9 +25,9 @@
 | 内容保留 | 终态任务和内容可删除；删除不破坏共享来源、地点、路线或证据；密钥只进 Keychain/Secret Store | `MODEL_AND_RETENTION_UI_SPEC.md`、`SECURITY_PRIVACY.md` |
 | 视频 v0.3 | Bilibili 元数据/字幕优先/受控音频/Whisper 转写；AI 笔记、章节、时间码、地点候选、POI、Place Note 和失败/部分成功均为真实数据 | `VIDEO_AI_NOTE_PIPELINE.md` 1–4.11 |
 | 视频 v0.4 截图 | 笔记先综合元数据与 Transcript；`PLAN_SCREENSHOTS → DOWNLOAD_VIDEO_FOR_FRAMES → EXTRACT_SCREENSHOTS → MATERIALIZE` 为显式步骤；3–12 张全文截图、主要地点优先，绑定章节/地点候选/Segment/时间码；过滤黑帧、曝光异常、低清晰度和重复帧 | `VIDEO_AI_NOTE_PIPELINE.md` 4.12–4.15、`services/video_screenshots.py` |
-| 视频 v0.4.2 阅读返工（待实施） | Hero 有真实封面、缺省为空；摘要/主体目录/正文优先，地点候选与完整转写放底部；默认使用 AI corrected Transcript；截图以侧排缩略图嵌入并支持 contain Lightbox；TXT 按钮使用统一视觉 | `VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md` |
+| 视频 v0.4.2 阅读返工 | Hero 有真实封面、缺省为空；摘要/主体目录/正文优先，地点候选与完整转写放底部；默认使用 AI corrected Transcript；截图以侧排缩略图嵌入并支持 contain Lightbox；TXT 按钮使用统一视觉 | `VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md` |
 | 视频 v0.4.3 列表封面 | 主按钮为“添加视频链接”并使用统一 40px/14px Token；Card 展示本地持久真实封面、16:9 cover 和时长徽标；封面失败只显示占位，不阻塞 Note | `VIDEO_NOTE_LIST_V043_SPEC.md` |
-| 视频笔记删除（待实施） | 列表/详情共用删除；删除 Note/Version/Section/TOC/Content 投影，保留共享 Source/Asset/Cover/Transcript/Place/Evidence；活跃 Job 阻止删除 | `VIDEO_NOTE_DELETE_V044_SPEC.md` |
+| 视频笔记删除 | 列表/详情共用删除；删除 Note/Version/Section/TOC/Content 投影，保留共享 Source/Asset/Cover/Transcript/Place/Evidence；活跃 Job 阻止删除 | `VIDEO_NOTE_DELETE_V044_SPEC.md` |
 | 地点与 POI | 细粒度地点 + `PlaceBrief`；保留 `raw_name`，高德确认写 `canonical_name`；歧义进入 Review，不能生成 Confirmed Marker | `TRAVEL_FOOD_PIPELINE.md`、`services/video_support.py` |
 | 全国地图 | 首次中国大陆全境、之后恢复 viewport；按 bbox + zoom 查询且低 zoom 聚合；不得恢复厦门/思明区默认参数、标题、静态伪地图或路线默认城市 | `VIDEO_AI_NOTE_PIPELINE.md` 4.16、`MapOverviewPage.tsx` |
 | Marker 生命周期 | 自动 Marker 删除仅隐藏投影；用户 Marker 软删除可恢复；绝不删除 Place、Source、Claim、Evidence、Place Note；浮层展示图片、地址、特色、来源数、状态和详情入口 | `API_DESIGN.md`、`map_marker_states`、`MapOverviewPage.tsx` |
@@ -38,7 +38,7 @@
 
 | 层 | 必跑检查 | 通过条件 |
 | --- | --- | --- |
-| 数据库 | `python -m alembic -c backend/alembic.ini current` | 头版本为 `0004` 或更高，且升级不丢历史数据 |
+| 数据库 | `python -m alembic -c backend/alembic.ini current` | 当前头版本为 `0008`，且升级不丢历史数据 |
 | 后端 | `./.venv/bin/python -m pytest backend/tests -q` | 全量通过；至少覆盖局域网、超时、取消/重试、运行状态、地图聚合与 Marker 生命周期 |
 | 前端 | 在 `frontend/` 运行 `pnpm run lint`、`pnpm test -- --run`、`pnpm run build` | 无 lint/类型/构建错误；地图画布和设置核心单测通过 |
 | 服务 | `/api/status`、`/api/travel/map?zoom=4`、`/api/travel/map/bootstrap` | API/Worker/SQLite 为 RUNNING；返回中国全境 viewport 和聚合/配置字段 |
@@ -46,6 +46,6 @@
 
 ## 4. 本次回归记录
 
-- 自动回归：后端 pytest 25 项通过；前端 ESLint、Vitest（5 项）、TypeScript 与生产构建通过；数据库已在 `0004`。
-- 服务回归：API、Worker、SQLite 已启动；`/api/travel/map?zoom=4` 返回中国大陆默认 viewport 与聚合；历史厦门地点已补齐独立 `marker_id`，但这仅是历史样本数据，不构成产品默认城市。
-- GUI 限制：本会话没有可调用的 Computer Use 控制器，插件技能文件亦不可用；因此无法完成用户浏览器的原生 GUI 点击回归。下次具备 Computer Use 工具时，必须按本节 GUI 矩阵补录截图和控制台结果，不能把该限制标记为已验收。
+- 自动回归：Python 3.14 后端 pytest 57 项、Ruff、`pip check` 通过；前端在 Node 22 下通过 ESLint、Vitest 10 项、TypeScript 与生产构建；数据库位于 `0008`。
+- 服务回归：API、Worker、SQLite 已启动；LaunchAgent 实际使用 Python 3.14 生产 venv，`/health`、首页正文和 Worker 心跳均通过健康门禁，短期内未发现新的外置卷 TCC deny。
+- GUI 验收以 `IMPLEMENTATION_STATUS.md` 记录的对应版本证据为准；当前部署迁移未重新执行全站 GUI 回归，也未触发真实 Provider 或视频 Job。

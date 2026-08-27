@@ -1,6 +1,6 @@
 # Implementation Status
 
-更新日期：2026-08-27。当前实施目标与唯一支持的部署形态为 **Mac mini 后端**；项目不再维护其他操作系统的部署方案、测试或运行时说明。
+更新日期：2026-08-28。当前实施目标与唯一支持的部署形态为 **Mac mini 后端**；项目不再维护其他操作系统的部署方案、测试或运行时说明。
 
 ## 已完成
 
@@ -159,3 +159,13 @@
 - 来源审计页支持删除孤立来源；关联内容/视频笔记/活跃任务阻止删除。删除最后一个内容或视频笔记时自动清理孤立 Source、快照、分段及专属视频资产，Place 与路线保留。
 - 完整契约与页面设计见 `AI_ROUTING_SOURCE_RETENTION_V046_SPEC.md` 和 `design/ui/v0.4.6/README.md`。
 - 自动验证为后端 pytest 55 项、Ruff，前端 ESLint、Vitest 10 项、TypeScript 与 Vite build；Browser 覆盖 1440×1000 桌面和 390×844 移动设置页、来源删除门禁与孤立来源启用态，控制台无 ERROR/WARN。
+
+## 2026-08-28 LaunchAgent 外置卷健康门禁与 Python 3.14 迁移
+
+- `manage.py status` 同时验证服务进程、API 健康、首页实际字节和 Worker 心跳；新增拒绝中断活跃 Job 的 `restart`。
+- `install/restart` 在 `bootout` 后等待旧 launchd 标签确认消失再重新加载，避免立即 `bootstrap` 的退出码 5 竞态。
+- Worker 启动先冷导入视频 Pipeline；未捕获异常立即失败并释放 Job lease，不再等待 15 分钟超时。
+- D 卷由 macOS 识别为 External USB APFS；生产运行时已迁移到本机签名 Python `3.14.6`，venv 固定为 `/Volumes/D/Library/Application Support/Zhijian/venv`，LaunchAgent `PYTHONPATH` 直接指向当前项目 `backend/src`。
+- API 与 Worker 已用该生产 venv 重新加载；`launchctl print` 的实际 `program` 均指向生产 venv，`manage.py status` 验证 `/health=ok`、首页正文 `555 bytes` 和持续更新的 Worker 心跳。
+- 切换后未发现新 PID、服务名或项目路径对应的 `SystemPolicyRemovableVolumes deny`；Keychain 服务仍可访问，但未读取或输出凭据，也未触发真实 Provider、视频重生成或 Job 重跑。
+- Python 3.14 回归为后端 pytest 57 项、Ruff、`pip check`；前端在 Node `22.21.0` 下通过 ESLint、Vitest 10 项、TypeScript 与 Vite build。长期冷启动与重启后的 TCC 稳定性仍需随日常运行观察。

@@ -1,6 +1,6 @@
 # Mac mini 部署基线
 
-版本：v0.3，更新日期：2026-08-21。第一版唯一受支持的后端节点是 Mac mini；项目不再维护其他操作系统的部署脚本、运行时矩阵、硬件假设或回退方案。
+版本：v0.4.6，更新日期：2026-08-28。第一版唯一受支持的后端节点是 Mac mini；项目不再维护其他操作系统的部署脚本、运行时矩阵、硬件假设或回退方案。
 
 ## 1. 当前设备与职责
 
@@ -25,7 +25,7 @@ Mac mini
 └─ macOS Keychain
 ```
 
-生产服务由 `deploy/macos/manage.py install` 渲染并重启两个用户级 LaunchAgent。关闭自动睡眠、启用断电恢复，并为局域网地址设置 DHCP 保留或固定地址。SQLite、Source、Snapshot、Evidence、浏览器 Profile 和日志只保存在 Mac mini 本地；备份使用 Time Machine 或加密外置盘，默认排除可再生的视频缓存和模型缓存。
+生产服务由 `deploy/macos/manage.py install` 渲染并重启两个用户级 LaunchAgent。生产解释器固定为 Python `3.14.6`，venv 位于 `/Volumes/D/Library/Application Support/Zhijian/venv`，`PYTHONPATH` 直接指向当前仓库 `backend/src`。仓库或数据位于外置卷时，必须为实际 Python 责任进程配置 `SystemPolicyRemovableVolumes`/完全磁盘访问权限；安装后用 `manage.py status` 验证首页正文实际可读和 Worker 心跳，并用 `launchctl print` 核对实际 `program`，而不是只看 PID。关闭自动睡眠、启用断电恢复，并为局域网地址设置 DHCP 保留或固定地址。
 
 ## 3. 容量与并发约束
 
@@ -39,7 +39,7 @@ Mac mini
 - 默认只在本机访问；启用手机访问时才绑定明确 LAN 地址，并采用 4 位配对码换取 HttpOnly Session。
 - 不做端口映射、UPnP 或公网暴露；公共/访客网络不得启用可信 LAN 模式。
 - API Key、LAN 配对码和平台 Cookie 不进入 SQLite、日志、导出或前端通用接口。
-- LaunchAgent 崩溃或重启后自动恢复；Job Lease 负责把过期运行任务重新入队。
+- LaunchAgent 崩溃或重启后自动恢复；Worker 启动先冷导入视频 Pipeline，外置卷不可读时不得领取 Job。未捕获异常立即将当前 Job 标为 `FAILED/WORKER_UNHANDLED_EXCEPTION` 并释放 lease。
 
 ## 5. 真实状态原则
 

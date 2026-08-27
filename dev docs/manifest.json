@@ -1,7 +1,7 @@
 {
   "project": "AI Personal Inbox / Personal Scout",
-  "version": "0.4.5",
-  "frozen_date": "2026-08-26",
+  "version": "0.4.6",
+  "frozen_date": "2026-08-28",
   "mvp_processors": [
     "Recruitment",
     "TravelFood"
@@ -33,7 +33,6 @@
     "FUTURE_ROADMAP.md",
     "GOLDEN_SAMPLES.md",
     "IMPLEMENTATION_STATUS.md",
-    "PROJECT_HANDOVER.md",
     "CODEX_CONTEXT.md",
     "CODEX_TASK_TEMPLATES.md",
     "DEPLOYMENT_OPTIONS.md",
@@ -64,6 +63,6 @@
     "PROMPT_SUPPLEMENTS_V045_SPEC.md"
   ],
   "generated_documents": {
-    "COMPLETE_PROJECT_SPEC.md": "python scripts/build_complete_project_spec.py"
+    "COMPLETE_PROJECT_SPEC.md": ".venv/bin/python scripts/build_complete_project_spec.py"
   }
 }

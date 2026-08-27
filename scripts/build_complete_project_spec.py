@@ -9,7 +9,6 @@ OUTPUT = DOCS / "COMPLETE_PROJECT_SPEC.md"
 
 ORDER = [
     "README.md",
-    "PROJECT_HANDOVER.md",
     "CODEX_CONTEXT.md",
     "CODEX_TASK_TEMPLATES.md",
     "REGRESSION_AND_CHANGE_GUARD.md",
@@ -54,7 +53,7 @@ def build() -> str:
         "# AI Personal Inbox / Personal Scout\n",
         "## Complete Project Specification\n\n",
         "> GENERATED FILE. Edit the source documents in this directory, then run "
-        "`python scripts/build_complete_project_spec.py`.\n",
+        "`.venv/bin/python scripts/build_complete_project_spec.py`.\n",
     ]
     for name in ORDER:
         source = DOCS / name
