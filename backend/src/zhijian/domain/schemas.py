@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, HttpUrl, field_validator
 
@@ -16,6 +16,7 @@ class CaptureRequest(BaseModel):
     url: HttpUrl | None = None
     text: str | None = Field(default=None, max_length=2_000_000)
     title: str | None = Field(default=None, max_length=500)
+    ai_overrides: dict[str, dict[str, Any]] = Field(default_factory=dict, max_length=3)
 
 
 class CaptureResponse(BaseModel):
@@ -147,6 +148,19 @@ class ProviderConfig(BaseModel):
 
 class ModelProfileConfig(ProviderConfig):
     name: str = Field(min_length=1, max_length=80)
+    location: Literal["LOCAL", "REMOTE"] | None = None
+    modalities: set[str] = Field(default_factory=lambda: {"text"})
+    capabilities: set[str] = Field(default_factory=set)
+    supports_json_mode: bool = False
+    supports_json_schema: bool = False
+    supports_thinking: bool = False
+    supports_tools: bool = False
+    context_window: int = Field(default=32_768, ge=1, le=1_000_000)
+    recommended_working_context: int = Field(default=8_192, ge=1, le=1_000_000)
+    max_output_tokens: int = Field(default=4_096, ge=1, le=131_072)
+    quality_tier: Literal["FAST", "MAIN", "STRONG", "SPECIALIST"] = "MAIN"
+    specialties: set[str] = Field(default_factory=set)
+    enabled: bool = True
 
 
 class ModelRoutingConfig(BaseModel):
@@ -201,6 +215,12 @@ class GeneralConfig(BaseModel):
     ai_retry_count: int = Field(default=1, ge=0, le=3)
     ai_retry_wait_seconds: float = Field(default=5, ge=0, le=300)
     ai_request_interval_seconds: float = Field(default=3, ge=0, le=60)
+    ai_max_model_attempts_per_job: int = Field(default=48, ge=1, le=500)
+    ai_max_remote_prompt_tokens_per_job: int = Field(default=300_000, ge=1_000, le=10_000_000)
+    ai_max_remote_completion_tokens_per_job: int = Field(default=100_000, ge=1_000, le=10_000_000)
+    ai_max_local_prompt_tokens_per_job: int = Field(default=600_000, ge=1_000, le=10_000_000)
+    ai_max_local_completion_tokens_per_job: int = Field(default=200_000, ge=1_000, le=10_000_000)
+    ai_max_wall_time_seconds_per_job: int = Field(default=1_800, ge=60, le=86_400)
 
 
 class AMapConfig(BaseModel):

@@ -26,6 +26,8 @@ SYSTEM_PYTHON = Path("/Library/Frameworks/Python.framework/Versions/3.14/bin/pyt
 RUNTIME_VENV = RUNTIME_ROOT / "venv"
 PYTHON = RUNTIME_VENV / "bin" / "python"
 PYTHONPATH = str(ROOT / "backend" / "src")
+OLLAMA_MODELS = Path("/Volumes/D/Projects/ollama-models")
+DEFAULT_OLLAMA_MODELS = Path.home() / ".ollama" / "models"
 SERVICES = {
     "api": ("cn.zhijian.api", "zhijian.main"),
     "worker": ("cn.zhijian.worker", "zhijian.worker"),
@@ -100,6 +102,25 @@ def validate_install() -> None:
         raise SystemExit("当前系统没有 launchctl；此安装器仅支持 macOS。")
 
 
+def ensure_ollama_models_link() -> None:
+    """Keep Ollama.app on the persistent external-volume model store."""
+    if not all((OLLAMA_MODELS / name).is_dir() for name in ("blobs", "manifests")):
+        raise SystemExit(f"Ollama 模型目录无效或外置卷未挂载：{OLLAMA_MODELS}")
+    DEFAULT_OLLAMA_MODELS.parent.mkdir(parents=True, exist_ok=True)
+    if DEFAULT_OLLAMA_MODELS.is_symlink():
+        if DEFAULT_OLLAMA_MODELS.resolve() == OLLAMA_MODELS.resolve():
+            print(f"Ollama 模型目录已就绪：{DEFAULT_OLLAMA_MODELS} -> {OLLAMA_MODELS}")
+            return
+        raise SystemExit(f"Ollama 默认模型路径已指向其他位置：{DEFAULT_OLLAMA_MODELS}")
+    if DEFAULT_OLLAMA_MODELS.exists():
+        timestamp = datetime.now(tz=timezone.utc).astimezone().strftime("%Y%m%d-%H%M%S")
+        backup = DEFAULT_OLLAMA_MODELS.with_name(f"models.before-zhijian-{timestamp}")
+        shutil.move(DEFAULT_OLLAMA_MODELS, backup)
+        print(f"已备份原 Ollama 默认模型目录：{backup}")
+    DEFAULT_OLLAMA_MODELS.symlink_to(OLLAMA_MODELS, target_is_directory=True)
+    print(f"已固定 Ollama 模型目录：{DEFAULT_OLLAMA_MODELS} -> {OLLAMA_MODELS}")
+
+
 def bootstrap_runtime() -> None:
     if not SYSTEM_PYTHON.is_file():
         raise SystemExit(f"缺少本机 Python 3.14：{SYSTEM_PYTHON}")
@@ -118,6 +139,7 @@ def bootstrap_runtime() -> None:
 
 def install() -> None:
     validate_install()
+    ensure_ollama_models_link()
     LAUNCH_LOGS.mkdir(parents=True, exist_ok=True)
     LAUNCH_AGENTS.mkdir(parents=True, exist_ok=True)
     generated = render()

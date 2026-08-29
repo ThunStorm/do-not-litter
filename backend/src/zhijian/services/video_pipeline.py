@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from zhijian.ai.resource_manager import local_ai_resource_manager
 from zhijian.core.config import Settings, get_settings
 from zhijian.core.secret_store import build_secret_store
 from zhijian.core.time import utc_now
@@ -505,9 +506,12 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
                     provider="whisper.cpp",
                     operation="transcribe",
                     request_meta={"audio": audio_path.name},
-                    call=lambda: WhisperCppProvider(
-                        settings.whisper_binary, settings.whisper_model
-                    ).transcribe(audio_path),
+                    call=lambda: local_ai_resource_manager.run(
+                        "ASR",
+                        lambda: WhisperCppProvider(
+                            settings.whisper_binary, settings.whisper_model
+                        ).transcribe(audio_path),
+                    ),
                 )
             except RuntimeError as exc:
                 raise NeedsUser("ASR_UNAVAILABLE", str(exc)) from exc

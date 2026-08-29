@@ -271,6 +271,7 @@ class AINoteVersion(Base, TimestampMixin):
     markdown: Mapped[str] = mapped_column(Text, nullable=False)
     overview: Mapped[str] = mapped_column(Text, default="", nullable=False)
     warnings_json: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    map_facts_json: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     model_provider: Mapped[str] = mapped_column(String(64), default="", nullable=False)
     model_name: Mapped[str] = mapped_column(String(160), default="", nullable=False)
     prompt_version: Mapped[str] = mapped_column(String(32), default="video-note-v1", nullable=False)
@@ -390,6 +391,20 @@ class ExternalCallAudit(Base, TimestampMixin):
     response_meta_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     error_code: Mapped[str | None] = mapped_column(String(64))
     error_message: Mapped[str | None] = mapped_column(String(500))
+
+
+class AICacheEntry(Base, TimestampMixin):
+    __tablename__ = "ai_cache_entries"
+    __table_args__ = (Index("ix_ai_cache_key_created", "cache_key", "created_at"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("aic"))
+    cache_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    stage: Mapped[str] = mapped_column(String(64), nullable=False)
+    capability: Mapped[str] = mapped_column(String(64), nullable=False)
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    model: Mapped[str] = mapped_column(String(160), nullable=False)
+    result_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    previous_entry_id: Mapped[str | None] = mapped_column(String(64))
 
 
 class RouteDraft(Base, TimestampMixin):

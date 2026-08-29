@@ -22,6 +22,7 @@ def create_capture_job(
     text: str = "",
     file_path: Path | None = None,
     metadata: dict | None = None,
+    ai_overrides: dict | None = None,
 ) -> tuple[Source, Job]:
     is_video = source_type == "URL" and is_bilibili_url(locator)
     job_type = JobType.TRAVEL if is_video else classify_capture(locator, title, text)
@@ -40,6 +41,7 @@ def create_capture_job(
         "text": text,
         "file_path": str(file_path) if file_path else None,
         "video_platform": "BILIBILI" if is_video else None,
+        "ai_overrides": ai_overrides or {},
     }
     job = Job(job_type=job_type.value, status=JobStatus.QUEUED.value, payload_json=payload)
     db.add(job)

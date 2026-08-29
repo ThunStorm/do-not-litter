@@ -11,6 +11,13 @@ import httpx
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from zhijian.ai.budget import ensure_ai_budget
+from zhijian.ai.cache import cached_json_result
+from zhijian.ai.capabilities import AICapability
+from zhijian.ai.domain_context import domain_context_hash, domain_context_messages
+from zhijian.ai.policies import resolve_stage_policy
+from zhijian.ai.resource_manager import local_ai_resource_manager
+from zhijian.ai.transcript_quality import correction_candidates
 from zhijian.core.config import Settings
 from zhijian.core.ids import new_id
 from zhijian.core.secret_store import build_secret_store
@@ -40,6 +47,7 @@ from zhijian.providers.llm import (
     LLMResult,
     OllamaProvider,
     OpenAICompatibleProvider,
+    ProviderRequestOptions,
 )
 from zhijian.services.audit import record_event
 from zhijian.services.jobs import ensure_job_active
@@ -74,6 +82,11 @@ PROMPT_CORE_CONTRACTS = {
         "不得生成、猜测或改写经纬度。",
         "名称歧义只能保留候选并进入校验，不得伪造已确认 POI。",
     ],
+}
+ROLE_STAGE = {
+    "transcript_correction": "TRANSCRIPT_CORRECTION",
+    "video_note_summary": "GENERATE_AI_NOTE",
+    "travel_place_extraction": "EXTRACT_TRAVEL_FACTS",
 }
 
 
@@ -121,6 +134,75 @@ def parse_model_json(content: str) -> dict[str, Any]:
     return value
 
 
+def _cached_stage_json(
+    db: Session,
+    *,
+    job: Job | None,
+    stage: str,
+    capability: str,
+    provider: LLMProvider,
+    provider_name: str,
+    model: str,
+    messages: list[dict[str, str]],
+) -> LLMResult:
+    if not hasattr(db, "scalar"):
+        return provider.generate_json(messages, model=model)
+    policy = _resolved_stage_policy(db, stage, job)
+    location = "LOCAL" if provider_name == "ollama" else "REMOTE"
+    domain_messages, domain_versions = domain_context_messages(
+        db, policy.domain_pack_ids, AICapability(capability)
+    )
+    enriched_messages = [messages[0], *domain_messages, *messages[1:]] if messages else domain_messages
+    return cached_json_result(
+        db,
+        job=job,
+        stage=stage,
+        capability=capability,
+        provider=provider_name,
+        model=model,
+        messages=enriched_messages,
+        semantic_options={
+            "temperature": policy.temperature,
+            "max_output_tokens": policy.max_output_tokens,
+            "thinking": policy.thinking,
+            "domain": policy.domain,
+            "domain_pack_ids": policy.domain_pack_ids,
+            "domain_context_hash": domain_context_hash(domain_versions),
+            "prompt_supplement_hash": prompt_supplement_hash(
+                db,
+                {
+                    "TRANSCRIPT_CORRECTION": "transcript_correction",
+                    "GENERATE_AI_NOTE": "video_note_summary",
+                    "EXTRACT_TRAVEL_FACTS": "travel_place_extraction",
+                }[stage],
+            ),
+        },
+        cache_enabled=bool(policy.cache_enabled),
+        force_regenerate=policy.force_regenerate,
+        call=lambda: local_ai_resource_manager.run(
+            "TEXT_LLM",
+            lambda: _budgeted_json_call(db, job, location, enriched_messages, provider, model),
+        ),
+    )
+
+
+def _budgeted_json_call(
+    db: Session,
+    job: Job | None,
+    location: str,
+    messages: list[dict[str, str]],
+    provider: LLMProvider,
+    model: str,
+) -> LLMResult:
+    ensure_ai_budget(
+        db,
+        job,
+        location=location,
+        input_chars=sum(len(message.get("content") or "") for message in messages),
+    )
+    return provider.generate_json(messages, model=model)
+
+
 def normalized_confidence(value: object) -> float:
     if isinstance(value, str):
         label = value.strip().lower()
@@ -142,7 +224,13 @@ def _profile_config(db: Session, profile_id: str | None) -> dict[str, str] | Non
     saved = db.get(Setting, f"model-profile:{profile_id}")
     if saved is None or not isinstance(saved.value_json, dict):
         return None
-    return {key: str(value) for key, value in saved.value_json.items()}
+    return {key: str(value) if value is not None else "" for key, value in saved.value_json.items()}
+
+
+def _profile_location(config: dict[str, str] | None) -> str:
+    if not config:
+        return ""
+    return config.get("location") or ("LOCAL" if config.get("provider", "").lower() == "ollama" else "REMOTE")
 
 
 def transcript_processing_config(db: Session) -> TranscriptProcessingConfig:
@@ -151,6 +239,22 @@ def transcript_processing_config(db: Session) -> TranscriptProcessingConfig:
     setting = db.get(Setting, "transcript-processing")
     value = setting.value_json if setting and isinstance(setting.value_json, dict) else {}
     return TranscriptProcessingConfig(**value)
+
+
+def transcript_force_full_correction(db: Session, job: Job | None) -> bool:
+    return bool(_resolved_stage_policy(db, "TRANSCRIPT_CORRECTION", job).force_full_correction)
+
+
+def _resolved_stage_policy(db: Session, stage: str, job: Job | None):
+    if not hasattr(db, "get"):
+        return resolve_stage_policy(stage)
+    saved = db.get(Setting, f"ai-stage-policy:{stage}")
+    override = (job.payload_json.get("ai_overrides") or {}).get(stage) if job else None
+    return resolve_stage_policy(
+        stage,
+        saved=saved.value_json if saved and isinstance(saved.value_json, dict) else None,
+        job_override=override if isinstance(override, dict) else None,
+    )
 
 
 def _provider_from_config(
@@ -194,8 +298,45 @@ def provider_for_role(
         or routes.get("fallback_id")
         or ""
     )
+    stage = ROLE_STAGE.get(role)
+    stage_setting = db.get(Setting, f"ai-stage-policy:{stage}") if stage else None
+    job_override = (job.payload_json.get("ai_overrides") or {}).get(stage) if job and stage else None
+    resolved_policy = (
+        resolve_stage_policy(
+            stage,
+            saved=(
+                stage_setting.value_json
+                if stage_setting and isinstance(stage_setting.value_json, dict)
+                else None
+            ),
+            job_override=job_override if isinstance(job_override, dict) else None,
+        )
+        if stage and (stage_setting or job_override)
+        else None
+    )
     primary_config = _profile_config(db, primary_id)
     fallback_config = _profile_config(db, fallback_id)
+    if resolved_policy:
+        local_id = resolved_policy.local_profile_id
+        remote_id = resolved_policy.remote_profile_id
+        candidates = ((primary_id, primary_config), (fallback_id, fallback_config))
+        local_id = local_id or next(
+            (item_id for item_id, config in candidates if _profile_location(config) == "LOCAL"), ""
+        )
+        remote_id = remote_id or next(
+            (item_id for item_id, config in candidates if _profile_location(config) == "REMOTE"), ""
+        )
+        mode = resolved_policy.execution_mode
+        if mode == "LOCAL_ONLY":
+            primary_id, fallback_id = local_id, ""
+        elif mode == "REMOTE_ONLY":
+            primary_id, fallback_id = remote_id, ""
+        elif mode == "LOCAL_FIRST":
+            primary_id, fallback_id = local_id, remote_id
+        elif mode == "REMOTE_FIRST":
+            primary_id, fallback_id = remote_id, local_id
+        primary_config = _profile_config(db, primary_id)
+        fallback_config = _profile_config(db, fallback_id)
     general_setting = db.get(Setting, "app:general")
     policy = GeneralConfig(
         **(
@@ -214,6 +355,24 @@ def provider_for_role(
             level="WARNING",
             detail={
                 "role": role,
+                "stage": stage,
+                    "execution_mode": resolved_policy.execution_mode if resolved_policy else "LEGACY",
+                    "stage_policy_version": resolved_policy.version if resolved_policy else None,
+                    "resolved_policy": (
+                        {
+                            "temperature": resolved_policy.temperature,
+                            "thinking": resolved_policy.thinking,
+                            "max_input_tokens": resolved_policy.max_input_tokens,
+                            "max_output_tokens": resolved_policy.max_output_tokens,
+                            "timeout_seconds": resolved_policy.timeout_seconds,
+                            "retry_count": resolved_policy.retry_count,
+                            "confidence_threshold": resolved_policy.confidence_threshold,
+                            "escalation_threshold": resolved_policy.escalation_threshold,
+                            "domain": resolved_policy.domain,
+                        }
+                        if resolved_policy
+                        else None
+                    ),
                 "retry_attempt": attempt,
                 "retry_limit": policy.ai_retry_count,
                 "wait_seconds": policy.ai_retry_wait_seconds,
@@ -250,6 +409,7 @@ def provider_for_role(
                         "travel_place_extraction": "EXTRACT_TRAVEL_FACTS",
                     }.get(role, role),
                     "model": model,
+                    "location": "LOCAL" if provider == "ollama" else "REMOTE",
                     "route": route,
                     "attempt": attempt,
                     "input_chars": input_chars,
@@ -273,16 +433,35 @@ def provider_for_role(
         fallback: LLMProvider | None = None,
         fallback_model: str | None = None,
     ) -> FallbackLLMProvider:
+        request_options = None
+        if resolved_policy and any(
+            value is not None
+            for value in (
+                resolved_policy.temperature,
+                resolved_policy.max_output_tokens,
+                resolved_policy.thinking,
+            )
+        ):
+            request_options = ProviderRequestOptions(
+                temperature=resolved_policy.temperature,
+                max_output_tokens=resolved_policy.max_output_tokens,
+                thinking=resolved_policy.thinking,
+            )
         return FallbackLLMProvider(
             primary,
             primary_model,
             fallback,
             fallback_model,
-            retry_count=policy.ai_retry_count,
+            retry_count=(
+                resolved_policy.retry_count
+                if resolved_policy and resolved_policy.retry_count is not None
+                else policy.ai_retry_count
+            ),
             retry_wait_seconds=policy.ai_retry_wait_seconds,
             request_interval_seconds=policy.ai_request_interval_seconds,
             on_retry=on_retry,
             on_attempt=on_attempt,
+            request_options=request_options,
         )
     if primary_config is None:
         raise ProviderUnavailable("尚未在设置中选择主模型")
@@ -291,6 +470,12 @@ def provider_for_role(
         if role == "transcript_correction"
         else None
     )
+    if resolved_policy and resolved_policy.timeout_seconds:
+        timeout_cap = (
+            min(timeout_cap, resolved_policy.timeout_seconds)
+            if timeout_cap
+            else resolved_policy.timeout_seconds
+        )
     try:
         primary, primary_name, primary_model = _provider_from_config(
             primary_config, settings, primary_id, timeout_cap
@@ -451,6 +636,48 @@ def _fallback_sections(chunks: list[list[Segment]]) -> list[dict[str, object]]:
     return result
 
 
+def _section_facts(payload: dict[str, Any], valid_ids: set[str]) -> list[dict[str, object]]:
+    declared = payload.get("section_facts") if isinstance(payload.get("section_facts"), list) else []
+    facts = [item for item in declared if isinstance(item, dict)]
+    if not facts:
+        facts = [
+            {
+                "summary": item.get("summary") or item.get("thesis") or "",
+                "key_points": item.get("bullets") or [],
+                "places": [],
+                "segment_ids": item.get("segment_ids") or [],
+            }
+            for item in payload.get("sections", [])
+            if isinstance(item, dict)
+        ]
+    result = []
+    for item in facts:
+        segment_ids = [value for value in item.get("segment_ids", []) if value in valid_ids]
+        if not segment_ids:
+            continue
+        places = [
+            value
+            for value in item.get("places", [])
+            if isinstance(value, dict)
+            and value.get("name")
+            and any(segment_id in valid_ids for segment_id in value.get("segment_ids", segment_ids))
+        ]
+        result.append(
+            {
+                "summary": str(item.get("summary") or "")[:800],
+                "key_points": [str(value)[:300] for value in item.get("key_points", []) if value][:8],
+                "places": places[:20],
+                "warnings": [str(value)[:300] for value in item.get("warnings", []) if value][:8],
+                "segment_ids": segment_ids,
+            }
+        )
+    return result
+
+
+def _stage_execution_mode(db: Session, stage: str, job: Job | None) -> str:
+    return str(_resolved_stage_policy(db, stage, job).execution_mode)
+
+
 def correct_transcript(
     db: Session,
     settings: Settings,
@@ -464,6 +691,25 @@ def correct_transcript(
     pending = [segment for segment in segments if segment.correction_status != "CORRECTED"]
     if not pending:
         return segments
+    candidates = correction_candidates(
+        pending,
+        source_kind=str(getattr(transcript, "source_kind", "ASR") or "ASR"),
+        force_full=transcript_force_full_correction(db, job),
+    )
+    candidate_ids = {segment.id for segment in candidates}
+    for segment in pending:
+        if segment.id not in candidate_ids:
+            segment.correction_status = "UNCHANGED"
+            segment.correction_reason = "平台字幕通过质量门禁，未发送模型校对"
+    if not candidates:
+        transcript.text = "\n".join(segment.corrected_text or segment.text for segment in segments)
+        transcript.metadata_json = {
+            **transcript.metadata_json,
+            "correction_status": "PASS_THROUGH",
+            "correction_coverage": 1.0,
+        }
+        db.commit()
+        return segments
     provider, provider_name, model = provider_for_role(db, settings, "transcript_correction", job)
     if job and isinstance(provider, FallbackLLMProvider):
         provider.before_fallback = lambda: ensure_job_active(db, job)
@@ -472,14 +718,11 @@ def correct_transcript(
     )
     processing = transcript_processing_config(db)
     chunks = _transcript_chunks(
-        pending,
+        candidates,
         processing.chunk_chars,
         processing.batch_size,
     )
-    split_calls_remaining = len(chunks) * 4
-
     def request_batch(batch: list[Segment]) -> list[tuple[list[Segment], LLMResult, list]]:
-        nonlocal split_calls_remaining
         if job:
             ensure_job_active(db, job)
         payload = {
@@ -495,13 +738,20 @@ def correct_transcript(
             ],
         }
         try:
-            response = provider.generate_json(
-                [
-                    {"role": "system", "content": prompt},
-                    *prompt_supplement_messages(db, "transcript_correction"),
-                    {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
-                ],
+            messages = [
+                {"role": "system", "content": prompt},
+                *prompt_supplement_messages(db, "transcript_correction"),
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+            ]
+            response = _cached_stage_json(
+                db,
+                job=job,
+                stage="TRANSCRIPT_CORRECTION",
+                capability="TRANSCRIPT_CORRECTION",
+                provider=provider,
+                provider_name=provider_name,
                 model=model,
+                messages=messages,
             )
         except (httpx.HTTPError, TimeoutError, ConnectionError):
             if job:
@@ -510,17 +760,12 @@ def correct_transcript(
         if job:
             ensure_job_active(db, job)
         try:
-            values = parse_model_json(response.content).get("segments", [])
+            payload = parse_model_json(response.content)
+            values = payload.get("changes", payload.get("segments", []))
         except (json.JSONDecodeError, ValueError):
             if job:
                 ensure_job_active(db, job)
-            if isinstance(provider, FallbackLLMProvider):
-                provider.primary_disabled = True
-            if len(batch) == 1 or split_calls_remaining < 2:
-                raise
-            split_calls_remaining -= 2
-            middle = len(batch) // 2
-            return request_batch(batch[:middle]) + request_batch(batch[middle:])
+            return [(batch, response, [])]
         return [(batch, response, values if isinstance(values, list) else [])]
 
     corrected_count = 0
@@ -549,9 +794,9 @@ def correct_transcript(
             db.commit()
         for effective_chunk, response, values in request_batch(chunk):
             by_id = {
-                str(item.get("id")): item
+                str(item.get("segment_id") or item.get("id")): item
                 for item in values
-                if isinstance(item, dict) and item.get("id")
+                if isinstance(item, dict) and (item.get("segment_id") or item.get("id"))
             }
             for segment in effective_chunk:
                 item = by_id.get(segment.id)
@@ -593,13 +838,14 @@ def correct_transcript(
             )
             db.commit()
     corrected_count = sum(segment.correction_status == "CORRECTED" for segment in segments)
+    unchanged_count = sum(segment.correction_status == "UNCHANGED" for segment in segments)
     transcript.text = "\n".join(segment.corrected_text or segment.text for segment in segments)
     transcript.metadata_json = {
         **transcript.metadata_json,
-        "correction_status": "CORRECTED" if corrected_count == len(segments) else "REVIEW",
+        "correction_status": "CORRECTED" if corrected_count + unchanged_count == len(segments) else "REVIEW",
         "correction_provider": provider_name,
         "correction_model": model,
-        "correction_coverage": corrected_count / max(1, len(segments)),
+        "correction_coverage": (corrected_count + unchanged_count) / max(1, len(segments)),
         "correction_prompt_supplement_hash": prompt_supplement_hash(
             db, "transcript_correction"
         ),
@@ -607,14 +853,14 @@ def correct_transcript(
     record_event(
         db,
         "transcript.corrected",
-        f"已完成转写校对：{corrected_count}/{len(segments)} 段",
+        f"已完成转写校对：{corrected_count} 段修改，{unchanged_count} 段保持原文",
         component="video-pipeline",
         entity_type="transcript",
         entity_id=transcript.id,
         detail={
             "provider": provider_name,
             "model": model,
-            "coverage": corrected_count / len(segments),
+            "coverage": (corrected_count + unchanged_count) / len(segments),
         },
         commit=False,
     )
@@ -716,31 +962,40 @@ def generate_note(
     system = Path(__file__).resolve().parents[1] / "prompts" / "video_note.md"
     valid_ids = {segment.id for segment in segments}
     raw_sections: list[dict[str, object]] = []
+    map_facts: list[dict[str, object]] = []
     overview_parts: list[str] = []
     warnings: list[str] = []
     response = LLMResult("", provider_name, model, {})
     for chunk_index, chunk in enumerate(chunks or [segments]):
         context = _transcript_context(chunk, settings.video_note_chunk_chars)
         try:
-            response = provider.generate_json(
-                [
-                    {"role": "system", "content": system.read_text(encoding="utf-8")},
-                    *prompt_supplement_messages(db, "video_note_summary"),
-                    {
-                        "role": "user",
-                        "content": (
-                            f"视频标题：{asset.title}\n"
-                            f"分块：{chunk_index + 1}/{max(1, len(chunks))}\n{context}"
-                        ),
-                    },
-                ],
+            messages = [
+                {"role": "system", "content": system.read_text(encoding="utf-8")},
+                *prompt_supplement_messages(db, "video_note_summary"),
+                {
+                    "role": "user",
+                    "content": (
+                        f"视频标题：{asset.title}\n"
+                        f"分块：{chunk_index + 1}/{max(1, len(chunks))}\n{context}"
+                    ),
+                },
+            ]
+            response = _cached_stage_json(
+                db,
+                job=job,
+                stage="GENERATE_AI_NOTE",
+                capability="GLOBAL_SYNTHESIS",
+                provider=provider,
+                provider_name=provider_name,
                 model=model,
+                messages=messages,
             )
             payload = parse_model_json(response.content)
             if payload.get("overview"):
                 overview_parts.append(str(payload["overview"]).strip())
             warnings.extend(str(value) for value in payload.get("warnings", []) if value)
             chunk_ids = {segment.id for segment in chunk}
+            map_facts.extend(_section_facts(payload, chunk_ids))
             sections = payload.get("sections") if isinstance(payload.get("sections"), list) else []
             raw_sections.extend(
                 item
@@ -763,6 +1018,55 @@ def generate_note(
             )
     if not raw_sections:
         raw_sections = _fallback_sections(chunks)
+    if len(map_facts) > 1:
+        try:
+            reduce_messages = [
+                {"role": "system", "content": system.read_text(encoding="utf-8")},
+                *prompt_supplement_messages(db, "video_note_summary"),
+                {
+                    "role": "user",
+                    "content": (
+                        "以下是按时间块验证的 SectionFacts。仅据此生成全局笔记，不要要求完整转写：\n"
+                    )
+                    + json.dumps(map_facts, ensure_ascii=False),
+                },
+            ]
+            reduced = _cached_stage_json(
+                db,
+                job=job,
+                stage="GENERATE_AI_NOTE",
+                capability="GLOBAL_SYNTHESIS",
+                provider=provider,
+                provider_name=provider_name,
+                model=model,
+                messages=reduce_messages,
+            )
+            reduced_payload = parse_model_json(reduced.content)
+            reduced_sections = reduced_payload.get("sections")
+            if isinstance(reduced_sections, list):
+                accepted = [
+                    item
+                    for item in reduced_sections
+                    if isinstance(item, dict)
+                    and any(value in valid_ids for value in item.get("segment_ids", []))
+                ]
+                if accepted:
+                    raw_sections = accepted
+                    response = reduced
+                    if reduced_payload.get("overview"):
+                        overview_parts.append(str(reduced_payload["overview"]).strip())
+        except Exception as exc:
+            warnings.append("全局归纳不可用，已保留分块笔记")
+            record_event(
+                db,
+                "video.note.reduce_fallback",
+                "全局归纳不可用，已保留分块笔记",
+                component="video-pipeline",
+                level="WARNING",
+                entity_type="video_asset",
+                entity_id=asset.id,
+                detail={"reason": str(exc)[:240]},
+            )
     note = db.scalar(select(AINote).where(AINote.video_asset_id == asset.id))
     if note is None:
         note = AINote(video_asset_id=asset.id)
@@ -779,9 +1083,10 @@ def generate_note(
         markdown=markdown,
         overview=overview,
         warnings_json=warnings,
+        map_facts_json=map_facts,
         model_provider=response.provider,
         model_name=response.model,
-        prompt_version=f"video-note-v1+{prompt_supplement_hash(db, 'video_note_summary')[:8]}",
+        prompt_version=f"video-note-v2+{prompt_supplement_hash(db, 'video_note_summary')[:8]}",
         transcript_version=transcript.version,
     )
     db.add(version)
@@ -855,31 +1160,48 @@ def extract_place_mentions(
     segments: list[Segment],
     job: Job | None = None,
 ) -> list[PlaceMention]:
-    provider, provider_name, model = provider_for_role(db, settings, "travel_place_extraction", job)
-    prompt = (Path(__file__).resolve().parents[1] / "prompts" / "travel_place_extraction.md").read_text(
-        encoding="utf-8"
-    )
-    response: LLMResult = provider.generate_json(
-        [
+    remote_reprocess = _stage_execution_mode(db, "EXTRACT_TRAVEL_FACTS", job) == "REMOTE_ONLY"
+    if remote_reprocess:
+        provider, provider_name, model = provider_for_role(db, settings, "travel_place_extraction", job)
+        prompt = (Path(__file__).resolve().parents[1] / "prompts" / "travel_place_extraction.md").read_text(
+            encoding="utf-8"
+        )
+        messages = [
             {"role": "system", "content": prompt},
             *prompt_supplement_messages(db, "travel_place_extraction"),
             {"role": "user", "content": _transcript_context(segments, settings.video_note_chunk_chars)},
-        ],
-        model=model,
-    )
-    if response.provider != provider_name or response.model != model:
-        record_event(
+        ]
+        response = _cached_stage_json(
             db,
-            "model_routing.fallback_used",
-            f"地点提取主模型不可用，已切换至备用模型：{response.provider} / {response.model}",
-            component="video-pipeline",
-            entity_type="video_asset",
-            entity_id=asset.id,
+            job=job,
+            stage="EXTRACT_TRAVEL_FACTS",
+            capability="ENTITY_EXTRACTION",
+            provider=provider,
+            provider_name=provider_name,
+            model=model,
+            messages=messages,
         )
-    payload = parse_model_json(response.content)
+        if response.provider != provider_name or response.model != model:
+            record_event(
+                db,
+                "model_routing.fallback_used",
+                f"地点提取主模型不可用，已切换至备用模型：{response.provider} / {response.model}",
+                component="video-pipeline",
+                entity_type="video_asset",
+                entity_id=asset.id,
+            )
+        candidates = parse_model_json(response.content).get("places", [])
+    else:
+        candidates = [
+            candidate
+            for fact in note.map_facts_json or []
+            if isinstance(fact, dict)
+            for candidate in fact.get("places", [])
+            if isinstance(candidate, dict)
+        ]
     valid_ids = {segment.id for segment in segments}
     created: list[PlaceMention] = []
-    for item in payload.get("places", [])[:80]:
+    for item in candidates[:80]:
         if not isinstance(item, dict):
             continue
         ids = [value for value in item.get("segment_ids", []) if value in valid_ids]

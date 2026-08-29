@@ -26,6 +26,11 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.orm import Session
 
+from zhijian.ai.domain_context import DOMAIN_PACK_PREFIX, DomainPack
+from zhijian.ai.model_registry import model_profile_from_value, probe_model_profile
+from zhijian.ai.policies import resolve_stage_policy, validate_stage_policy
+from zhijian.ai.schemas import AIStagePolicy
+from zhijian.ai.stages import STAGE_SPECS, stage_spec
 from zhijian.core.config import Settings, get_settings
 from zhijian.core.ids import new_id
 from zhijian.core.secret_store import SecretStore
@@ -35,6 +40,7 @@ from zhijian.db.models import (
     Claim,
     ContentItem,
     Evidence,
+    ExternalCallAudit,
     Job,
     JobStep,
     MapMarkerState,
@@ -76,7 +82,12 @@ from zhijian.domain.schemas import (
     TranscriptProcessingConfig,
 )
 from zhijian.providers.amap import AMapPOIProvider
-from zhijian.providers.llm import OllamaProvider, OpenAICompatibleProvider
+from zhijian.providers.llm import (
+    LLMProvider,
+    OllamaProvider,
+    OpenAICompatibleProvider,
+    ProviderRequestOptions,
+)
 from zhijian.providers.runtime import hardware_report, runtime_report
 from zhijian.services.audit import record_event
 from zhijian.services.auth import (
@@ -373,6 +384,24 @@ def capture(
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> CaptureResponse:
+    for stage, override in payload.ai_overrides.items():
+        try:
+            if {"stage", "capability", "version"} & set(override):
+                raise ValueError("任务阶段覆盖不能重写 stage、capability 或版本")
+            policy = AIStagePolicy(
+                stage=stage,
+                capability=stage_spec(stage).capability,
+                **override,
+            )
+            validate_stage_policy(policy, _stage_profiles(db))
+            missing_pack = any(
+                db.get(Setting, f"{DOMAIN_PACK_PREFIX}{pack_id}") is None
+                for pack_id in policy.domain_pack_ids
+            )
+            if missing_pack:
+                raise ValueError("任务阶段覆盖引用了不存在的领域包")
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
     raw_input = str(payload.url or payload.text or "")
     if not raw_input:
         raise HTTPException(status_code=422, detail="URL 与正文至少提供一项")
@@ -403,6 +432,7 @@ def capture(
         title=payload.title or "",
         text="" if is_url else raw_input,
         metadata=metadata,
+        ai_overrides=payload.ai_overrides,
     )
     return CaptureResponse(
         source_id=source.id,
@@ -511,6 +541,62 @@ def get_job(job_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
             for step in steps
         ],
         "events": [event_view(event) for event in events],
+    }
+
+
+@router.get("/api/jobs/{job_id}/ai-usage")
+def job_ai_usage(job_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
+    if db.get(Job, job_id) is None:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    rows = db.scalars(
+        select(ExternalCallAudit)
+        .where(ExternalCallAudit.job_id == job_id)
+        .order_by(ExternalCallAudit.created_at)
+    ).all()
+    def empty() -> dict[str, int]:
+        return {
+            "calls": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cached_tokens": 0,
+            "duration_ms": 0,
+        }
+    total, local, remote = empty(), empty(), empty()
+    by_stage: dict[str, dict] = {}
+    by_model: dict[str, dict] = {}
+    cache_hits = escalations = 0
+    for row in rows:
+        request_meta = row.request_meta_json or {}
+        response_meta = row.response_meta_json or {}
+        stage = str(request_meta.get("stage") or row.operation)
+        model = str(request_meta.get("model") or row.provider)
+        location = str(request_meta.get("location") or ("LOCAL" if row.provider == "ollama" else "REMOTE"))
+        values = {
+            "calls": 1,
+            "input_tokens": int(response_meta.get("prompt_tokens") or 0),
+            "output_tokens": int(response_meta.get("completion_tokens") or 0),
+            "cached_tokens": int(response_meta.get("cached_tokens") or 0),
+            "duration_ms": int(row.duration_ms or 0),
+        }
+        targets = (
+            total,
+            local if location == "LOCAL" else remote,
+            by_stage.setdefault(stage, empty()),
+            by_model.setdefault(model, empty()),
+        )
+        for target in targets:
+            for key, value in values.items():
+                target[key] += value
+        cache_hits += int(bool(request_meta.get("cache_hit")))
+        escalations += int(bool(request_meta.get("escalated")))
+    return {
+        "total": total,
+        "local": local,
+        "remote": remote,
+        "by_stage": by_stage,
+        "by_model": by_model,
+        "cache": {"hits": cache_hits},
+        "escalations": escalations,
     }
 
 
@@ -1652,14 +1738,29 @@ def _route_view(db: Session, route: RouteDraft) -> RouteDraftView:
 
 def _model_profile_view(setting: Setting) -> dict:
     value = setting.value_json if isinstance(setting.value_json, dict) else {}
+    profile = model_profile_from_value(setting.key.removeprefix("model-profile:"), value)
     return {
-        "id": setting.key.removeprefix("model-profile:"),
+        "id": profile.id,
         "name": str(value.get("name") or "未命名模型"),
         "provider": str(value.get("provider") or ""),
         "base_url": str(value.get("base_url") or ""),
         "model": str(value.get("model") or ""),
         "timeout_seconds": int(value.get("timeout_seconds") or 60),
         "api_key_saved": setting.is_secret_ref,
+        "location": profile.location,
+        "modalities": sorted(profile.modalities),
+        "capabilities": sorted(item.value for item in profile.capabilities),
+        "supports_json_mode": profile.supports_json_mode,
+        "supports_json_schema": profile.supports_json_schema,
+        "supports_thinking": profile.supports_thinking,
+        "supports_tools": profile.supports_tools,
+        "context_window": profile.context_window,
+        "recommended_working_context": profile.recommended_working_context,
+        "max_output_tokens": profile.max_output_tokens,
+        "quality_tier": profile.quality_tier,
+        "specialties": sorted(profile.specialties),
+        "enabled": profile.enabled,
+        "probe_results": value.get("probe_results") or {},
     }
 
 
@@ -1681,17 +1782,28 @@ def _routing_value(db: Session) -> dict[str, str | None]:
 
 
 def _test_model_connection(value: dict, api_key: str | None) -> object:
+    provider = _model_profile_provider(value, api_key)
+    return provider.generate(
+        [{"role": "user", "content": '仅返回 JSON：{"ok":true}'}],
+        model=str(value.get("model") or ""),
+        options=(
+            ProviderRequestOptions(thinking=False)
+            if str(value.get("provider") or "").lower() == "ollama"
+            else None
+        ),
+    )
+
+
+def _model_profile_provider(value: dict, api_key: str | None) -> LLMProvider:
     provider_name = str(value.get("provider") or "").lower()
     timeout = int(value.get("timeout_seconds") or 300)
-    model = str(value.get("model") or "")
-    messages = [{"role": "user", "content": '仅返回 JSON：{"ok":true}'}]
     if provider_name == "ollama":
-        return OllamaProvider(str(value.get("base_url") or ""), timeout).generate(messages, model=model)
+        return OllamaProvider(str(value.get("base_url") or ""), timeout)
     if not api_key:
         raise HTTPException(status_code=422, detail="请填写 API Key 后再进行真实测试")
     return OpenAICompatibleProvider(
         provider_name or "openai-compatible", str(value.get("base_url") or ""), api_key, timeout
-    ).generate(messages, model=model)
+    )
 
 
 @router.get("/api/settings/model-profiles")
@@ -1707,7 +1819,7 @@ def create_model_profile(
     store: SecretStore = Depends(get_secret_store),
 ) -> dict:
     profile_id = new_id("model")
-    value = payload.model_dump(exclude={"api_key"})
+    value = payload.model_dump(mode="json", exclude={"api_key"})
     setting = Setting(key=f"model-profile:{profile_id}", value_json=value)
     if payload.api_key:
         store.set(f"model-profile:{profile_id}:api-key", payload.api_key)
@@ -1729,7 +1841,7 @@ def update_model_profile(
     setting = db.get(Setting, f"model-profile:{profile_id}")
     if setting is None:
         raise HTTPException(status_code=404, detail="模型配置不存在")
-    setting.value_json = payload.model_dump(exclude={"api_key"})
+    setting.value_json = payload.model_dump(mode="json", exclude={"api_key"})
     if payload.api_key:
         store.set(f"model-profile:{profile_id}:api-key", payload.api_key)
         setting.is_secret_ref = True
@@ -1746,6 +1858,11 @@ def delete_model_profile(profile_id: str, _: Protected, db: Session = Depends(ge
     routing = _routing_value(db)
     if profile_id in set(routing.values()):
         raise HTTPException(status_code=409, detail="该模型正在被推理或转写路由使用，请先切换对应模型")
+    if any(
+        profile_id in (item.value_json or {}).values()
+        for item in db.scalars(select(Setting).where(Setting.key.like("ai-stage-policy:%"))).all()
+    ):
+        raise HTTPException(status_code=409, detail="该模型正在被 AI 阶段策略使用，请先重置对应阶段")
     name = str(setting.value_json.get("name") or profile_id)
     db.delete(setting)
     record_event(db, "model_profile.deleted", f"已删除自定义模型：{name}", actor="user")
@@ -1779,6 +1896,141 @@ def save_model_routing(
     record_event(db, "model_routing.updated", "已更新推理与转写模型路由", actor="user")
     db.commit()
     return value
+
+
+def _stage_policy_setting(db: Session, stage: str) -> Setting | None:
+    try:
+        stage_spec(stage)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return db.get(Setting, f"ai-stage-policy:{stage}")
+
+
+def _stage_profiles(db: Session) -> dict[str, dict]:
+    return {
+        setting.key.removeprefix("model-profile:"): setting.value_json
+        for setting in _model_profiles(db)
+        if isinstance(setting.value_json, dict)
+    }
+
+
+def _resolved_stage_policy_view(db: Session, stage: str, job: Job | None = None) -> dict:
+    setting = _stage_policy_setting(db, stage)
+    saved = setting.value_json if setting and isinstance(setting.value_json, dict) else None
+    overrides = (job.payload_json.get("ai_overrides") or {}).get(stage) if job else None
+    return resolve_stage_policy(stage, saved=saved, job_override=overrides).model_dump(mode="json")
+
+
+@router.get("/api/ai/stages")
+def list_ai_stages(_: Protected, db: Session = Depends(get_db)) -> list[dict]:
+    return [
+        {
+            "stage": spec.stage,
+            "capability": spec.capability,
+            "parameter_spec": sorted(spec.allowed),
+            "resolved_default": _resolved_stage_policy_view(db, spec.stage),
+        }
+        for spec in STAGE_SPECS.values()
+    ]
+
+
+@router.get("/api/ai/stage-policies")
+def list_ai_stage_policies(_: Protected, db: Session = Depends(get_db)) -> list[dict]:
+    return [_resolved_stage_policy_view(db, stage) for stage in STAGE_SPECS]
+
+
+@router.get("/api/ai/stage-policies/{stage}")
+def get_ai_stage_policy(stage: str, _: Protected, db: Session = Depends(get_db)) -> dict:
+    return _resolved_stage_policy_view(db, stage)
+
+
+@router.put("/api/ai/stage-policies/{stage}")
+def save_ai_stage_policy(
+    stage: str, payload: AIStagePolicy, _: Protected, db: Session = Depends(get_db)
+) -> dict:
+    if payload.stage != stage:
+        raise HTTPException(status_code=422, detail="路径与策略阶段必须一致")
+    try:
+        validate_stage_policy(payload, _stage_profiles(db))
+        missing_pack = any(
+            db.get(Setting, f"{DOMAIN_PACK_PREFIX}{pack_id}") is None
+            for pack_id in payload.domain_pack_ids
+        )
+        if missing_pack:
+            raise ValueError("阶段策略引用了不存在的领域包")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    existing = _stage_policy_setting(db, stage)
+    value = payload.model_dump(mode="json")
+    value["version"] = int((existing.value_json if existing else {}).get("version") or 0) + 1
+    if existing is None:
+        db.add(Setting(key=f"ai-stage-policy:{stage}", value_json=value))
+    else:
+        existing.value_json = value
+    record_event(db, "ai_stage_policy.updated", f"已更新 AI 阶段策略：{stage}", actor="user")
+    db.commit()
+    return _resolved_stage_policy_view(db, stage)
+
+
+@router.delete("/api/ai/stage-policies/{stage}")
+def delete_ai_stage_policy(stage: str, _: Protected, db: Session = Depends(get_db)) -> dict:
+    setting = _stage_policy_setting(db, stage)
+    if setting:
+        db.delete(setting)
+        record_event(db, "ai_stage_policy.reset", f"已恢复默认 AI 阶段策略：{stage}", actor="user")
+        db.commit()
+    return _resolved_stage_policy_view(db, stage)
+
+
+@router.get("/api/ai/domain-packs")
+def list_domain_packs(_: Protected, db: Session = Depends(get_db)) -> list[dict]:
+    packs = db.scalars(
+        select(Setting).where(Setting.key.like(f"{DOMAIN_PACK_PREFIX}%")).order_by(Setting.key)
+    ).all()
+    return [DomainPack(**item.value_json).model_dump(mode="json") for item in packs]
+
+
+@router.post("/api/ai/domain-packs")
+def create_domain_pack(payload: DomainPack, _: Protected, db: Session = Depends(get_db)) -> dict:
+    key = f"{DOMAIN_PACK_PREFIX}{payload.id}"
+    if db.get(Setting, key):
+        raise HTTPException(status_code=409, detail="领域包 ID 已存在")
+    db.add(Setting(key=key, value_json=payload.model_dump(mode="json")))
+    record_event(db, "ai_domain_pack.created", f"已创建领域包：{payload.name}", actor="user")
+    db.commit()
+    return payload.model_dump(mode="json")
+
+
+@router.put("/api/ai/domain-packs/{pack_id}")
+def update_domain_pack(
+    pack_id: str, payload: DomainPack, _: Protected, db: Session = Depends(get_db)
+) -> dict:
+    if payload.id != pack_id:
+        raise HTTPException(status_code=422, detail="路径与领域包 ID 必须一致")
+    setting = db.get(Setting, f"{DOMAIN_PACK_PREFIX}{pack_id}")
+    if setting is None:
+        raise HTTPException(status_code=404, detail="领域包不存在")
+    setting.value_json = payload.model_dump(mode="json")
+    record_event(db, "ai_domain_pack.updated", f"已更新领域包：{payload.name}", actor="user")
+    db.commit()
+    return payload.model_dump(mode="json")
+
+
+@router.delete("/api/ai/domain-packs/{pack_id}")
+def delete_domain_pack(pack_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
+    setting = db.get(Setting, f"{DOMAIN_PACK_PREFIX}{pack_id}")
+    if setting is None:
+        raise HTTPException(status_code=404, detail="领域包不存在")
+    in_use = any(
+        pack_id in ((item.value_json or {}).get("domain_pack_ids") or [])
+        for item in db.scalars(select(Setting).where(Setting.key.like("ai-stage-policy:%"))).all()
+    )
+    if in_use:
+        raise HTTPException(status_code=409, detail="领域包正在被阶段策略使用，请先移除关联")
+    db.delete(setting)
+    record_event(db, "ai_domain_pack.deleted", f"已删除领域包：{pack_id}", actor="user")
+    db.commit()
+    return {"status": "DELETED", "id": pack_id}
 
 
 @router.get("/api/settings/transcript-processing")
@@ -1892,7 +2144,7 @@ def test_model_profile(
 @router.post("/api/settings/model-profiles/test-draft")
 def test_model_profile_draft(payload: ModelProfileConfig, _: Protected) -> dict:
     """Run a transient model connectivity test without persisting the draft or its secret."""
-    value = payload.model_dump(exclude={"api_key"})
+    value = payload.model_dump(mode="json", exclude={"api_key"})
     try:
         result = _test_model_connection(value, payload.api_key)
     except HTTPException:
@@ -1904,6 +2156,41 @@ def test_model_profile_draft(payload: ModelProfileConfig, _: Protected) -> dict:
         "message": "草稿已完成真实推理连通测试，尚未保存配置。",
         "response_preview": result.content[:200],
     }
+
+
+@router.post("/api/settings/model-profiles/{profile_id}/probe")
+def probe_saved_model_profile(
+    profile_id: str,
+    _: Protected,
+    db: Session = Depends(get_db),
+    store: SecretStore = Depends(get_secret_store),
+) -> dict:
+    setting = db.get(Setting, f"model-profile:{profile_id}")
+    if setting is None or not isinstance(setting.value_json, dict):
+        raise HTTPException(status_code=404, detail="模型配置不存在")
+    value = dict(setting.value_json)
+    try:
+        profile = model_profile_from_value(profile_id, value)
+        results = probe_model_profile(
+            _model_profile_provider(value, store.get(f"model-profile:{profile_id}:api-key")), profile
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"模型能力探测失败：{str(exc)[:240]}") from exc
+    value["probe_results"] = results
+    value["capabilities"] = [key for key, status in results.items() if status == "PASS"]
+    value["supports_json_mode"] = results.get("STRUCTURED_EXTRACTION") == "PASS"
+    setting.value_json = value
+    record_event(
+        db,
+        "model_profile.probed",
+        f"已完成模型能力探测：{value.get('name', profile_id)}",
+        actor="user",
+        detail={"pass_count": sum(status == "PASS" for status in results.values())},
+    )
+    db.commit()
+    return _model_profile_view(setting)
 
 
 @router.get("/api/settings/providers")

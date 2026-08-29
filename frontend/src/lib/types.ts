@@ -161,6 +161,74 @@ export interface ModelProfileView {
   model: string
   timeout_seconds: number
   api_key_saved: boolean
+  location: 'LOCAL' | 'REMOTE'
+  modalities: string[]
+  capabilities: string[]
+  supports_json_mode: boolean
+  supports_json_schema: boolean
+  supports_thinking: boolean
+  supports_tools: boolean
+  context_window: number
+  recommended_working_context: number
+  max_output_tokens: number
+  quality_tier: 'FAST' | 'MAIN' | 'STRONG' | 'SPECIALIST'
+  specialties: string[]
+  enabled: boolean
+  probe_results: Record<string, string>
+}
+
+export interface AIStagePolicy {
+  stage: string
+  capability: string
+  execution_mode: 'AUTO' | 'LOCAL_ONLY' | 'LOCAL_FIRST' | 'REMOTE_FIRST' | 'REMOTE_ONLY' | null
+  local_profile_id: string | null
+  remote_profile_id: string | null
+  temperature: number | null
+  max_input_tokens: number | null
+  max_output_tokens: number | null
+  thinking: boolean | null
+  timeout_seconds: number | null
+  retry_count: number | null
+  confidence_threshold: number | null
+  escalation_threshold: number | null
+  context_strategy: string | null
+  chunk_size: number | null
+  neighbor_segments: number | null
+  domain: string | null
+  domain_pack_ids: string[]
+  cache_enabled: boolean | null
+  force_regenerate: boolean
+  version: number
+  sources?: Record<string, string>
+}
+
+export interface AIStageView {
+  stage: string
+  capability: string
+  parameter_spec: string[]
+  resolved_default: AIStagePolicy
+}
+
+export interface AIUsageView {
+  total: { calls: number; input_tokens: number; output_tokens: number; cached_tokens: number; duration_ms: number }
+  local: { calls: number; input_tokens: number; output_tokens: number; cached_tokens: number; duration_ms: number }
+  remote: { calls: number; input_tokens: number; output_tokens: number; cached_tokens: number; duration_ms: number }
+  by_stage: Record<string, { calls: number; input_tokens: number; output_tokens: number; cached_tokens: number; duration_ms: number }>
+  by_model: Record<string, { calls: number; input_tokens: number; output_tokens: number; cached_tokens: number; duration_ms: number }>
+  cache: { hits: number }
+  escalations: number
+}
+
+export interface DomainPackView {
+  id: string
+  name: string
+  version: string
+  glossary: Record<string, string>
+  aliases: Record<string, string[]>
+  rules: string[]
+  examples: Array<{ input: string; output: string }>
+  prompt_supplement: string
+  allowed_capabilities: string[]
 }
 
 export interface ModelRoutingView {

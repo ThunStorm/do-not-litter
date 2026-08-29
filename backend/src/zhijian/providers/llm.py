@@ -18,12 +18,25 @@ class LLMResult:
     usage: dict[str, Any]
 
 
+@dataclass(frozen=True, slots=True)
+class ProviderRequestOptions:
+    temperature: float | None = None
+    max_output_tokens: int | None = None
+    thinking: bool | None = None
+
+
 class LLMProvider(Protocol):
-    def generate_text(self, messages: list[dict[str, str]], *, model: str) -> LLMResult: ...
+    def generate_text(
+        self, messages: list[dict[str, str]], *, model: str, options: ProviderRequestOptions | None = None
+    ) -> LLMResult: ...
 
-    def generate_json(self, messages: list[dict[str, str]], *, model: str) -> LLMResult: ...
+    def generate_json(
+        self, messages: list[dict[str, str]], *, model: str, options: ProviderRequestOptions | None = None
+    ) -> LLMResult: ...
 
-    def generate(self, messages: list[dict[str, str]], *, model: str) -> LLMResult: ...
+    def generate(
+        self, messages: list[dict[str, str]], *, model: str, options: ProviderRequestOptions | None = None
+    ) -> LLMResult: ...
 
 
 class OllamaProvider:
@@ -31,7 +44,19 @@ class OllamaProvider:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
 
-    def _generate(self, messages: list[dict[str, str]], *, model: str, json_mode: bool) -> LLMResult:
+    def _generate(
+        self,
+        messages: list[dict[str, str]],
+        *,
+        model: str,
+        json_mode: bool,
+        options: ProviderRequestOptions | None = None,
+    ) -> LLMResult:
+        runtime_options = {}
+        if options and options.temperature is not None:
+            runtime_options["temperature"] = options.temperature
+        if options and options.max_output_tokens is not None:
+            runtime_options["num_predict"] = options.max_output_tokens
         response = httpx.post(
             f"{self.base_url}/api/chat",
             json={
@@ -40,6 +65,8 @@ class OllamaProvider:
                 "stream": False,
                 "keep_alive": 0,
                 **({"format": "json"} if json_mode else {}),
+                **({"options": runtime_options} if runtime_options else {}),
+                **({"think": options.thinking} if options and options.thinking is not None else {}),
             },
             timeout=self.timeout,
         )
@@ -55,14 +82,20 @@ class OllamaProvider:
             },
         )
 
-    def generate_text(self, messages: list[dict[str, str]], *, model: str) -> LLMResult:
-        return self._generate(messages, model=model, json_mode=False)
+    def generate_text(
+        self, messages: list[dict[str, str]], *, model: str, options: ProviderRequestOptions | None = None
+    ) -> LLMResult:
+        return self._generate(messages, model=model, json_mode=False, options=options)
 
-    def generate_json(self, messages: list[dict[str, str]], *, model: str) -> LLMResult:
-        return self._generate(messages, model=model, json_mode=True)
+    def generate_json(
+        self, messages: list[dict[str, str]], *, model: str, options: ProviderRequestOptions | None = None
+    ) -> LLMResult:
+        return self._generate(messages, model=model, json_mode=True, options=options)
 
-    def generate(self, messages: list[dict[str, str]], *, model: str) -> LLMResult:
-        return self.generate_json(messages, model=model)
+    def generate(
+        self, messages: list[dict[str, str]], *, model: str, options: ProviderRequestOptions | None = None
+    ) -> LLMResult:
+        return self.generate_json(messages, model=model, options=options)
 
 
 class OpenAICompatibleProvider:
@@ -72,10 +105,21 @@ class OpenAICompatibleProvider:
         self.api_key = api_key
         self.timeout = timeout
 
-    def _generate(self, messages: list[dict[str, str]], *, model: str, json_mode: bool) -> LLMResult:
+    def _generate(
+        self,
+        messages: list[dict[str, str]],
+        *,
+        model: str,
+        json_mode: bool,
+        options: ProviderRequestOptions | None = None,
+    ) -> LLMResult:
         payload: dict[str, Any] = {"model": model, "messages": messages}
         if json_mode:
             payload["response_format"] = {"type": "json_object"}
+        if options and options.temperature is not None:
+            payload["temperature"] = options.temperature
+        if options and options.max_output_tokens is not None:
+            payload["max_tokens"] = options.max_output_tokens
         response = httpx.post(
             f"{self.base_url}/chat/completions",
             headers={"Authorization": f"Bearer {self.api_key}"},
@@ -91,14 +135,20 @@ class OpenAICompatibleProvider:
             usage=data.get("usage", {}),
         )
 
-    def generate_text(self, messages: list[dict[str, str]], *, model: str) -> LLMResult:
-        return self._generate(messages, model=model, json_mode=False)
+    def generate_text(
+        self, messages: list[dict[str, str]], *, model: str, options: ProviderRequestOptions | None = None
+    ) -> LLMResult:
+        return self._generate(messages, model=model, json_mode=False, options=options)
 
-    def generate_json(self, messages: list[dict[str, str]], *, model: str) -> LLMResult:
-        return self._generate(messages, model=model, json_mode=True)
+    def generate_json(
+        self, messages: list[dict[str, str]], *, model: str, options: ProviderRequestOptions | None = None
+    ) -> LLMResult:
+        return self._generate(messages, model=model, json_mode=True, options=options)
 
-    def generate(self, messages: list[dict[str, str]], *, model: str) -> LLMResult:
-        return self.generate_json(messages, model=model)
+    def generate(
+        self, messages: list[dict[str, str]], *, model: str, options: ProviderRequestOptions | None = None
+    ) -> LLMResult:
+        return self.generate_json(messages, model=model, options=options)
 
 
 class FallbackLLMProvider:
@@ -119,6 +169,7 @@ class FallbackLLMProvider:
         on_retry: Callable[[int, Exception], None] | None = None,
         on_attempt: AttemptCallback | None = None,
         sleeper: Callable[[float], None] = sleep,
+        request_options: ProviderRequestOptions | None = None,
     ) -> None:
         self.primary = primary
         self.primary_model = primary_model
@@ -132,6 +183,7 @@ class FallbackLLMProvider:
         self.on_retry = on_retry
         self.on_attempt = on_attempt
         self.sleeper = sleeper
+        self.request_options = request_options
 
     @staticmethod
     def _endpoint(provider: LLMProvider) -> str:
@@ -180,7 +232,10 @@ class FallbackLLMProvider:
             if self.before_fallback:
                 self.before_fallback()
             try:
-                result = getattr(provider, method)(messages, model=model)
+                if self.request_options is None:
+                    result = getattr(provider, method)(messages, model=model)
+                else:
+                    result = getattr(provider, method)(messages, model=model, options=self.request_options)
                 if not result.content or not result.content.strip():
                     raise ValueError("模型返回了空内容")
                 if self.on_attempt:
@@ -232,11 +287,23 @@ class FallbackLLMProvider:
             raise ValueError("主模型不可用且未配置备用模型")
         return self._invoke(self.fallback, method, messages, self.fallback_model, "fallback")
 
-    def generate_text(self, messages: list[dict[str, str]], *, model: str) -> LLMResult:
+    def generate_text(
+        self, messages: list[dict[str, str]], *, model: str, options: ProviderRequestOptions | None = None
+    ) -> LLMResult:
+        if options is not None:
+            self.request_options = options
         return self._call("generate_text", messages)
 
-    def generate_json(self, messages: list[dict[str, str]], *, model: str) -> LLMResult:
+    def generate_json(
+        self, messages: list[dict[str, str]], *, model: str, options: ProviderRequestOptions | None = None
+    ) -> LLMResult:
+        if options is not None:
+            self.request_options = options
         return self._call("generate_json", messages)
 
-    def generate(self, messages: list[dict[str, str]], *, model: str) -> LLMResult:
+    def generate(
+        self, messages: list[dict[str, str]], *, model: str, options: ProviderRequestOptions | None = None
+    ) -> LLMResult:
+        if options is not None:
+            self.request_options = options
         return self._call("generate", messages)

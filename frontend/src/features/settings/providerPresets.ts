@@ -8,7 +8,10 @@ export const providerPresets = [
   { id: 'OLLAMA', label: 'Ollama（本地）', provider: 'Ollama', baseUrl: 'http://127.0.0.1:11434', models: ['qwen2.5:7b'] },
 ] as const
 
-export type ModelFormValues = { name: string; provider: string; base_url: string; model: string; timeout_seconds: number; api_key: string }
+export type ModelFormValues = {
+  name: string; provider: string; base_url: string; model: string; timeout_seconds: number; api_key: string
+  location?: 'LOCAL' | 'REMOTE'; modalities?: string[]; supports_thinking?: boolean; quality_tier?: 'FAST' | 'MAIN' | 'STRONG' | 'SPECIALIST'
+}
 export type ManualModelFields = { model: boolean; baseUrl: boolean }
 
 export function providerPreset(provider: string) { return providerPresets.find((item) => item.provider.toLowerCase() === provider.trim().toLowerCase()) }

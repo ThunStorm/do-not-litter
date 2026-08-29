@@ -26,13 +26,13 @@
 - 视频笔记 API 规范化封面为 HTTPS，封面加载失败展示本地占位；章节正文以受限 Markdown 渲染标题、列表、粗体、斜体、代码与引用，不执行模型输出的 HTML。
 - 任务摘要显示最近模型调用的步骤、Provider 与模型；部分完成明确为“处理流程已完成”，并列出地点待确认/未配置地图等补充原因。
 - 任务和内容历史都有独立删除入口：仅终态任务可删除；删除内容不会破坏共享来源、地点或路线，具体边界见 `MODEL_AND_RETENTION_UI_SPEC.md`。
-- Mac mini LaunchAgent API/Worker 双服务管理脚本和 Ollama Homebrew 后台服务。
+- Mac mini LaunchAgent API/Worker 双服务管理脚本和 Ollama.app；安装器将 `~/.ollama/models` 持久链接到 `/Volumes/D/Projects/ollama-models`，避免重启、App 更新或重复安装后回退到空的默认模型目录。
 
 ## 自动验证
 
-- 后端 Ruff 与 pytest：51 项通过，覆盖 4 位配对码轮换、局域网会话刷新、取消/重试门禁、真实状态 Schema、macOS 内存口径、任务专属超时错误、持久化监控快照、来源/档案/待办/日志、WebSocket、Provider Secret 隔离、DOCX、SPA 深链、自定义模型路由、AI 限流间隔与有限重试、用户补充 Prompt 的契约保护与哈希续跑、运行中完整重跑、历史删除、截图规划/质量过滤、全国地图 Marker 生命周期与 GeoJSON 导出、分享链接规范化、完整转写导出与保留清理、AI 转写校对、步骤级续跑、终态 Replay 门禁、独立 Worker 心跳、备用模型切换取消门禁与视频笔记保留式删除；
+- 后端 Ruff 与 pytest：59 项通过，覆盖 4 位配对码轮换、局域网会话刷新、取消/重试门禁、真实状态 Schema、macOS 内存口径、任务专属超时错误、持久化监控快照、来源/档案/待办/日志、WebSocket、Provider Secret 隔离、DOCX、SPA 深链、自定义模型路由、Ollama.app 模型目录持久链接、AI 限流间隔与有限重试、用户补充 Prompt 的契约保护与哈希续跑、运行中完整重跑、历史删除、截图规划/质量过滤、全国地图 Marker 生命周期与 GeoJSON 导出、分享链接规范化、完整转写导出与保留清理、AI 转写校对、步骤级续跑、终态 Replay 门禁、独立 Worker 心跳、备用模型切换取消门禁与视频笔记保留式删除；
 - 前端 ESLint、Vitest、TypeScript 和 Vite 生产构建通过；
-- Homebrew 已安装 FFmpeg、Whisper.cpp、Ollama；运行页以实时探测结果为准；
+- Homebrew 已安装 FFmpeg、Whisper.cpp；Ollama 使用官方 macOS App，运行页以实时探测结果为准；
 - 实际页面读取到 Apple M4 10 核 CPU、10 核 GPU、16 GB 内存、macOS 26.6.2 与磁盘余量；服务运行状态、局域网地址与资源数值均由状态接口实时返回；
 - Ollama 已完成 `qwen2.5:7b` 真实推理，Whisper.cpp 已通过 WAV 上传、Worker 处理、转写文本写入 Segment/Evidence 的端到端验收；
 - Browser 验收覆盖 PC 14 个页面/选项卡与手机 7 个核心页面，控制台无应用错误，运行实图位于 `design/ui/implementation-v0.2/`。
@@ -169,3 +169,43 @@
 - API 与 Worker 已用该生产 venv 重新加载；`launchctl print` 的实际 `program` 均指向生产 venv，`manage.py status` 验证 `/health=ok`、首页正文 `555 bytes` 和持续更新的 Worker 心跳。
 - 切换后未发现新 PID、服务名或项目路径对应的 `SystemPolicyRemovableVolumes deny`；Keychain 服务仍可访问，但未读取或输出凭据，也未触发真实 Provider、视频重生成或 Job 重跑。
 - Python 3.14 回归为后端 pytest 57 项、Ruff、`pip check`；前端在 Node `22.21.0` 下通过 ESLint、Vitest 10 项、TypeScript 与 Vite build。长期冷启动与重启后的 TCC 稳定性仍需随日常运行观察。
+
+## 2026-08-28 AI Workload Gateway v2 — WP1 Gateway Skeleton
+
+- 新增无状态 `zhijian.ai` 边界：统一定义 Capability、执行模式、质量与隐私策略、请求/结果、Evidence 和 Model Profile 契约；不依赖模型名称推断能力或模态。
+- `AIWorkloadGateway` 仅包装既有 `LLMProvider`，按是否要求结构化输出调用原有 JSON/文本方法，并透传模型覆盖、Provider 返回的用量和 Evidence ID；现有业务 Pipeline、重试、回退与审计均未改变。
+- 目标验证：新增 Gateway 单测 2 项和针对新增模块的 Ruff 均通过。Model Registry、Probe、持久化设置和按阶段路由仍属于后续 WP2/WP3，尚未实施。
+
+## 2026-08-28 AI Workload Gateway v2 — WP2–WP4
+
+- 已扩展现有 Settings 模型库而未新增数据库表：Profile 显式记录本地/远程位置、text/image 模态、JSON/Thinking 能力、上下文/输出上限和质量档；能力探测只在用户主动触发时调用 Provider，并只持久化 PASS/FAIL 与 Capability，不写入 Keychain Secret。
+- 已为 `TRANSCRIPT_CORRECTION`、`GENERATE_AI_NOTE`、`EXTRACT_TRAVEL_FACTS` 实施 `AUTO / LOCAL_ONLY / LOCAL_FIRST / REMOTE_FIRST / REMOTE_ONLY` 路由；没有保存新策略的历史任务严格保留旧主/备用路由。Capture API 支持受白名单和 Profile 能力校验的 Job 级阶段覆盖。
+- 已实施 Settings 持久化的阶段策略、统一继承 Resolver、参数白名单、模型位置/Thinking/输出上限校验、重置默认、Basic/Advanced UI 和无 Secret 的 resolved policy 审计快照。实际 Provider 已接收 Temperature、最大输出和 Ollama Thinking 选项。
+- 验证新增阶段策略/能力探测/API/实际 Provider 路由测试；桌面及 390px Browser 检查均完成，无控制台错误或横向溢出。语义升级、用量汇总、Delta/Map-Reduce、Cache/Budget、Domain Context、Vision 仍按 v2 后续 WP5–WP11 排期，未实施。
+
+## 2026-08-28 AI Workload Gateway v2 — WP5–WP8
+
+- 新增 `GET /api/jobs/{job_id}/ai-usage`，从现有 `ExternalCallAudit` 聚合调用、本地/远程、阶段、模型、输入/输出/缓存 Token 和耗时；任务详情新增只读 AI 用量摘要，不新增审计表或暴露 Secret。
+- 转写校对加入确定性质量门禁：干净平台字幕标记 `PASS_THROUGH`，不发模型；其余仅发送候选 Segment，模型只返回 `changes`，未返回候选进入 REVIEW。JSON 不合格不再默认递归二分放大调用；仅保留现有请求级失败语义。
+- 视频笔记按时间块生成并保存紧凑 `SectionFacts`，多块时只将 Facts 送入全局 Reduce；新增 Alembic `0009_ai_workload_facts` 保存 `map_facts_json`。默认地点提取从 Facts 作确定性聚合，保留 `EXTRACT_TRAVEL_FACTS` 步骤与 `REMOTE_ONLY` 显式模型重处理。
+- 全量自动验证为后端 pytest 69 项、Ruff；前端 ESLint、Vitest 10 项、TypeScript 与 Vite build。迁移在全新临时 SQLite 库升级到 `0009 (head)`；Browser 验收任务详情用量卡（桌面）无控制台错误。未触发真实 Provider、视频 Job 或生产迁移/重启。Cache/Budget、Domain Context、Vision 和统一资源管理仍是后续范围。
+
+## 2026-08-28 AI Workload Gateway v2 — WP9 Cache + Budget
+
+- 新增 Alembic `0010_ai_cache_entries` 与精确 AI 输出缓存。缓存键绑定阶段、Capability、Provider/Model、完整消息、Prompt 补充哈希和会影响语义的 generation/domain 参数；命中返回原始模型输出并写入 `cache_hit` 审计，不重复调用 Provider。
+- `force_regenerate` 会绕过命中并保留新缓存项对前一结果的引用；转写、笔记 Map/Reduce 和 `REMOTE_ONLY` 地点重处理均已接入同一缓存边界。
+- 新增每 Job 模型尝试、远程/本地输入/输出 Token、AI 墙钟时长预算；每次真实模型调用前检查，缓存命中不计入次数或 Token。通用设置页支持安全范围内调整全部预算参数。
+- 全量验证为后端 pytest 71 项、Ruff；前端 ESLint、Vitest 10 项、TypeScript 与 Vite build。全新临时 SQLite 已升级到 `0010 (head)`；Browser 验收预算字段可编辑且控制台无错误。未调用真实模型、未迁移或重启生产服务。WP10 Domain Context 与 WP11 Vision 尚未实施。
+
+## 2026-08-28 AI Workload Gateway v2 — WP10 Domain Context + WP11 Vision Boundary
+
+- 新增可版本化 Domain Pack：glossary、aliases、rules、examples、补充说明与允许 Capability 均由 Settings 持久化，并提供受保护 CRUD API。阶段策略和 Job 覆盖只能引用存在的领域包；包版本形成上下文哈希并参与 AI 缓存键。
+- Domain Context 以低优先级 system 消息注入本地和远程同一调用路径，不能覆盖证据、Schema 或安全契约；不引入向量库或全量 RAG。
+- 注册 `SCREENSHOT_UNDERSTANDING` 视觉阶段；策略校验强制 image-capable Profile，text-only Profile 会被 API 拒绝。当前视频抽帧仍是确定性质量筛选，未在没有具体视觉需求时自动上传帧或触发视觉模型。
+- 全量验证为后端 pytest 73 项、Ruff；前端 ESLint、Vitest 10 项、TypeScript 与 Vite build。Browser 验收领域上下文面板可编辑且无控制台错误；未触发真实 Provider、视觉/视频 Job、生产迁移或服务重启。
+
+## 2026-08-28 AI Workload Gateway v2 — Runtime Hardening
+
+- `LocalAIResourceManager` 在单进程内串行化本机 ASR、文本和未来视觉模型重任务，避免 API 模型测试与 Worker 争用统一内存；当前 Worker 单租约设计仍是跨 Job 的第一层门禁，Ollama 保持 `keep_alive: 0`。
+- 新增 `scripts/benchmark_ai_profiles.py`：只汇总既有 JSON Benchmark 样本的 schema、Evidence、延迟、local/remote Token 与升级率，不下载模型、不调用 Provider。
+- 全量验证为后端 pytest 74 项、Ruff；前端 ESLint、Vitest 10 项、TypeScript 与 Vite build；Benchmark 示例仅使用临时本地 JSON，未触发真实模型、视频任务、生产迁移或重启。

@@ -10,6 +10,7 @@ import pytest
 from sqlalchemy import select
 
 import zhijian.services.video_support as video_support
+from zhijian.ai.transcript_quality import correction_candidates
 from zhijian.core.config import Settings
 from zhijian.db.models import (
     AINote,
@@ -30,7 +31,10 @@ from zhijian.services.capture import create_capture_job
 from zhijian.services.jobs import JobCancelled
 from zhijian.services.transcript_retention import purge_expired_transcripts
 from zhijian.services.video_support import (
+    _section_facts,
     correct_transcript,
+    extract_place_mentions,
+    generate_note,
     materialize_transcript,
     normalized_confidence,
     provider_for_role,
@@ -111,21 +115,23 @@ def test_ai_correction_is_persisted_before_note_generation(monkeypatch, app_and_
         def generate_json(self, messages, model):
             assert any("保留作者自然口语语气" in message["content"] for message in messages)
             values = json.loads(messages[-1]["content"])["segments"]
-            if len(values) > 1:
-                return SimpleNamespace(content='{"segments":[', provider="deepseek", model=model)
-            item = values[0]
             corrected = {
                 "闪西兰田的水路案": "西安蓝田水陆庵",
                 "国家深林公元": "国家森林公园",
                 "窗口鸡很短": "窗口期很短",
-            }[item["raw_text"]]
+            }
             return SimpleNamespace(
                 content=(
-                    '{"segments":[{"id":"'
-                    + item["id"]
-                    + '","corrected_text":"'
-                    + corrected
-                    + '","confidence":0.96,"reason":"纠正同音字"}]}'
+                    '{"changes":['
+                    + ",".join(
+                        '{"segment_id":"'
+                        + item["id"]
+                        + '","corrected_text":"'
+                        + corrected[item["raw_text"]]
+                        + '","confidence":0.96,"reason":"纠正同音字"}'
+                        for item in values
+                    )
+                    + "]}"
                 ),
                 provider="deepseek",
                 model=model,
@@ -436,6 +442,132 @@ def test_confidence_labels_do_not_abort_place_extraction() -> None:
     assert normalized_confidence("high") == 0.85
     assert normalized_confidence("中") == 0.6
     assert normalized_confidence("bad-value") == 0.0
+
+
+def test_platform_subtitle_quality_gate_keeps_clean_segments_local() -> None:
+    clean = SimpleNamespace(raw_text="清晰的平台字幕。", text="清晰的平台字幕。", confidence=0.99)
+    broken = SimpleNamespace(raw_text="啊啊啊啊", text="啊啊啊啊", confidence=0.99)
+    assert correction_candidates([clean, broken], source_kind="BILIBILI", force_full=False) == [broken]
+    assert correction_candidates([clean], source_kind="BILIBILI", force_full=True) == [clean]
+
+
+def test_section_facts_keep_only_evidence_bound_places() -> None:
+    facts = _section_facts(
+        {
+            "section_facts": [
+                {
+                    "summary": "市场体验",
+                    "segment_ids": ["seg_1"],
+                    "places": [
+                        {"name": "菜市场", "segment_ids": ["seg_1"]},
+                        {"name": "无证据地点", "segment_ids": ["seg_missing"]},
+                    ],
+                }
+            ]
+        },
+        {"seg_1"},
+    )
+    assert facts[0]["places"] == [{"name": "菜市场", "segment_ids": ["seg_1"]}]
+
+
+def test_place_extraction_uses_persisted_map_facts_without_model(app_and_session, monkeypatch) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        source = Source(source_type="URL", locator="https://example.test/video", title="fixture")
+        db.add(source)
+        db.flush()
+        asset = VideoAsset(source_id=source.id, canonical_url=source.locator, title="旅行")
+        db.add(asset)
+        db.flush()
+        _, segments = materialize_transcript(
+            db, source, asset, [{"text": "去菜市场", "start_ms": 0, "end_ms": 1000}], source_kind="ASR"
+        )
+        note = AINote(video_asset_id=asset.id)
+        db.add(note)
+        db.flush()
+        version = AINoteVersion(
+            id="version",
+            ai_note_id=note.id,
+            version=1,
+            markdown="# 旅行",
+            transcript_version=1,
+            map_facts_json=[
+                {
+                    "segment_ids": [segments[0].id],
+                    "places": [{"name": "菜市场", "segment_ids": [segments[0].id], "confidence": "high"}],
+                }
+            ],
+        )
+        note.current_version_id = version.id
+        db.add(version)
+        db.commit()
+        monkeypatch.setattr(
+            video_support,
+            "provider_for_role",
+            lambda *_args: (_ for _ in ()).throw(AssertionError("默认地点聚合不应调用模型")),
+        )
+        mentions = extract_place_mentions(db, Settings(_env_file=None), asset, version, segments)
+        assert len(mentions) == 1 and mentions[0].name == "菜市场"
+
+
+def test_note_map_reduce_persists_compact_facts(app_and_session, monkeypatch) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        source = Source(source_type="URL", locator="https://example.test/map-reduce", title="fixture")
+        db.add(source)
+        db.flush()
+        asset = VideoAsset(source_id=source.id, canonical_url=source.locator, title="旅行")
+        db.add(asset)
+        db.flush()
+        transcript, segments = materialize_transcript(
+            db,
+            source,
+            asset,
+            [
+                {"text": "第一段" * 40, "start_ms": 0, "end_ms": 1000},
+                {"text": "第二段" * 40, "start_ms": 1000, "end_ms": 2000},
+            ],
+            source_kind="ASR",
+        )
+
+        class Provider:
+            def generate_json(self, messages, *, model):
+                content = messages[-1]["content"]
+                ids = [segment.id for segment in segments if segment.id in content]
+                if "SectionFacts" in content:
+                    ids = [segment.id for segment in segments]
+                return SimpleNamespace(
+                    content=json.dumps(
+                        {
+                            "overview": "紧凑总览",
+                            "sections": [{"heading": "市场", "summary": "总结", "segment_ids": ids}],
+                            "section_facts": [
+                                {
+                                    "summary": "事实",
+                                    "segment_ids": ids,
+                                    "places": [{"name": "菜市场", "segment_ids": ids}],
+                                }
+                            ],
+                        },
+                        ensure_ascii=False,
+                    ),
+                    provider="fixture",
+                    model=model,
+                )
+
+        monkeypatch.setattr(
+            video_support,
+            "provider_for_role",
+            lambda *_args: (Provider(), "fixture", "fixture-model"),
+        )
+        version = generate_note(
+            db,
+            Settings(_env_file=None, video_note_chunk_chars=100),
+            asset,
+            transcript,
+            segments,
+        )
+        assert version.map_facts_json and version.map_facts_json[0]["places"][0]["name"] == "菜市场"
 
 
 def test_transcript_correction_stops_before_next_batch_when_cancelled(monkeypatch) -> None:
