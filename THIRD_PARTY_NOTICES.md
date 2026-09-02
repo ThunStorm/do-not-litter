@@ -7,3 +7,7 @@
 ## yt-dlp
 
 受 [yt-dlp](https://github.com/yt-dlp/yt-dlp) Unlicense 许可。平台字幕不可用时用于临时提取音频；代表截图流程还会下载受分辨率、大小、超时和缓存生命周期限制的临时视频流。临时视频不进入永久原始文件目录，抽帧结束后按任务缓存策略清理。
+
+## qrcode.react
+
+站内 Bilibili 登录二维码由 [qrcode.react](https://github.com/zpao/qrcode.react) 在本地浏览器渲染，版本范围 `^4.2.0`，许可证为 ISC；登录 URL 不发送给第三方二维码生成服务。

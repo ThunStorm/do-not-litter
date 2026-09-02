@@ -2,16 +2,16 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
-from urllib.parse import urlparse
 
 import httpx
 from PIL import Image
 from sqlalchemy.orm import Session
 
 from zhijian.core.config import Settings
+from zhijian.core.url_policy import HttpsHostPolicy
 from zhijian.db.models import VideoAsset, VideoCoverAsset
 
-ALLOWED_SUFFIXES = (".hdslb.com", ".biliimg.com")
+COVER_URL_POLICY = HttpsHostPolicy(host_suffixes=frozenset({"hdslb.com", "biliimg.com"}))
 MIME_EXT = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/avif": "avif"}
 
 
@@ -19,10 +19,7 @@ def normalize_cover_url(value: str | None) -> str | None:
     if not value:
         return None
     value = "https:" + value if value.startswith("//") else value.replace("http://", "https://", 1)
-    parsed = urlparse(value)
-    hostname = parsed.hostname or ""
-    allowed = any(hostname == suffix[1:] or hostname.endswith(suffix) for suffix in ALLOWED_SUFFIXES)
-    if parsed.scheme != "https" or not allowed:
+    if not COVER_URL_POLICY.allows(value):
         return None
     return value
 

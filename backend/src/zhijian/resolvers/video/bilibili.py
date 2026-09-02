@@ -1,16 +1,22 @@
 from __future__ import annotations
 
 import ipaddress
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlencode, urljoin, urlparse
 
 import httpx
 
+from zhijian.core.url_policy import HttpsHostPolicy
+
 from .url_parser import parse_bilibili_url
 
 ALLOWED_HOSTS = {"www.bilibili.com", "m.bilibili.com", "bilibili.com", "b23.tv", "www.b23.tv"}
 API_HOSTS = {"api.bilibili.com"}
+PAGE_URL_POLICY = HttpsHostPolicy(exact_hosts=frozenset(ALLOWED_HOSTS))
+API_URL_POLICY = HttpsHostPolicy(exact_hosts=frozenset(ALLOWED_HOSTS | API_HOSTS))
+SUBTITLE_URL_POLICY = HttpsHostPolicy(host_suffixes=frozenset({"hdslb.com"}))
 
 
 class VideoResolveError(RuntimeError):
@@ -43,11 +49,7 @@ class ResolvedVideo:
 
 
 def is_bilibili_url(url: str) -> bool:
-    try:
-        parsed = urlparse(url)
-        return parsed.scheme == "https" and (parsed.hostname or "").lower() in ALLOWED_HOSTS
-    except ValueError:
-        return False
+    return PAGE_URL_POLICY.allows(url)
 
 
 class BilibiliResolver:
@@ -70,7 +72,12 @@ class BilibiliResolver:
             "https://api.bilibili.com/x/web-interface/view?" + urlencode({"bvid": parsed.bvid}), headers
         )
         if data.get("code") != 0 or not data.get("data"):
-            raise VideoResolveError("VIDEO_METADATA_FAILED", str(data.get("message") or "无法读取视频元数据"))
+            code = (
+                "VIDEO_LOGIN_REQUIRED"
+                if data.get("code") in {-101, -352, -412}
+                else "VIDEO_METADATA_FAILED"
+            )
+            raise VideoResolveError(code, str(data.get("message") or "无法读取视频元数据"))
         video = data["data"]
         pages = video.get("pages") or []
         if parsed.page_number > len(pages):
@@ -102,7 +109,11 @@ class BilibiliResolver:
         )
 
     def fetch_subtitle_segments(self, track: SubtitleTrack) -> list[dict[str, Any]]:
-        data = self._get_json(track.url, {"User-Agent": "Mozilla/5.0 (Zhijian local video note)"})
+        data = self._get_json(
+            track.url,
+            {"User-Agent": "Mozilla/5.0 (Zhijian local video note)"},
+            policy=SUBTITLE_URL_POLICY,
+        )
         body = data.get("body") if isinstance(data, dict) else None
         if not isinstance(body, list):
             raise VideoResolveError("VIDEO_SUBTITLE_INVALID", "字幕文件格式不受支持")
@@ -134,17 +145,22 @@ class BilibiliResolver:
                 if response.status_code not in {301, 302, 303, 307, 308}:
                     break
                 target = urljoin(current, response.headers.get("location", ""))
-                target_host = (urlparse(target).hostname or "").lower()
-                if urlparse(target).scheme != "https" or target_host not in ALLOWED_HOSTS:
+                if not PAGE_URL_POLICY.allows(target):
                     raise VideoResolveError("VIDEO_REDIRECT_BLOCKED", "短链跳转目标不在 Bilibili 许可范围")
                 current = target
             else:
                 raise VideoResolveError("VIDEO_TOO_MANY_REDIRECTS", "短链重定向次数超出限制")
         return current
 
-    def _get_json(self, url: str, headers: dict[str, str]) -> dict[str, Any]:
+    def _get_json(
+        self,
+        url: str,
+        headers: dict[str, str],
+        *,
+        policy: HttpsHostPolicy = API_URL_POLICY,
+    ) -> dict[str, Any]:
         host = (urlparse(url).hostname or "").lower()
-        if urlparse(url).scheme != "https" or host not in (ALLOWED_HOSTS | API_HOSTS):
+        if not policy.allows(url):
             raise VideoResolveError("VIDEO_HOST_BLOCKED", "外部访问目标不在许可范围")
         try:
             ip = ipaddress.ip_address(host)
@@ -152,18 +168,33 @@ class BilibiliResolver:
                 raise VideoResolveError("VIDEO_SSRF_BLOCKED", "禁止访问本地或私有地址")
         except ValueError:
             pass
-        with httpx.Client(timeout=self.timeout, follow_redirects=False, proxy=self.proxy_url) as client:
-            response = client.get(url, headers=headers)
-            response.raise_for_status()
-            return response.json()
+        try:
+            with httpx.Client(timeout=self.timeout, follow_redirects=False, proxy=self.proxy_url) as client:
+                response = client.get(url, headers=headers)
+                response.raise_for_status()
+                return response.json()
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code in {401, 403, 412}:
+                raise VideoResolveError(
+                    "VIDEO_LOGIN_REQUIRED", "Bilibili 登录已失效或访问被平台拦截，请重新扫码登录"
+                ) from exc
+            raise VideoResolveError("VIDEO_NETWORK_FAILED", "Bilibili 接口请求失败") from exc
+        except (httpx.HTTPError, ValueError) as exc:
+            raise VideoResolveError("VIDEO_NETWORK_FAILED", "Bilibili 接口请求失败") from exc
 
     def _fetch_subtitles(self, bvid: str, cid: str, headers: dict[str, str]) -> list[SubtitleTrack]:
         try:
             data = self._get_json(
                 "https://api.bilibili.com/x/player/v2?" + urlencode({"bvid": bvid, "cid": cid}), headers
             )
-        except (httpx.HTTPError, VideoResolveError):
+        except VideoResolveError as exc:
+            if exc.code == "VIDEO_LOGIN_REQUIRED":
+                raise
             return []
+        if data.get("code") in {-101, -352, -412}:
+            raise VideoResolveError(
+                "VIDEO_LOGIN_REQUIRED", "Bilibili 登录已失效，请重新扫码登录"
+            )
         subtitles = ((data.get("data") or {}).get("subtitle") or {}).get("subtitles") or []
         tracks: list[SubtitleTrack] = []
         for item in subtitles:
@@ -173,9 +204,30 @@ class BilibiliResolver:
             if not url.startswith("https://"):
                 continue
             tracks.append(SubtitleTrack(url, str(item.get("lan") or ""), str(item.get("lan_doc") or "")))
-        return sorted(
-            tracks, key=lambda track: (0 if track.language.lower().startswith("zh") else 1, track.language)
-        )
+        return sorted(tracks, key=_subtitle_priority)
+
+
+def _subtitle_priority(track: SubtitleTrack) -> tuple[int, str]:
+    language = track.language.lower().replace("_", "-")
+    description = track.language_doc.lower()
+    chinese = "zh" in language.split("-") or "中文" in description or "汉语" in description
+    generated = "ai" in language.split("-") or "自动" in description or "机器" in description
+    return (0 if chinese and not generated else 1 if chinese else 2, language)
+
+
+def first_usable_subtitle(
+    tracks: list[SubtitleTrack],
+    fetch: Callable[[SubtitleTrack], list[dict[str, Any]]],
+) -> tuple[SubtitleTrack | None, list[dict[str, Any]], list[tuple[str, str]]]:
+    failures: list[tuple[str, str]] = []
+    for track in tracks:
+        try:
+            return track, fetch(track), failures
+        except VideoResolveError as exc:
+            if exc.code == "VIDEO_LOGIN_REQUIRED":
+                raise
+            failures.append((track.language, exc.code))
+    return None, [], failures
 
 
 def _https_url(value: object) -> str | None:

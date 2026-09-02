@@ -102,9 +102,14 @@ from zhijian.services.auth import (
     token_hash,
     verify_lan_token,
 )
+from zhijian.services.bilibili_auth import (
+    BilibiliAuthError,
+    poll_bilibili_login,
+    start_bilibili_login,
+)
 from zhijian.services.capture import create_capture_job, safe_upload_path
 from zhijian.services.input_normalizer import normalize_capture_input
-from zhijian.services.job_replay import queue_step_replay, replay_options
+from zhijian.services.job_replay import queue_login_step_skip, queue_step_replay, replay_options
 from zhijian.services.runtime_monitor import read_runtime_metrics_sample
 from zhijian.services.source_retention import prune_source_if_orphan, source_deletion_state
 from zhijian.services.video_support import (
@@ -725,6 +730,19 @@ def retry_from_step(
     return {"status": job.status, "retry_count": job.retry_count, **options}
 
 
+@router.post("/api/jobs/{job_id}/skip-login-step")
+def skip_login_step(job_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
+    job = db.get(Job, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    try:
+        options = queue_login_step_skip(db, job)
+    except ValueError as exc:
+        code, _, message = str(exc).partition(":")
+        raise HTTPException(status_code=409, detail={"code": code, "message": message}) from exc
+    return {"status": job.status, "retry_count": job.retry_count, **options}
+
+
 @router.post("/api/jobs/{job_id}/retry-full")
 def retry_full(job_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
     job = db.get(Job, job_id)
@@ -1075,6 +1093,85 @@ def save_general_settings(payload: GeneralConfig, _: Protected, db: Session = De
         setting.value_json = payload.model_dump()
     record_event(db, "settings.general.updated", "通用设置已保存")
     return payload.model_dump()
+
+
+@router.get("/api/settings/bilibili")
+def read_bilibili_settings(
+    _: Protected,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+    store: SecretStore = Depends(get_secret_store),
+) -> dict:
+    account = db.get(Setting, "bilibili:login")
+    value = account.value_json if account else {}
+    return {
+        "cookie_saved": bool(store.get(settings.video_cookie_secret_key)),
+        "account_name": value.get("account_name"),
+        "verified_at": value.get("verified_at"),
+    }
+
+
+@router.post("/api/settings/bilibili/login")
+def create_bilibili_login(
+    _: Protected,
+    settings: Settings = Depends(get_settings),
+) -> dict:
+    try:
+        return start_bilibili_login(
+            timeout=settings.video_network_timeout_seconds,
+            proxy_url=settings.video_proxy_url,
+        )
+    except BilibiliAuthError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@router.get("/api/settings/bilibili/login/{session_id}")
+def read_bilibili_login(
+    session_id: str,
+    _: Protected,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+    store: SecretStore = Depends(get_secret_store),
+) -> dict:
+    try:
+        result = poll_bilibili_login(
+            session_id,
+            timeout=settings.video_network_timeout_seconds,
+            proxy_url=settings.video_proxy_url,
+        )
+    except BilibiliAuthError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    if result.status != "SUCCESS" or not result.cookie:
+        return {"status": result.status, "message": result.message}
+    store.set(settings.video_cookie_secret_key, result.cookie)
+    verified_at = utc_now().isoformat()
+    account = db.get(Setting, "bilibili:login")
+    value = {
+        "account_name": result.account_name,
+        "account_id": result.account_id,
+        "verified_at": verified_at,
+    }
+    if account is None:
+        db.add(Setting(key="bilibili:login", value_json=value))
+    else:
+        account.value_json = value
+    record_event(
+        db,
+        "settings.bilibili.updated",
+        "Bilibili 扫码登录已完成，登录凭证已安全更新",
+        entity_type="settings",
+        entity_id="bilibili",
+        detail={"account_id": result.account_id},
+        commit=False,
+    )
+    db.commit()
+    return {
+        "status": "SUCCESS",
+        "message": result.message,
+        "cookie_saved": True,
+        "account_name": result.account_name,
+        "verified_at": verified_at,
+    }
 
 
 @router.get("/api/settings/amap")

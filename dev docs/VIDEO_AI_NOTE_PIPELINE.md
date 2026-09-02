@@ -288,7 +288,11 @@ BV ID + p
 → Transcript Segment
 ```
 
-AI 字幕可能要求有效 `SESSDATA`。Cookie 存平台 Secret Store 或受保护浏览器 Profile，不写数据库明文、不写普通日志。字幕获取失败不是整个任务失败，只要仍可合法下载音频就进入 fallback。
+AI 字幕可能要求有效 `SESSDATA`。用户在设置页或任务恢复卡内使用 Bilibili App 扫描站内二维码；后端通过 Passport API 轮询登录结果，以 `/x/web-interface/nav` 验证账号后只将 Cookie 写入 Secret Store/Keychain，不提供开发者工具复制粘贴入口，也不在 API、SQLite 或日志中回显凭据。
+
+平台返回的 `subtitle_url` 必须经过用途级 HTTPS Host Policy：平台 API 使用精确域名，字幕和封面 CDN 使用各自受控的官方子域后缀；后缀匹配必须以完整 DNS 标签为边界，拒绝 HTTP、userinfo、非标准端口、`evilhdslb.com` 和 `hdslb.com.evil.example` 等绕过。新增平台资源类型时扩展对应策略，不在下载函数中散落一次性 hostname 判断。
+
+字幕选择按人工中文、AI 中文（包括 `ai-zh` 等平台变体）、其他语言排序。单条字幕发生 CDN、网络、空内容或格式错误时尝试下一轨；全部不可用时进入音频下载与 ASR fallback。只有明确的登录失效继续进入 `NEEDS_USER`，不得把普通单轨失败升级成整个任务失败。
 
 ## 4.5 DOWNLOAD_AUDIO
 
@@ -301,6 +305,8 @@ AI 字幕可能要求有效 `SESSDATA`。Cookie 存平台 Secret Store 或受保
 - 校验实际 MIME、容器和 FFprobe 元数据；
 - 保存内容哈希、字节数和缓存过期时间；
 - 需要 Cookie、验证码、会员或其他权限时进入 `NEEDS_USER`，不绕过限制。
+
+`VIDEO_LOGIN_REQUIRED` 必须停止当前及后续步骤、释放 Worker lease，并在任务页展示站内扫码登录。登录成功后，音频下载可从 `DOWNLOAD_AUDIO` 继续；截图下载可从原步骤继续，或由用户明确选择跳过非核心截图。核心音频/Transcript 步骤不可伪跳过。
 
 错误码至少包括：
 
@@ -809,6 +815,7 @@ Marker 是 Place 的地图投影，不维护第二套地点详情数据。`marke
 - 发送给 DeepSeek 的默认内容是视频元数据、字幕 Segment 和普通旅行信息，不发送招聘 Profile；
 - 外部调用审计记录 Provider、Model、输入 Segment ID、字节/Token估计、时间、状态和错误码，不记录 API Key；
 - 所有远程 URL 必须经过 SSRF 防护和平台 allowlist；
+- URL allowlist 使用可复用、用途级的 HTTPS Host Policy；仅允许明确平台域名或完整 DNS 标签边界的官方 CDN 后缀，不使用任意 URL、字符串包含或无边界后缀匹配；
 - 下载遵守平台条款与用户合法访问权限；
 - 临时媒体不进入普通备份和导出；
 - AI 输出必须在 UI 标明模型生成及可能存在错误。

@@ -5,7 +5,9 @@ from typing import Any
 
 
 class MediaDownloadError(RuntimeError):
-    pass
+    def __init__(self, message: str, *, code: str = "VIDEO_MEDIA_UNAVAILABLE") -> None:
+        self.code = code
+        super().__init__(message)
 
 
 class YtDlpMediaProvider:
@@ -61,7 +63,22 @@ class YtDlpMediaProvider:
                 requested = info.get("requested_downloads") or []
                 path = Path(requested[0].get("filepath")) if requested else Path(ydl.prepare_filename(info))
         except Exception as exc:
-            raise MediaDownloadError(f"媒体提取失败：{str(exc)[:300]}") from exc
+            message = str(exc)[:300]
+            login_markers = (
+                "http error 401",
+                "http error 403",
+                "http error 412",
+                "login required",
+                "sign in",
+                "cookies are needed",
+                "fresh cookies",
+            )
+            code = (
+                "VIDEO_LOGIN_REQUIRED"
+                if any(marker in message.lower() for marker in login_markers)
+                else "VIDEO_MEDIA_UNAVAILABLE"
+            )
+            raise MediaDownloadError(f"媒体提取失败：{message}", code=code) from exc
         if not path.is_file() or path.stat().st_size > self.max_bytes:
             path.unlink(missing_ok=True)
             raise MediaDownloadError("媒体文件不存在或超过安全大小限制")

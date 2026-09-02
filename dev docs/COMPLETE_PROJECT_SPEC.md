@@ -458,6 +458,7 @@ git diff --check
 | 步骤续跑 | ERROR/CRITICAL 事件先查询 Replay Options；Artifact 有效时从失败步骤继续，上游 REUSED、当前/下游顺次执行；过期后只允许完整重跑；日志页不直接改步骤 | `PIPELINE_STEP_REPLAY_V044_SPEC.md`、`LOGGING_ARCHITECTURE.md`、ADR-026 |
 | 内容保留 | 终态任务和内容可删除；删除不破坏共享来源、地点、路线或证据；密钥只进 Keychain/Secret Store | `MODEL_AND_RETENTION_UI_SPEC.md`、`SECURITY_PRIVACY.md` |
 | 视频 v0.3 | Bilibili 元数据/字幕优先/受控音频/Whisper 转写；AI 笔记、章节、时间码、地点候选、POI、Place Note 和失败/部分成功均为真实数据 | `VIDEO_AI_NOTE_PIPELINE.md` 1–4.11 |
+| Bilibili 登录与字幕 | 登录只走站内二维码与 Keychain；登录失效必须进入 `NEEDS_USER` 并提供可用的续跑/非核心跳过选择；字幕 CDN 使用用途级 HTTPS Host Policy，安全支持官方子域；人工中文、AI 中文、其他语言依次尝试，单轨失败不得击穿整个 Job | `VIDEO_AI_NOTE_PIPELINE.md` 4.4–4.5、`core/url_policy.py`、`services/bilibili_auth.py` |
 | 视频 v0.4 截图 | 笔记先综合元数据与 Transcript；`PLAN_SCREENSHOTS → DOWNLOAD_VIDEO_FOR_FRAMES → EXTRACT_SCREENSHOTS → MATERIALIZE` 为显式步骤；3–12 张全文截图、主要地点优先，绑定章节/地点候选/Segment/时间码；过滤黑帧、曝光异常、低清晰度和重复帧 | `VIDEO_AI_NOTE_PIPELINE.md` 4.12–4.15、`services/video_screenshots.py` |
 | 视频 v0.4.2 阅读返工 | Hero 有真实封面、缺省为空；摘要/主体目录/正文优先，地点候选与完整转写放底部；默认使用 AI corrected Transcript；截图以侧排缩略图嵌入并支持 contain Lightbox；TXT 按钮使用统一视觉 | `VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md` |
 | 视频 v0.4.3 列表封面 | 主按钮为“添加视频链接”并使用统一 40px/14px Token；Card 展示本地持久真实封面、16:9 cover 和时长徽标；封面失败只显示占位，不阻塞 Note | `VIDEO_NOTE_LIST_V043_SPEC.md` |
@@ -740,6 +741,14 @@ git diff --check
 - `LocalAIResourceManager` 在单进程内串行化本机 ASR、文本和未来视觉模型重任务，避免 API 模型测试与 Worker 争用统一内存；当前 Worker 单租约设计仍是跨 Job 的第一层门禁，Ollama 保持 `keep_alive: 0`。
 - 新增 `scripts/benchmark_ai_profiles.py`：只汇总既有 JSON Benchmark 样本的 schema、Evidence、延迟、local/remote Token 与升级率，不下载模型、不调用 Provider。
 - 全量验证为后端 pytest 74 项、Ruff；前端 ESLint、Vitest 10 项、TypeScript 与 Vite build；Benchmark 示例仅使用临时本地 JSON，未触发真实模型、视频任务、生产迁移或重启。
+
+## 2026-09-02 Bilibili 扫码登录与字幕恢复
+
+- 设置 → 网页解析与任务登录恢复卡共用站内二维码登录；后端通过 Bilibili Passport 生成/轮询二维码，成功后调用 `/x/web-interface/nav` 验证账号并只将 Cookie 写入 Secret Store/Keychain，API、SQLite 与日志不回显凭据。真实扫码、账号验证和 Keychain 保存已通过。
+- Bilibili `401/403/412`、登录相关平台码和 yt-dlp 登录提示统一映射为 `VIDEO_LOGIN_REQUIRED → NEEDS_USER`，立即停止后续步骤并释放 Worker；登录后可从 `DOWNLOAD_AUDIO` 或截图下载步骤继续，非核心截图也可由用户明确选择跳过。
+- 新增可复用的 HTTPS Host Policy，按用途组合精确域名与安全子域后缀；字幕允许官方 `*.hdslb.com` CDN，同时拒绝 HTTP、非标准端口、userinfo、相似后缀和后缀拼接绕过。封面与字幕不再各自维护易漂移的域名判断。
+- 字幕轨按人工中文、AI 中文（含 `ai-zh`）、其他语言排序；单轨 CDN/网络/格式失败会继续尝试下一轨，全部不可用才回退音频 ASR，只有登录失效继续阻塞用户。现场 Job `job_7e390b26346a4bb085965aa5149d2ec2` 暴露的 `VIDEO_HOST_BLOCKED` 根因已修复，但未自动重跑。
+- 自动验证为后端 pytest 88 项、Ruff、Alembic `0010 (head)`，前端 Vitest 12 项、ESLint、TypeScript 与 Vite build；API/Worker 已在无活跃 Job 时重启，`/health`、首页正文与 Worker 心跳通过。
 
 
 ---
@@ -3951,7 +3960,11 @@ BV ID + p
 → Transcript Segment
 ```
 
-AI 字幕可能要求有效 `SESSDATA`。Cookie 存平台 Secret Store 或受保护浏览器 Profile，不写数据库明文、不写普通日志。字幕获取失败不是整个任务失败，只要仍可合法下载音频就进入 fallback。
+AI 字幕可能要求有效 `SESSDATA`。用户在设置页或任务恢复卡内使用 Bilibili App 扫描站内二维码；后端通过 Passport API 轮询登录结果，以 `/x/web-interface/nav` 验证账号后只将 Cookie 写入 Secret Store/Keychain，不提供开发者工具复制粘贴入口，也不在 API、SQLite 或日志中回显凭据。
+
+平台返回的 `subtitle_url` 必须经过用途级 HTTPS Host Policy：平台 API 使用精确域名，字幕和封面 CDN 使用各自受控的官方子域后缀；后缀匹配必须以完整 DNS 标签为边界，拒绝 HTTP、userinfo、非标准端口、`evilhdslb.com` 和 `hdslb.com.evil.example` 等绕过。新增平台资源类型时扩展对应策略，不在下载函数中散落一次性 hostname 判断。
+
+字幕选择按人工中文、AI 中文（包括 `ai-zh` 等平台变体）、其他语言排序。单条字幕发生 CDN、网络、空内容或格式错误时尝试下一轨；全部不可用时进入音频下载与 ASR fallback。只有明确的登录失效继续进入 `NEEDS_USER`，不得把普通单轨失败升级成整个任务失败。
 
 ## 4.5 DOWNLOAD_AUDIO
 
@@ -3964,6 +3977,8 @@ AI 字幕可能要求有效 `SESSDATA`。Cookie 存平台 Secret Store 或受保
 - 校验实际 MIME、容器和 FFprobe 元数据；
 - 保存内容哈希、字节数和缓存过期时间；
 - 需要 Cookie、验证码、会员或其他权限时进入 `NEEDS_USER`，不绕过限制。
+
+`VIDEO_LOGIN_REQUIRED` 必须停止当前及后续步骤、释放 Worker lease，并在任务页展示站内扫码登录。登录成功后，音频下载可从 `DOWNLOAD_AUDIO` 继续；截图下载可从原步骤继续，或由用户明确选择跳过非核心截图。核心音频/Transcript 步骤不可伪跳过。
 
 错误码至少包括：
 
@@ -4472,6 +4487,7 @@ Marker 是 Place 的地图投影，不维护第二套地点详情数据。`marke
 - 发送给 DeepSeek 的默认内容是视频元数据、字幕 Segment 和普通旅行信息，不发送招聘 Profile；
 - 外部调用审计记录 Provider、Model、输入 Segment ID、字节/Token估计、时间、状态和错误码，不记录 API Key；
 - 所有远程 URL 必须经过 SSRF 防护和平台 allowlist；
+- URL allowlist 使用可复用、用途级的 HTTPS Host Policy；仅允许明确平台域名或完整 DNS 标签边界的官方 CDN 后缀，不使用任意 URL、字符串包含或无边界后缀匹配；
 - 下载遵守平台条款与用户合法访问权限；
 - 临时媒体不进入普通备份和导出；
 - AI 输出必须在 UI 标明模型生成及可能存在错误。

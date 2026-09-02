@@ -13,6 +13,13 @@
 - `install/restart` 已增加 launchd 标签卸载等待门禁，避免 `bootout` 后立即 `bootstrap` 的退出码 5 竞态；已有目标测试。
 - Keychain 服务可访问；未在日志、数据库或文档中输出 Secret。
 
+### Bilibili 登录与字幕现场（2026-09-02）
+
+- 站内二维码登录已完成真实扫码、账号 `/nav` 验证和 Keychain 保存；系统未输出 Cookie 明文。
+- `VIDEO_HOST_BLOCKED` 现场失败定位为平台字幕 CDN 未进入用途级 allowlist；现已用共享 HTTPS Host Policy 支持官方 `*.hdslb.com`，并保留欺骗性域名、非 HTTPS 和非标准端口拒绝。
+- 字幕按人工中文、AI 中文、其他语言依次尝试；单轨错误继续下一轨，全部失败回退音频。登录失效仍进入 `NEEDS_USER`，不得静默降级。
+- 修复已加载到 API/Worker，自动回归通过；原失败 Job 未自动重跑，需由用户决定完整重跑。
+
 快速确认现场只需要：
 
 ```bash

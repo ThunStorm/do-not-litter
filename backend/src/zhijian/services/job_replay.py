@@ -30,6 +30,7 @@ VIDEO_STEP_ORDER = (
     "CLEAN_CACHE",
 )
 REPLAYABLE_START_INDEX = VIDEO_STEP_ORDER.index("CORRECT_TRANSCRIPT")
+LOGIN_SKIPPABLE_STEPS = {"DOWNLOAD_VIDEO_FOR_FRAMES"}
 PROMPT_ROLE_BY_STEP = {
     "CORRECT_TRANSCRIPT": "transcript_correction",
     "GENERATE_AI_NOTE": "video_note_summary",
@@ -77,7 +78,10 @@ def replay_options(db: Session, job: Job) -> dict:
     if job.lease_owner:
         return _unavailable(job, "REPLAY_LEASE_ACTIVE", "当前执行 lease 尚未释放")
     index = VIDEO_STEP_ORDER.index(failed.step_name)
-    if index < REPLAYABLE_START_INDEX:
+    login_audio_resume = (
+        job.error_code == "VIDEO_LOGIN_REQUIRED" and failed.step_name == "DOWNLOAD_AUDIO"
+    )
+    if index < REPLAYABLE_START_INDEX and not login_audio_resume:
         return _unavailable(
             job, "REPLAY_ARTIFACT_MISSING", "当前版本仅支持从转写校对及后续阶段续跑"
         )
@@ -140,6 +144,7 @@ def replay_options(db: Session, job: Job) -> dict:
         "reason": None,
         "code": None,
         "prompt_changed_steps": prompt_changed_steps,
+        **_login_recovery_options(job, failed.step_name),
         **full_replay_options(job),
     }
 
@@ -214,6 +219,32 @@ def queue_step_replay(
     return options
 
 
+def queue_login_step_skip(db: Session, job: Job) -> dict:
+    options = replay_options(db, job)
+    if not options.get("login_required"):
+        raise ValueError("LOGIN_SKIP_NOT_REQUIRED:当前任务不是登录失效阻塞")
+    if not options.get("skip_step_available") or not options.get("replay_from_step"):
+        raise ValueError(
+            f'LOGIN_SKIP_UNAVAILABLE:{options.get("skip_step_reason") or "当前步骤不能跳过"}'
+        )
+    step_name = str(options["replay_from_step"])
+    queue_step_replay(db, job, step_name)
+    job.payload_json = {**job.payload_json, "skip_login_step": step_name}
+    record_event(
+        db,
+        "job.login_step_skip.queued",
+        f"用户选择跳过 {step_name} 并继续处理",
+        component="api",
+        actor="user",
+        entity_type="job",
+        entity_id=job.id,
+        detail={"step": step_name},
+        commit=False,
+    )
+    db.commit()
+    return options
+
+
 def _unavailable(job: Job, code: str, reason: str) -> dict:
     return {
         "step_replay_available": False,
@@ -224,5 +255,24 @@ def _unavailable(job: Job, code: str, reason: str) -> dict:
         "rerun_steps": [],
         "reason": reason,
         "code": code,
+        **_login_recovery_options(job, job.current_step),
         **full_replay_options(job),
+    }
+
+
+def _login_recovery_options(job: Job, step_name: str) -> dict:
+    login_required = (
+        job.status == JobStatus.NEEDS_USER.value and job.error_code == "VIDEO_LOGIN_REQUIRED"
+    )
+    skip_available = login_required and step_name in LOGIN_SKIPPABLE_STEPS
+    return {
+        "login_required": login_required,
+        "skip_step_available": skip_available,
+        "skip_step_reason": (
+            None
+            if skip_available
+            else "该步骤是生成正文所必需的，登录后重试才能继续"
+            if login_required
+            else None
+        ),
     }

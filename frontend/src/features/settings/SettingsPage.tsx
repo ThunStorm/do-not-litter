@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom'
 import { PageHeader } from '../../components/AppShell'
 import { api } from '../../lib/api'
 import type { AIStagePolicy, DomainPackView, ModelProfileView, ModelRoutingView, PromptSupplementsView, TranscriptProcessingView } from '../../lib/types'
+import { BilibiliLoginPanel } from './BilibiliLoginPanel'
 import { applyProviderPreset, providerPreset, providerPresets, type ManualModelFields, type ModelFormValues } from './providerPresets'
 
 type Tab = 'general' | 'lan' | 'models' | 'runtime' | 'browser' | 'map'
@@ -87,7 +88,10 @@ function RuntimePanel() {
   return <><PanelTitle title="语音、视频与 OCR" detail="以下状态来自当前 Mac mini 的真实二进制、模型文件和服务连通检测。" /><section className="runtime-list">{status.data?.runtime_checks.map((check) => <div className="runtime-row" key={check.name}><span className={`runtime-dot runtime-dot--${check.status.toLowerCase()}`} /><div><strong>{check.name}</strong><small>{check.detail}</small>{check.path && <code>{check.path}</code>}</div><em>{runtimeLabel(check.status)}</em></div>)}</section><p className="settings-note">音视频上传会先由 FFmpeg 提取 16 kHz 单声道音频，再交给本机 Whisper.cpp；图片由 macOS Vision OCR 处理。</p></>
 }
 
-function BrowserPanel() { return <><PanelTitle title="网页解析" detail="链接解析器保留原始来源，无法可靠读取时会明确进入需确认状态。" /><section className="settings-facts"><div><span>普通网页</span><strong>HTTP 抓取</strong><small>保留 URL、响应内容与哈希</small></div><div><span>微信文章</span><strong>按页面可访问性处理</strong><small>支持正文与文内链接继续投递</small></div><div><span>Bilibili</span><strong>媒体转写链路</strong><small>上传媒体可直接经 Whisper.cpp 转写</small></div></section><Link className="settings-link" to="/sources"><FileSearch />查看真实来源与快照 <ExternalLink /></Link></> }
+export function BrowserPanel() {
+  const settings = useQuery({ queryKey: ['bilibili-settings'], queryFn: api.bilibiliSettings })
+  return <><PanelTitle title="网页解析" detail="链接解析器保留原始来源，访问受限时会暂停任务并提供登录恢复入口。" /><section className="settings-facts"><div><span>普通网页</span><strong>HTTP 抓取</strong><small>保留 URL、响应内容与哈希</small></div><div><span>微信文章</span><strong>按页面可访问性处理</strong><small>支持正文与文内链接继续投递</small></div><div><span>Bilibili</span><strong>{settings.data?.cookie_saved ? settings.data.account_name ? `已连接 ${settings.data.account_name}` : '登录凭证已保存' : '扫码登录后处理受限媒体'}</strong><small>字幕、音频和截图链路共用本机 Keychain 凭证</small></div></section><BilibiliLoginPanel /><Link className="settings-link" to="/sources"><FileSearch />查看真实来源与快照 <ExternalLink /></Link></>
+}
 function MapPanel() {
   const client = useQueryClient()
   const settings = useQuery({ queryKey: ['amap-settings'], queryFn: api.amapSettings })

@@ -209,3 +209,11 @@
 - `LocalAIResourceManager` 在单进程内串行化本机 ASR、文本和未来视觉模型重任务，避免 API 模型测试与 Worker 争用统一内存；当前 Worker 单租约设计仍是跨 Job 的第一层门禁，Ollama 保持 `keep_alive: 0`。
 - 新增 `scripts/benchmark_ai_profiles.py`：只汇总既有 JSON Benchmark 样本的 schema、Evidence、延迟、local/remote Token 与升级率，不下载模型、不调用 Provider。
 - 全量验证为后端 pytest 74 项、Ruff；前端 ESLint、Vitest 10 项、TypeScript 与 Vite build；Benchmark 示例仅使用临时本地 JSON，未触发真实模型、视频任务、生产迁移或重启。
+
+## 2026-09-02 Bilibili 扫码登录与字幕恢复
+
+- 设置 → 网页解析与任务登录恢复卡共用站内二维码登录；后端通过 Bilibili Passport 生成/轮询二维码，成功后调用 `/x/web-interface/nav` 验证账号并只将 Cookie 写入 Secret Store/Keychain，API、SQLite 与日志不回显凭据。真实扫码、账号验证和 Keychain 保存已通过。
+- Bilibili `401/403/412`、登录相关平台码和 yt-dlp 登录提示统一映射为 `VIDEO_LOGIN_REQUIRED → NEEDS_USER`，立即停止后续步骤并释放 Worker；登录后可从 `DOWNLOAD_AUDIO` 或截图下载步骤继续，非核心截图也可由用户明确选择跳过。
+- 新增可复用的 HTTPS Host Policy，按用途组合精确域名与安全子域后缀；字幕允许官方 `*.hdslb.com` CDN，同时拒绝 HTTP、非标准端口、userinfo、相似后缀和后缀拼接绕过。封面与字幕不再各自维护易漂移的域名判断。
+- 字幕轨按人工中文、AI 中文（含 `ai-zh`）、其他语言排序；单轨 CDN/网络/格式失败会继续尝试下一轨，全部不可用才回退音频 ASR，只有登录失效继续阻塞用户。现场 Job `job_7e390b26346a4bb085965aa5149d2ec2` 暴露的 `VIDEO_HOST_BLOCKED` 根因已修复，但未自动重跑。
+- 自动验证为后端 pytest 88 项、Ruff、Alembic `0010 (head)`，前端 Vitest 12 项、ESLint、TypeScript 与 Vite build；API/Worker 已在无活跃 Job 时重启，`/health`、首页正文与 Worker 心跳通过。

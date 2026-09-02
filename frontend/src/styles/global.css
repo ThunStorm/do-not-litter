@@ -427,6 +427,32 @@ svg { flex: 0 0 auto; }
 .settings-link { display: flex; align-items: center; gap: 9px; margin-top: 16px; color: var(--accent); }
 .settings-link svg { width: 16px; }
 .settings-map-link { margin-top: 16px; padding: 0 18px; }
+.bilibili-login-card { margin-top: 14px; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+.bilibili-login-card__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; border-bottom: 1px solid var(--line-soft); }
+.bilibili-login-card__header > div { display: flex; align-items: center; gap: 11px; }
+.bilibili-login-card__header h3 { margin: 0 0 3px; font: 600 16px var(--serif); }
+.bilibili-login-card__header small { color: var(--muted); font-size: 10px; }
+.bilibili-login-card__header .button { gap: 6px; min-height: 34px; padding: 0 12px; }
+.bilibili-login-card__header .button svg { width: 15px; }
+.bilibili-login-dot { width: 8px; height: 8px; border-radius: 50%; background: #b9b2a8; box-shadow: 0 0 0 4px #f0ece6; }
+.bilibili-login-dot.is-ready { background: var(--green); box-shadow: 0 0 0 4px #edf3e9; }
+.bilibili-login-intro { display: flex; align-items: center; gap: 12px; padding: 17px 18px; color: var(--muted); }
+.bilibili-login-intro svg { flex: 0 0 auto; width: 20px; color: var(--green); }
+.bilibili-login-intro p { margin: 0; font-size: 11px; line-height: 1.75; }
+.bilibili-qr-stage { display: grid; grid-template-columns: 208px 1fr; align-items: center; gap: 24px; padding: 20px 22px 22px; background: #faf8f4; }
+.bilibili-qr-stage > div:last-child { display: grid; gap: 8px; }
+.bilibili-qr-stage strong { font: 600 18px var(--serif); }
+.bilibili-qr-stage p { max-width: 340px; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.7; }
+.bilibili-qr-stage .button { justify-self: start; gap: 6px; margin-top: 4px; }
+.bilibili-qr-frame { position: relative; display: grid; width: 208px; height: 208px; padding: 16px; place-items: center; border: 1px solid var(--line); border-radius: 7px; background: #fffdf9; box-shadow: 0 8px 22px rgb(54 45 35 / 7%); }
+.bilibili-qr-frame svg { width: 176px; height: 176px; }
+.bilibili-qr-frame.is-expired svg { opacity: .14; filter: grayscale(1); }
+.bilibili-qr-frame > span { position: absolute; padding: 6px 10px; border-radius: 4px; background: var(--ink); color: white; font-size: 11px; }
+.bilibili-login-success { display: flex; align-items: center; gap: 12px; padding: 18px; background: #f2f6ed; color: var(--green); }
+.bilibili-login-success svg { width: 22px; }
+.bilibili-login-success div { display: grid; gap: 3px; }
+.bilibili-login-success span { color: var(--muted); font-size: 10px; }
+.bilibili-login-card > .form-error { margin: 12px 18px 16px; }
 
 .page-lead { margin: -13px 0 22px; color: var(--muted); }
 .visually-hidden { position: absolute !important; width: 1px !important; height: 1px !important; overflow: hidden !important; clip: rect(0 0 0 0) !important; clip-path: inset(50%) !important; white-space: nowrap !important; }
@@ -607,6 +633,13 @@ svg { flex: 0 0 auto; }
   .field-grid--three { grid-template-columns: 1fr; }
   .field-grid__wide { grid-column: auto; }
   .settings-facts > div { grid-template-columns: 1fr auto; padding: 10px 14px; }.settings-facts small { grid-column: 1 / -1; }.lan-settings-card { padding: 22px 14px; }.lan-settings-card output { font-size: 38px; }.lan-settings-card > div { flex-direction: column; }
+  .bilibili-login-card__header { align-items: flex-start; }
+  .bilibili-login-card__header > div { min-width: 0; }
+  .bilibili-login-card__header small { display: block; overflow: hidden; max-width: 170px; text-overflow: ellipsis; white-space: nowrap; }
+  .bilibili-qr-stage { grid-template-columns: 1fr; justify-items: center; gap: 16px; padding: 18px 14px 20px; text-align: center; }
+  .bilibili-qr-stage > div:last-child { justify-items: center; }
+  .bilibili-qr-stage p { max-width: 290px; }
+  .bilibili-qr-stage .button { justify-self: center; }
   .capture-options { grid-template-columns: 1fr; }
   .capture-options button { min-height: 70px; }
   .task-table__row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin: 0 12px; }.task-table__item .task-table__row { margin-right: 52px; }.task-table__item .history-delete { right: 7px; }.task-table__row em { grid-column: 2; grid-row: 1 / 3; }.task-table__progress { display: block; grid-column: 1; }.task-table__identity span { max-width: 100%; }
@@ -689,6 +722,15 @@ svg { flex: 0 0 auto; }
 .task-replay-card > div { display: grid; gap: 5px; }
 .task-replay-card span { color: var(--muted); font-size: 12px; line-height: 1.5; }
 .task-replay-card--expired { border-color: var(--line); background: #f6f3ed; }
+.task-login-recovery { margin-top: 14px; overflow: hidden; border: 1px solid #d6b38b; border-radius: 8px; background: #fbf8f1; }
+.task-login-recovery__intro { display: grid; gap: 5px; padding: 16px 18px; border-bottom: 1px solid #eadcc8; }
+.task-login-recovery__intro strong { color: #8b5f1b; font: 600 17px var(--serif); }
+.task-login-recovery__intro span { color: var(--muted); font-size: 11px; line-height: 1.6; }
+.task-login-recovery .bilibili-login-card { margin: 14px 16px 0; border-color: #e0d4c3; }
+.task-login-recovery__actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 14px 16px 16px; }
+.task-login-recovery__actions small { margin-right: auto; color: var(--muted); font-size: 10px; }
+.task-login-recovery__actions .button { gap: 6px; }
+.task-login-recovery__actions svg { width: 15px; }
 .task-action-error { margin: 12px 32px 0; text-align: right; }
 
 @media (max-width: 720px) {
@@ -708,4 +750,8 @@ svg { flex: 0 0 auto; }
   .video-evidence-grid { grid-template-columns: 1fr; }
   .video-quality-notice { align-items: stretch; flex-direction: column; }
   .task-replay-card { align-items: stretch; flex-direction: column; }
+  .task-login-recovery .bilibili-login-card { margin: 12px 10px 0; }
+  .task-login-recovery__actions { align-items: stretch; flex-direction: column-reverse; }
+  .task-login-recovery__actions .button { justify-content: center; }
+  .task-login-recovery__actions small { margin: 0; text-align: center; }
 }

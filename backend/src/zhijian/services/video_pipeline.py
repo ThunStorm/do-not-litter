@@ -32,7 +32,11 @@ from zhijian.domain.enums import ContentType, JobStatus
 from zhijian.providers.asr import WhisperCppProvider
 from zhijian.providers.media import MediaDownloadError, YtDlpMediaProvider
 from zhijian.resolvers.video import BilibiliResolver
-from zhijian.resolvers.video.bilibili import VideoResolveError
+from zhijian.resolvers.video.bilibili import (
+    SubtitleTrack,
+    VideoResolveError,
+    first_usable_subtitle,
+)
 from zhijian.services.audit import record_event
 from zhijian.services.external_audit import audited_call
 from zhijian.services.jobs import JobCancelled, ensure_job_active
@@ -209,6 +213,93 @@ def _stage_event(db: Session, job: Job, phase: str, message: str, **detail: Any)
     db.commit()
 
 
+def _download_and_transcribe_audio(
+    db: Session,
+    job: Job,
+    settings: Settings,
+    source: Source,
+    asset: VideoAsset,
+    canonical_url: str,
+    bvid: str,
+    cookie_path: Path | None,
+) -> tuple[Path, Transcript, list[Segment]]:
+    download = _step(
+        db,
+        job,
+        "DOWNLOAD_AUDIO",
+        30,
+        {"url": canonical_url, "max_mb": settings.video_max_media_mb},
+    )
+    _stage_event(
+        db,
+        job,
+        "audio.download.requested",
+        "未找到平台字幕，正在下载音频用于转写",
+        bvid=bvid,
+    )
+    media = YtDlpMediaProvider(
+        settings.cache_dir / "audio",
+        max_bytes=settings.video_max_media_mb * 1024 * 1024,
+        timeout=settings.video_network_timeout_seconds,
+        proxy_url=settings.video_proxy_url,
+    )
+    try:
+        audio_path = audited_call(
+            db,
+            job_id=job.id,
+            capability="VIDEO_MEDIA",
+            provider="yt-dlp",
+            operation="audio-only",
+            request_meta={"bvid": bvid},
+            call=lambda: media.download_audio(canonical_url, cookie_path),
+        )
+    except MediaDownloadError as exc:
+        raise NeedsUser(exc.code, str(exc)) from exc
+    _stage_event(
+        db,
+        job,
+        "audio.download.completed",
+        "音频已下载，准备本地转写",
+        bytes=audio_path.stat().st_size,
+    )
+    _done(
+        db,
+        job,
+        download,
+        45,
+        {"audio_cached": True, "bytes": audio_path.stat().st_size, "cache_path": str(audio_path)},
+    )
+    asr_step = _step(
+        db, job, "ASR", 48, {"audio": audio_path.name, "model": str(settings.whisper_model)}
+    )
+    _stage_event(db, job, "asr.requested", "正在调用本机 Whisper.cpp 转写")
+    try:
+        text, raw_segments = audited_call(
+            db,
+            job_id=job.id,
+            capability="ASR",
+            provider="whisper.cpp",
+            operation="transcribe",
+            request_meta={"audio": audio_path.name},
+            call=lambda: local_ai_resource_manager.run(
+                "ASR",
+                lambda: WhisperCppProvider(
+                    settings.whisper_binary, settings.whisper_model
+                ).transcribe(audio_path),
+            ),
+        )
+    except RuntimeError as exc:
+        raise NeedsUser("ASR_UNAVAILABLE", str(exc)) from exc
+    if not text or not raw_segments:
+        raise NeedsUser("ASR_EMPTY", "本地转写没有产生带时间码的结果")
+    _stage_event(db, job, "asr.completed", "本机转写已完成", segments=len(raw_segments))
+    _done(db, job, asr_step, 62, {"segments": len(raw_segments)})
+    transcript, segments = materialize_transcript(
+        db, source, asset, raw_segments, source_kind="ASR"
+    )
+    return audio_path, transcript, segments
+
+
 def process_video_job(db: Session, job: Job, settings: Settings | None = None) -> None:
     settings = settings or get_settings()
     if job.payload_json.get("replay_from_step"):
@@ -299,15 +390,23 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
         cookie = store.get(settings.video_cookie_secret_key)
         if cookie:
             cookie_path = _temporary_cookie_file(settings, job.id, cookie)
-        resolved = audited_call(
-            db,
-            job_id=job.id,
-            capability="VIDEO_RESOLVE",
-            provider="bilibili",
-            operation="metadata",
-            request_meta={"url_host": "bilibili"},
-            call=lambda: resolver.resolve(raw_url, cookie),
-        )
+        try:
+            resolved = audited_call(
+                db,
+                job_id=job.id,
+                capability="VIDEO_RESOLVE",
+                provider="bilibili",
+                operation="metadata",
+                request_meta={"url_host": "bilibili"},
+                call=lambda: resolver.resolve(raw_url, cookie),
+            )
+        except VideoResolveError as exc:
+            if exc.code == "VIDEO_LOGIN_REQUIRED":
+                raise NeedsUser(
+                    "VIDEO_LOGIN_REQUIRED",
+                    "Bilibili 登录已失效或访问被平台拦截，请扫码登录后继续",
+                ) from exc
+            raise
         _stage_event(
             db,
             job,
@@ -402,31 +501,55 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
         subtitle = _step(
             db, job, "FETCH_SUBTITLE", 25, {"asset": asset.id, "subtitle_tracks": len(resolved.subtitles)}
         )
-        if resolved.subtitles:
+        selected_track = None
+        raw_segments = []
+        subtitle_failures: list[tuple[str, str]] = []
+
+        def fetch_track(track: SubtitleTrack) -> list[dict[str, Any]]:
             _stage_event(
                 db,
                 job,
                 "subtitle.requested",
                 "正在获取平台字幕",
-                language=resolved.subtitles[0].language,
+                language=track.language,
                 available_tracks=len(resolved.subtitles),
             )
-            raw_segments = audited_call(
+            return audited_call(
                 db,
                 job_id=job.id,
                 capability="VIDEO_SUBTITLE",
                 provider="bilibili",
                 operation="subtitle",
-                request_meta={"track": resolved.subtitles[0].language},
-                call=lambda: resolver.fetch_subtitle_segments(resolved.subtitles[0]),
+                request_meta={"track": track.language},
+                call=lambda: resolver.fetch_subtitle_segments(track),
             )
+
+        try:
+            selected_track, raw_segments, subtitle_failures = first_usable_subtitle(
+                resolved.subtitles, fetch_track
+            )
+        except VideoResolveError as exc:
+            if exc.code == "VIDEO_LOGIN_REQUIRED":
+                raise NeedsUser("VIDEO_LOGIN_REQUIRED", str(exc)) from exc
+            raise
+        for language, reason in subtitle_failures:
+            _stage_event(
+                db,
+                job,
+                "subtitle.track.unavailable",
+                "字幕轨不可用，已尝试其他轨道或准备音频回退",
+                language=language,
+                reason=reason,
+            )
+
+        if selected_track:
             transcript, segments = materialize_transcript(
                 db,
                 source,
                 asset,
                 raw_segments,
-                source_kind=resolved.subtitles[0].source,
-                language=resolved.subtitles[0].language or "zh-CN",
+                source_kind=selected_track.source,
+                language=selected_track.language or "zh-CN",
             )
             _stage_event(
                 db,
@@ -440,92 +563,36 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
                 job,
                 subtitle,
                 42,
-                {"source": "subtitle", "segments": len(segments), "transcript_id": transcript.id},
+                {
+                    "source": "subtitle",
+                    "language": selected_track.language,
+                    "segments": len(segments),
+                    "transcript_id": transcript.id,
+                    "failed_tracks": subtitle_failures,
+                },
             )
             skipped = _step(db, job, "DOWNLOAD_AUDIO", 43, {"reason": "subtitle_available"})
             _done(db, job, skipped, 43, {"skipped": True})
             skipped = _step(db, job, "ASR", 44, {"reason": "subtitle_available"})
             _done(db, job, skipped, 44, {"skipped": True})
         else:
-            _done(db, job, subtitle, 28, {"source": "none", "segments": 0})
-            download = _step(
-                db,
-                job,
-                "DOWNLOAD_AUDIO",
-                30,
-                {"url": resolved.canonical_url, "max_mb": settings.video_max_media_mb},
-            )
-            _stage_event(
-                db,
-                job,
-                "audio.download.requested",
-                "未找到平台字幕，正在下载音频用于转写",
-                bvid=resolved.bvid,
-            )
-            media = YtDlpMediaProvider(
-                settings.cache_dir / "audio",
-                max_bytes=settings.video_max_media_mb * 1024 * 1024,
-                timeout=settings.video_network_timeout_seconds,
-                proxy_url=settings.video_proxy_url,
-            )
-            try:
-                audio_path = audited_call(
-                    db,
-                    job_id=job.id,
-                    capability="VIDEO_MEDIA",
-                    provider="yt-dlp",
-                    operation="audio-only",
-                    request_meta={"bvid": resolved.bvid},
-                    call=lambda: media.download_audio(resolved.canonical_url, cookie_path),
-                )
-            except MediaDownloadError as exc:
-                raise NeedsUser("VIDEO_MEDIA_UNAVAILABLE", str(exc)) from exc
-            _stage_event(
-                db,
-                job,
-                "audio.download.completed",
-                "音频已下载，准备本地转写",
-                bytes=audio_path.stat().st_size,
-            )
             _done(
                 db,
                 job,
-                download,
-                45,
-                {"audio_cached": True, "bytes": audio_path.stat().st_size, "cache_path": str(audio_path)},
+                subtitle,
+                28,
+                {"source": "none", "segments": 0, "failed_tracks": subtitle_failures},
             )
-            asr_step = _step(
-                db, job, "ASR", 48, {"audio": audio_path.name, "model": str(settings.whisper_model)}
-            )
-            _stage_event(db, job, "asr.requested", "正在调用本机 Whisper.cpp 转写")
-            try:
-                text, raw_segments = audited_call(
-                    db,
-                    job_id=job.id,
-                    capability="ASR",
-                    provider="whisper.cpp",
-                    operation="transcribe",
-                    request_meta={"audio": audio_path.name},
-                    call=lambda: local_ai_resource_manager.run(
-                        "ASR",
-                        lambda: WhisperCppProvider(
-                            settings.whisper_binary, settings.whisper_model
-                        ).transcribe(audio_path),
-                    ),
-                )
-            except RuntimeError as exc:
-                raise NeedsUser("ASR_UNAVAILABLE", str(exc)) from exc
-            if not text or not raw_segments:
-                raise NeedsUser("ASR_EMPTY", "本地转写没有产生带时间码的结果")
-            _stage_event(
+            audio_path, transcript, segments = _download_and_transcribe_audio(
                 db,
                 job,
-                "asr.completed",
-                "本机转写已完成",
-                segments=len(raw_segments),
+                settings,
+                source,
+                asset,
+                resolved.canonical_url,
+                resolved.bvid,
+                cookie_path,
             )
-            _done(db, job, asr_step, 62, {"segments": len(raw_segments)})
-            transcript, segments = materialize_transcript(db, source, asset, raw_segments, source_kind="ASR")
 
         normalize = _step(
             db, job, "NORMALIZE_TRANSCRIPT", 64, {"transcript_id": transcript.id if transcript else ""}
@@ -656,7 +723,12 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
                     db, job, download_frames, 95,
                     {"cache_path": str(video_for_frames), "bytes": video_for_frames.stat().st_size},
                 )
-            except Exception as exc:
+            except MediaDownloadError as exc:
+                if exc.code == "VIDEO_LOGIN_REQUIRED":
+                    raise NeedsUser(
+                        "VIDEO_LOGIN_REQUIRED",
+                        "Bilibili 登录已失效或访问被平台拦截，请扫码登录后继续或跳过截图",
+                    ) from exc
                 screenshot_error = f"VIDEO_SCREENSHOTS_UNAVAILABLE: {str(exc)[:240]}"
                 _fail_step(db, download_frames, RuntimeError(screenshot_error))
                 _stage_event(
@@ -890,7 +962,7 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
         if snapshot_id
         else []
     )
-    if transcript is None or not segments:
+    if (transcript is None or not segments) and start > VIDEO_STEPS.index("DOWNLOAD_AUDIO"):
         raise NeedsUser("REPLAY_ARTIFACT_MISSING", "完整转写中间产物已不可用")
     job.status = JobStatus.RUNNING.value
     job.started_at = utc_now()
@@ -905,6 +977,26 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
         )
     ) or 0
     try:
+        if start <= VIDEO_STEPS.index("DOWNLOAD_AUDIO"):
+            _, transcript, segments = _download_and_transcribe_audio(
+                db,
+                job,
+                settings,
+                source,
+                asset,
+                asset.canonical_url,
+                asset.bvid or "",
+                cookie_path,
+            )
+            step = _step(
+                db,
+                job,
+                "NORMALIZE_TRANSCRIPT",
+                64,
+                {"transcript_id": transcript.id},
+            )
+            _done(db, job, step, 68, {"segments": len(segments), "source": transcript.source_kind})
+
         if start <= VIDEO_STEPS.index("CORRECT_TRANSCRIPT"):
             step = _step(
                 db,
@@ -996,10 +1088,22 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                 )
             ).all()
         video_path: Path | None = None
+        skip_login_step = str(job.payload_json.get("skip_login_step") or "")
         if start <= VIDEO_STEPS.index("DOWNLOAD_VIDEO_FOR_FRAMES"):
             step = _step(db, job, "DOWNLOAD_VIDEO_FOR_FRAMES", 94, {"planned": len(plans)})
-            if plans:
-                video_path = download_screenshot_video(settings, asset.canonical_url, cookie_path)
+            if skip_login_step == "DOWNLOAD_VIDEO_FOR_FRAMES":
+                screenshot_error = "SCREENSHOTS_SKIPPED_BY_USER: 用户选择跳过登录受限截图"
+                _skip_step(db, job, step, 95, "用户选择跳过登录受限截图")
+            elif plans:
+                try:
+                    video_path = download_screenshot_video(settings, asset.canonical_url, cookie_path)
+                except MediaDownloadError as exc:
+                    if exc.code == "VIDEO_LOGIN_REQUIRED":
+                        raise NeedsUser(
+                            "VIDEO_LOGIN_REQUIRED",
+                            "Bilibili 登录已失效或访问被平台拦截，请扫码登录后继续或跳过截图",
+                        ) from exc
+                    raise
                 _done(db, job, step, 95, {"cache_path": str(video_path)})
             else:
                 _skip_step(db, job, step, 95, "没有可执行的截图计划")
@@ -1067,7 +1171,7 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
         job.payload_json = {
             key: value
             for key, value in job.payload_json.items()
-            if key != "replay_from_step"
+            if key not in {"replay_from_step", "skip_login_step"}
         }
         record_event(
             db,
