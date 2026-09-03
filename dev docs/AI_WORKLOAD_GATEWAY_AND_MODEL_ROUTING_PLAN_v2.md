@@ -1,9 +1,9 @@
 # AI Workload Gateway、本地模型与远程模型统一路由实施方案
 
-> 项目：`ThunStorm/do-not-litter`  
-> 目标分支：`codex/mac-mini-implementation`  
-> 用途：**Codex / Agent 可直接执行的架构与实施交接文档**  
-> 日期：2026-08-28  
+> 项目：`ThunStorm/do-not-litter`
+> 目标分支：`codex/mac-mini-implementation`
+> 用途：**Codex / Agent 可直接执行的架构与实施交接文档**
+> 日期：2026-08-28
 >
 > 本文整合：视频 Pipeline Token 优化、本地 Ollama 模型选择、Qwen2.5:7B / Qwen3:8B 边界、多模态模型约束、每个 AI 阶段可选远程模型、专业领域 Domain Context，以及未来所有 AI 功能共用的减负基础设施。
 

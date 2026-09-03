@@ -164,7 +164,7 @@ Mac mini：
 - 偏好解释
 
 ### Vision Model
-后续阶段。
+视觉 Stage 已完成 image-capable Profile 绑定校验；当前视频抽帧仍是确定性筛选，不会因为注册视觉阶段而自动上传帧或调用视觉模型。
 
 ### External Strong Model
 - 本地解析失败

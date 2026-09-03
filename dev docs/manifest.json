@@ -23,8 +23,13 @@
     "gpu": "Apple M4 Metal",
     "vram_gb": null
   },
+  "repository_snapshot_date": "2026-09-03",
+  "repository_snapshot_commit": "5ffaa1c057656b85845a2cdce3e3604471ee198f",
   "documents": [
+    "AI_GATEWAY_PRODUCTION_ACCEPTANCE.md",
     "AI_RUNTIME_AND_PROVIDERS.md",
+    "AI_ROUTING_SOURCE_RETENTION_V046_SPEC.md",
+    "AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md",
     "API_DESIGN.md",
     "ARCHITECTURE_DECISIONS.md",
     "CONTROL_CENTER.md",

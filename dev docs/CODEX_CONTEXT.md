@@ -8,11 +8,12 @@
 
 ## 当前事实
 
-- 文档版本：v0.4.6；唯一实施状态源：`IMPLEMENTATION_STATUS.md`。
+- 文档版本：v0.4.6；唯一实施状态源：`IMPLEMENTATION_STATUS.md`。当前 Git HEAD 为 `5ffaa1c`；未提交工作树须先经 `git status` 确认，不能据此推断已部署提交。
 - 部署：`cn.zhijian.api` + `cn.zhijian.worker`，FastAPI 同源提供前端。
 - 生产运行时：Python `3.14.6`，固定路径 `/Volumes/D/Library/Application Support/Zhijian/venv`；LaunchAgent 通过 `PYTHONPATH` 读取当前仓库 `backend/src`。
-- 数据库：Alembic `0008`，SQLite/WAL。
-- 验证基线：后端 pytest、Ruff；前端 Vitest 10 项、ESLint、TypeScript、Vite build。
+- 仓库 schema head：Alembic `0010`，SQLite/WAL；生产 schema 与服务现场只以 `CURRENT_HANDOFF.md` 的实际快照为准，不能由仓库 head 推断。
+- 当前自动验证基线：后端 pytest 88 项、Ruff；Node `22.21.0` 下前端 Vitest 12 项、ESLint、TypeScript、Vite build。
+- AI Workload Gateway 已实现阶段策略/路由、质量门禁、Map/Reduce Facts、缓存、预算、Domain Context、Vision 绑定边界和本地资源串行；生产真实模型/视频验收仍单独受门禁约束。
 - 主要高危文件：
   - `backend/src/zhijian/api/router.py`
   - `backend/src/zhijian/services/video_pipeline.py`
@@ -35,6 +36,8 @@
 | 视频阅读/UI | `VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md` | 对应 `design/ui/` 标注稿 |
 | Job/取消/重跑 | `PIPELINE_STEP_REPLAY_V044_SPEC.md` | `MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md` |
 | 模型/Prompt | `AI_RUNTIME_AND_PROVIDERS.md` 或 `PROMPT_SUPPLEMENTS_V045_SPEC.md` | `SECURITY_PRIVACY.md` |
+| AI Gateway/路由/Cache/Budget/Domain | `AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md`、`AI_RUNTIME_AND_PROVIDERS.md` | `AI_GATEWAY_PRODUCTION_ACCEPTANCE.md` |
+| AI 生产验收 | `CURRENT_HANDOFF.md`、`AI_GATEWAY_PRODUCTION_ACCEPTANCE.md` | `REGRESSION_AND_CHANGE_GUARD.md` |
 | 地点/地图 | `TRAVEL_FOOD_PIPELINE.md` | `API_DESIGN.md`、`DATA_MODEL.md` |
 | 日志/运维 | `OPERATIONS_UI_SPEC.md` | `LOGGING_ARCHITECTURE.md` |
 | 数据库迁移 | `DATA_MODEL.md` | `ARCHITECTURE_DECISIONS.md` |
@@ -97,3 +100,5 @@ git diff --check
 - 顺手实施 Future Roadmap；
 - 重启有活跃 Job 的 Worker；
 - 修改历史迁移、Secret、安全/证据边界。
+- 不把 repository migration head 当作 production migration state，也不把 pytest、Browser fixture 或构建通过写成真实 Provider/视频验收。
+- 封板后的候选事项只读 `To Do/POST_FREEZE_TODO_BACKLOG.md`，且不自动实施。

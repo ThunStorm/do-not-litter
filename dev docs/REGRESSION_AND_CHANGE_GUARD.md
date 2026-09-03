@@ -1,6 +1,6 @@
 # 回归基线与变更防覆盖清单
 
-更新日期：2026-08-28。本文把已确认需求收敛为可执行的保护清单。任何后续 Agent 在改动前必须先阅读本文和对应契约；不能以原型截图、静态数据或“构建成功”替代真实实现。
+更新日期：2026-09-03。本文把已确认需求收敛为可执行的保护清单。任何后续 Agent 在改动前必须先阅读本文和对应契约；不能以原型截图、静态数据或“构建成功”替代真实实现。
 
 ## 1. 变更规则
 
@@ -17,6 +17,9 @@
 | 部署与局域网 | 唯一后端为 Mac mini；4 位配对码显眼展示；Cookie 会话刷新不应重新要求配对；服务状态来自真实 API/Worker/SQLite | `DEPLOYMENT_OPTIONS.md`、`MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md`、`services/auth.py` |
 | 捕获与本地处理 | URL、正文、DOCX、PDF、XLSX、图像 OCR、音视频均可进入 Job；Whisper.cpp、FFmpeg 与 OCR 状态必须是探测结果 | `PRODUCT_REQUIREMENTS.md`、`AI_RUNTIME_AND_PROVIDERS.md` |
 | 模型设置 | 用户可维护任意 Provider/模型库；预设仅帮助填写；主/备用从已存模型选择；草稿可真实测试；默认超时 300 秒 | `MODEL_AND_RETENTION_UI_SPEC.md`、`RUNTIME_MONITOR_AND_MODEL_PRESETS_SPEC.md` |
+| AI Gateway 契约 | Model Profile 显式保存 location/modalities/capabilities；Stage 参数仅白名单；没有新策略的历史任务保持旧路由，`AUTO/LOCAL_ONLY/LOCAL_FIRST/REMOTE_FIRST/REMOTE_ONLY` 语义不得回退 | `AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md`、`ai/stage_policies.py` |
+| AI Gateway 质量与上下文 | 干净平台字幕不得无条件全文送模；长转写只传候选或 Facts，不能多阶段重复全文；Domain Context 仅低优先级增强，不能覆盖 Evidence、Schema 或安全契约；text-only Profile 不得绑定视觉 Stage | `AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md`、`services/video_support.py` |
+| AI Gateway 稳定性 | 精确 Cache hit 不重复调用 Provider；`force_regenerate` 绕过命中并保留结果链；本机 ASR/文本/视觉/模型测试必须跨 API/Worker 进程串行；LOCAL/REMOTE Token 分账只依据审计路由位置；Cache hit 不计模型调用或预算；Ollama `keep_alive: 0` 与本地重任务低并发不得回退；未经真实 E2E 与 Benchmark Gate 不得宣称生产验证 | `AI_GATEWAY_PRODUCTION_ACCEPTANCE.md`、`ai/resource_manager.py`、`ai/budget.py`、`AI_RUNTIME_AND_PROVIDERS.md` |
 | 任务控制 | 当前标记只属于运行中的当前 JobStep；终态不固定高亮最后一步；时间线按 Pipeline 排序、阶段中文化并显示步骤用时；普通步骤 90 秒、LLM 步骤 300 秒预警，900 秒才终止；取消协作释放 lease，确认前不允许重试 | `MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md`、`TASK_SUMMARY_AND_PARTIAL_SUCCESS_SPEC.md`、`TASK_STATUS_AND_BEIJING_TIME_SPEC.md` |
 | Worker 存活与完整重跑 | 全局 Worker 心跳独立于同步 Pipeline；Job 活动只反映真实阶段/batch；长模型取消在请求边界停止后续批次，429/5xx 不放大请求；取消 lease 释放后 `CANCELLED` 也可完整重跑 | `RUNTIME_MONITOR_AND_PROVIDER_SWITCH_V06_SPEC.md`、`PIPELINE_STEP_REPLAY_V044_SPEC.md`、ADR-030 |
 | 终态与时间 | 终态不显示预估；展示层强制北京时间，持久化 ISO 时间仍保持 UTC | `TASK_STATUS_AND_BEIJING_TIME_SPEC.md` |
@@ -39,7 +42,8 @@
 
 | 层 | 必跑检查 | 通过条件 |
 | --- | --- | --- |
-| 数据库 | `python -m alembic -c backend/alembic.ini current` | 当前头版本为 `0008`，且升级不丢历史数据 |
+| 数据库（仓库） | `python -m alembic -c backend/alembic.ini heads` | repository migration head 为 `0010`；历史迁移不可修改 |
+| 数据库（生产） | `python -m alembic -c backend/alembic.ini current` | 仅记录实际读取的 production revision；迁移前确认无活跃 Job/lease、备份和完整性检查，不能由仓库 head 推断 |
 | 后端 | `./.venv/bin/python -m pytest backend/tests -q` | 全量通过；至少覆盖局域网、超时、取消/重试、运行状态、地图聚合与 Marker 生命周期 |
 | 前端 | 在 `frontend/` 运行 `pnpm run lint`、`pnpm test -- --run`、`pnpm run build` | 无 lint/类型/构建错误；地图画布和设置核心单测通过 |
 | 服务 | `/api/status`、`/api/travel/map?zoom=4`、`/api/travel/map/bootstrap` | API/Worker/SQLite 为 RUNNING；返回中国全境 viewport 和聚合/配置字段 |
@@ -47,6 +51,6 @@
 
 ## 4. 本次回归记录
 
-- 自动回归：Python 3.14 后端 pytest 57 项、Ruff、`pip check` 通过；前端在 Node 22 下通过 ESLint、Vitest 10 项、TypeScript 与生产构建；数据库位于 `0008`。
-- 服务回归：API、Worker、SQLite 已启动；LaunchAgent 实际使用 Python 3.14 生产 venv，`/health`、首页正文和 Worker 心跳均通过健康门禁，短期内未发现新的外置卷 TCC deny。
-- GUI 验收以 `IMPLEMENTATION_STATUS.md` 记录的对应版本证据为准；当前部署迁移未重新执行全站 GUI 回归，也未触发真实 Provider 或视频 Job。
+- 2026-09-03 自动回归：后端 pytest 88 项、Ruff 通过；Node `22.21.0` 下前端 ESLint、Vitest 12 项、TypeScript 与生产构建通过。
+- 2026-09-03 现场读取：API、Worker、SQLite 运行；`/health`、首页正文和 Worker 心跳通过，生产 Alembic 为 `0010 (head)`，活跃 Job/lease 为 0。生产提交未嵌入进程，不能由当前工作树推断。
+- GUI 验收以 `IMPLEMENTATION_STATUS.md` 记录的对应版本证据为准；本轮未重跑全站 GUI，也未触发真实 Provider 或视频 Job。Gateway 生产验收继续受 `AI_GATEWAY_PRODUCTION_ACCEPTANCE.md` 门禁约束。

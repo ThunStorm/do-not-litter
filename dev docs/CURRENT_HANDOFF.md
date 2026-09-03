@@ -1,26 +1,45 @@
 # 至简当前交接
 
-> 快照日期：2026-08-28。本文只负责“当前现场、剩余条件、下一步入口”，不复制产品规格。实施事实仍以 `IMPLEMENTATION_STATUS.md` 为准。
-> 本文故意不加入 `manifest.json` 和 `COMPLETE_PROJECT_SPEC.md`，避免把短期现场快照重复塞进 1 万多行合订本。
+> Repository snapshot：2026-09-03，HEAD `5ffaa1c057656b85845a2cdce3e3604471ee198f`。
+> Production snapshot：2026-09-03 实际读取；生产提交未嵌入运行进程，不从工作树推断。
+> 本文只说明交接与现场，不替代 `IMPLEMENTATION_STATUS.md` 的实现记录。
 
-## 1. 当前可接手状态
+## 1. Repository state
 
-- 分支：`codex/mac-mini-implementation`；Python 3.14/LaunchAgent 定版实现基线为提交 `d4c7ab2`，最新提交以 `git log -1 --oneline` 为准。
-- API、Worker、SQLite 均为 `RUNNING`；`/health=ok`，首页正文非空，Worker 心跳持续更新。
-- 生产解释器：Python `3.14.6`，路径 `/Volumes/D/Library/Application Support/Zhijian/venv/bin/python`。
-- 数据库：SQLite/WAL，Alembic `0008 (head)`；当前活跃 Job 为 0。
-- 自动回归：Python 3.14 后端 pytest 57 项、Ruff、`pip check`；Node 22 前端 ESLint、Vitest 10 项、TypeScript、Vite build。
-- `install/restart` 已增加 launchd 标签卸载等待门禁，避免 `bootout` 后立即 `bootstrap` 的退出码 5 竞态；已有目标测试。
-- Keychain 服务可访问；未在日志、数据库或文档中输出 Secret。
+- 分支：`codex/mac-mini-implementation`；当前工作树含未提交的源码和文档改动，接手前先读 `git status --short`，不得覆盖。
+- Repository migration head：Alembic `0010`。
+- 当前自动验证：后端 pytest 88 项、Ruff；Node `22.21.0` 下前端 ESLint、Vitest 12 项、TypeScript、Vite build 全部通过。
+- 已实现：AI Workload Gateway 的显式 Profile/Stage Policy、兼容路由、质量门禁、Map/Reduce Facts、Cache、Budget、Domain Context、Vision Profile 边界，以及跨 API/Worker 的本地 AI `flock` 串行。具体契约见 `AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md`。
+- `AI_ROUTING_SOURCE_RETENTION_V046_SPEC.md`、Gateway 规划契约和生产验收门禁已加入正式 source set；`COMPLETE_PROJECT_SPEC.md` 必须由构建脚本生成。
 
-### Bilibili 登录与字幕现场（2026-09-02）
+## 2. Production state
 
-- 站内二维码登录已完成真实扫码、账号 `/nav` 验证和 Keychain 保存；系统未输出 Cookie 明文。
-- `VIDEO_HOST_BLOCKED` 现场失败定位为平台字幕 CDN 未进入用途级 allowlist；现已用共享 HTTPS Host Policy 支持官方 `*.hdslb.com`，并保留欺骗性域名、非 HTTPS 和非标准端口拒绝。
-- 字幕按人工中文、AI 中文、其他语言依次尝试；单轨错误继续下一轨，全部失败回退音频。登录失效仍进入 `NEEDS_USER`，不得静默降级。
-- 修复已加载到 API/Worker，自动回归通过；原失败 Job 未自动重跑，需由用户决定完整重跑。
+- 本次实际读取：`cn.zhijian.api`、`cn.zhijian.worker` 均为 `RUNNING`；`/health=ok`、首页正文可读、Worker 心跳就绪。
+- Production database：SQLite/WAL，Alembic `0010 (head)`；当前 `QUEUED/RUNNING` Job 或 lease 为 0。
+- 生产运行时：Python `3.14.6`，`/Volumes/D/Library/Application Support/Zhijian/venv/bin/python`；LaunchAgent 以当前仓库 `backend/src` 为 `PYTHONPATH`。
+- 已有 Bilibili 站内二维码登录、`/nav` 账号验证与 Keychain 保存的真实验收；登录失效必须进入 `NEEDS_USER`，不回显 Cookie。
+- Gateway 后半程尚无本次真实 Local/Remote Provider、真实视频或 Benchmark 的成套证据；不得称为 Gateway 生产验证通过。
 
-快速确认现场只需要：
+## 3. Repository vs production gap
+
+- 生产迁移当前已实际确认到 `0010`；以后仓库新增迁移时，仍必须重新读取 production revision，不能沿用本次结论。
+- 当前生产服务对应的精确 Git SHA 不可得；任何未提交源码或当前 HEAD 是否已加载均不能由本文件断言。
+- 自动回归证明源码行为；真实 Provider、真实视频、fallback、cache/force-regenerate、预算、取消与 Replay 的 Gateway 验收仍按 `AI_GATEWAY_PRODUCTION_ACCEPTANCE.md` 留存证据。
+
+## 4. Current freeze conclusion
+
+- 当前仓库能力与自动验证已封板；本轮没有为文档更新重启服务、调用真实 Provider 或重跑视频 Job。
+- Production 服务健康和 `0010` 数据库已实际读取，但 Gateway 的真实端到端验收不随健康检查升级结论。
+- Secret、API Key、Cookie 和真实用户内容不写入 SQLite 明文、日志、URL、localStorage 或交接材料。
+
+## 5. Next task entry
+
+1. 完整读取 `CODEX_CONTEXT.md`。
+2. 在 `IMPLEMENTATION_STATUS.md` 中用 `rg` 定位当前能力段。
+3. 读取 `REGRESSION_AND_CHANGE_GUARD.md` 的相关冻结项。
+4. 仅再读一份直接相关专项规格；AI 路由优先读 `AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md`，真实验收优先读 `AI_GATEWAY_PRODUCTION_ACCEPTANCE.md`。
+
+快速现场检查：
 
 ```bash
 git status --short
@@ -28,62 +47,8 @@ git status --short
 .venv/bin/python -m alembic -c backend/alembic.ini current
 ```
 
-## 2. 真正尚未闭环的事项
+## 6. Explicit non-scope
 
-冻结的 v0.4.6 范围内没有已知阻塞实现。以下均为条件项或观察项，不应自动扩张成新工作包：
+封板后的候选工作全部在 `To Do/POST_FREEZE_TODO_BACKLOG.md`，且只有用户明确选择后才可实施：Production Acceptance、per-attempt Budget、fallback cache 语义、Gateway Consolidation、GenericProcessor、Source Watch、Contextual Vision、Multi Worker、Cloud、RAG 和高风险 Action Layer。
 
-1. **下一次自然维护窗口验证重载**：launchd 卸载等待修复已通过单测，但修复后没有为了验收而再次中断健康服务。下次正常安装、登录重启或计划维护时，核对两个服务能连续重载且 `program` 仍指向 Python 3.14 生产 venv。
-2. **长期 TCC 观察**：切换后的短期日志没有新的 `SystemPolicyRemovableVolumes deny`；仍需跨一次自然登录/重启继续观察。不要仅为取证主动打断服务。
-3. **GUI 与真实外部链路**：本次运行时迁移没有重跑全站 PC/Mobile GUI、真实 Provider、真实 Bilibili 视频或 Job。只有相关行为变化或专项验收明确授权时才执行。
-4. **Ollama 模型状态**：当前 Ollama 服务在线，但 `/api/status` 显示 0 个模型。若要使用本地推理，再执行模型拉取与真实推理验收；若当前使用远程模型路由，这不是阻塞项。
-5. **外部配置**：高德 Key、外部模型 Key、部分视频 Cookie 只能由部署者提供。未配置时系统应显示可行动诊断或 `NEEDS_USER/PARTIAL_SUCCESS`，不能伪造成功。
-6. **Git 交付**：当前分支没有配置 upstream，定版提交尚未推送远端；是否推送由用户另行授权。`.DS_Store` 属于本机噪声，不要提交。
-
-`FUTURE_ROADMAP.md` 中的 GenericProcessor、云化、多 Worker、自动操作等不是未完成工作，也不授权实施。
-
-## 3. 上次文档合并核对
-
-- 已删除旧的 445 行 `PROJECT_HANDOVER.md`、临时 Python 迁移交接和用户指定删除的问题记录；索引、生成清单和正式文档链接中没有残留引用。
-- 旧交接中的稳定事实已分别收敛到 `CODEX_CONTEXT.md`、`IMPLEMENTATION_STATUS.md`、`REGRESSION_AND_CHANGE_GUARD.md` 和 `deploy/macos/README.md`。
-- `manifest.json` 与 `scripts/build_complete_project_spec.py` 当前均包含 37 份正式源文档，集合完全一致。
-- `COMPLETE_PROJECT_SPEC.md` 已由正式源文档重新生成；它是派生产物，不是编辑源。
-- 各版本专项规格仍保留，因为它们承担精确回归契约，不属于可随意删除的重复文档。
-
-## 4. 最省 token 的接手顺序
-
-默认只读以下内容，读到足够解决当前工作包就停止：
-
-1. `CODEX_CONTEXT.md`：完整读取，确认项目边界、危险文件和文档路由。
-2. `IMPLEMENTATION_STATUS.md`：先用 `rg` 定位当前能力，只读命中段和最新部署段，不要从头重放全部历史。
-3. `REGRESSION_AND_CHANGE_GUARD.md`：只读与当前改动相关的基线和回归矩阵。
-4. 本文：只有接手当前服务、部署或交付状态时读取。
-5. 再选 **一份** 直接相关专项规格；只有它明确引用且确有必要时才读下一份。
-
-### 默认不要读
-
-| 内容 | 为什么费 token 且默认收益低 | 什么时候才读 |
-| --- | --- | --- |
-| `COMPLETE_PROJECT_SPEC.md`（约 1.04 万行） | 只是分文档合订本，重复度最高 | 用户明确要求全局审计、重建合订本或检查跨域冲突 |
-| `PROJECT_PLAN.md`（约 926 行） | 大量历史计划已被实施状态取代 | 重新规划阶段、核对未进入实现的原始工作包 |
-| `VIDEO_AI_NOTE_IMPLEMENTATION_GUIDE.md`（约 961 行） | 只服务视频实施，且含历史阶段说明 | 视频 Pipeline 实施或专项回归 |
-| `VIDEO_AI_NOTE_PIPELINE.md`（约 889 行） | 视频领域完整规格，局部任务通常用不到 | 视频步骤、Transcript、截图、地点或地图链路变化 |
-| `FUTURE_ROADMAP.md`（约 315 行） | 未来设想，不是当前授权和验收条件 | 用户明确做路线规划或提升某项优先级 |
-| 不相关的 v0.4.2–v0.4.6 专项规格 | 精确但彼此独立，批量读取会重复状态说明 | 当前改动直接触及对应功能 |
-| `design/ui/**`、历史截图 | 视觉证据体积大，后端/文档任务无收益 | 前端视觉实现或 Browser 验收 |
-| `node_modules/`、`frontend/dist/`、缓存、模型文件 | 生成物或第三方内容，不是项目决策源 | 依赖损坏、构建产物或运行时文件专项诊断 |
-| 全量日志、完整数据库记录、完整 DOM/AX Tree | 噪声大且可能含敏感上下文 | 先聚合/筛选仍无法定位问题时 |
-
-### 不要重复验证
-
-- 文档-only 变更不重启服务、不跑 Browser、不跑真实 Provider/视频 Job。
-- 先跑目标测试；完成代码工作包后再跑一次全量后端与前端验证。
-- 已确认的文件和输出后续只查变化或失败证据，不重新整段读取。
-- 不因“顺手”读取或实施 `FUTURE_ROADMAP.md`。
-
-## 5. 接手边界
-
-- 当前实施状态：`IMPLEMENTATION_STATUS.md`。
-- 稳定上下文和文档路由：`CODEX_CONTEXT.md`。
-- 防回退契约：`REGRESSION_AND_CHANGE_GUARD.md`。
-- 部署与恢复命令：`../deploy/macos/README.md`。
-- 本文只做短期交接；现场事实变化时更新本文，不把历史过程继续堆进来。
+不得因“顺手”实施 `FUTURE_ROADMAP.md`，不得把测试、fixture、Browser 或本地临时迁移写成生产真实验收，也不得为取证中断健康服务。

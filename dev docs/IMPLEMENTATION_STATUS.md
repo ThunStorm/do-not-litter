@@ -1,6 +1,14 @@
 # Implementation Status
 
-更新日期：2026-08-28。当前实施目标与唯一支持的部署形态为 **Mac mini 后端**；项目不再维护其他操作系统的部署方案、测试或运行时说明。
+更新日期：2026-09-03。当前实施目标与唯一支持的部署形态为 **Mac mini 后端**；项目不再维护其他操作系统的部署方案、测试或运行时说明。
+
+## Current repository freeze
+
+- Repository：`codex/mac-mini-implementation`，HEAD `5ffaa1c`；本状态记录仓库实现与自动验证，未提交工作树和生产部署分别以 `git status`、`CURRENT_HANDOFF.md` 为准。
+- Repository schema head：Alembic `0010`。这不单独证明生产数据库已迁移；生产现场事实不在本文推断。
+- 当前自动验证：后端 pytest 88 项、Ruff；Node `22.21.0` 下前端 ESLint、Vitest 12 项、TypeScript 与 Vite build 均通过。
+- AI Workload Gateway：Stage Policy/路由、用量、转写质量门禁、Map/Reduce Facts、Cache、Budget、Domain Context、Vision Profile 边界和本地资源串行均已进入源码；具体契约见 `AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md`。
+- Production acceptance：Gateway 的真实 Provider、真实视频和 Benchmark 仍不因自动测试而宣称完成；仅按 `AI_GATEWAY_PRODUCTION_ACCEPTANCE.md` 留存证据后才可升级结论。
 
 ## 已完成
 
@@ -209,6 +217,13 @@
 - `LocalAIResourceManager` 在单进程内串行化本机 ASR、文本和未来视觉模型重任务，避免 API 模型测试与 Worker 争用统一内存；当前 Worker 单租约设计仍是跨 Job 的第一层门禁，Ollama 保持 `keep_alive: 0`。
 - 新增 `scripts/benchmark_ai_profiles.py`：只汇总既有 JSON Benchmark 样本的 schema、Evidence、延迟、local/remote Token 与升级率，不下载模型、不调用 Provider。
 - 全量验证为后端 pytest 74 项、Ruff；前端 ESLint、Vitest 10 项、TypeScript 与 Vite build；Benchmark 示例仅使用临时本地 JSON，未触发真实模型、视频任务、生产迁移或重启。
+
+## 2026-09-02 AI Workload Gateway — Stabilization Source Fixes
+
+- `LocalAIResourceManager` 已由进程内 `threading.Lock` 改为共享 `data/runtime/local-ai.lock` 的 OS `flock`：API 模型测试/探测与 Worker ASR、文本、未来视觉任务在不同 LaunchAgent 进程间串行，异常进程退出后由内核释放锁；远程调用不再占用本地 AI 锁。
+- Budget 从整个 Job 的混合 Token 聚合改为按审计 `location` 分账 LOCAL/REMOTE；Cache hit 明确不计 model attempts 或预算，并写入路由位置供 Usage Summary 聚合。新增跨进程锁释放、Local/Remote 互不消耗及缓存预算测试。
+- 新增 `scripts/run_ai_benchmark.py` 和 `dev docs/benchmark/golden-ai-gateway-samples.json`，用于评估真实 E2E 已采集指标并输出 Schema、Evidence、质量、Token 降幅发布门禁；脚本不会调用 Provider 或视频下载。
+- 该记录只代表源码与定向自动测试完成，不代表生产服务已加载此版本，也不代表真实 Provider/视频/Benchmark 已验收。真实生产门禁收敛到 `AI_GATEWAY_PRODUCTION_ACCEPTANCE.md`。
 
 ## 2026-09-02 Bilibili 扫码登录与字幕恢复
 

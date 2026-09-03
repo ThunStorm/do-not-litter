@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "dev docs"
 OUTPUT = DOCS / "COMPLETE_PROJECT_SPEC.md"
@@ -33,7 +32,10 @@ ORDER = [
     "RUNTIME_MONITOR_AND_MODEL_PRESETS_SPEC.md",
     "RUNTIME_MONITOR_AND_PROVIDER_SWITCH_V06_SPEC.md",
     "TASK_SUMMARY_AND_PARTIAL_SUCCESS_SPEC.md",
+    "AI_GATEWAY_PRODUCTION_ACCEPTANCE.md",
     "AI_RUNTIME_AND_PROVIDERS.md",
+    "AI_ROUTING_SOURCE_RETENTION_V046_SPEC.md",
+    "AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md",
     "CONTROL_CENTER.md",
     "OPERATIONS_UI_SPEC.md",
     "API_DESIGN.md",
@@ -52,8 +54,10 @@ def build() -> str:
     sections = [
         "# AI Personal Inbox / Personal Scout\n",
         "## Complete Project Specification\n\n",
-        "> GENERATED FILE. Edit the source documents in this directory, then run "
-        "`.venv/bin/python scripts/build_complete_project_spec.py`.\n",
+        (
+            "> GENERATED FILE. Edit the source documents in this directory, then run "
+            "`.venv/bin/python scripts/build_complete_project_spec.py`.\n"
+        ),
     ]
     for name in ORDER:
         source = DOCS / name
