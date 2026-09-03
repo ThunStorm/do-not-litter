@@ -384,11 +384,21 @@ svg { flex: 0 0 auto; }
 .provider-form__body { padding-top: 1px; }
 .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 19px; }
 .field-grid label { display: grid; gap: 7px; color: var(--muted); font-size: 11px; }
-.field-grid input, .masked-key, .select-control { height: 40px; padding: 0 12px; border: 1px solid var(--line); border-radius: 5px; background: #f7f5f0; color: #4a4640; }
+.field-grid input, .field-grid textarea, .masked-key, .select-control { border: 1px solid var(--line); border-radius: 5px; background: #f7f5f0; color: #4a4640; font-size: 12px; line-height: 1.5; }
+.field-grid input, .masked-key, .select-control { height: 40px; padding: 0 12px; }
+.field-grid textarea { min-height: 64px; padding: 9px 12px; resize: vertical; }
+.field-grid input::placeholder, .field-grid textarea::placeholder { color: #938e86; opacity: 1; }
 .select-control { position: relative; display: flex; align-items: center; padding: 0; overflow: hidden; }.select-control select { width: 100%; height: 100%; padding: 0 37px 0 12px; appearance: none; border: 0; outline: 0; background: transparent; color: var(--ink); font-size: 12px; }.select-control svg { position: absolute; right: 12px; width: 15px; color: var(--muted); pointer-events: none; }
 .field-grid__wide { grid-column: 1 / -1; }
 .field-grid--three { grid-template-columns: repeat(3, 1fr); }
 .field-grid label > small { color: var(--muted); font-size: 9px; line-height: 1.45; }
+.toggle-field { display: flex !important; align-items: center; align-self: end; gap: 8px !important; min-height: 40px; color: var(--ink) !important; }
+.toggle-field input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+.provider-capabilities { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 8px 10px; margin: 0 19px 18px; padding: 12px; border-left: 2px solid #d8a49d; background: #f8f3ee; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.provider-capabilities__label { flex: 0 0 auto; padding-top: 3px; color: var(--ink); font-weight: 600; }
+.provider-capabilities__list { display: flex; flex: 1 1 220px; flex-wrap: wrap; gap: 6px; }
+.provider-capabilities__list span { padding: 3px 7px; border: 1px solid #dfc9c3; border-radius: 999px; background: #fffaf7; color: #765a52; }
+.provider-capabilities__empty { padding-top: 3px; }
 .transcript-processing .provider-form__title > div { display: grid; gap: 4px; }
 .transcript-processing .provider-form__title small { color: var(--muted); font-size: 10px; }
 .masked-key { display: flex; align-items: center; gap: 8px; }

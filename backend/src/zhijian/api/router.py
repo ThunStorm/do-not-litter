@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 from zhijian.ai.domain_context import DOMAIN_PACK_PREFIX, DomainPack
 from zhijian.ai.model_registry import model_profile_from_value, probe_model_profile
 from zhijian.ai.policies import resolve_stage_policy, validate_stage_policy
+from zhijian.ai.resource_manager import local_ai_resource_manager
 from zhijian.ai.schemas import AIStagePolicy
 from zhijian.ai.stages import STAGE_SPECS, stage_spec
 from zhijian.core.config import Settings, get_settings
@@ -576,10 +577,11 @@ def job_ai_usage(job_id: str, _: Protected, db: Session = Depends(get_db)) -> di
         stage = str(request_meta.get("stage") or row.operation)
         model = str(request_meta.get("model") or row.provider)
         location = str(request_meta.get("location") or ("LOCAL" if row.provider == "ollama" else "REMOTE"))
+        cache_hit = bool(request_meta.get("cache_hit"))
         values = {
-            "calls": 1,
-            "input_tokens": int(response_meta.get("prompt_tokens") or 0),
-            "output_tokens": int(response_meta.get("completion_tokens") or 0),
+            "calls": 0 if cache_hit else 1,
+            "input_tokens": 0 if cache_hit else int(response_meta.get("prompt_tokens") or 0),
+            "output_tokens": 0 if cache_hit else int(response_meta.get("completion_tokens") or 0),
             "cached_tokens": int(response_meta.get("cached_tokens") or 0),
             "duration_ms": int(row.duration_ms or 0),
         }
@@ -1880,14 +1882,22 @@ def _routing_value(db: Session) -> dict[str, str | None]:
 
 def _test_model_connection(value: dict, api_key: str | None) -> object:
     provider = _model_profile_provider(value, api_key)
-    return provider.generate(
-        [{"role": "user", "content": '仅返回 JSON：{"ok":true}'}],
-        model=str(value.get("model") or ""),
-        options=(
-            ProviderRequestOptions(thinking=False)
-            if str(value.get("provider") or "").lower() == "ollama"
-            else None
-        ),
+
+    def call() -> object:
+        return provider.generate(
+            [{"role": "user", "content": '仅返回 JSON：{"ok":true}'}],
+            model=str(value.get("model") or ""),
+            options=(
+                ProviderRequestOptions(thinking=False)
+                if str(value.get("provider") or "").lower() == "ollama"
+                else None
+            ),
+        )
+
+    return (
+        local_ai_resource_manager.run("MODEL_TEST", call)
+        if model_profile_from_value("test", value).location == "LOCAL"
+        else call()
     )
 
 
@@ -2268,9 +2278,11 @@ def probe_saved_model_profile(
     value = dict(setting.value_json)
     try:
         profile = model_profile_from_value(profile_id, value)
-        results = probe_model_profile(
-            _model_profile_provider(value, store.get(f"model-profile:{profile_id}:api-key")), profile
-        )
+        provider = _model_profile_provider(value, store.get(f"model-profile:{profile_id}:api-key"))
+        def call() -> dict[str, str]:
+            return probe_model_profile(provider, profile)
+
+        results = local_ai_resource_manager.run("MODEL_TEST", call) if profile.location == "LOCAL" else call()
     except HTTPException:
         raise
     except Exception as exc:

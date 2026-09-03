@@ -177,11 +177,16 @@ def _cached_stage_json(
                 }[stage],
             ),
         },
+        location=location,
         cache_enabled=bool(policy.cache_enabled),
         force_regenerate=policy.force_regenerate,
-        call=lambda: local_ai_resource_manager.run(
-            "TEXT_LLM",
-            lambda: _budgeted_json_call(db, job, location, enriched_messages, provider, model),
+        call=lambda: (
+            local_ai_resource_manager.run(
+                "TEXT_LLM",
+                lambda: _budgeted_json_call(db, job, location, enriched_messages, provider, model),
+            )
+            if location == "LOCAL"
+            else _budgeted_json_call(db, job, location, enriched_messages, provider, model)
         ),
     )
 

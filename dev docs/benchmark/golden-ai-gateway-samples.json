@@ -1,0 +1,10 @@
+[
+  {"sample_id":"subtitle-clean-01","type":"platform_subtitle","source":"deployment-owned clean subtitle video","expected":{"schema_pass":true,"evidence_min_coverage":0.9,"key_entities":[],"key_places":[]}},
+  {"sample_id":"subtitle-domain-01","type":"platform_subtitle","source":"deployment-owned domain-term subtitle video","expected":{"schema_pass":true,"evidence_min_coverage":0.9,"key_entities":[],"key_places":[]}},
+  {"sample_id":"asr-clear-01","type":"asr_video","source":"deployment-owned clear-speech video","expected":{"schema_pass":true,"evidence_min_coverage":0.9,"key_entities":[],"key_places":[]}},
+  {"sample_id":"asr-poi-01","type":"asr_video","source":"deployment-owned multi-POI video","expected":{"schema_pass":true,"evidence_min_coverage":0.9,"key_entities":[],"key_places":[]}},
+  {"sample_id":"travel-restaurant-01","type":"travel","source":"deployment-owned restaurant source","expected":{"schema_pass":true,"evidence_min_coverage":0.9,"key_entities":[],"key_places":[]}},
+  {"sample_id":"travel-attraction-01","type":"travel","source":"deployment-owned attraction source","expected":{"schema_pass":true,"evidence_min_coverage":0.9,"key_entities":[],"key_places":[]}},
+  {"sample_id":"generic-article-01","type":"generic_source","source":"deployment-owned article text","expected":{"schema_pass":true,"evidence_min_coverage":0.9,"key_entities":[],"key_places":[]}},
+  {"sample_id":"generic-ocr-01","type":"generic_source","source":"deployment-owned OCR text","expected":{"schema_pass":true,"evidence_min_coverage":0.9,"key_entities":[],"key_places":[]}}
+]

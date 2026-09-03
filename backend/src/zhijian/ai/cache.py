@@ -42,6 +42,7 @@ def cached_json_result(
     model: str,
     messages: list[dict[str, str]],
     semantic_options: dict[str, Any],
+    location: str | None = None,
     cache_enabled: bool,
     force_regenerate: bool,
     call: Any,
@@ -59,7 +60,7 @@ def cached_json_result(
     )
     if cache_enabled and not force_regenerate and previous:
         data = previous.result_json
-        _record_cache_hit(db, job, stage, capability, previous)
+        _record_cache_hit(db, job, stage, capability, previous, location)
         return LLMResult(
             content=str(data["content"]),
             provider=str(data["provider"]),
@@ -90,7 +91,7 @@ def cached_json_result(
 
 
 def _record_cache_hit(
-    db: Session, job: Job | None, stage: str, capability: str, entry: AICacheEntry
+    db: Session, job: Job | None, stage: str, capability: str, entry: AICacheEntry, location: str | None
 ) -> None:
     usage = entry.result_json.get("usage") or {}
     db.add(
@@ -100,7 +101,12 @@ def _record_cache_hit(
             provider=entry.provider,
             operation=stage,
             status="COMPLETED",
-            request_meta_json={"stage": stage, "model": entry.model, "cache_hit": True},
+            request_meta_json={
+                "stage": stage,
+                "model": entry.model,
+                "location": location or ("LOCAL" if entry.provider.lower() == "ollama" else "REMOTE"),
+                "cache_hit": True,
+            },
             response_meta_json={
                 "prompt_tokens": usage.get("prompt_tokens", usage.get("prompt_eval_count")),
                 "completion_tokens": usage.get("completion_tokens", usage.get("eval_count")),

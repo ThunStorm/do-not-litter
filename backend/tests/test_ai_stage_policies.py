@@ -150,6 +150,20 @@ def test_job_ai_usage_groups_stage_model_and_location(client, app_and_session) -
                     request_meta_json={"stage": "GENERATE_AI_NOTE", "model": "strong", "location": "REMOTE"},
                     response_meta_json={"prompt_tokens": 20, "completion_tokens": 4, "cached_tokens": 5},
                 ),
+                ExternalCallAudit(
+                    job_id=job.id,
+                    capability="LLM",
+                    provider="remote",
+                    operation="video_note_summary",
+                    status="COMPLETED",
+                    request_meta_json={
+                        "stage": "GENERATE_AI_NOTE",
+                        "model": "strong",
+                        "location": "REMOTE",
+                        "cache_hit": True,
+                    },
+                    response_meta_json={"prompt_tokens": 20, "completion_tokens": 4, "cached_tokens": 20},
+                ),
             ]
         )
         db.commit()
@@ -158,4 +172,6 @@ def test_job_ai_usage_groups_stage_model_and_location(client, app_and_session) -
     assert payload["total"]["calls"] == 2
     assert payload["local"]["input_tokens"] == 10
     assert payload["remote"]["output_tokens"] == 4
-    assert payload["by_stage"]["GENERATE_AI_NOTE"]["cached_tokens"] == 5
+    assert payload["by_stage"]["GENERATE_AI_NOTE"]["cached_tokens"] == 25
+    assert payload["total"]["calls"] == 2
+    assert payload["cache"]["hits"] == 1

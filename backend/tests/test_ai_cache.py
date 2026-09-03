@@ -67,3 +67,82 @@ def test_budget_excludes_cache_hits_and_blocks_next_model_attempt(app_and_sessio
         db.query(ExternalCallAudit).update({"request_meta_json": {"cache_hit": True}})
         db.commit()
         ensure_ai_budget(db, job, location="LOCAL", input_chars=40)
+
+
+def test_local_usage_does_not_consume_remote_budget(app_and_session) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        job = Job(job_type="TRAVEL", status="RUNNING", payload_json={})
+        db.add_all(
+            [
+                job,
+                Setting(key="app:general", value_json={"ai_max_remote_prompt_tokens_per_job": 1000}),
+            ]
+        )
+        db.flush()
+        db.add(
+            ExternalCallAudit(
+                job_id=job.id,
+                capability="LLM",
+                provider="ollama",
+                operation="GENERATE_AI_NOTE",
+                status="COMPLETED",
+                request_meta_json={"location": "LOCAL"},
+                response_meta_json={"prompt_tokens": 999},
+            )
+        )
+        db.commit()
+        ensure_ai_budget(db, job, location="REMOTE", input_chars=4)
+
+
+def test_remote_usage_does_not_consume_local_budget(app_and_session) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        job = Job(job_type="TRAVEL", status="RUNNING", payload_json={})
+        db.add_all(
+            [
+                job,
+                Setting(key="app:general", value_json={"ai_max_local_prompt_tokens_per_job": 1000}),
+            ]
+        )
+        db.flush()
+        db.add(
+            ExternalCallAudit(
+                job_id=job.id,
+                capability="LLM",
+                provider="remote",
+                operation="GENERATE_AI_NOTE",
+                status="COMPLETED",
+                request_meta_json={"location": "REMOTE"},
+                response_meta_json={"prompt_tokens": 999},
+            )
+        )
+        db.commit()
+        ensure_ai_budget(db, job, location="LOCAL", input_chars=4)
+
+
+def test_cache_hit_does_not_consume_budget_and_records_location(app_and_session) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        job = Job(job_type="TRAVEL", status="RUNNING", payload_json={})
+        db.add(job)
+        db.commit()
+        arguments = {
+            "job": job,
+            "stage": "GENERATE_AI_NOTE",
+            "capability": "LLM",
+            "provider": "remote",
+            "model": "strong",
+            "messages": [{"role": "user", "content": "same"}],
+            "semantic_options": {},
+            "location": "REMOTE",
+            "cache_enabled": True,
+            "call": lambda: LLMResult("{}", "remote", "strong", {"prompt_tokens": 99}),
+        }
+        cached_json_result(db, force_regenerate=False, **arguments)
+        cached_json_result(db, force_regenerate=False, **arguments)
+        audit = db.query(ExternalCallAudit).one()
+        assert audit.request_meta_json["location"] == "REMOTE"
+        db.add(Setting(key="app:general", value_json={"ai_max_remote_prompt_tokens_per_job": 1000}))
+        db.commit()
+        ensure_ai_budget(db, job, location="REMOTE", input_chars=4)
