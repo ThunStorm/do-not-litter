@@ -258,7 +258,9 @@ svg { flex: 0 0 auto; }
 .map-page__header p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
 .map-page__header .icon-button { border: 0; background: transparent; }
 .map-page__actions { display: flex; align-items: center; gap: 2px; }
-.map-review-link { display: inline-flex; min-height: 32px; align-items: center; padding: 0 10px; border-radius: 999px; background: #f6e4df; color: var(--accent); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.map-review-button { position: relative; }
+.map-review-button.has-pending { color: var(--accent); }
+.map-review-button b { position: absolute; top: -5px; right: -6px; display: grid; min-width: 16px; height: 16px; padding: 0 3px; place-items: center; border-radius: 99px; background: var(--accent); color: white; font-size: 10px; }
 .map-filters { position: absolute; top: 119px; left: 24px; z-index: 8; display: flex; gap: 6px; padding: 6px; border: 1px solid rgb(185 179 169 / 75%); border-radius: 7px; background: rgb(251 250 247 / 90%); box-shadow: 0 8px 24px rgb(55 45 35 / 8%); }
 .map-filters button { display: flex; align-items: center; gap: 5px; min-height: 34px; padding: 0 12px; border: 0; border-radius: 4px; background: transparent; color: #5b564f; cursor: pointer; }
 .map-filters button.is-active { background: var(--accent); color: white; }
@@ -296,6 +298,7 @@ svg { flex: 0 0 auto; }
 .map-add-flow p { margin: 6px 0 10px; color: var(--muted); font-size: 12px; }
 .map-add-flow > button { display: grid; width: 100%; gap: 3px; padding: 9px 0; border: 0; border-top: 1px solid var(--line); background: transparent; text-align: left; }
 .map-add-flow > button span { color: var(--muted); font-size: 11px; }
+.map-add-flow > input { width: 100%; margin: 8px 0; }
 .map-add-flow__custom { display: grid; gap: 8px; padding-top: 10px; }
 .place-insights { display: grid; gap: 8px; padding: 0; list-style: none; }
 .place-insights li { display: grid; gap: 3px; padding: 9px 11px; border-left: 2px solid var(--accent); background: rgb(251 250 247 / 70%); }
@@ -320,6 +323,13 @@ svg { flex: 0 0 auto; }
 .place-preview__summary { min-height: 58px; margin-top: 18px !important; color: #4e4943 !important; line-height: 1.7; }
 .place-preview__meta { margin: 10px 0 0; color: var(--muted); font-size: 11px; }
 .place-preview__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 21px; }
+.place-preview__route { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 16px; }
+.map-delete-toast { position: fixed; z-index: 20; bottom: 22px; left: 50%; display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-radius: 8px; background: #302e2a; color: white; box-shadow: var(--shadow); transform: translateX(-50%); }
+.map-delete-toast button { border: 0; background: transparent; color: #fff; font-weight: 700; text-decoration: underline; }
+.review-empty-state { display: grid; min-height: 180px; place-content: center; justify-items: center; padding: 28px; text-align: center; }
+.review-empty-state > svg { width: 34px; height: 34px; margin-bottom: 10px; color: var(--accent); }
+.review-empty-state h2, .review-empty-state p { margin: 4px 0; }
+.place-insight-editor { display: grid; grid-template-columns: 130px 1fr auto; gap: 8px; margin-top: 14px; }
 .button { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; border-radius: 5px; cursor: pointer; }
 .button--outline { border: 1px solid var(--line); background: transparent; }
 .button--primary { border: 1px solid var(--accent); background: var(--accent); color: white; }
@@ -352,6 +362,8 @@ svg { flex: 0 0 auto; }
 .route-row__actions { display: flex; gap: 3px; }
 .route-row__actions button { display: grid; width: 30px; height: 30px; place-items: center; border: 1px solid var(--line); border-radius: 4px; background: transparent; }
 .route-row__actions svg { width: 15px; }
+.route-heading-actions, .route-rename { display: flex; align-items: center; gap: 6px; }
+.route-rename input { min-width: 180px; }
 .route-create { display: flex; gap: 8px; margin-bottom: 15px; padding: 14px; border: 1px solid var(--line); background: var(--paper); }
 .route-create input { flex: 1; min-width: 0; padding: 0 12px; border: 1px solid var(--line); }
 .route-create button { padding: 0 18px; }

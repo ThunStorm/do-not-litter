@@ -295,16 +295,8 @@ def provider_for_role(
 ) -> tuple[LLMProvider, str, str]:
     routing = db.get(Setting, "model-routing")
     routes = routing.value_json if routing and isinstance(routing.value_json, dict) else {}
-    primary_id = str(
-        (routes.get("transcript_primary_id") if role == "transcript_correction" else None)
-        or routes.get("primary_id")
-        or ""
-    )
-    fallback_id = str(
-        (routes.get("transcript_fallback_id") if role == "transcript_correction" else None)
-        or routes.get("fallback_id")
-        or ""
-    )
+    primary_id = str(routes.get("primary_id") or "")
+    fallback_id = str(routes.get("fallback_id") or "")
     stage = ROLE_STAGE.get(role)
     stage_setting = db.get(Setting, f"ai-stage-policy:{stage}") if stage else None
     job_override = (job.payload_json.get("ai_overrides") or {}).get(stage) if job and stage else None
@@ -339,9 +331,9 @@ def provider_for_role(
         elif mode == "REMOTE_ONLY":
             primary_id, fallback_id = remote_id, ""
         elif mode == "LOCAL_FIRST":
-            primary_id, fallback_id = local_id, remote_id
+            primary_id, fallback_id = (local_id, remote_id) if local_id else (remote_id, "")
         elif mode == "REMOTE_FIRST":
-            primary_id, fallback_id = remote_id, local_id
+            primary_id, fallback_id = (remote_id, local_id) if remote_id else (local_id, "")
         primary_config = _profile_config(db, primary_id)
         fallback_config = _profile_config(db, fallback_id)
     general_setting = db.get(Setting, "app:general")

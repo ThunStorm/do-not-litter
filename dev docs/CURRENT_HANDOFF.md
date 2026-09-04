@@ -4,12 +4,12 @@
 
 ## 任务续接
 
-- 更新：2026-09-04。范围为地图 V2 核心实现、生产迁移与文档拆分收敛。
-- 已完成：0011–0013、Insight/POI Review、地图聚合展开、点选附近 POI、手工地点、审核改名/拒绝/撤销、Place Sheet 与编辑历史；LLM 停滞预警为 500 秒、终止仍为 900 秒。
-- 验证：后端 pytest 93、Ruff；前端 lint/Vitest 11/build；生产 SQLite 0013、integrity ok、API/Worker 健康。真实视频完成字幕/笔记/截图并产生 Review 候选，终态 PARTIAL_SUCCESS，未自动确认 POI。
-- 未闭环：生产已有 5 条 USER_REJECTED 测试 Mention，保留等待用户决定是否恢复；未提交/推送本批代码与文档拆分。
-- 下一步：用户验收后仅处理审计队列数据或继续新增需求；禁止未经选择自动确认候选、清理审计或重跑真实视频。
-- 相关文件：IMPLEMENTATION_STATUS.md、operations/RUNTIME_MONITOR_AND_PROVIDER_SWITCH_V06_SPEC.md、planning/PLACE_INTELLIGENCE_MAP_V2_IMPLEMENTATION_PLAN.md、frontend/src/features/map/。本次已部署，提交/推送由本轮用户授权。
+- 更新：2026-09-04。范围为地图 V2、生产迁移、真实视频验收与文档拆分收敛。
+- 已完成：0011–0013、Insight/POI Review、聚合展开、地图点选附近 POI、手工地点、改名/拒绝/撤销、Place Sheet 与编辑历史；LLM 预警 500 秒、终止 900 秒。提交并推送 `8a6484b`。
+- 验证：后端 pytest 93、Ruff；前端 lint/Vitest 11/build；生产 SQLite 0013、integrity ok、API/Worker 健康。真实视频完成字幕/笔记/截图并产出人工 POI Review，终态 PARTIAL_SUCCESS。
+- 未闭环：5 条 USER_REJECTED 测试 Mention 等待用户决定是否恢复；未自动确认 POI，也未运行其他真实样本。
+- 下一步：按用户选择恢复/保留测试 Mention，或开展新的业务验收。
+- 注意：不得自动确认候选、清理审计或重跑真实视频；本文件本轮更新尚未提交，写交接本身不授权重启、迁移或推送。
 
 ## 生产快照（采样 2026-09-04）
 

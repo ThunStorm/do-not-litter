@@ -192,6 +192,18 @@ class RouteDraftUpdate(BaseModel):
     place_ids: list[str]
 
 
+class RouteDraftMetadataUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=300)
+    city: str = Field(default="", max_length=64)
+
+
+class PlaceInsightUpdate(BaseModel):
+    insight_type: str = Field(min_length=1, max_length=64)
+    value_key: str = Field(default="", max_length=128)
+    value_text: str = Field(min_length=1, max_length=500)
+    value_json: dict[str, Any] = Field(default_factory=dict)
+
+
 class RouteDraftView(BaseModel):
     id: str
     name: str
@@ -228,8 +240,6 @@ class ModelProfileConfig(ProviderConfig):
 class ModelRoutingConfig(BaseModel):
     primary_id: str | None = None
     fallback_id: str | None = None
-    transcript_primary_id: str | None = None
-    transcript_fallback_id: str | None = None
 
 
 class TranscriptProcessingConfig(BaseModel):

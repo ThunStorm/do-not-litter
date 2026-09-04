@@ -77,6 +77,7 @@ from zhijian.domain.schemas import (
     ModelRoutingConfig,
     NearbyPOIRequest,
     PlaceDetailView,
+    PlaceInsightUpdate,
     PlaceInsightView,
     PlaceNoteUpdate,
     PlaceOverlayUpdate,
@@ -87,6 +88,7 @@ from zhijian.domain.schemas import (
     PromptSupplementsConfig,
     ProviderConfig,
     RouteDraftCreate,
+    RouteDraftMetadataUpdate,
     RouteDraftUpdate,
     RouteDraftView,
     SessionRequest,
@@ -183,11 +185,7 @@ def job_view(job: Job, db: Session | None = None) -> JobView:
     if db and model_step and not (provider and model):
         routing = db.get(Setting, "model-routing")
         route = routing.value_json if routing and isinstance(routing.value_json, dict) else {}
-        profile_id = (
-            route.get("transcript_primary_id") or route.get("primary_id")
-            if model_step == "CORRECT_TRANSCRIPT"
-            else route.get("primary_id")
-        )
+        profile_id = route.get("primary_id")
         profile = db.get(Setting, f"model-profile:{profile_id}") if profile_id else None
         profile_value = profile.value_json if profile and isinstance(profile.value_json, dict) else {}
         provider = profile_value.get("provider") or provider
@@ -1392,6 +1390,12 @@ def map_overview(
     user_state: str | None = None,
     origin: str | None = None,
     query: str | None = None,
+    best_month: str | None = None,
+    best_season: str | None = None,
+    best_time_slot: str | None = None,
+    route_id: str | None = None,
+    source_id: str | None = None,
+    visibility: str = Query(default="VISIBLE", pattern="^(VISIBLE|HIDDEN|ALL)$"),
     selected_place_id: str | None = None,
     bbox: str | None = Query(default=None, description="west,south,east,north"),
     zoom: float = Query(default=4.0, ge=3, le=20),
@@ -1420,8 +1424,41 @@ def map_overview(
         statement = statement.where(Place.user_state == user_state)
     if query:
         statement = statement.where(Place.name.contains(query) | Place.address.contains(query))
+    for insight_type, value in (
+        ("BEST_MONTH", best_month.zfill(2) if best_month and best_month.isdigit() else best_month),
+        ("BEST_SEASON", best_season),
+        ("BEST_TIME_SLOT", best_time_slot),
+    ):
+        if value:
+            statement = statement.where(
+                select(PlaceInsightItem.id)
+                .where(
+                    PlaceInsightItem.place_id == Place.id,
+                    PlaceInsightItem.status == "ACTIVE",
+                    PlaceInsightItem.insight_type == insight_type,
+                    PlaceInsightItem.value_key == value,
+                )
+                .exists()
+            )
+    if source_id:
+        statement = statement.where(
+            select(PlaceInsightItem.id)
+            .where(
+                PlaceInsightItem.place_id == Place.id,
+                PlaceInsightItem.status == "ACTIVE",
+                PlaceInsightItem.source_id == source_id,
+            )
+            .exists()
+        )
+    if route_id:
+        statement = statement.where(
+            select(RouteDraftItem.id)
+            .where(RouteDraftItem.place_id == Place.id, RouteDraftItem.route_draft_id == route_id)
+            .exists()
+        )
     statement = statement.where(Place.longitude.between(west, east), Place.latitude.between(south, north))
-    places = db.scalars(statement.order_by(Place.name.asc())).all()
+    ordered_places = db.scalars(statement.order_by(Place.name.asc())).all()
+    places = list({place.id: place for place in ordered_places}.values())
     place_ids = [place.id for place in places]
     # A place is its durable domain record; its map projection has an explicit
     # lifecycle.  Backfill projections lazily for places created before v0.4,
@@ -1450,7 +1487,10 @@ def map_overview(
         else {}
     )
     visible_places = [
-        place for place in places if states.get(place.id) is None or states[place.id].visibility == "VISIBLE"
+        place
+        for place in places
+        if visibility == "ALL"
+        or (states.get(place.id).visibility if states.get(place.id) else "VISIBLE") == visibility
     ]
     if origin:
         visible_places = [
@@ -1651,15 +1691,22 @@ def _map_marker_view(db: Session, place: Place, state: MapMarkerState | None) ->
         )
         .order_by(VideoScreenshot.created_at.desc())
     )
+    overlay = db.scalar(select(PlaceUserOverlay).where(PlaceUserOverlay.place_id == place.id))
     return MapMarker(
         id=place.id,
         marker_id=state.id if state else None,
         place_id=place.id,
         origin=state.origin if state else place.origin,
         visibility=state.visibility if state else "VISIBLE",
-        name=state.custom_label if state and state.custom_label else place.name,
+        name=(
+            state.custom_label
+            if state and state.custom_label
+            else (overlay.display_name if overlay and overlay.display_name else place.name)
+        ),
         canonical_name=place.canonical_name or place.name,
-        place_type=place.place_type,
+        place_type=(
+            overlay.override_place_type if overlay and overlay.override_place_type else place.place_type
+        ),
         latitude=place.latitude,
         longitude=place.longitude,
         user_state=place.user_state,
@@ -1929,6 +1976,69 @@ def update_place_marker(place_id: str, action: str, _: Protected, db: Session = 
     return {"marker_id": marker.id, "visibility": marker.visibility, "revision": marker.revision}
 
 
+def _place_insight_view(insight: PlaceInsightItem) -> PlaceInsightView:
+    return PlaceInsightView(
+        id=insight.id,
+        insight_type=insight.insight_type,
+        value_key=insight.value_key,
+        value_text=insight.value_text,
+        value_json=insight.value_json,
+        provenance=insight.provenance,
+        confidence=insight.confidence,
+        status=insight.status,
+        segment_ids=insight.segment_ids_json,
+    )
+
+
+@router.post("/api/travel/places/{place_id}/insights", response_model=PlaceInsightView)
+def create_place_insight(
+    place_id: str, payload: PlaceInsightUpdate, _: Protected, db: Session = Depends(get_db)
+) -> PlaceInsightView:
+    if db.get(Place, place_id) is None:
+        raise HTTPException(status_code=404, detail={"code": "PLACE_NOT_FOUND"})
+    insight = PlaceInsightItem(
+        place_id=place_id,
+        insight_type=payload.insight_type,
+        value_key=payload.value_key,
+        value_text=payload.value_text,
+        value_json=payload.value_json,
+        provenance="USER_ADDED",
+        confidence=1.0,
+        status="ACTIVE",
+        created_by="local-user",
+    )
+    db.add(insight)
+    db.commit()
+    return _place_insight_view(insight)
+
+
+@router.patch("/api/travel/places/{place_id}/insights/{insight_id}", response_model=PlaceInsightView)
+def update_place_insight(
+    place_id: str, insight_id: str, payload: PlaceInsightUpdate, _: Protected, db: Session = Depends(get_db)
+) -> PlaceInsightView:
+    insight = db.get(PlaceInsightItem, insight_id)
+    if insight is None or insight.place_id != place_id or insight.provenance == "SOURCE_FACT":
+        raise HTTPException(status_code=409, detail={"code": "CANNOT_EDIT_SOURCE_FACT"})
+    insight.insight_type, insight.value_key, insight.value_text, insight.value_json = (
+        payload.insight_type,
+        payload.value_key,
+        payload.value_text,
+        payload.value_json,
+    )
+    db.commit()
+    return _place_insight_view(insight)
+
+
+@router.delete("/api/travel/places/{place_id}/insights/{insight_id}")
+def delete_place_insight(place_id: str, insight_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
+    insight = db.get(PlaceInsightItem, insight_id)
+    if insight is None or insight.place_id != place_id or insight.provenance == "SOURCE_FACT":
+        raise HTTPException(status_code=409, detail={"code": "CANNOT_DELETE_SOURCE_FACT"})
+    insight.status = "RETRACTED"
+    db.commit()
+    return {"id": insight.id, "status": insight.status}
+
+
 @router.post("/api/travel/places")
 def create_manual_place(
     payload: ManualPlaceCreate,
@@ -2082,6 +2192,19 @@ def list_place_reviews(_: Protected, db: Session = Depends(get_db)) -> list[dict
     ]
 
 
+@router.get("/api/travel/place-reviews/count")
+def place_review_count(_: Protected, db: Session = Depends(get_db)) -> dict[str, int]:
+    return {
+        "count": db.scalar(
+            select(func.count(PlaceMention.id)).where(
+                PlaceMention.resolution_status == ResolutionStatus.REVIEW.value,
+                PlaceMention.extraction_status != "USER_REJECTED",
+            )
+        )
+        or 0
+    }
+
+
 def _poi_candidate_view(candidate: object) -> dict:
     return {
         "provider": "AMAP",
@@ -2113,6 +2236,19 @@ def nearby_pois(
         _poi_candidate_view(item)
         for item in AMapPOIProvider(web_key).around(payload.longitude, payload.latitude)
     ]
+
+
+@router.post("/api/travel/map/place-search")
+def search_map_pois(
+    payload: POISearchRequest,
+    _: Protected,
+    settings: Settings = Depends(get_settings),
+    store: SecretStore = Depends(get_secret_store),
+) -> list[dict]:
+    web_key = store.get("amap:web-service-key") or settings.amap_api_key
+    if not web_key:
+        raise HTTPException(status_code=422, detail={"code": "POI_PROVIDER_UNAVAILABLE"})
+    return [_poi_candidate_view(item) for item in AMapPOIProvider(web_key).search(payload.query, "")]
 
 
 @router.post("/api/travel/place-mentions/{mention_id}/poi-search")
@@ -2316,6 +2452,28 @@ def update_route_items(
     return _route_view(db, route)
 
 
+@router.patch("/api/travel/route-drafts/{route_id}", response_model=RouteDraftView)
+def update_route_metadata(
+    route_id: str, payload: RouteDraftMetadataUpdate, _: Protected, db: Session = Depends(get_db)
+) -> RouteDraftView:
+    route = db.get(RouteDraft, route_id)
+    if route is None:
+        raise HTTPException(status_code=404, detail="路线清单不存在")
+    route.name, route.city = payload.name.strip(), payload.city.strip()
+    db.commit()
+    return _route_view(db, route)
+
+
+@router.delete("/api/travel/route-drafts/{route_id}")
+def delete_route(route_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
+    route = db.get(RouteDraft, route_id)
+    if route is None:
+        raise HTTPException(status_code=404, detail="路线清单不存在")
+    db.delete(route)
+    db.commit()
+    return {"id": route_id, "status": "DELETED"}
+
+
 def _replace_route_items(db: Session, route_id: str, place_ids: list[str]) -> None:
     for item in db.scalars(select(RouteDraftItem).where(RouteDraftItem.route_draft_id == route_id)).all():
         db.delete(item)
@@ -2381,8 +2539,6 @@ def _routing_value(db: Session) -> dict[str, str | None]:
     return {
         "primary_id": value.get("primary_id"),
         "fallback_id": value.get("fallback_id"),
-        "transcript_primary_id": value.get("transcript_primary_id"),
-        "transcript_fallback_id": value.get("transcript_fallback_id"),
     }
 
 
@@ -2497,8 +2653,6 @@ def save_model_routing(
             raise HTTPException(status_code=422, detail="路由模型必须从已保存的模型中选择")
     if payload.primary_id and payload.primary_id == payload.fallback_id:
         raise HTTPException(status_code=422, detail="主模型和备用模型不能相同")
-    if payload.transcript_primary_id and payload.transcript_primary_id == payload.transcript_fallback_id:
-        raise HTTPException(status_code=422, detail="转写主模型和转写备用模型不能相同")
     value = payload.model_dump()
     setting = db.get(Setting, "model-routing")
     if setting is None:
@@ -2506,7 +2660,7 @@ def save_model_routing(
         db.add(setting)
     else:
         setting.value_json = value
-    record_event(db, "model_routing.updated", "已更新推理与转写模型路由", actor="user")
+    record_event(db, "model_routing.updated", "已更新通用模型路由", actor="user")
     db.commit()
     return value
 

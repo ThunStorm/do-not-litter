@@ -396,7 +396,7 @@ def test_transcript_correction_chunks_limit_segment_count() -> None:
     assert [len(chunk) for chunk in chunks] == [128, 104]
 
 
-def test_transcript_model_route_overrides_general_route(monkeypatch, app_and_session) -> None:
+def test_transcript_stage_policy_overrides_general_route(monkeypatch, app_and_session) -> None:
     _, factory = app_and_session
     with factory() as db:
         for profile_id, model in (("general", "general-model"), ("transcript", "transcript-model")):
@@ -413,7 +413,13 @@ def test_transcript_model_route_overrides_general_route(monkeypatch, app_and_ses
         db.add(
             Setting(
                 key="model-routing",
-                value_json={"primary_id": "general", "transcript_primary_id": "transcript"},
+                value_json={"primary_id": "general"},
+            )
+        )
+        db.add(
+            Setting(
+                key="ai-stage-policy:TRANSCRIPT_CORRECTION",
+                value_json={"remote_profile_id": "transcript"},
             )
         )
         db.commit()

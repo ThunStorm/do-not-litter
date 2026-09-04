@@ -707,6 +707,59 @@ def test_national_map_clusters_and_user_marker_lifecycle(client) -> None:
     )
 
 
+def test_map_visibility_time_and_route_facets(client) -> None:
+    markers = client.get("/api/travel/map?city=厦门市&zoom=8").json()["markers"]
+    place_id = markers[0]["id"]
+    insight = client.post(
+        f"/api/travel/places/{place_id}/insights",
+        json={"insight_type": "BEST_MONTH", "value_key": "10", "value_text": "10月"},
+    )
+    assert insight.status_code == 200
+    removed = client.delete(f"/api/travel/places/{place_id}/insights/{insight.json()['id']}")
+    assert removed.json()["status"] == "RETRACTED"
+    insight = client.post(
+        f"/api/travel/places/{place_id}/insights",
+        json={"insight_type": "BEST_MONTH", "value_key": "10", "value_text": "10月"},
+    )
+    assert insight.status_code == 200
+    overlay = client.patch(
+        f"/api/travel/places/{place_id}/overlay",
+        json={
+            "display_name": "我的秋游地点",
+            "override_place_type": "PARK",
+            "custom_tags": ["秋季"],
+            "expected_revision": 0,
+        },
+    )
+    assert overlay.status_code == 200
+    month_markers = client.get(
+        "/api/travel/map?city=厦门市&zoom=8&best_month=10"
+    ).json()["markers"]
+    assert place_id in {item["id"] for item in month_markers}
+    assert next(item for item in month_markers if item["id"] == place_id)["name"] == "我的秋游地点"
+    route = client.post(
+        "/api/travel/route-drafts",
+        json={"name": "秋游", "city": "厦门市", "place_ids": [place_id]},
+    ).json()
+    only_route = client.get(f"/api/travel/map?city=厦门市&zoom=8&route_id={route['id']}").json()
+    assert [item["id"] for item in only_route["markers"]] == [place_id]
+    renamed = client.patch(
+        f"/api/travel/route-drafts/{route['id']}",
+        json={"name": "厦门秋游", "city": "厦门市"},
+    )
+    assert renamed.json()["name"] == "厦门秋游"
+    assert client.post(f"/api/travel/places/{place_id}/marker/hide").json()["visibility"] == "HIDDEN"
+    assert place_id not in {
+        item["id"] for item in client.get("/api/travel/map?city=厦门市&zoom=8").json()["markers"]
+    }
+    assert place_id in {
+        item["id"]
+        for item in client.get("/api/travel/map?city=厦门市&zoom=8&visibility=HIDDEN").json()["markers"]
+    }
+    assert client.delete(f"/api/travel/route-drafts/{route['id']}").json()["status"] == "DELETED"
+    assert client.get("/api/travel/place-reviews/count").json()["count"] >= 0
+
+
 def test_screenshot_plan_binds_sections_and_quality_filter(app_and_session, tmp_path) -> None:
     _, factory = app_and_session
     with factory() as db:
@@ -897,20 +950,15 @@ def test_custom_model_profiles_route_and_history_deletion(client, app_and_sessio
         json={
             "primary_id": primary_id,
             "fallback_id": fallback_id,
-            "transcript_primary_id": fallback_id,
-            "transcript_fallback_id": primary_id,
         },
     )
     assert routed.json()["primary_id"] == primary_id
-    assert routed.json()["transcript_primary_id"] == fallback_id
     assert client.delete(f"/api/settings/model-profiles/{primary_id}").status_code == 409
     clear_routing = client.put(
         "/api/settings/model-routing",
         json={
             "primary_id": None,
             "fallback_id": None,
-            "transcript_primary_id": None,
-            "transcript_fallback_id": None,
         },
     )
     assert clear_routing.status_code == 200

@@ -234,8 +234,6 @@ export interface DomainPackView {
 export interface ModelRoutingView {
   primary_id: string | null
   fallback_id: string | null
-  transcript_primary_id: string | null
-  transcript_fallback_id: string | null
 }
 
 export interface TranscriptProcessingView {

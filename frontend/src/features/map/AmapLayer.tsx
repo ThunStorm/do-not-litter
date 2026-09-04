@@ -7,8 +7,9 @@ export interface MapController {
   zoomIn: () => void
   zoomOut: () => void
   locate: () => void
-  fitPlaces: () => void
+  fitChina: () => void
   enterAddMode: () => void
+  clearDraft: () => void
 }
 
 interface AmapLayerProps {
@@ -35,6 +36,8 @@ type AmapMap = {
   getBounds: () => AmapBounds
   getZoom: () => number
   setZoomAndCenter: (zoom: number, center: [number, number]) => void
+  setBounds: (bounds: unknown, options?: Record<string, unknown>) => void
+  resize: () => void
   zoomIn: () => void
   zoomOut: () => void
   setFitView: (items: AmapMarker[]) => void
@@ -45,6 +48,7 @@ type AmapRuntime = {
   Marker: new (options: Record<string, unknown>) => AmapMarker
   MarkerCluster?: new (map: AmapMap, markers: AmapMarker[], options?: Record<string, unknown>) => AmapCluster
   Pixel: new (x: number, y: number) => unknown
+  Bounds?: new (southWest: [number, number], northEast: [number, number]) => unknown
 }
 
 declare global {
@@ -75,6 +79,11 @@ function sameViewport(left: { bbox: number[]; zoom: number }, right: { bbox: num
   return Math.abs(left.zoom - right.zoom) < 0.05 && left.bbox.every((value, index) => Math.abs(value - right.bbox[index]) < 0.01)
 }
 
+function fitChina(map: AmapMap, AMap: AmapRuntime) {
+  if (AMap.Bounds) map.setBounds(new AMap.Bounds([73.5, 18], [135.1, 53.6]), { padding: [32, 32, 32, 32] })
+  else map.setZoomAndCenter(4, [104.3, 35.8])
+}
+
 export const AmapLayer = forwardRef<MapController, AmapLayerProps>(function AmapLayer({ markers, clusters, selectedId, onSelect, viewport, onReady, onViewportChange, onDraftLocation }, ref) {
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<AmapMap | null>(null)
@@ -98,8 +107,17 @@ export const AmapLayer = forwardRef<MapController, AmapLayerProps>(function Amap
     zoomIn: () => mapRef.current?.zoomIn(),
     zoomOut: () => mapRef.current?.zoomOut(),
     locate: () => navigator.geolocation?.getCurrentPosition((position) => mapRef.current?.setZoomAndCenter(Math.max(mapRef.current.getZoom(), 14), [position.coords.longitude, position.coords.latitude])),
-    fitPlaces: () => mapRef.current?.setFitView(mapMarkersRef.current),
+    fitChina: () => {
+      const map = mapRef.current
+      const AMap = runtimeRef.current
+      if (map && AMap) fitChina(map, AMap)
+    },
     enterAddMode: () => { draftModeRef.current = true },
+    clearDraft: () => {
+      const map = mapRef.current
+      if (map && draftMarkerRef.current) map.remove([draftMarkerRef.current])
+      draftMarkerRef.current = null
+    },
   }), [])
 
   useEffect(() => {
@@ -114,6 +132,7 @@ export const AmapLayer = forwardRef<MapController, AmapLayerProps>(function Amap
     let syncTimer: number | undefined
     let syncViewport: ((event: AmapEvent) => void) | undefined
     let chooseLocation: ((event: AmapEvent) => void) | undefined
+    let resizeObserver: ResizeObserver | undefined
     loadAmap(config.js_key, config.security_code).then((AMap) => {
       if (cancelled || !container.current) return
       runtimeRef.current = AMap
@@ -121,6 +140,9 @@ export const AmapLayer = forwardRef<MapController, AmapLayerProps>(function Amap
       const map = new AMap.Map(container.current, { zoom: viewport.zoom || config.default_viewport.zoom, center: [(west + east) / 2, (south + north) / 2], mapStyle: 'amap://styles/whitesmoke' })
       mapRef.current = map
       lastViewportRef.current = viewport
+      if (viewport.bbox[0] <= 73.5 && viewport.bbox[2] >= 135.1) {
+        fitChina(map, AMap)
+      }
       setMapVersion((value) => value + 1)
       syncViewport = () => {
         window.clearTimeout(syncTimer)
@@ -144,6 +166,13 @@ export const AmapLayer = forwardRef<MapController, AmapLayerProps>(function Amap
       map.on('moveend', syncViewport)
       map.on('zoomend', syncViewport)
       map.on('click', chooseLocation)
+      resizeObserver = new ResizeObserver(() => {
+        map.resize()
+        if (lastViewportRef.current.bbox[0] <= 73.5 && lastViewportRef.current.bbox[2] >= 135.1) {
+          fitChina(map, AMap)
+        }
+      })
+      resizeObserver.observe(container.current)
       onReady(true)
     }).catch((reason) => {
       setError(reason instanceof Error ? reason.message : '高德地图加载失败')
@@ -158,6 +187,7 @@ export const AmapLayer = forwardRef<MapController, AmapLayerProps>(function Amap
         map.off('zoomend', syncViewport)
         if (chooseLocation) map.off('click', chooseLocation)
       }
+      resizeObserver?.disconnect()
       map?.destroy()
       mapRef.current = null
       onReady(false)

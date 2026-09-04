@@ -80,13 +80,19 @@ export const api = {
     body.append('upload', file)
     return request<{ job_id: string }>('/api/capture/file', { method: 'POST', body })
   },
-  map: (options: { selectedPlaceId?: string; state?: string; origin?: string; query?: string; placeType?: string; bbox?: number[]; zoom?: number } = {}) => {
+  map: (options: { selectedPlaceId?: string; state?: string; origin?: string; query?: string; placeType?: string; bestMonth?: string; bestSeason?: string; bestTimeSlot?: string; routeId?: string; sourceId?: string; visibility?: 'VISIBLE' | 'HIDDEN' | 'ALL'; bbox?: number[]; zoom?: number } = {}) => {
     const params = new URLSearchParams()
     if (options.selectedPlaceId) params.set('selected_place_id', options.selectedPlaceId)
     if (options.state) params.set('user_state', options.state)
     if (options.origin) params.set('origin', options.origin)
     if (options.query) params.set('query', options.query)
     if (options.placeType) params.set('place_type', options.placeType)
+    if (options.bestMonth) params.set('best_month', options.bestMonth)
+    if (options.bestSeason) params.set('best_season', options.bestSeason)
+    if (options.bestTimeSlot) params.set('best_time_slot', options.bestTimeSlot)
+    if (options.routeId) params.set('route_id', options.routeId)
+    if (options.sourceId) params.set('source_id', options.sourceId)
+    if (options.visibility) params.set('visibility', options.visibility)
     if (options.bbox) params.set('bbox', options.bbox.join(','))
     if (options.zoom) params.set('zoom', String(options.zoom))
     return request<MapOverviewView>(`/api/travel/map?${params.toString()}`)
@@ -96,15 +102,22 @@ export const api = {
   deleteMapMarker: (markerId: string) => request<{ marker_id: string; visibility: string }>(`/api/travel/map/markers/${markerId}`, { method: 'DELETE' }),
   restoreMapMarker: (markerId: string) => request<{ marker_id: string; visibility: string }>(`/api/travel/map/markers/${markerId}/restore`, { method: 'POST' }),
   placeReviews: () => request<Array<{ mention_id: string; name: string; place_type: string; reason: string; revision: number; candidates: Array<{ provider_id: string; name: string; address: string; score: number; match_reasons: string[] }> }>>('/api/travel/place-reviews'),
+  placeReviewCount: () => request<{ count: number }>('/api/travel/place-reviews/count'),
   confirmPlaceReview: (mentionId: string, poiId: string, expectedRevision: number) => request(`/api/travel/place-mentions/${mentionId}/confirm`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ provider: 'AMAP', poi_id: poiId, expected_revision: expectedRevision }) }),
   updatePlaceMention: (mentionId: string, action: 'reject' | 'restore') => request(`/api/travel/place-mentions/${mentionId}/${action}`, { method: 'POST' }),
   searchPlaceReview: (mentionId: string, query: string, expectedRevision: number) => request<{ revision: number; candidates: Array<{ provider_id: string; name: string; address: string; score: number; match_reasons: string[] }> }>(`/api/travel/place-mentions/${mentionId}/poi-search`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ query, expected_revision: expectedRevision }) }),
   nearbyPois: (longitude: number, latitude: number) => request<Array<{ provider_id: string; name: string; address: string; longitude: number; latitude: number }>>('/api/travel/map/nearby-pois', { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ longitude, latitude }) }),
+  searchMapPois: (query: string) => request<Array<{ provider_id: string; name: string; address: string; longitude: number; latitude: number }>>('/api/travel/map/place-search', { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ query, expected_revision: 0 }) }),
   createManualPlace: (payload: { mode: 'CUSTOM' | 'AMAP_POI'; name?: string; place_type: string; longitude: number; latitude: number; note?: string; poi_id?: string }) => request<{ place_id: string }>('/api/travel/places', { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) }),
   place: (id: string) => request<PlacePreview & Record<string, unknown>>(`/api/travel/places/${id}`),
   placeHistory: (id: string) => request<LogEventView[]>(`/api/travel/places/${id}/history`),
   updatePlaceNote: (id: string, markdown: string, expectedRevision: number) => request(`/api/travel/places/${id}/note`, { method: 'PUT', headers: jsonHeaders, body: JSON.stringify({ markdown, expected_revision: expectedRevision }) }),
   updatePlaceOverlay: (id: string, payload: { display_name: string; override_place_type: string; custom_tags: string[]; expected_revision: number }) => request(`/api/travel/places/${id}/overlay`, { method: 'PATCH', headers: jsonHeaders, body: JSON.stringify(payload) }),
+  hidePlaceMarker: (id: string) => request(`/api/travel/places/${id}/marker/hide`, { method: 'POST' }),
+  restorePlaceMarker: (id: string) => request(`/api/travel/places/${id}/marker/restore`, { method: 'POST' }),
+  deleteManualPlace: (id: string) => request(`/api/travel/places/${id}/user-created`, { method: 'DELETE' }),
+  createPlaceInsight: (id: string, payload: { insight_type: string; value_key: string; value_text: string }) => request(`/api/travel/places/${id}/insights`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) }),
+  deletePlaceInsight: (placeId: string, insightId: string) => request(`/api/travel/places/${placeId}/insights/${insightId}`, { method: 'DELETE' }),
   restoreManualPlace: (id: string) => request(`/api/travel/places/${id}/user-created/restore`, { method: 'POST' }),
   updatePlace: (id: string, action: string) => request(`/api/travel/places/${id}/${action}`, { method: 'POST' }),
   routes: () => request<RouteDraftView[]>('/api/travel/route-drafts'),
@@ -117,6 +130,8 @@ export const api = {
       headers: jsonHeaders,
       body: JSON.stringify({ place_ids: placeIds }),
     }),
+  updateRouteMetadata: (routeId: string, name: string, city: string) => request<RouteDraftView>(`/api/travel/route-drafts/${routeId}`, { method: 'PATCH', headers: jsonHeaders, body: JSON.stringify({ name, city }) }),
+  deleteRoute: (routeId: string) => request<{ id: string; status: string }>(`/api/travel/route-drafts/${routeId}`, { method: 'DELETE' }),
   providers: () => request<Record<string, Record<string, string>>>('/api/settings/providers'),
   saveProvider: (role: string, payload: Record<string, string>) =>
     request<Record<string, string | boolean>>(`/api/settings/providers/${role}`, {

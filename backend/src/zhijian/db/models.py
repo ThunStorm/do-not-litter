@@ -162,7 +162,10 @@ class JobStepArtifact(Base, TimestampMixin):
 
 class Place(Base, TimestampMixin):
     __tablename__ = "places"
-    __table_args__ = (Index("ix_places_city_status", "city", "resolution_status"),)
+    __table_args__ = (
+        Index("ix_places_city_status", "city", "resolution_status"),
+        UniqueConstraint("external_provider", "external_poi_id", name="uq_place_provider_poi"),
+    )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("plc"))
     content_item_id: Mapped[str | None] = mapped_column(ForeignKey("content_items.id", ondelete="SET NULL"))
