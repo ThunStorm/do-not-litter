@@ -269,9 +269,7 @@ def _download_and_transcribe_audio(
         45,
         {"audio_cached": True, "bytes": audio_path.stat().st_size, "cache_path": str(audio_path)},
     )
-    asr_step = _step(
-        db, job, "ASR", 48, {"audio": audio_path.name, "model": str(settings.whisper_model)}
-    )
+    asr_step = _step(db, job, "ASR", 48, {"audio": audio_path.name, "model": str(settings.whisper_model)})
     _stage_event(db, job, "asr.requested", "正在调用本机 Whisper.cpp 转写")
     try:
         text, raw_segments = audited_call(
@@ -283,9 +281,9 @@ def _download_and_transcribe_audio(
             request_meta={"audio": audio_path.name},
             call=lambda: local_ai_resource_manager.run(
                 "ASR",
-                lambda: WhisperCppProvider(
-                    settings.whisper_binary, settings.whisper_model
-                ).transcribe(audio_path),
+                lambda: WhisperCppProvider(settings.whisper_binary, settings.whisper_model).transcribe(
+                    audio_path
+                ),
             ),
         )
     except RuntimeError as exc:
@@ -294,9 +292,7 @@ def _download_and_transcribe_audio(
         raise NeedsUser("ASR_EMPTY", "本地转写没有产生带时间码的结果")
     _stage_event(db, job, "asr.completed", "本机转写已完成", segments=len(raw_segments))
     _done(db, job, asr_step, 62, {"segments": len(raw_segments)})
-    transcript, segments = materialize_transcript(
-        db, source, asset, raw_segments, source_kind="ASR"
-    )
+    transcript, segments = materialize_transcript(db, source, asset, raw_segments, source_kind="ASR")
     return audio_path, transcript, segments
 
 
@@ -609,18 +605,14 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
             {
                 "transcript_id": transcript.id,
                 "segments": len(segments),
-                "prompt_supplement_hash": prompt_supplement_hash(
-                    db, "transcript_correction"
-                ),
+                "prompt_supplement_hash": prompt_supplement_hash(db, "transcript_correction"),
             },
         )
         _stage_event(db, job, "transcript.correction.requested", "正在使用 AI 校对完整转写")
         try:
             segments = correct_transcript(db, settings, asset, transcript, segments, job)
         except Exception as exc:
-            raise NeedsUser(
-                "TRANSCRIPT_CORRECTION_FAILED", f"转写校对失败：{str(exc)[:240]}"
-            ) from exc
+            raise NeedsUser("TRANSCRIPT_CORRECTION_FAILED", f"转写校对失败：{str(exc)[:240]}") from exc
         corrected_count = sum(item.correction_status == "CORRECTED" for item in segments)
         _done(
             db,
@@ -665,9 +657,7 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
             82,
             {
                 "note_version": note_version.id,
-                "prompt_supplement_hash": prompt_supplement_hash(
-                    db, "travel_place_extraction"
-                ),
+                "prompt_supplement_hash": prompt_supplement_hash(db, "travel_place_extraction"),
             },
         )
         _stage_event(db, job, "places.requested", "正在提取旅行地点与观察")
@@ -720,7 +710,10 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
             try:
                 video_for_frames = download_screenshot_video(settings, resolved.canonical_url, cookie_path)
                 _done(
-                    db, job, download_frames, 95,
+                    db,
+                    job,
+                    download_frames,
+                    95,
                     {"cache_path": str(video_for_frames), "bytes": video_for_frames.stat().st_size},
                 )
             except MediaDownloadError as exc:
@@ -750,7 +743,10 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
                 )
                 screenshot_error = screenshot_error or extract_error
                 _done(
-                    db, job, extract_frames, 97,
+                    db,
+                    job,
+                    extract_frames,
+                    97,
                     {"planned": len(plans), "ready": screenshot_count, "error": screenshot_error},
                 )
             except Exception as exc:
@@ -956,9 +952,7 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
     )
     snapshot_id = transcript.metadata_json.get("snapshot_id") if transcript else None
     segments = (
-        db.scalars(
-            select(Segment).where(Segment.snapshot_id == snapshot_id).order_by(Segment.ordinal)
-        ).all()
+        db.scalars(select(Segment).where(Segment.snapshot_id == snapshot_id).order_by(Segment.ordinal)).all()
         if snapshot_id
         else []
     )
@@ -971,11 +965,14 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
     cookie = store.get(settings.video_cookie_secret_key)
     cookie_path = _temporary_cookie_file(settings, job.id, cookie) if cookie else None
     screenshot_error: str | None = None
-    screenshot_count = db.scalar(
-        select(func.count(VideoScreenshot.id)).where(
-            VideoScreenshot.video_asset_id == asset.id, VideoScreenshot.status == "READY"
+    screenshot_count = (
+        db.scalar(
+            select(func.count(VideoScreenshot.id)).where(
+                VideoScreenshot.video_asset_id == asset.id, VideoScreenshot.status == "READY"
+            )
         )
-    ) or 0
+        or 0
+    )
     try:
         if start <= VIDEO_STEPS.index("DOWNLOAD_AUDIO"):
             _, transcript, segments = _download_and_transcribe_audio(
@@ -1005,9 +1002,7 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                 69,
                 {
                     "transcript_id": transcript.id,
-                    "prompt_supplement_hash": prompt_supplement_hash(
-                        db, "transcript_correction"
-                    ),
+                    "prompt_supplement_hash": prompt_supplement_hash(db, "transcript_correction"),
                 },
             )
             segments = correct_transcript(db, settings, asset, transcript, segments, job)
@@ -1015,9 +1010,7 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
 
         note = db.scalar(select(AINote).where(AINote.video_asset_id == asset.id))
         note_version = (
-            db.get(AINoteVersion, note.current_version_id)
-            if note and note.current_version_id
-            else None
+            db.get(AINoteVersion, note.current_version_id) if note and note.current_version_id else None
         )
         if start <= VIDEO_STEPS.index("GENERATE_AI_NOTE"):
             step = _step(
@@ -1027,9 +1020,7 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                 72,
                 {
                     "transcript": transcript.id,
-                    "prompt_supplement_hash": prompt_supplement_hash(
-                        db, "video_note_summary"
-                    ),
+                    "prompt_supplement_hash": prompt_supplement_hash(db, "video_note_summary"),
                 },
             )
             note_version = generate_note(db, settings, asset, transcript, segments, job)
@@ -1046,7 +1037,8 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
         mentions = db.scalars(select(PlaceMention).where(PlaceMention.video_asset_id == asset.id)).all()
         if start <= VIDEO_STEPS.index("EXTRACT_TRAVEL_FACTS"):
             for mention in mentions:
-                db.delete(mention)
+                if mention.extraction_status != "USER_REJECTED":
+                    db.delete(mention)
             db.commit()
             step = _step(
                 db,
@@ -1055,9 +1047,7 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                 82,
                 {
                     "note_version": note_version.id,
-                    "prompt_supplement_hash": prompt_supplement_hash(
-                        db, "travel_place_extraction"
-                    ),
+                    "prompt_supplement_hash": prompt_supplement_hash(db, "travel_place_extraction"),
                 },
             )
             mentions = extract_place_mentions(db, settings, asset, note_version, segments, job)
@@ -1115,9 +1105,7 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                     JobStepArtifact.status == "AVAILABLE",
                 )
             )
-            cached_path = (
-                video_artifact.artifact_ref_json.get("cache_path") if video_artifact else None
-            )
+            cached_path = video_artifact.artifact_ref_json.get("cache_path") if video_artifact else None
             if cached_path and Path(str(cached_path)).is_file():
                 video_path = Path(str(cached_path))
         if start <= VIDEO_STEPS.index("EXTRACT_SCREENSHOTS"):
@@ -1162,9 +1150,7 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
         clean = _step(db, job, "CLEAN_CACHE", 99, {"replay": True})
         _done(db, job, clean, 100, {"replay_cache_retained": True})
         job.status = (
-            JobStatus.PARTIAL_SUCCESS.value
-            if unresolved or screenshot_error
-            else JobStatus.COMPLETED.value
+            JobStatus.PARTIAL_SUCCESS.value if unresolved or screenshot_error else JobStatus.COMPLETED.value
         )
         job.current_step, job.progress, job.finished_at = "CLEAN_CACHE", 100, utc_now()
         job.lease_owner = job.lease_expire_at = job.error = job.error_code = None

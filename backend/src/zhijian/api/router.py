@@ -46,8 +46,11 @@ from zhijian.db.models import (
     JobStep,
     MapMarkerState,
     Place,
+    PlaceInsightItem,
     PlaceMention,
     PlaceObservation,
+    PlaceUserNote,
+    PlaceUserOverlay,
     RouteDraft,
     RouteDraftItem,
     Segment,
@@ -66,12 +69,20 @@ from zhijian.domain.schemas import (
     ContentView,
     GeneralConfig,
     JobView,
+    ManualPlaceCreate,
     MapMarker,
     MapMarkerCreate,
     MapOverviewView,
     ModelProfileConfig,
     ModelRoutingConfig,
+    NearbyPOIRequest,
+    PlaceDetailView,
+    PlaceInsightView,
+    PlaceNoteUpdate,
+    PlaceOverlayUpdate,
     PlacePreview,
+    POIReviewDecision,
+    POISearchRequest,
     ProfileConfig,
     PromptSupplementsConfig,
     ProviderConfig,
@@ -116,6 +127,7 @@ from zhijian.services.source_retention import prune_source_if_orphan, source_del
 from zhijian.services.video_support import (
     PROMPT_CORE_CONTRACTS,
     PROMPT_SUPPLEMENT_SETTING_KEY,
+    materialize_place_insights,
     prompt_supplement_hash,
     transcript_processing_config,
 )
@@ -123,7 +135,7 @@ from zhijian.services.video_support import (
 router = APIRouter()
 Protected = Annotated[object | None, Depends(require_session)]
 JOB_STALE_AFTER_SECONDS = 90
-LLM_JOB_STALE_AFTER_SECONDS = 600
+LLM_JOB_STALE_AFTER_SECONDS = 500
 LLM_JOB_STEPS = {
     "CORRECT_TRANSCRIPT",
     "GENERATE_AI_NOTE",
@@ -516,12 +528,25 @@ def get_job(job_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
         raise HTTPException(status_code=404, detail="任务不存在")
     steps = db.scalars(select(JobStep).where(JobStep.job_id == job_id)).all()
     rank = {
-        "VALIDATE_LINK": 10, "FETCH_METADATA": 20, "FETCH_SUBTITLE": 30, "DOWNLOAD_AUDIO": 40,
-        "ASR": 50, "NORMALIZE_TRANSCRIPT": 60, "CORRECT_TRANSCRIPT": 65,
-        "GENERATE_AI_NOTE": 70, "EXTRACT_TRAVEL_FACTS": 80,
-        "RESOLVE_POI": 90, "BUILD_PLACE_NOTES": 100, "PLAN_SCREENSHOTS": 110,
-        "DOWNLOAD_VIDEO_FOR_FRAMES": 120, "EXTRACT_SCREENSHOTS": 130,
-        "RECEIVED": 10, "RESOLVE": 20, "SEGMENT": 30, "EXTRACT": 40, "MATERIALIZE": 140,
+        "VALIDATE_LINK": 10,
+        "FETCH_METADATA": 20,
+        "FETCH_SUBTITLE": 30,
+        "DOWNLOAD_AUDIO": 40,
+        "ASR": 50,
+        "NORMALIZE_TRANSCRIPT": 60,
+        "CORRECT_TRANSCRIPT": 65,
+        "GENERATE_AI_NOTE": 70,
+        "EXTRACT_TRAVEL_FACTS": 80,
+        "RESOLVE_POI": 90,
+        "BUILD_PLACE_NOTES": 100,
+        "PLAN_SCREENSHOTS": 110,
+        "DOWNLOAD_VIDEO_FOR_FRAMES": 120,
+        "EXTRACT_SCREENSHOTS": 130,
+        "RECEIVED": 10,
+        "RESOLVE": 20,
+        "SEGMENT": 30,
+        "EXTRACT": 40,
+        "MATERIALIZE": 140,
         "CLEAN_CACHE": 150,
     }
     steps.sort(key=lambda item: (rank.get(item.step_name, 999), item.started_at or job.created_at, item.id))
@@ -559,6 +584,7 @@ def job_ai_usage(job_id: str, _: Protected, db: Session = Depends(get_db)) -> di
         .where(ExternalCallAudit.job_id == job_id)
         .order_by(ExternalCallAudit.created_at)
     ).all()
+
     def empty() -> dict[str, int]:
         return {
             "calls": 0,
@@ -567,6 +593,7 @@ def job_ai_usage(job_id: str, _: Protected, db: Session = Depends(get_db)) -> di
             "cached_tokens": 0,
             "duration_ms": 0,
         }
+
     total, local, remote = empty(), empty(), empty()
     by_stage: dict[str, dict] = {}
     by_model: dict[str, dict] = {}
@@ -1379,7 +1406,10 @@ def map_overview(
             west, south, east, north = (float(part) for part in bbox.split(","))
         except ValueError as exc:
             raise HTTPException(status_code=422, detail="bbox 格式应为 west,south,east,north") from exc
-    statement = select(Place).where(Place.resolution_status == ResolutionStatus.CONFIRMED.value)
+    statement = select(Place).where(
+        or_(Place.resolution_status == ResolutionStatus.CONFIRMED.value, Place.origin == "USER_CREATED"),
+        Place.deleted_at.is_(None),
+    )
     if city:
         statement = statement.where(Place.city == city)
     if district:
@@ -1390,9 +1420,7 @@ def map_overview(
         statement = statement.where(Place.user_state == user_state)
     if query:
         statement = statement.where(Place.name.contains(query) | Place.address.contains(query))
-    statement = statement.where(
-        Place.longitude.between(west, east), Place.latitude.between(south, north)
-    )
+    statement = statement.where(Place.longitude.between(west, east), Place.latitude.between(south, north))
     places = db.scalars(statement.order_by(Place.name.asc())).all()
     place_ids = [place.id for place in places]
     # A place is its durable domain record; its map projection has an explicit
@@ -1416,20 +1444,18 @@ def map_overview(
     states = (
         {
             item.place_id: item
-            for item in db.scalars(
-                select(MapMarkerState).where(MapMarkerState.place_id.in_(place_ids))
-            ).all()
+            for item in db.scalars(select(MapMarkerState).where(MapMarkerState.place_id.in_(place_ids))).all()
         }
         if places
         else {}
     )
     visible_places = [
-        place for place in places
-        if states.get(place.id) is None or states[place.id].visibility == "VISIBLE"
+        place for place in places if states.get(place.id) is None or states[place.id].visibility == "VISIBLE"
     ]
     if origin:
         visible_places = [
-            place for place in visible_places
+            place
+            for place in visible_places
             if (states.get(place.id).origin if states.get(place.id) else place.origin) == origin
         ]
     selected = next((place for place in visible_places if place.id == selected_place_id), None)
@@ -1438,10 +1464,9 @@ def map_overview(
     return MapOverviewView(
         total_places=len(places),
         visible_places=len(visible_places),
-        markers=[
-            _map_marker_view(db, place, states.get(place.id))
-            for place in visible_places
-        ] if zoom >= 6 else [],
+        markers=[_map_marker_view(db, place, states.get(place.id)) for place in visible_places]
+        if zoom >= 6
+        else [],
         clusters=clusters,
         selected_place_id=selected.id if selected else None,
         selected_preview=preview_for_place(db, selected) if selected else None,
@@ -1460,7 +1485,10 @@ def travel_places(
     query: str | None = None,
     db: Session = Depends(get_db),
 ) -> list[MapMarker]:
-    statement = select(Place).where(Place.resolution_status == ResolutionStatus.CONFIRMED.value)
+    statement = select(Place).where(
+        or_(Place.resolution_status == ResolutionStatus.CONFIRMED.value, Place.origin == "USER_CREATED"),
+        Place.deleted_at.is_(None),
+    )
     if city:
         statement = statement.where(Place.city == city)
     if place_type:
@@ -1470,12 +1498,16 @@ def travel_places(
     if query:
         statement = statement.where(Place.name.contains(query) | Place.address.contains(query))
     places = db.scalars(statement.order_by(Place.name.asc())).all()
-    states = {
-        state.place_id: state
-        for state in db.scalars(
-            select(MapMarkerState).where(MapMarkerState.place_id.in_([place.id for place in places]))
-        ).all()
-    } if places else {}
+    states = (
+        {
+            state.place_id: state
+            for state in db.scalars(
+                select(MapMarkerState).where(MapMarkerState.place_id.in_([place.id for place in places]))
+            ).all()
+        }
+        if places
+        else {}
+    )
     return [
         _map_marker_view(db, place, states.get(place.id))
         for place in places
@@ -1488,20 +1520,25 @@ def travel_places(
 def travel_dashboard(_: Protected, db: Session = Depends(get_db)) -> dict:
     places = db.scalars(
         select(Place)
-        .where(Place.resolution_status == ResolutionStatus.CONFIRMED.value)
+        .where(
+            or_(Place.resolution_status == ResolutionStatus.CONFIRMED.value, Place.origin == "USER_CREATED"),
+            Place.deleted_at.is_(None),
+        )
         .order_by(Place.updated_at.desc())
         .limit(8)
     ).all()
-    states = {
-        state.place_id: state
-        for state in db.scalars(
-            select(MapMarkerState).where(MapMarkerState.place_id.in_([place.id for place in places]))
-        ).all()
-    } if places else {}
+    states = (
+        {
+            state.place_id: state
+            for state in db.scalars(
+                select(MapMarkerState).where(MapMarkerState.place_id.in_([place.id for place in places]))
+            ).all()
+        }
+        if places
+        else {}
+    )
     latest_visit = db.scalar(
-        select(Place.updated_at)
-        .where(Place.user_state == "VISITED")
-        .order_by(Place.updated_at.desc())
+        select(Place.updated_at).where(Place.user_state == "VISITED").order_by(Place.updated_at.desc())
     )
     return {
         "days_since_last_trip": max(0, (utc_now() - as_utc(latest_visit)).days) if latest_visit else None,
@@ -1512,7 +1549,8 @@ def travel_dashboard(_: Protected, db: Session = Depends(get_db)) -> dict:
         "recommended_places": [],
         "pending_reviews": db.scalar(
             select(func.count(PlaceMention.id)).where(PlaceMention.resolution_status == "REVIEW")
-        ) or 0,
+        )
+        or 0,
     }
 
 
@@ -1527,12 +1565,16 @@ def export_travel_places(
         .where(Place.resolution_status == ResolutionStatus.CONFIRMED.value)
         .order_by(Place.name.asc())
     ).all()
-    states = {
-        state.place_id: state
-        for state in db.scalars(
-            select(MapMarkerState).where(MapMarkerState.place_id.in_([place.id for place in places]))
-        ).all()
-    } if places else {}
+    states = (
+        {
+            state.place_id: state
+            for state in db.scalars(
+                select(MapMarkerState).where(MapMarkerState.place_id.in_([place.id for place in places]))
+            ).all()
+        }
+        if places
+        else {}
+    )
     views = [
         _map_marker_view(db, place, states.get(place.id))
         for place in places
@@ -1548,10 +1590,15 @@ def export_travel_places(
                     "type": "Feature",
                     "geometry": {"type": "Point", "coordinates": [view.longitude, view.latitude]},
                     "properties": {
-                        "place_id": view.place_id, "name": view.name,
-                        "canonical_name": view.canonical_name, "place_type": view.place_type,
-                        "address": view.address, "origin": view.origin, "user_state": view.user_state,
-                        "source_count": view.source_count, "coordinate_system": "GCJ02",
+                        "place_id": view.place_id,
+                        "name": view.name,
+                        "canonical_name": view.canonical_name,
+                        "place_type": view.place_type,
+                        "address": view.address,
+                        "origin": view.origin,
+                        "user_state": view.user_state,
+                        "source_count": view.source_count,
+                        "coordinate_system": "GCJ02",
                     },
                 }
                 for view in views
@@ -1560,16 +1607,24 @@ def export_travel_places(
         return JSONResponse(payload, headers={"Content-Disposition": f'attachment; filename="{filename}"'})
     rows = [
         {
-            "place_id": view.place_id, "name": view.name, "canonical_name": view.canonical_name,
-            "place_type": view.place_type, "longitude": view.longitude, "latitude": view.latitude,
-            "coordinate_system": "GCJ02", "address": view.address, "origin": view.origin,
-            "user_state": view.user_state, "source_count": view.source_count,
+            "place_id": view.place_id,
+            "name": view.name,
+            "canonical_name": view.canonical_name,
+            "place_type": view.place_type,
+            "longitude": view.longitude,
+            "latitude": view.latitude,
+            "coordinate_system": "GCJ02",
+            "address": view.address,
+            "origin": view.origin,
+            "user_state": view.user_state,
+            "source_count": view.source_count,
         }
         for view in views
     ]
     if format == "json":
         return Response(
-            json.dumps(rows, ensure_ascii=False, indent=2), media_type="application/json",
+            json.dumps(rows, ensure_ascii=False, indent=2),
+            media_type="application/json",
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
     buffer = io.StringIO()
@@ -1578,7 +1633,8 @@ def export_travel_places(
     writer.writeheader()
     writer.writerows(rows)
     return Response(
-        "\ufeff" + buffer.getvalue(), media_type="text/csv; charset=utf-8",
+        "\ufeff" + buffer.getvalue(),
+        media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
@@ -1612,8 +1668,7 @@ def _map_marker_view(db: Session, place: Place, state: MapMarkerState | None) ->
         preview_image=f"/api/video-screenshots/{screenshot.id}/image" if screenshot else None,
         brief=mention.brief_json if mention else {},
         source_count=(
-            db.scalar(select(func.count(PlaceMention.id)).where(PlaceMention.place_id == place.id))
-            or 0
+            db.scalar(select(func.count(PlaceMention.id)).where(PlaceMention.place_id == place.id)) or 0
         ),
     )
 
@@ -1672,9 +1727,7 @@ def create_map_marker(payload: MapMarkerCreate, _: Protected, db: Session = Depe
     )
     db.add(place)
     db.flush()
-    marker = MapMarkerState(
-        place_id=place.id, origin="USER", visibility="VISIBLE", created_by="local-user"
-    )
+    marker = MapMarkerState(place_id=place.id, origin="USER", visibility="VISIBLE", created_by="local-user")
     db.add(marker)
     record_event(
         db,
@@ -1733,18 +1786,471 @@ def place_preview(place_id: str, _: Protected, db: Session = Depends(get_db)) ->
     return preview_for_place(db, place)
 
 
-@router.get("/api/travel/places/{place_id}")
-def place_detail(place_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
+@router.get("/api/travel/places/{place_id}", response_model=PlaceDetailView)
+def place_detail(place_id: str, _: Protected, db: Session = Depends(get_db)) -> PlaceDetailView:
     place = db.get(Place, place_id)
     if place is None:
         raise HTTPException(status_code=404, detail="地点不存在")
-    return {
+    insights = db.scalars(
+        select(PlaceInsightItem)
+        .where(PlaceInsightItem.place_id == place.id, PlaceInsightItem.status == "ACTIVE")
+        .order_by(PlaceInsightItem.insight_type, PlaceInsightItem.created_at)
+    ).all()
+    overlay = db.scalar(select(PlaceUserOverlay).where(PlaceUserOverlay.place_id == place.id))
+    note = db.scalar(select(PlaceUserNote).where(PlaceUserNote.place_id == place.id))
+    marker = db.scalar(select(MapMarkerState).where(MapMarkerState.place_id == place.id))
+    return PlaceDetailView(
         **preview_for_place(db, place).model_dump(),
-        "coordinate_system": place.coordinate_system,
-        "coordinates": [place.longitude, place.latitude],
-        "provider": place.external_provider,
-        "external_poi_id": place.external_poi_id,
-        "metadata": place.metadata_json,
+        coordinate_system=place.coordinate_system,
+        coordinates=[place.longitude, place.latitude],
+        provider=place.external_provider,
+        external_poi_id=place.external_poi_id,
+        metadata=place.metadata_json,
+        insights=[
+            PlaceInsightView(
+                id=item.id,
+                insight_type=item.insight_type,
+                value_key=item.value_key,
+                value_text=item.value_text,
+                value_json=item.value_json,
+                provenance=item.provenance,
+                confidence=item.confidence,
+                status=item.status,
+                segment_ids=item.segment_ids_json,
+            )
+            for item in insights
+        ],
+        display={
+            "name": overlay.display_name or place.name if overlay else place.name,
+            "place_type": overlay.override_place_type or place.place_type if overlay else place.place_type,
+            "tags": overlay.custom_tags_json if overlay else [],
+            "revision": overlay.revision if overlay else 0,
+        },
+        note={"markdown": note.markdown, "revision": note.revision}
+        if note
+        else {"markdown": "", "revision": 0},
+        marker={"id": marker.id, "visibility": marker.visibility, "revision": marker.revision}
+        if marker
+        else {},
+    )
+
+
+def _revision_conflict(current: int) -> HTTPException:
+    return HTTPException(status_code=409, detail={"code": "REVISION_CONFLICT", "latest_revision": current})
+
+
+@router.put("/api/travel/places/{place_id}/note")
+def update_place_note(
+    place_id: str, payload: PlaceNoteUpdate, _: Protected, db: Session = Depends(get_db)
+) -> dict:
+    if db.get(Place, place_id) is None:
+        raise HTTPException(status_code=404, detail={"code": "PLACE_NOT_FOUND"})
+    note = db.scalar(select(PlaceUserNote).where(PlaceUserNote.place_id == place_id))
+    if note is None:
+        if payload.expected_revision != 0:
+            raise _revision_conflict(0)
+        note = PlaceUserNote(place_id=place_id, markdown=payload.markdown, revision=1)
+        db.add(note)
+    else:
+        if note.revision != payload.expected_revision:
+            raise _revision_conflict(note.revision)
+        note.markdown, note.revision = payload.markdown, note.revision + 1
+    record_event(
+        db,
+        "place.note.updated",
+        "地点个人备注已更新",
+        actor="user",
+        entity_type="place",
+        entity_id=place_id,
+        commit=False,
+    )
+    db.commit()
+    return {"markdown": note.markdown, "revision": note.revision}
+
+
+@router.patch("/api/travel/places/{place_id}/overlay")
+def update_place_overlay(
+    place_id: str, payload: PlaceOverlayUpdate, _: Protected, db: Session = Depends(get_db)
+) -> dict:
+    if db.get(Place, place_id) is None:
+        raise HTTPException(status_code=404, detail={"code": "PLACE_NOT_FOUND"})
+    overlay = db.scalar(select(PlaceUserOverlay).where(PlaceUserOverlay.place_id == place_id))
+    if overlay is None:
+        if payload.expected_revision != 0:
+            raise _revision_conflict(0)
+        overlay = PlaceUserOverlay(place_id=place_id, revision=1)
+        db.add(overlay)
+    elif overlay.revision != payload.expected_revision:
+        raise _revision_conflict(overlay.revision)
+    else:
+        overlay.revision += 1
+    overlay.display_name = payload.display_name
+    overlay.override_place_type = payload.override_place_type
+    overlay.custom_tags_json = list(dict.fromkeys(tag.strip() for tag in payload.custom_tags if tag.strip()))
+    record_event(
+        db,
+        "place.overlay.updated",
+        "地点显示覆盖已更新",
+        actor="user",
+        entity_type="place",
+        entity_id=place_id,
+        commit=False,
+    )
+    db.commit()
+    return {"display_name": overlay.display_name, "revision": overlay.revision}
+
+
+@router.post("/api/travel/places/{place_id}/marker/{action}")
+def update_place_marker(place_id: str, action: str, _: Protected, db: Session = Depends(get_db)) -> dict:
+    place = db.get(Place, place_id)
+    if place is None:
+        raise HTTPException(status_code=404, detail={"code": "PLACE_NOT_FOUND"})
+    if action not in {"hide", "restore"}:
+        raise HTTPException(status_code=404, detail="不支持的 Marker 操作")
+    marker = db.scalar(select(MapMarkerState).where(MapMarkerState.place_id == place_id))
+    if marker is None:
+        marker = MapMarkerState(place_id=place_id, origin=place.origin, visibility="VISIBLE")
+        db.add(marker)
+    marker.visibility, marker.revision, marker.updated_by = (
+        ("HIDDEN" if action == "hide" else "VISIBLE"),
+        marker.revision + 1,
+        "local-user",
+    )
+    record_event(
+        db,
+        "place.marker.hidden" if action == "hide" else "place.marker.restored",
+        "地点地图投影已更新",
+        actor="user",
+        entity_type="place",
+        entity_id=place_id,
+        commit=False,
+    )
+    db.commit()
+    return {"marker_id": marker.id, "visibility": marker.visibility, "revision": marker.revision}
+
+
+@router.post("/api/travel/places")
+def create_manual_place(
+    payload: ManualPlaceCreate,
+    _: Protected,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+    store: SecretStore = Depends(get_secret_store),
+) -> dict:
+    if payload.mode == "AMAP_POI":
+        web_key = store.get("amap:web-service-key") or settings.amap_api_key
+        if not web_key or not payload.poi_id:
+            raise HTTPException(status_code=422, detail={"code": "INVALID_POI"})
+        candidate = AMapPOIProvider(web_key).detail(payload.poi_id)
+        if candidate is None:
+            raise HTTPException(status_code=422, detail={"code": "INVALID_POI"})
+        existing = db.scalar(
+            select(Place).where(
+                Place.external_provider == "AMAP", Place.external_poi_id == candidate.provider_id
+            )
+        )
+        if existing:
+            return {
+                "place_id": existing.id,
+                "origin": existing.origin,
+                "poi_binding_status": existing.poi_binding_status,
+            }
+        place = Place(
+            name=candidate.name,
+            canonical_name=candidate.name,
+            origin="USER_CREATED",
+            place_type=payload.place_type,
+            province=candidate.province,
+            city=candidate.city,
+            district=candidate.district,
+            address=candidate.address,
+            latitude=candidate.latitude,
+            longitude=candidate.longitude,
+            coordinate_source="AMAP_POI",
+            external_provider="AMAP",
+            external_poi_id=candidate.provider_id,
+            poi_binding_status="USER_CONFIRMED",
+            resolution_status=ResolutionStatus.CONFIRMED.value,
+        )
+    else:
+        if not payload.name.strip():
+            raise HTTPException(status_code=422, detail={"code": "PLACE_NAME_REQUIRED"})
+        place = Place(
+            name=payload.name,
+            canonical_name=payload.name,
+            origin="USER_CREATED",
+            place_type=payload.place_type,
+            latitude=payload.latitude,
+            longitude=payload.longitude,
+            coordinate_source="USER_MAP_CLICK",
+            poi_binding_status="UNBOUND",
+            resolution_status=ResolutionStatus.UNRESOLVED.value,
+        )
+    db.add(place)
+    db.flush()
+    db.add(
+        MapMarkerState(
+            place_id=place.id, origin="USER_CREATED", visibility="VISIBLE", created_by="local-user"
+        )
+    )
+    if payload.note:
+        db.add(PlaceUserNote(place_id=place.id, markdown=payload.note, revision=1))
+    record_event(
+        db,
+        "place.created.manual",
+        "用户手工地点已创建",
+        actor="user",
+        entity_type="place",
+        entity_id=place.id,
+        commit=False,
+    )
+    db.commit()
+    return {"place_id": place.id, "origin": place.origin, "poi_binding_status": place.poi_binding_status}
+
+
+@router.delete("/api/travel/places/{place_id}/user-created")
+def soft_delete_manual_place(place_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
+    place = db.get(Place, place_id)
+    if place is None:
+        raise HTTPException(status_code=404, detail={"code": "PLACE_NOT_FOUND"})
+    if place.origin != "USER_CREATED":
+        raise HTTPException(status_code=409, detail={"code": "CANNOT_DELETE_NON_USER_PLACE"})
+    place.deleted_at, place.revision = utc_now(), place.revision + 1
+    record_event(
+        db,
+        "place.deleted.manual",
+        "用户手工地点已软删除",
+        actor="user",
+        entity_type="place",
+        entity_id=place.id,
+        commit=False,
+    )
+    db.commit()
+    return {"place_id": place.id, "deleted": True}
+
+
+@router.post("/api/travel/places/{place_id}/user-created/restore")
+def restore_manual_place(place_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
+    place = db.get(Place, place_id)
+    if place is None or place.origin != "USER_CREATED":
+        raise HTTPException(status_code=404, detail={"code": "PLACE_NOT_FOUND"})
+    place.deleted_at, place.revision = None, place.revision + 1
+    record_event(
+        db,
+        "place.restored.manual",
+        "用户手工地点已恢复",
+        actor="user",
+        entity_type="place",
+        entity_id=place.id,
+        commit=False,
+    )
+    db.commit()
+    return {"place_id": place.id, "deleted": False}
+
+
+@router.get("/api/travel/places/{place_id}/history")
+def place_history(place_id: str, _: Protected, db: Session = Depends(get_db)) -> list[dict]:
+    if db.get(Place, place_id) is None:
+        raise HTTPException(status_code=404, detail={"code": "PLACE_NOT_FOUND"})
+    events = db.scalars(
+        select(SystemEvent)
+        .where(SystemEvent.entity_type == "place", SystemEvent.entity_id == place_id)
+        .order_by(SystemEvent.created_at.desc())
+        .limit(50)
+    ).all()
+    return [event_view(event) for event in events]
+
+
+@router.get("/api/travel/place-reviews")
+def list_place_reviews(_: Protected, db: Session = Depends(get_db)) -> list[dict]:
+    mentions = db.scalars(
+        select(PlaceMention).where(
+            PlaceMention.resolution_status == ResolutionStatus.REVIEW.value,
+            PlaceMention.extraction_status != "USER_REJECTED",
+        )
+    ).all()
+    return [
+        {
+            "mention_id": mention.id,
+            "name": mention.name,
+            "place_type": mention.place_type,
+            "revision": mention.revision,
+            "candidates": mention.metadata_json.get("poi_candidates", []),
+            "reason": mention.metadata_json.get("reason", ""),
+        }
+        for mention in mentions
+    ]
+
+
+def _poi_candidate_view(candidate: object) -> dict:
+    return {
+        "provider": "AMAP",
+        "provider_id": candidate.provider_id,
+        "name": candidate.name,
+        "address": candidate.address,
+        "province": candidate.province,
+        "city": candidate.city,
+        "district": candidate.district,
+        "typecode": candidate.typecode,
+        "longitude": candidate.longitude,
+        "latitude": candidate.latitude,
+        "score": candidate.score,
+        "match_reasons": candidate.match_reasons,
+    }
+
+
+@router.post("/api/travel/map/nearby-pois")
+def nearby_pois(
+    payload: NearbyPOIRequest,
+    _: Protected,
+    settings: Settings = Depends(get_settings),
+    store: SecretStore = Depends(get_secret_store),
+) -> list[dict]:
+    web_key = store.get("amap:web-service-key") or settings.amap_api_key
+    if not web_key:
+        raise HTTPException(status_code=422, detail={"code": "POI_PROVIDER_UNAVAILABLE"})
+    return [
+        _poi_candidate_view(item)
+        for item in AMapPOIProvider(web_key).around(payload.longitude, payload.latitude)
+    ]
+
+
+@router.post("/api/travel/place-mentions/{mention_id}/poi-search")
+def search_place_review(
+    mention_id: str,
+    payload: POISearchRequest,
+    _: Protected,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+    store: SecretStore = Depends(get_secret_store),
+) -> dict:
+    mention = db.get(PlaceMention, mention_id)
+    if mention is None or mention.extraction_status == "USER_REJECTED":
+        raise HTTPException(status_code=404, detail={"code": "PLACE_NOT_FOUND"})
+    if mention.revision != payload.expected_revision:
+        raise _revision_conflict(mention.revision)
+    web_key = store.get("amap:web-service-key") or settings.amap_api_key
+    if not web_key:
+        raise HTTPException(status_code=422, detail={"code": "POI_PROVIDER_UNAVAILABLE"})
+    candidates = AMapPOIProvider(web_key).search(
+        payload.query, mention.city_hint, city_limit=bool(mention.city_hint)
+    )
+    mention.suggested_name = payload.query
+    mention.metadata_json = {
+        **mention.metadata_json,
+        "poi_candidates": [_poi_candidate_view(item) for item in candidates],
+    }
+    mention.revision += 1
+    record_event(
+        db,
+        "place_mention.poi_search",
+        "用户修正了地点名称并重新搜索 POI",
+        actor="user",
+        entity_type="place_mention",
+        entity_id=mention.id,
+        commit=False,
+    )
+    db.commit()
+    return {
+        "mention_id": mention.id,
+        "revision": mention.revision,
+        "candidates": mention.metadata_json["poi_candidates"],
+    }
+
+
+@router.post("/api/travel/place-mentions/{mention_id}/confirm")
+def confirm_place_review(
+    mention_id: str, payload: POIReviewDecision, _: Protected, db: Session = Depends(get_db)
+) -> dict:
+    mention = db.get(PlaceMention, mention_id)
+    if mention is None:
+        raise HTTPException(status_code=404, detail={"code": "PLACE_NOT_FOUND"})
+    if mention.extraction_status == "USER_REJECTED":
+        raise HTTPException(status_code=409, detail={"code": "MENTION_REJECTED"})
+    if payload.expected_revision is not None and mention.revision != payload.expected_revision:
+        raise _revision_conflict(mention.revision)
+    candidate = next(
+        (
+            item
+            for item in mention.metadata_json.get("poi_candidates", [])
+            if item.get("provider_id") == payload.poi_id
+        ),
+        None,
+    )
+    if candidate is None:
+        raise HTTPException(status_code=422, detail={"code": "INVALID_POI"})
+    place = db.scalar(
+        select(Place).where(Place.external_provider == "AMAP", Place.external_poi_id == payload.poi_id)
+    )
+    if place is None:
+        place = Place(
+            name=str(candidate["name"]),
+            canonical_name=str(candidate["name"]),
+            origin="AI_EXTRACTED",
+            place_type=mention.place_type,
+            province=str(candidate.get("province") or ""),
+            city=str(candidate.get("city") or ""),
+            district=str(candidate.get("district") or ""),
+            address=str(candidate.get("address") or ""),
+            latitude=float(candidate["latitude"]),
+            longitude=float(candidate["longitude"]),
+            external_provider="AMAP",
+            external_poi_id=payload.poi_id,
+            poi_binding_status="USER_CONFIRMED",
+        )
+        db.add(place)
+        db.flush()
+    mention.place_id, mention.resolution_status, mention.revision = (
+        place.id,
+        ResolutionStatus.CONFIRMED.value,
+        mention.revision + 1,
+    )
+    materialize_place_insights(db, mention)
+    record_event(
+        db,
+        "place.poi.bound",
+        "用户确认了 POI 候选",
+        actor="user",
+        entity_type="place",
+        entity_id=place.id,
+        commit=False,
+    )
+    db.commit()
+    return {"place_id": place.id, "mention_id": mention.id, "resolution_status": mention.resolution_status}
+
+
+@router.post("/api/travel/place-mentions/{mention_id}/{action}")
+def update_place_mention_review(
+    mention_id: str, action: str, _: Protected, db: Session = Depends(get_db)
+) -> dict:
+    if action not in {"reject", "restore"}:
+        raise HTTPException(status_code=404, detail="不支持的地点标注操作")
+    mention = db.get(PlaceMention, mention_id)
+    if mention is None:
+        raise HTTPException(status_code=404, detail={"code": "PLACE_NOT_FOUND"})
+    if action == "reject" and mention.extraction_status == "USER_REJECTED":
+        return {
+            "mention_id": mention.id,
+            "extraction_status": mention.extraction_status,
+            "revision": mention.revision,
+        }
+    mention.extraction_status = "USER_REJECTED" if action == "reject" else "EXTRACTED"
+    mention.resolution_status = "REJECTED" if action == "reject" else ResolutionStatus.REVIEW.value
+    mention.revision += 1
+    record_event(
+        db,
+        "place_mention.rejected" if action == "reject" else "place_mention.restored",
+        "地点标注状态已更新",
+        actor="user",
+        entity_type="place_mention",
+        entity_id=mention.id,
+        commit=False,
+    )
+    db.commit()
+    return {
+        "mention_id": mention.id,
+        "extraction_status": mention.extraction_status,
+        "revision": mention.revision,
     }
 
 
@@ -2060,8 +2566,7 @@ def save_ai_stage_policy(
     try:
         validate_stage_policy(payload, _stage_profiles(db))
         missing_pack = any(
-            db.get(Setting, f"{DOMAIN_PACK_PREFIX}{pack_id}") is None
-            for pack_id in payload.domain_pack_ids
+            db.get(Setting, f"{DOMAIN_PACK_PREFIX}{pack_id}") is None for pack_id in payload.domain_pack_ids
         )
         if missing_pack:
             raise ValueError("阶段策略引用了不存在的领域包")
@@ -2237,9 +2742,7 @@ def test_model_profile(
         raise
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"模型连通测试失败：{str(exc)[:240]}") from exc
-    record_event(
-        db, "model_profile.tested", f"真实测试成功：{value.get('name', profile_id)}", actor="user"
-    )
+    record_event(db, "model_profile.tested", f"真实测试成功：{value.get('name', profile_id)}", actor="user")
     db.commit()
     return {
         "status": "READY",
@@ -2279,6 +2782,7 @@ def probe_saved_model_profile(
     try:
         profile = model_profile_from_value(profile_id, value)
         provider = _model_profile_provider(value, store.get(f"model-profile:{profile_id}:api-key"))
+
         def call() -> dict[str, str]:
             return probe_model_profile(provider, profile)
 

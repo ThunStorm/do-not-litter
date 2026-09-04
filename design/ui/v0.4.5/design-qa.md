@@ -18,4 +18,4 @@
 ## 关联产物
 
 - 设计图：`prompt-supplements-settings-annotated.png`
-- 规格：`../../../dev docs/PROMPT_SUPPLEMENTS_V045_SPEC.md`
+- 规格：`../../../dev docs/ai-gateway/PROMPT_SUPPLEMENTS_V045_SPEC.md`

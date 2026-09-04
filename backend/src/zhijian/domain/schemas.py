@@ -99,6 +99,68 @@ class PlacePreview(BaseModel):
     observations: list[dict[str, Any]]
 
 
+class PlaceInsightView(BaseModel):
+    id: str
+    insight_type: str
+    value_key: str
+    value_text: str
+    value_json: dict[str, Any]
+    provenance: str
+    confidence: float
+    status: str
+    segment_ids: list[str]
+
+
+class PlaceDetailView(PlacePreview):
+    coordinate_system: str
+    coordinates: list[float]
+    provider: str | None = None
+    external_poi_id: str | None = None
+    metadata: dict[str, Any]
+    insights: list[PlaceInsightView] = Field(default_factory=list)
+    display: dict[str, Any] = Field(default_factory=dict)
+    note: dict[str, Any] = Field(default_factory=dict)
+    marker: dict[str, Any] = Field(default_factory=dict)
+
+
+class PlaceNoteUpdate(BaseModel):
+    markdown: str = Field(max_length=20_000)
+    expected_revision: int = Field(ge=0)
+
+
+class PlaceOverlayUpdate(BaseModel):
+    display_name: str = Field(default="", max_length=300)
+    override_place_type: str = Field(default="", max_length=64)
+    custom_tags: list[str] = Field(default_factory=list, max_length=30)
+    expected_revision: int = Field(ge=0)
+
+
+class ManualPlaceCreate(BaseModel):
+    mode: Literal["CUSTOM", "AMAP_POI"] = "CUSTOM"
+    name: str = Field(default="", max_length=300)
+    place_type: str = Field(default="LANDMARK", max_length=64)
+    longitude: float
+    latitude: float
+    note: str = Field(default="", max_length=20_000)
+    poi_id: str | None = Field(default=None, max_length=128)
+
+
+class POIReviewDecision(BaseModel):
+    provider: Literal["AMAP"] = "AMAP"
+    poi_id: str = Field(min_length=1, max_length=128)
+    expected_revision: int | None = Field(default=None, ge=0)
+
+
+class POISearchRequest(BaseModel):
+    query: str = Field(min_length=1, max_length=300)
+    expected_revision: int = Field(ge=0)
+
+
+class NearbyPOIRequest(BaseModel):
+    longitude: float
+    latitude: float
+
+
 class MapOverviewView(BaseModel):
     coordinate_system: str = "GCJ02"
     total_places: int

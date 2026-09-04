@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from difflib import SequenceMatcher
 from hashlib import sha256
 from pathlib import Path
 from time import perf_counter
@@ -29,6 +30,7 @@ from zhijian.db.models import (
     ExternalCallAudit,
     Job,
     Place,
+    PlaceInsightItem,
     PlaceMention,
     PlaceNoteVersion,
     Segment,
@@ -40,7 +42,7 @@ from zhijian.db.models import (
 )
 from zhijian.domain.enums import ResolutionStatus
 from zhijian.domain.schemas import GeneralConfig, TranscriptProcessingConfig
-from zhijian.providers.amap import AMapPOIProvider
+from zhijian.providers.amap import AMapPOIProvider, POICandidate
 from zhijian.providers.llm import (
     FallbackLLMProvider,
     LLMProvider,
@@ -361,23 +363,23 @@ def provider_for_role(
             detail={
                 "role": role,
                 "stage": stage,
-                    "execution_mode": resolved_policy.execution_mode if resolved_policy else "LEGACY",
-                    "stage_policy_version": resolved_policy.version if resolved_policy else None,
-                    "resolved_policy": (
-                        {
-                            "temperature": resolved_policy.temperature,
-                            "thinking": resolved_policy.thinking,
-                            "max_input_tokens": resolved_policy.max_input_tokens,
-                            "max_output_tokens": resolved_policy.max_output_tokens,
-                            "timeout_seconds": resolved_policy.timeout_seconds,
-                            "retry_count": resolved_policy.retry_count,
-                            "confidence_threshold": resolved_policy.confidence_threshold,
-                            "escalation_threshold": resolved_policy.escalation_threshold,
-                            "domain": resolved_policy.domain,
-                        }
-                        if resolved_policy
-                        else None
-                    ),
+                "execution_mode": resolved_policy.execution_mode if resolved_policy else "LEGACY",
+                "stage_policy_version": resolved_policy.version if resolved_policy else None,
+                "resolved_policy": (
+                    {
+                        "temperature": resolved_policy.temperature,
+                        "thinking": resolved_policy.thinking,
+                        "max_input_tokens": resolved_policy.max_input_tokens,
+                        "max_output_tokens": resolved_policy.max_output_tokens,
+                        "timeout_seconds": resolved_policy.timeout_seconds,
+                        "retry_count": resolved_policy.retry_count,
+                        "confidence_threshold": resolved_policy.confidence_threshold,
+                        "escalation_threshold": resolved_policy.escalation_threshold,
+                        "domain": resolved_policy.domain,
+                    }
+                    if resolved_policy
+                    else None
+                ),
                 "retry_attempt": attempt,
                 "retry_limit": policy.ai_retry_count,
                 "wait_seconds": policy.ai_retry_wait_seconds,
@@ -468,12 +470,11 @@ def provider_for_role(
             on_attempt=on_attempt,
             request_options=request_options,
         )
+
     if primary_config is None:
         raise ProviderUnavailable("尚未在设置中选择主模型")
     timeout_cap = (
-        transcript_processing_config(db).timeout_seconds
-        if role == "transcript_correction"
-        else None
+        transcript_processing_config(db).timeout_seconds if role == "transcript_correction" else None
     )
     if resolved_policy and resolved_policy.timeout_seconds:
         timeout_cap = (
@@ -526,7 +527,18 @@ def materialize_transcript(
     if not normalized:
         raise ValueError("没有可用的带时间码转写片段")
     if asset.duration_ms and normalized[-1]["end_ms"] > asset.duration_ms * 2:
-        raise ValueError("转写末段时间显著超过视频时长，拒绝物化异常时间轴")
+        ratio = normalized[-1]["end_ms"] / asset.duration_ms
+        if 8 <= ratio <= 12:
+            normalized = [
+                {
+                    **item,
+                    "start_ms": round(item["start_ms"] / 10),
+                    "end_ms": round(item["end_ms"] / 10),
+                }
+                for item in normalized
+            ]
+        else:
+            raise ValueError("转写末段时间显著超过视频时长，拒绝物化异常时间轴")
     fingerprint = "\n".join(f"{item['start_ms']}:{item['end_ms']}:{item['text']}" for item in normalized)
     fingerprint_sha = __import__("hashlib").sha256(fingerprint.encode()).hexdigest()
     existing = db.scalar(
@@ -727,6 +739,7 @@ def correct_transcript(
         processing.chunk_chars,
         processing.batch_size,
     )
+
     def request_batch(batch: list[Segment]) -> list[tuple[list[Segment], LLMResult, list]]:
         if job:
             ensure_job_active(db, job)
@@ -851,9 +864,7 @@ def correct_transcript(
         "correction_provider": provider_name,
         "correction_model": model,
         "correction_coverage": (corrected_count + unchanged_count) / max(1, len(segments)),
-        "correction_prompt_supplement_hash": prompt_supplement_hash(
-            db, "transcript_correction"
-        ),
+        "correction_prompt_supplement_hash": prompt_supplement_hash(db, "transcript_correction"),
     }
     record_event(
         db,
@@ -914,11 +925,14 @@ def repair_legacy_transcript_timing(db: Session) -> int:
         note = db.scalar(select(AINote).where(AINote.video_asset_id == asset.id))
         if note and note.current_version_id:
             current = db.get(AINoteVersion, note.current_version_id)
-            section_count = db.scalar(
-                select(func.count(AINoteSection.id)).where(
-                    AINoteSection.ai_note_version_id == note.current_version_id
+            section_count = (
+                db.scalar(
+                    select(func.count(AINoteSection.id)).where(
+                        AINoteSection.ai_note_version_id == note.current_version_id
+                    )
                 )
-            ) or 0
+                or 0
+            )
             if current and not section_count:
                 fallback_sections = _fallback_sections(_transcript_chunks(corrected_segments, 12_000))
                 for ordinal, item in enumerate(fallback_sections):
@@ -980,8 +994,7 @@ def generate_note(
                 {
                     "role": "user",
                     "content": (
-                        f"视频标题：{asset.title}\n"
-                        f"分块：{chunk_index + 1}/{max(1, len(chunks))}\n{context}"
+                        f"视频标题：{asset.title}\n分块：{chunk_index + 1}/{max(1, len(chunks))}\n{context}"
                     ),
                 },
             ]
@@ -1005,8 +1018,7 @@ def generate_note(
             raw_sections.extend(
                 item
                 for item in sections
-                if isinstance(item, dict)
-                and any(value in chunk_ids for value in item.get("segment_ids", []))
+                if isinstance(item, dict) and any(value in chunk_ids for value in item.get("segment_ids", []))
             )
         except Exception as exc:
             warnings.append(f"第 {chunk_index + 1} 段模型总结不可用")
@@ -1030,9 +1042,7 @@ def generate_note(
                 *prompt_supplement_messages(db, "video_note_summary"),
                 {
                     "role": "user",
-                    "content": (
-                        "以下是按时间块验证的 SectionFacts。仅据此生成全局笔记，不要要求完整转写：\n"
-                    )
+                    "content": ("以下是按时间块验证的 SectionFacts。仅据此生成全局笔记，不要要求完整转写：\n")
                     + json.dumps(map_facts, ensure_ascii=False),
                 },
             ]
@@ -1205,6 +1215,15 @@ def extract_place_mentions(
             if isinstance(candidate, dict)
         ]
     valid_ids = {segment.id for segment in segments}
+    rejected_names = {
+        _normalized_insight_key(item.raw_name or item.name)
+        for item in db.scalars(
+            select(PlaceMention).where(
+                PlaceMention.video_asset_id == asset.id,
+                PlaceMention.extraction_status == "USER_REJECTED",
+            )
+        )
+    }
     created: list[PlaceMention] = []
     for item in candidates[:80]:
         if not isinstance(item, dict):
@@ -1212,6 +1231,9 @@ def extract_place_mentions(
         ids = [value for value in item.get("segment_ids", []) if value in valid_ids]
         if not ids or not item.get("name"):
             continue
+        if _normalized_insight_key(item.get("raw_name") or item["name"]) in rejected_names:
+            continue
+        insights = _insights_from_candidate(item, ids)
         mention = PlaceMention(
             video_asset_id=asset.id,
             ai_note_version_id=note.id,
@@ -1227,6 +1249,7 @@ def extract_place_mentions(
             confidence=normalized_confidence(item.get("confidence")),
             extraction_status="EXTRACTED",
             resolution_status=ResolutionStatus.UNRESOLVED.value,
+            metadata_json={"insights": insights},
             brief_json={
                 "feature": str(item.get("feature") or item.get("reason") or "")[:500],
                 "experience": str(item.get("experience") or "")[:500],
@@ -1243,6 +1266,94 @@ def extract_place_mentions(
     return created
 
 
+def _normalized_insight_key(value: object) -> str:
+    return re.sub(r"\s+", "", str(value).strip().lower())[:128]
+
+
+def _insights_from_candidate(item: dict[str, Any], segment_ids: list[str]) -> list[dict[str, Any]]:
+    """Keep structured source facts beside their mention until POI resolution assigns a Place."""
+    if not segment_ids:
+        return []
+    result: list[dict[str, Any]] = []
+
+    def add(
+        insight_type: str,
+        value: object,
+        *,
+        value_key: object = "",
+        value_json: dict[str, Any] | None = None,
+    ) -> None:
+        if value is None:
+            return
+        text = str(value).strip()
+        if text:
+            result.append(
+                {
+                    "insight_type": insight_type,
+                    "value_key": _normalized_insight_key(value_key or text),
+                    "value_text": text[:500],
+                    "value_json": value_json or {},
+                }
+            )
+
+    for value in item.get("highlights") or [item.get("feature") or item.get("reason")]:
+        add("HIGHLIGHT", value)
+    for value in item.get("recommended_items") or [item.get("experience")]:
+        if isinstance(value, dict):
+            add(
+                "RECOMMENDED_ITEM",
+                value.get("name") or value.get("value"),
+                value_key=value.get("category"),
+                value_json={"category": value.get("category", "")},
+            )
+        else:
+            add("RECOMMENDED_ITEM", value)
+    for value in item.get("best_months") or []:
+        month = str(value).zfill(2) if str(value).isdigit() else str(value)
+        add("BEST_MONTH", f"{int(value)}月" if str(value).isdigit() else value, value_key=month)
+    for value in item.get("best_seasons") or []:
+        add("BEST_SEASON", value)
+    for value in item.get("best_time_slots") or []:
+        add("BEST_TIME_SLOT", value)
+    for insight_type, field in (
+        ("SUGGESTED_DURATION", "suggested_duration"),
+        ("PRICE", "price"),
+        ("QUEUE", "queue"),
+        ("AUDIENCE", "audience"),
+        ("WARNING", "warnings"),
+        ("AUTHOR_OPINION", "author_opinion"),
+    ):
+        values = item.get(field) or (item.get("warning") if field == "warnings" else [])
+        for value in values if isinstance(values, list) else [values]:
+            add(insight_type, value)
+    return result
+
+
+def materialize_place_insights(db: Session, mention: PlaceMention) -> None:
+    if not mention.place_id or not mention.segment_ids_json:
+        return
+    db.query(PlaceInsightItem).filter(
+        PlaceInsightItem.place_mention_id == mention.id,
+        PlaceInsightItem.provenance == "SOURCE_FACT",
+    ).delete(synchronize_session=False)
+    asset = db.get(VideoAsset, mention.video_asset_id)
+    for item in mention.metadata_json.get("insights", []):
+        db.add(
+            PlaceInsightItem(
+                place_id=mention.place_id,
+                place_mention_id=mention.id,
+                source_id=asset.source_id if asset else None,
+                insight_type=str(item["insight_type"]),
+                value_key=str(item.get("value_key") or ""),
+                value_text=str(item["value_text"]),
+                value_json=dict(item.get("value_json") or {}),
+                provenance="SOURCE_FACT",
+                confidence=mention.confidence,
+                segment_ids_json=list(mention.segment_ids_json),
+            )
+        )
+
+
 def resolve_mentions_with_amap(
     db: Session, settings: Settings, mentions: list[PlaceMention], api_key: str | None = None
 ) -> tuple[int, int]:
@@ -1255,20 +1366,34 @@ def resolve_mentions_with_amap(
     confirmed = 0
     for mention in mentions:
         try:
-            candidates = provider.search(mention.name, mention.city_hint, city_limit=bool(mention.city_hint))
+            candidates = _rank_poi_candidates(provider, mention)
         except Exception as exc:
             mention.metadata_json = {"poi_error": str(exc)[:240]}
             continue
         if not candidates:
-            continue
-        if len(candidates) > 1 and candidates[0].name != (mention.suggested_name or mention.name):
-            mention.resolution_status = ResolutionStatus.REVIEW.value
-            mention.metadata_json = {
-                "poi_candidates": [item.name for item in candidates[:5]],
-                "reason": "多个高德候选，等待人工确认",
-            }
+            mention.resolution_status = ResolutionStatus.UNRESOLVED.value
             continue
         selected = candidates[0]
+        runner_up = candidates[1] if len(candidates) > 1 else None
+        if selected.score < 80 or (runner_up and selected.score - runner_up.score < 15):
+            mention.resolution_status = ResolutionStatus.REVIEW.value
+            mention.metadata_json = {
+                "poi_candidates": [_candidate_metadata(item) for item in candidates[:5]],
+                "reason": "候选得分不足或第一、二候选过于接近，等待人工确认",
+            }
+            continue
+        try:
+            verified = provider.detail(selected.provider_id)
+        except Exception:
+            verified = None
+        if verified is None:
+            mention.resolution_status = ResolutionStatus.REVIEW.value
+            mention.metadata_json = {
+                "poi_candidates": [_candidate_metadata(item) for item in candidates[:5]],
+                "reason": "POI 详情复核失败，等待人工确认",
+            }
+            continue
+        selected = verified
         place = db.scalar(
             select(Place).where(
                 Place.external_provider == "AMap", Place.external_poi_id == selected.provider_id
@@ -1298,10 +1423,96 @@ def resolve_mentions_with_amap(
             place.canonical_name = selected.name
         mention.place_id = place.id
         mention.resolution_status = ResolutionStatus.CONFIRMED.value
-        mention.metadata_json = {"poi_name": selected.name, "poi_id": selected.provider_id}
+        mention.metadata_json = {
+            **mention.metadata_json,
+            "poi_name": selected.name,
+            "poi_id": selected.provider_id,
+            "poi_score": candidates[0].score,
+            "poi_match_reasons": candidates[0].match_reasons,
+        }
+        materialize_place_insights(db, mention)
         confirmed += 1
     db.commit()
     return confirmed, len(mentions) - confirmed
+
+
+def _rank_poi_candidates(provider: AMapPOIProvider, mention: PlaceMention) -> list[POICandidate]:
+    queries = _poi_queries(mention)
+    deduped: dict[str, POICandidate] = {}
+    for query, city in queries:
+        for candidate in provider.search(query, city, city_limit=bool(city)):
+            if candidate.provider_id and candidate.provider_id not in deduped:
+                deduped[candidate.provider_id] = candidate
+    for candidate in deduped.values():
+        candidate.score, candidate.match_reasons = _poi_score(mention, candidate)
+    return sorted(deduped.values(), key=lambda item: (-item.score, item.name))
+
+
+def _poi_queries(mention: PlaceMention) -> list[tuple[str, str]]:
+    names = (mention.suggested_name, mention.name, mention.raw_name)
+    locations = (mention.city_hint, mention.province_hint, "")
+    result: list[tuple[str, str]] = []
+    for name, location in zip(names, locations, strict=True):
+        value = (name or "").strip()
+        pair = (value, (location or "").strip())
+        if value and pair not in result:
+            result.append(pair)
+    return result[:5]
+
+
+def _poi_score(mention: PlaceMention, candidate: POICandidate) -> tuple[int, list[str]]:
+    reasons: list[str] = []
+    names = [value for value in (mention.suggested_name, mention.name, mention.raw_name) if value]
+    similarity = max(
+        (
+            SequenceMatcher(
+                None, _normalized_insight_key(value), _normalized_insight_key(candidate.name)
+            ).ratio()
+            for value in names
+        ),
+        default=0.0,
+    )
+    score = round(similarity * 45)
+    if similarity >= 0.9:
+        reasons.append("名称高度匹配")
+    if mention.city_hint and mention.city_hint in (candidate.city + candidate.address):
+        score += 20
+        reasons.append("城市匹配")
+    if mention.province_hint and mention.province_hint in candidate.province:
+        score += 10
+        reasons.append("省份匹配")
+    type_prefixes = {
+        "RESTAURANT": "05",
+        "SCENIC_AREA": "11",
+        "MUSEUM": "14",
+        "PARK": "11",
+        "ACCOMMODATION": "10",
+    }
+    prefix = type_prefixes.get(mention.place_type)
+    if prefix and candidate.typecode.startswith(prefix):
+        score += 15
+        reasons.append("地点类型匹配")
+    if mention.city_hint and mention.city_hint in candidate.address:
+        score += 5
+        reasons.append("地址上下文匹配")
+    return min(score, 100), reasons
+
+
+def _candidate_metadata(candidate: POICandidate) -> dict[str, Any]:
+    return {
+        "provider": "AMAP",
+        "provider_id": candidate.provider_id,
+        "name": candidate.name,
+        "address": candidate.address,
+        "province": candidate.province,
+        "city": candidate.city,
+        "district": candidate.district,
+        "typecode": candidate.typecode,
+        "longitude": candidate.longitude,
+        "latitude": candidate.latitude,
+        "score": candidate.score,
+        "match_reasons": candidate.match_reasons,
+    }
 
 
 def build_place_notes(db: Session, asset: VideoAsset, mentions: list[PlaceMention]) -> int:
@@ -1326,8 +1537,13 @@ def build_place_notes(db: Session, asset: VideoAsset, mentions: list[PlaceMentio
             f"- 依据：{mention.quote or mention.reason}",
         ]
         labels = {
-            "feature": "特色", "experience": "菜品 / 体验", "price": "价格", "queue": "排队",
-            "audience": "适合人群", "warning": "注意事项", "author_opinion": "作者态度",
+            "feature": "特色",
+            "experience": "菜品 / 体验",
+            "price": "价格",
+            "queue": "排队",
+            "audience": "适合人群",
+            "warning": "注意事项",
+            "author_opinion": "作者态度",
         }
         for key, label in labels.items():
             value = brief.get(key)

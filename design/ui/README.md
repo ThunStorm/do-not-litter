@@ -36,11 +36,11 @@
 
 ## operations-v0.3 运维审阅稿
 
-`operations-v0.3/` 保存 2026-08-21 根据实际页面批注形成的定向改版稿，状态为“设计完成、尚未实施”。它不重做既有视觉体系，只冻结四项后续实现契约：935px/浏览器缩放下的任务列表重排、可诊断的实时任务步骤、运维级日志工作台、Mac mini 真实资源指标。详细字段、阈值和验收规则见 `../../dev docs/OPERATIONS_UI_SPEC.md`。
+`operations-v0.3/` 保存 2026-08-21 根据实际页面批注形成的定向改版稿，状态为“设计完成、尚未实施”。它不重做既有视觉体系，只冻结四项后续实现契约：935px/浏览器缩放下的任务列表重排、可诊断的实时任务步骤、运维级日志工作台、Mac mini 真实资源指标。详细字段、阈值和验收规则见 `../../dev docs/operations/OPERATIONS_UI_SPEC.md`。
 
 ## v0.4 视频地点与全国地图
 
-`v0.4/` 保存视频截图、细粒度地点和全国地图的新界面审阅稿。地图设计以中国大陆首屏、bbox/zoom 聚合、Marker 浮层与可恢复生命周期为基线；高德三项配置与诊断见同目录设置稿。实现状态与接口边界见 `../../dev docs/VIDEO_AI_NOTE_PIPELINE.md`。
+`v0.4/` 保存视频截图、细粒度地点和全国地图的新界面审阅稿。地图设计以中国大陆首屏、bbox/zoom 聚合、Marker 浮层与可恢复生命周期为基线；高德三项配置与诊断见同目录设置稿。实现状态与接口边界见 `../../dev docs/video/VIDEO_AI_NOTE_PIPELINE.md`。
 
 ## v0.4.4 视频阅读、步骤续跑与删除
 
@@ -48,7 +48,7 @@
 
 ## v0.4.6 转写设置与来源清理
 
-`v0.4.6/` 冻结转写独立模型路由、分段参数、完整 Prompt 核心契约展示和来源删除状态。定版截图来自真实 PC 页面，详细边界见 `../../dev docs/AI_ROUTING_SOURCE_RETENTION_V046_SPEC.md`。
+`v0.4.6/` 冻结转写独立模型路由、分段参数、完整 Prompt 核心契约展示和来源删除状态。定版截图来自真实 PC 页面，详细边界见 `../../dev docs/ai-gateway/AI_ROUTING_SOURCE_RETENTION_V046_SPEC.md`。
 
 ## 实施约束
 
@@ -66,13 +66,13 @@
 
 ## 文档映射
 
-- 页面与 CMS 职责：`../../dev docs/CONTROL_CENTER.md`
-- Mac mini 部署基线：`../../dev docs/DEPLOYMENT_OPTIONS.md`
-- 产品范围与手机局域网访问：`../../dev docs/PRODUCT_REQUIREMENTS.md`
-- Source、Snapshot、Segment、Claim、Evidence：`../../dev docs/DATA_MODEL.md`
-- DeepSeek、MiMo、Ollama 与 Provider 路由：`../../dev docs/AI_RUNTIME_AND_PROVIDERS.md`
-- 招聘状态与证据规则：`../../dev docs/RECRUITMENT_PIPELINE.md`
-- 高德地图、GCJ-02 与视频时间证据：`../../dev docs/TRAVEL_FOOD_PIPELINE.md`
+- 页面与 CMS 职责：`../../dev docs/product/CONTROL_CENTER.md`
+- Mac mini 部署基线：`../../dev docs/operations/DEPLOYMENT_OPTIONS.md`
+- 产品范围与手机局域网访问：`../../dev docs/product/PRODUCT_REQUIREMENTS.md`
+- Source、Snapshot、Segment、Claim、Evidence：`../../dev docs/architecture/DATA_MODEL.md`
+- DeepSeek、MiMo、Ollama 与 Provider 路由：`../../dev docs/ai-gateway/AI_RUNTIME_AND_PROVIDERS.md`
+- 招聘状态与证据规则：`../../dev docs/product/RECRUITMENT_PIPELINE.md`
+- 高德地图、GCJ-02 与视频时间证据：`../../dev docs/product/TRAVEL_FOOD_PIPELINE.md`
 
 ## 生成说明
 

@@ -1,253 +1,111 @@
-# AI Personal Inbox / Personal Scout
-## 项目文档索引
+# 文档目录与维护规则
 
-> 文档版本：v0.4.6
-> 更新日期：2026-08-28
-> 当前阶段：v0.4.6 功能、Python 3.14 生产运行时与外置卷 LaunchAgent 健康门禁均已实施；以 `IMPLEMENTATION_STATUS.md` 为唯一实施状态来源
-> 第一阶段部署形态：Mac mini 作为完整后端与 AI Worker，PC/手机通过可信局域网访问
-> 第一阶段业务范围：北京市公务员/事业单位招聘 + 中国范围 Travel/Food
+> 按需目录，不是必读清单。外部读者先看 [项目概览](../README.md)，开发 Agent 先看 [CODEX_CONTEXT.md](CODEX_CONTEXT.md)。2026-09-03 完成入口去重、主题分篇和历史隔离；本次不重新评定业务验收。
 
----
+## 1. 谁读什么，读到哪里停止
 
-## 1. 产品一句话定义
+| 读者 / 问题 | 最短路径 | 停止条件 |
+| --- | --- | --- |
+| 外部了解项目 | 根 README → 有需要再选 PRODUCT_REQUIREMENTS 或 SYSTEM_ARCHITECTURE 的相关章 | 能说明用途、架构、支持范围与限制 |
+| Codex 继续开发 | AGENTS → CODEX_CONTEXT → 当前状态 → 相关冻结行 → 一个专项分篇 | 能说明目标、现状、代码位置、约束与验收 |
+| 运维 / 部署 | CURRENT_HANDOFF → DEPLOYMENT_OPTIONS 或 deploy/macos/README | 已区分历史快照与本次现场证据 |
+| 审计 / 追溯 | 当前状态 → 指定 history 章节 / ADR | 得到所需历史证据，不扫描全部历史 |
+| 对外完整导出 | 构建 COMPLETE_PROJECT_SPEC | 只生成，不把合订本加载进 Agent 上下文 |
 
-这是一个“**随手分享信息 → AI 自动解析 → 结合个人信息/偏好 → 形成可信、可执行结果**”的个人 AI 信息处理与决策系统。
+## 2. 唯一事实来源
 
-第一版不追求接纳所有信息，而只聚焦两个当前高价值场景：
+| 内容 | 唯一维护位置 | 不要重复放到 |
+| --- | --- | --- |
+| 产品简介 / 使用入口 | [根 README](../README.md) | 本目录索引、每个专项开头 |
+| Agent 规则 / 路由 | [AGENTS](../AGENTS.md) / [CODEX_CONTEXT](CODEX_CONTEXT.md) | 历史计划中的强制阅读清单 |
+| 当前源码能力 / 自动验证 / 缺口 | [IMPLEMENTATION_STATUS](IMPLEMENTATION_STATUS.md) | 概览、接手页、回归清单 |
+| 任务续接 / 生产现场（分段） | [CURRENT_HANDOFF](CURRENT_HANDOFF.md) | 源码状态与静态版本介绍 |
+| 不可回退约束 | [REGRESSION_AND_CHANGE_GUARD](REGRESSION_AND_CHANGE_GUARD.md) | 大段复制到各交接页 |
+| 设计契约 | 下表专项正文 | 实施状态的长篇叙述 |
+| 逐版本过程 / 旧计划 | history/，仅按需追溯 | 默认接手正文 |
+| 未来候选范围 | [待办池](planning/POST_FREEZE_TODO_BACKLOG.md)、[路线图](planning/FUTURE_ROADMAP.md) | 当前完成度或自动授权 |
 
-1. **招聘/事业编/考试信息**
-   - 解析公众号、官网、PDF、Excel 岗位表；
-   - 自动下钻官方来源；
-   - 提取报名期限、考试时间、岗位条件；
-   - 结合个人档案进行资格筛选；
-   - 输出倒计时、待办、符合/不符合/待确认岗位；
-   - 所有事实保留证据链。
+源码/测试证明实际行为，冻结契约表达必须保持的要求，两者冲突应报告差异，不能用一方静默覆盖另一方。新草案也不因日期更新就自动生效。
 
-2. **旅行/探店信息**
-   - 接收 Bilibili 等视频/图文链接；
-   - 获取字幕或执行 ASR；
-   - 提取餐馆、景点、菜品、地点评价与注意事项；
-   - 将地点解析为现实地图 POI；
-   - 结合用户偏好筛选；
-   - 输出地图、地点列表、想去/去过状态及来源证据。
+## 3. 专项目录（按问题选读）
 
-长期目标是在不推翻第一版架构的前提下，扩展为：
+根目录只保留总索引、Agent 接手与模板、当前状态、交接、冻结清单，以及文档清单 manifest.json 和生成合订本。正文按主题归位；下列目录就是实际存放位置，不另建重复索引。Markdown 链接相对当前文件解析；正文中的裸文档路径以 `dev docs/` 为基准，明确带 `../` 或仓库前缀的路径除外。
 
-> **可自动接纳未知非结构化信息，通过 GenericProcessor + 专用 Processor 体系进行理解、归类、总结、行动化和可视化的个人 AI 信息操作系统。**
+| 子目录 | 存放内容 |
+| --- | --- |
+| product/ | 产品需求、招聘与旅行领域、控制台信息结构 |
+| architecture/ | 系统架构、ADR、数据模型、API、安全 |
+| jobs/ | Job、Replay、会话、任务状态与时间 |
+| video/ | 视频分篇、代码地图、阅读/列表/删除规格 |
+| ai-gateway/ | Gateway 分篇、模型与 Prompt、运行配置、AI 验收 |
+| operations/ | 部署、日志、运维交互、运行监控 |
+| testing/、benchmark/ | 测试策略与样本说明；机器可读验收样本 |
+| planning/ | 待办池、未来路线、未冻结地图 V2 草案；不自动授权实施 |
+| history/ | 历史实施记录和旧计划；仅追溯时读取 |
 
----
+| 领域 | 文档与职责 |
+| --- | --- |
+| 产品 / 架构 | [PRODUCT_REQUIREMENTS](product/PRODUCT_REQUIREMENTS.md) 用户场景与边界；[SYSTEM_ARCHITECTURE](architecture/SYSTEM_ARCHITECTURE.md) 模块关系；[ARCHITECTURE_DECISIONS](architecture/ARCHITECTURE_DECISIONS.md) 按 ADR 编号追溯原因 |
+| 数据 / API / 安全 | [DATA_MODEL](architecture/DATA_MODEL.md) 按表定位；[API_DESIGN](architecture/API_DESIGN.md) 按路由定位；[SECURITY_PRIVACY](architecture/SECURITY_PRIVACY.md) 按安全边界定位 |
+| 招聘 / 旅行 | [RECRUITMENT_PIPELINE](product/RECRUITMENT_PIPELINE.md) 提取/规则/资格；[TRAVEL_FOOD_PIPELINE](product/TRAVEL_FOOD_PIPELINE.md) 地点/POI/偏好 |
+| 视频 Pipeline | [VIDEO_AI_NOTE_PIPELINE](video/VIDEO_AI_NOTE_PIPELINE.md) 五篇索引：范围、输入转写、生成物化、Job/API、视图与安全 |
+| 视频代码定位 | [VIDEO_AI_NOTE_IMPLEMENTATION_GUIDE](video/VIDEO_AI_NOTE_IMPLEMENTATION_GUIDE.md) 短代码地图；旧 WP 已归档，不再要求完整读取八份文档 |
+| 阅读 / 列表 / 删除 | [阅读体验](video/VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md)、[列表封面](video/VIDEO_NOTE_LIST_V043_SPEC.md)、[笔记删除](video/VIDEO_NOTE_DELETE_V044_SPEC.md)，保持独立验收边界 |
+| 渲染 / 任务模型摘要 | [VIDEO_NOTE_RENDERING_AND_TASK_MODEL_CONTEXT_SPEC](video/VIDEO_NOTE_RENDERING_AND_TASK_MODEL_CONTEXT_SPEC.md) |
+| Job / Replay / 会话 | [步骤续跑](jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md)、[手机会话与任务控制](jobs/MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md) |
+| 任务表达 / 时间 | [摘要与部分成功](jobs/TASK_SUMMARY_AND_PARTIAL_SUCCESS_SPEC.md)、[状态与北京时间](jobs/TASK_STATUS_AND_BEIJING_TIME_SPEC.md) |
+| AI Gateway | [AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2](ai-gateway/AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md) 六篇索引：模型边界、公共能力、Pipeline/Provider、阶段参数、单任务策略、历史工作包/验收 |
+| AI 运行 / 生产验收 | [AI_RUNTIME_AND_PROVIDERS](ai-gateway/AI_RUNTIME_AND_PROVIDERS.md) 运行配置；[AI_GATEWAY_PRODUCTION_ACCEPTANCE](ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md) 真实验收门禁 |
+| 模型 / Prompt / 来源保留 | [模型与历史删除](ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md)、[补充 Prompt](ai-gateway/PROMPT_SUPPLEMENTS_V045_SPEC.md)、[转写路由与来源保留](ai-gateway/AI_ROUTING_SOURCE_RETENTION_V046_SPEC.md) |
+| 控制台 / 运维 | [CONTROL_CENTER](product/CONTROL_CENTER.md) 信息结构；[OPERATIONS_UI_SPEC](operations/OPERATIONS_UI_SPEC.md) 工作台交互；[LOGGING](operations/LOGGING.md) 日志契约与维护 |
+| 运行监控 / Provider | [监控与预设](operations/RUNTIME_MONITOR_AND_MODEL_PRESETS_SPEC.md)、[内存口径与预设切换](operations/RUNTIME_MONITOR_AND_PROVIDER_SWITCH_V06_SPEC.md) |
+| 部署 | [DEPLOYMENT_OPTIONS](operations/DEPLOYMENT_OPTIONS.md) 支持边界；[Mac mini 操作说明](../deploy/macos/README.md) 安装与维护 |
+| 验证 / 样本 | [TESTING_AND_ACCEPTANCE](testing/TESTING_AND_ACCEPTANCE.md) 验证策略；[GOLDEN_SAMPLES](testing/GOLDEN_SAMPLES.md) 样本/Fixture；benchmark/ 仅验收任务按需查看 |
+| 设计 / 授权 | [design/ui](../design/ui/README.md) → 目标版本/页面；[THIRD_PARTY_NOTICES](../THIRD_PARTY_NOTICES.md) 授权记录 |
+| 提示词 / 写交接 | [CODEX_TASK_TEMPLATES](CODEX_TASK_TEMPLATES.md) 三条短指令；交接固定更新 CURRENT_HANDOFF.md 的任务续接段，不另建文件 |
+| 历史 / 未来 | [历史实施记录](history/IMPLEMENTATION_HISTORY.md)、[早期工程计划](history/PROJECT_PLAN.md)、[FUTURE_ROADMAP](planning/FUTURE_ROADMAP.md)；均非默认阅读 |
 
-## 2. 最重要的产品原则
+已删除 LOGGING_ARCHITECTURE.md、LOGGING_IMPLEMENTATION.md 与根层 PROJECT_PLAN.md 三个纯跳转页；正文分别在 operations/LOGGING.md 和 history/PROJECT_PLAN.md。仓库内使用处已直达正文，旧路径不再保留。
 
-### 2.1 默认零操作
-用户核心动作是“分享/粘贴链接”，后台自动处理，完成后允许用户修正。
+## 4. 拆分与合并结论
 
-### 2.2 AI 先做到 B 级，不直接做到 C 级
-当前能力：
-- 判断；
-- 筛选；
-- 生成待办；
-- 生成材料 Checklist；
-- 生成咨询建议；
-- 生成地图；
-- 生成可导出结构化结果。
+| 原文 / 组合（整理前行数） | 处理 | 理由与边界 |
+| --- | --- | --- |
+| IMPLEMENTATION_STATUS（234 行，约 34 KB） | 已拆：短当前状态 + history/IMPLEMENTATION_HISTORY | 长段落混杂多轮“当前”；历史测试数量不再干扰当前结论 |
+| Gateway v2（2,754 行） | 已拆为六个主题分篇，索引与正文均在 ai-gateway/ | 模型/路由/上下文/阶段设置/任务覆盖/验收按任务独立检索，保留原章节编号 |
+| VIDEO_AI_NOTE_PIPELINE（896 行） | 已拆为五篇，索引与正文均在 video/ | 输入、生成、状态/API 与视图的读取需求不同 |
+| 视频实施指南（961 行） / PROJECT_PLAN（926 行） | 正文已归档；仅保留有代码地图的视频短指南 | 是历史执行序列，不能继续充当“先读全部”或当前待办 |
+| LOGGING_ARCHITECTURE + LOGGING_IMPLEMENTATION（82 + 92 行） | 已合并 operations/LOGGING.md | 同一维护任务反复跳转，且“已实施/待实施”互相冲突；删除重复与过期标签，保留契约与维护入口 |
+| 根 README / dev docs README / CODEX_CONTEXT | 已合并重复背景，职责分开 | 产品简介只在根入口；目录只导航；接手页只放代码地图与任务路由 |
+| CURRENT_HANDOFF / 状态 / 回归清单中的运行事实 | 已去重 | 当前源码、现场快照、冻结约束各有唯一来源 |
+| 地图 V2 计划（3,761 行） | 完整移入 planning/，暂不拆正文 | 作为实施与验收追溯；核心实现状态以 IMPLEMENTATION_STATUS 为准，仍不把后续推荐/路线规划自动升级为当前需求 |
+| DATA_MODEL（903 行） / API_DESIGN（427 行） | 本次保留，按表/路由检索 | 数据模型大量为字段/空行；单一数据字典不为行数机械拆碎。未来某领域持续独立改动时再抽出该域 |
+| 多份短 UI 规格 | 暂不合并成大 UI 文档 | 阅读/删除/Replay/时间具有独立风险与验收边界；目录统一导航即可 |
+| CONTROL_CENTER / OPERATIONS_UI / RUNTIME_MONITOR 系列 | 保持分层 | 页面信息结构、工作台交互、指标语义不同；不要把架构、交互、运行时混成新合订本 |
 
-未来 C 级能力：
-- 自动填写报名页面；
-- 自动操作第三方系统；
-- 自动发邮件/提交表单；
-- 需额外权限、风控、审计与用户确认机制。
+### 地图 V2 草案的按需路由
 
-### 2.3 AI 可以推理，但不能伪装成事实
-任何事实性结论必须可回溯到：
-- 网页原文；
-- PDF 页码；
-- Excel 单元格；
-- 视频时间码；
-- 其他明确来源。
+原文：[地图 V2 计划](planning/PLACE_INTELLIGENCE_MAP_V2_IMPLEMENTATION_PLAN.md)。已归入 planning/；下表保留按需阅读边界。核心地图实现已获用户授权并进入源码，当前实现/验收以 IMPLEMENTATION_STATUS 为准；任何后续扩展仍须同时核对 §98–99 的 Review 修正、§106 原则和冻结约束。
 
-### 2.4 产品做窄，内核留宽
-第一版 UI 只展示招聘与旅行/探店。
-底层仍按：
-`Capture → Resolver → Processor Router → Processor → Evidence → Result → View`
-设计。
+| 拟拆领域 / 任务 | 原章节 |
+| --- | --- |
+| 模型、Insight、来源证据、人工覆盖 | §1–20 |
+| POI Resolver 与 Review | §21–30、§88–89 |
+| 地图 Runtime / 筛选 / Place Sheet | §31–44、§77–78、§82–86 |
+| 编辑、手工 Pin、删除与 API | §45–68、§87 |
+| Pipeline / 合并 / Migration | §69–76、§79–81 |
+| 测试 / 执行计划 / Review 修正 / DoD | §90–106 |
 
-### 2.5 Unknown 第一版不污染产品
-第一版不支持的内容：
-- 默认标记 `UNSUPPORTED`；
-- 可选择仅保存链接或删除；
-- 不自动创建乱七八糟的新分类；
-- 后续通过 GenericProcessor 扩展。
+## 5. 后续维护规则
 
----
+- 根 AGENTS 自动加载，所以只放行为规则；不把本目录或长规格放进自动注入配置。新任务按 CODEX_CONTEXT 导航；已读内容不重复。
+- 接手页以约 6 KB 为目标、当前状态约 5 KB；首轮总读取约 12 KB 是软预算，不是真实 token 上限。安全/数据/验收证据不足可说明原因后增读。
+- 专项跨多个独立任务域且超过约 500 行或 20 KB 时评估拆分，不机械按行切割；同一任务必读的重复短文优先合并。分篇必须带返回入口、来源与状态性质。
+- 新增/移动文档时更新本目录与必要的 CODEX_CONTEXT 路由；有独立导航价值的主题索引保留，纯跳转页更新引用后删除。契约只保留一个正文源；不复制到状态页、临时交接或新版本文件。
+- history/ 默认不读，不因未来工作包在文档中出现而执行。实施历史只在追溯时定位相关日期/标题。
+- 合订本由 scripts/build_complete_project_spec.py 的显式清单生成；不含交接快照、history/ 正文、旧 PROJECT_PLAN、未来路线或未冻结草案。Gateway 分篇中的原验收设计仍作为契约保留，不代表新的执行授权。清单或清单内源文件变化时重建；不要为同步生成物读取它。
+- 文档交付检查链接、分篇正文完整性、生成可重复性和 git diff --check；可运行 .venv/bin/python scripts/test_build_complete_project_spec.py 检查生成物、来源清单与分篇链接重定位。不重启、不迁移、不调用真实 Provider、不跑业务全量。
 
-## 3. 文档目录
+## 6. Codex 设置说明
 
-| 文档 | 用途 |
-|---|---|
-| [PRODUCT_REQUIREMENTS.md](./PRODUCT_REQUIREMENTS.md) | 产品需求、用户场景、功能边界、MVP |
-| [SYSTEM_ARCHITECTURE.md](./SYSTEM_ARCHITECTURE.md) | 总体架构、模块边界、运行方式 |
-| [DATA_MODEL.md](./DATA_MODEL.md) | 领域对象、数据库表、Claim/Evidence 数据模型 |
-| [RECRUITMENT_PIPELINE.md](./RECRUITMENT_PIPELINE.md) | 招聘完整处理链、DSL、MajorMatcher、资格判断 |
-| [TRAVEL_FOOD_PIPELINE.md](./TRAVEL_FOOD_PIPELINE.md) | 视频/图文处理、ASR、POI、偏好学习、地图 |
-| [VIDEO_AI_NOTE_PIPELINE.md](./VIDEO_AI_NOTE_PIPELINE.md) | 视频页/Transcript 理解、代表性截图、细粒度地点、高德校名、中国全境地图与 Marker 生命周期 |
-| [VIDEO_AI_NOTE_IMPLEMENTATION_GUIDE.md](./VIDEO_AI_NOTE_IMPLEMENTATION_GUIDE.md) | Agent 实施入口：v0.4/v0.4.1 已有能力、v0.4.2 Work Package 12、测试与 DoD |
-| [AI_RUNTIME_AND_PROVIDERS.md](./AI_RUNTIME_AND_PROVIDERS.md) | 本地/外部模型、ASR、模型路由、Provider 抽象 |
-| [CONTROL_CENTER.md](./CONTROL_CENTER.md) | CMS/控制后台设计 |
-| [OPERATIONS_UI_SPEC.md](./OPERATIONS_UI_SPEC.md) | PC 缩放适配、实时任务诊断、运维日志工作台与 Mac mini 指标 UI 契约 |
-| [MODEL_AND_RETENTION_UI_SPEC.md](./MODEL_AND_RETENTION_UI_SPEC.md) | 自定义模型库、主/备用路由与任务/内容历史删除契约 |
-| [RUNTIME_MONITOR_AND_MODEL_PRESETS_SPEC.md](./RUNTIME_MONITOR_AND_MODEL_PRESETS_SPEC.md) | 持久化 Mac mini 指标、Provider 预设与草稿真实测试契约 |
-| [RUNTIME_MONITOR_AND_PROVIDER_SWITCH_V06_SPEC.md](./RUNTIME_MONITOR_AND_PROVIDER_SWITCH_V06_SPEC.md) | macOS 内存口径、运维浮窗与 Provider 默认值联动契约 |
-| [MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md](./MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md) | 手机会话刷新、视频阶段诊断、取消与重试控制契约 |
-| [TASK_SUMMARY_AND_PARTIAL_SUCCESS_SPEC.md](./TASK_SUMMARY_AND_PARTIAL_SUCCESS_SPEC.md) | 任务摘要字段语义、长文本收缩与部分完成表达契约 |
-| [TASK_STATUS_AND_BEIJING_TIME_SPEC.md](./TASK_STATUS_AND_BEIJING_TIME_SPEC.md) | 终态任务文案与全站北京时间显示契约 |
-| [VIDEO_NOTE_RENDERING_AND_TASK_MODEL_CONTEXT_SPEC.md](./VIDEO_NOTE_RENDERING_AND_TASK_MODEL_CONTEXT_SPEC.md) | 视频笔记封面、Markdown 渲染、部分完成与模型调用摘要契约 |
-| [VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md](./VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md) | 地点/转写前置、AI 校对稿、主旨目录、段落跳转、随文截图与 Lightbox 返工契约 |
-| [VIDEO_NOTE_LIST_V043_SPEC.md](./VIDEO_NOTE_LIST_V043_SPEC.md) | “添加视频链接”按钮、Bilibili 封面下载、本地缓存与 16:9 列表卡契约 |
-| [PIPELINE_STEP_REPLAY_V044_SPEC.md](./PIPELINE_STEP_REPLAY_V044_SPEC.md) | 24h 中间产物、从错误步骤续跑、上游复用和过期后完整重跑契约 |
-| [VIDEO_NOTE_DELETE_V044_SPEC.md](./VIDEO_NOTE_DELETE_V044_SPEC.md) | 视频笔记列表/详情删除入口、共享数据保留和确认门禁契约 |
-| [PROMPT_SUPPLEMENTS_V045_SPEC.md](./PROMPT_SUPPLEMENTS_V045_SPEC.md) | 不可变核心 Prompt 契约、可编辑补充偏好、哈希续跑与设置 UI 契约 |
-| [API_DESIGN.md](./API_DESIGN.md) | REST / WebSocket API 边界 |
-| [SECURITY_PRIVACY.md](./SECURITY_PRIVACY.md) | 本地优先、API Key、浏览器登录态、敏感数据 |
-| [TESTING_AND_ACCEPTANCE.md](./TESTING_AND_ACCEPTANCE.md) | 测试策略、关键验收用例 |
-| [GOLDEN_SAMPLES.md](./GOLDEN_SAMPLES.md) | 首批真实样本、Fixture 规则、技术 Spike 与质量门槛 |
-| [PROJECT_PLAN.md](./PROJECT_PLAN.md) | Codex/Agent 可直接执行的工程实施计划 |
-| [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) | 当前已实现能力、真实验收状态与下一实施项 |
-| [CURRENT_HANDOFF.md](./CURRENT_HANDOFF.md) | 当前服务、未闭环条件与低 token 接手顺序；短期快照，不进入合订本 |
-| [CODEX_CONTEXT.md](./CODEX_CONTEXT.md) | Codex 新任务默认读取的精简项目上下文与文档路由 |
-| [CODEX_TASK_TEMPLATES.md](./CODEX_TASK_TEMPLATES.md) | 诊断、修复、迁移、UI 与文档任务的低额度提示模板 |
-| [REGRESSION_AND_CHANGE_GUARD.md](./REGRESSION_AND_CHANGE_GUARD.md) | 已确认需求的防覆盖基线、变更规则与回归矩阵 |
-| [FUTURE_ROADMAP.md](./FUTURE_ROADMAP.md) | GenericProcessor、移动端、云、多 Worker、C 级自动化 |
-| [ARCHITECTURE_DECISIONS.md](./ARCHITECTURE_DECISIONS.md) | 关键设计决策与原因 |
-
-`COMPLETE_PROJECT_SPEC.md` 是由上述分文档自动生成的合订本，不作为独立编辑源。修改分文档后运行 `.venv/bin/python scripts/build_complete_project_spec.py` 重新生成。
-
----
-
-## 4. 当前硬件基线
-
-开发/运行主机为 Mac mini（Apple M4、16 GB 统一内存、arm64）。CPU、内存、磁盘、运行时与 Worker 心跳均以 `/api/status` 的实时结果为准；安装与常驻规则见 `DEPLOYMENT_OPTIONS.md`。
-
-这台机器承担：
-
-- FastAPI 服务；
-- SQLite 数据库；
-- Playwright Browser Resolver；
-- Bilibili/视频解析；
-- ffmpeg；
-- whisper.cpp ASR；
-- Ollama 本地大模型；
-- 独立 Worker；
-- Web Control Center；
-- 本地文件存储。
-
----
-
-## 5. 第一阶段技术基线
-
-### Frontend
-- React
-- TypeScript
-- Vite
-- Node.js 20.19+ 或 22.12+
-- 响应式 Web
-- 后期可封装 Tauri 桌面壳
-- 手机第一版通过同一可信局域网访问响应式 Web
-
-### Backend
-- Python 3.12+；Mac mini 生产 LaunchAgent 固定使用 Python 3.14.6 外置生产 venv
-- FastAPI
-- Uvicorn
-- Pydantic
-- SQLAlchemy 2.x
-- Alembic
-- SQLite + WAL
-- 独立 Worker Process
-- WebSocket 进度推送
-
-### AI / Parsing
-- Ollama
-- 外部大模型 Provider（API Key 可配置）
-- OpenAI-Compatible Provider
-- whisper.cpp
-- Playwright
-- yt-dlp / 平台解析能力
-- ffmpeg
-- openpyxl
-- `.xls` legacy adapter（Phase 0A 选择 xlrd 或 python-calamine）
-- PDF Parser
-- DOCX Parser
-- 中文 OCR（扫描 PDF / PNG / JPEG）
-- 高德 POI Web 服务 + 地图 JS API 2.0
-- DeepSeek / Xiaomi MiMo 等 OpenAI-compatible 外部 Provider
-
----
-
-## 6. 第一版明确不做
-
-- 云端业务数据库
-- Redis
-- Celery
-- RabbitMQ
-- PostgreSQL
-- Vector DB
-- 微服务
-- 多用户/多租户
-- 社交
-- 付费
-- Agent Marketplace
-- 动态 Skill 自动生成
-- 自动创建任意 Space
-- 长期 Source Watch（仅预留接口）
-- 自动报名/自动提交第三方表单
-- iOS / Android / 微信小程序同时开发
-- 泛知识收集器
-
----
-
-## 7. 从第一版到长期产品的演化主线
-
-```text
-V0.1
-RecruitmentProcessor
-TravelFoodProcessor
-Unknown → Unsupported
-
-        ↓
-
-V0.2+
-GenericProcessor
-Unknown → 摘要 / 关键事实 / 日期 / 人物 / 地点 / 行动项
-
-        ↓
-
-V0.x
-高频 Generic 场景
-→ Configurable Processor
-
-        ↓
-
-V1.x
-成熟高频场景
-→ Dedicated Processor
-
-        ↓
-
-长期
-个人 AI 信息处理与行动平台
-```
-
----
-
-## 8. 开发原则
-
-1. **不得把业务逻辑写进 Resolver。**
-2. **不得在业务代码中直接调用具体 LLM SDK。**
-3. **不得让 LLM 负责确定性计算。**
-4. **不得生成没有 Evidence 的事实性 Claim。**
-5. **不得把现实 POI 坐标交给 LLM 编造。**
-6. **不得因为未来可能需要而提前实现大平台。**
-7. **允许定义扩展接口，但不提前实现不属于 MVP 的能力。**
-8. **Pipeline 必须可重放、可重跑、可审计。**
-9. **长任务必须持久化，PC 重启后可恢复。**
-10. **原始证据优先，AI 解释次之。**
+本次设置落在仓库 AGENTS.md，未更改用户全局配置、模型或推理档，也未设置会截断安全指令的硬 token 限制。按 [OpenAI 官方 AGENTS.md 文档](https://learn.chatgpt.com/docs/agent-configuration/agents-md)，仓库指令在运行开始时加载；建议在该仓库新建任务使用新规则。本轮未额外启动付费模型任务来测试加载。

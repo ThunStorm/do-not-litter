@@ -18,12 +18,14 @@ from zhijian.db.models import (
     AINoteVersion,
     ContentItem,
     Job,
+    PlaceMention,
     Setting,
     Source,
     Transcript,
     VideoAsset,
 )
 from zhijian.domain.enums import JobType
+from zhijian.providers.amap import POICandidate
 from zhijian.providers.llm import FallbackLLMProvider, LLMResult, OllamaProvider
 from zhijian.providers.media import YtDlpMediaProvider
 from zhijian.resolvers.video.url_parser import parse_bilibili_url
@@ -38,6 +40,7 @@ from zhijian.services.video_support import (
     materialize_transcript,
     normalized_confidence,
     provider_for_role,
+    resolve_mentions_with_amap,
 )
 
 
@@ -106,6 +109,27 @@ def test_timestamped_transcript_reuses_same_fingerprint(app_and_session) -> None
         assert transcript.id == reused.id
         assert len(segments) == len(reused_segments) == 2
         assert db.scalar(select(Transcript).where(Transcript.video_asset_id == asset.id)) is not None
+
+
+def test_transcript_repairs_only_the_known_tenfold_timeline(app_and_session) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        source = Source(source_type="URL", locator="https://example.test/timing", title="fixture")
+        db.add(source)
+        db.flush()
+        asset = VideoAsset(
+            source_id=source.id, canonical_url=source.locator, title="fixture", duration_ms=1_000
+        )
+        db.add(asset)
+        db.commit()
+        _, segments = materialize_transcript(
+            db,
+            source,
+            asset,
+            [{"text": "字幕", "start_ms": 9_000, "end_ms": 10_000}],
+            source_kind="BILIBILI_PLAYER",
+        )
+        assert segments[-1].locator_json["end_ms"] == 1_000
 
 
 def test_ai_correction_is_persisted_before_note_generation(monkeypatch, app_and_session) -> None:
@@ -354,8 +378,7 @@ def test_llm_attempt_callback_tracks_primary_and_fallback() -> None:
         ),
     )
     assert (
-        provider.generate_json([{"role": "user", "content": "ping"}], model="ignored").provider
-        == "fallback"
+        provider.generate_json([{"role": "user", "content": "ping"}], model="ignored").provider == "fallback"
     )
     assert attempts == [
         ("primary", "primary-model", 1, False, True),
@@ -431,7 +454,9 @@ def test_bilibili_screenshot_download_prefers_video_dash(monkeypatch, tmp_path) 
             return str(target)
 
     monkeypatch.setitem(sys.modules, "yt_dlp", SimpleNamespace(YoutubeDL=FakeYtDlp))
-    path = YtDlpMediaProvider(tmp_path, max_bytes=1024, timeout=10).download_video("https://www.bilibili.com/video/BV1JH826zEKC")
+    path = YtDlpMediaProvider(tmp_path, max_bytes=1024, timeout=10).download_video(
+        "https://www.bilibili.com/video/BV1JH826zEKC"
+    )
     assert path == target
     assert captured["format"] == "bv*[ext=mp4]/bv*/best"
     assert captured["format_sort"] == ["res:720"]
@@ -494,7 +519,17 @@ def test_place_extraction_uses_persisted_map_facts_without_model(app_and_session
             map_facts_json=[
                 {
                     "segment_ids": [segments[0].id],
-                    "places": [{"name": "菜市场", "segment_ids": [segments[0].id], "confidence": "high"}],
+                    "places": [
+                        {
+                            "name": "菜市场",
+                            "segment_ids": [segments[0].id],
+                            "confidence": "high",
+                            "recommended_items": ["海蛎煎"],
+                            "highlights": ["清晨最热闹"],
+                            "best_months": [4],
+                            "best_time_slots": ["MORNING"],
+                        }
+                    ],
                 }
             ],
         )
@@ -508,6 +543,89 @@ def test_place_extraction_uses_persisted_map_facts_without_model(app_and_session
         )
         mentions = extract_place_mentions(db, Settings(_env_file=None), asset, version, segments)
         assert len(mentions) == 1 and mentions[0].name == "菜市场"
+        values = {(item["insight_type"], item["value_key"]) for item in mentions[0].metadata_json["insights"]}
+        assert values == {
+            ("RECOMMENDED_ITEM", "海蛎煎"),
+            ("HIGHLIGHT", "清晨最热闹"),
+            ("BEST_MONTH", "04"),
+            ("BEST_TIME_SLOT", "morning"),
+        }
+
+
+def test_poi_resolution_scores_candidates_and_sends_ambiguous_mentions_to_review(
+    app_and_session, monkeypatch
+) -> None:
+    _, factory = app_and_session
+
+    class Provider:
+        def __init__(self, *_args, **_kwargs) -> None:
+            pass
+
+        def search(self, *_args, **_kwargs):
+            return [
+                POICandidate(
+                    "best",
+                    "四季民福烤鸭店（故宫店）",
+                    "北京市东城区",
+                    "北京市",
+                    "北京市",
+                    "东城区",
+                    116.4,
+                    39.9,
+                    "050000",
+                ),
+                POICandidate(
+                    "near",
+                    "四季民福烤鸭店（王府井店）",
+                    "北京市东城区",
+                    "北京市",
+                    "北京市",
+                    "东城区",
+                    116.41,
+                    39.91,
+                    "050000",
+                ),
+            ]
+
+        def detail(self, poi_id: str):
+            return POICandidate(
+                poi_id,
+                "四季民福烤鸭店（故宫店）",
+                "北京市东城区",
+                "北京市",
+                "北京市",
+                "东城区",
+                116.4,
+                39.9,
+                "050000",
+            )
+
+    monkeypatch.setattr(video_support, "AMapPOIProvider", Provider)
+    with factory() as db:
+        source = Source(source_type="URL", locator="https://example.test/poi", title="fixture")
+        db.add(source)
+        db.flush()
+        asset = VideoAsset(source_id=source.id, canonical_url=source.locator, title="旅行")
+        db.add(asset)
+        db.flush()
+        mention = PlaceMention(
+            video_asset_id=asset.id,
+            name="四季民福烤鸭店",
+            raw_name="四季民福烤鸭店",
+            suggested_name="四季民福烤鸭店（故宫店）",
+            city_hint="北京市",
+            place_type="RESTAURANT",
+            segment_ids_json=["seg_fixture"],
+            confidence=0.9,
+        )
+        db.add(mention)
+        db.commit()
+        confirmed, unresolved = resolve_mentions_with_amap(
+            db, Settings(_env_file=None), [mention], api_key="test"
+        )
+        assert (confirmed, unresolved) == (0, 1)
+        assert mention.resolution_status == "REVIEW"
+        assert mention.metadata_json["poi_candidates"][0]["score"] >= 80
 
 
 def test_note_map_reduce_persists_compact_facts(app_and_session, monkeypatch) -> None:

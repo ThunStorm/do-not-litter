@@ -16,6 +16,9 @@ from zhijian.db.models import (
     Job,
     JobStep,
     JobStepArtifact,
+    Place,
+    PlaceInsightItem,
+    PlaceMention,
     Setting,
     Source,
     SystemEvent,
@@ -35,6 +38,110 @@ def test_health(client) -> None:
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
+
+
+def test_place_detail_returns_active_evidence_linked_insights(client, app_and_session) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        place = db.scalar(select(Place).limit(1))
+        assert place is not None
+        db.add(
+            PlaceInsightItem(
+                place_id=place.id,
+                insight_type="RECOMMENDED_ITEM",
+                value_key="dish",
+                value_text="海蛎煎",
+                value_json={"category": "DISH"},
+                provenance="SOURCE_FACT",
+                confidence=0.9,
+                segment_ids_json=["seg_fixture"],
+            )
+        )
+        db.commit()
+        place_id = place.id
+    response = client.get(f"/api/travel/places/{place_id}")
+    assert response.status_code == 200
+    assert response.json()["insights"] == [
+        {
+            "id": response.json()["insights"][0]["id"],
+            "insight_type": "RECOMMENDED_ITEM",
+            "value_key": "dish",
+            "value_text": "海蛎煎",
+            "value_json": {"category": "DISH"},
+            "provenance": "SOURCE_FACT",
+            "confidence": 0.9,
+            "status": "ACTIVE",
+            "segment_ids": ["seg_fixture"],
+        }
+    ]
+
+
+def test_manual_place_and_edits_preserve_separate_user_layers(client) -> None:
+    created = client.post(
+        "/api/travel/places",
+        json={
+            "name": "手工地点",
+            "place_type": "LANDMARK",
+            "longitude": 116.397,
+            "latitude": 39.908,
+            "note": "第一次记录",
+        },
+    )
+    assert created.status_code == 200
+    place_id = created.json()["place_id"]
+    detail = client.get(f"/api/travel/places/{place_id}").json()
+    assert detail["note"] == {"markdown": "第一次记录", "revision": 1}
+    overlay = client.patch(
+        f"/api/travel/places/{place_id}/overlay",
+        json={
+            "display_name": "我的地标",
+            "override_place_type": "PARK",
+            "custom_tags": ["周末"],
+            "expected_revision": 0,
+        },
+    )
+    assert overlay.json()["revision"] == 1
+    conflict = client.patch(
+        f"/api/travel/places/{place_id}/overlay",
+        json={"display_name": "过期写入", "expected_revision": 0},
+    )
+    assert conflict.status_code == 409
+    assert conflict.json()["detail"]["code"] == "REVISION_CONFLICT"
+    assert client.post(f"/api/travel/places/{place_id}/marker/hide").json()["visibility"] == "HIDDEN"
+    assert client.post(f"/api/travel/places/{place_id}/marker/restore").json()["visibility"] == "VISIBLE"
+    assert client.delete(f"/api/travel/places/{place_id}/user-created").json()["deleted"] is True
+    restored = client.post(f"/api/travel/places/{place_id}/user-created/restore")
+    assert restored.status_code == 200
+    assert restored.json()["deleted"] is False
+    history = client.get(f"/api/travel/places/{place_id}/history")
+    assert any(item["event_type"] == "place.restored.manual" for item in history.json())
+
+
+def test_rejected_place_mention_leaves_review_queue_and_can_be_restored(client, app_and_session) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        source = Source(source_type="URL", locator="https://example.test/review", title="fixture")
+        db.add(source)
+        db.flush()
+        asset = VideoAsset(source_id=source.id, canonical_url=source.locator, title="fixture")
+        db.add(asset)
+        db.flush()
+        mention = PlaceMention(
+            video_asset_id=asset.id,
+            name="测试误识别",
+            resolution_status="REVIEW",
+            metadata_json={"poi_candidates": []},
+        )
+        db.add(mention)
+        db.commit()
+        mention_id = mention.id
+    rejected = client.post(f"/api/travel/place-mentions/{mention_id}/reject")
+    assert rejected.status_code == 200
+    assert rejected.json()["extraction_status"] == "USER_REJECTED"
+    assert all(item["mention_id"] != mention_id for item in client.get("/api/travel/place-reviews").json())
+    restored = client.post(f"/api/travel/place-mentions/{mention_id}/restore")
+    assert restored.status_code == 200
+    assert any(item["mention_id"] == mention_id for item in client.get("/api/travel/place-reviews").json())
 
 
 def test_failed_video_step_replays_only_current_and_downstream(client, app_and_session) -> None:
@@ -150,10 +257,13 @@ def test_general_settings_include_ai_retry_defaults(client) -> None:
 
     transcript = client.get("/api/settings/transcript-processing").json()
     assert transcript == {"chunk_chars": 12_000, "batch_size": 128, "timeout_seconds": 180.0}
-    assert client.put(
-        "/api/settings/transcript-processing",
-        json={"chunk_chars": 1_999, "batch_size": 128, "timeout_seconds": 180},
-    ).status_code == 422
+    assert (
+        client.put(
+            "/api/settings/transcript-processing",
+            json={"chunk_chars": 1_999, "batch_size": 128, "timeout_seconds": 180},
+        ).status_code
+        == 422
+    )
     saved = client.put(
         "/api/settings/transcript-processing",
         json={"chunk_chars": 16_000, "batch_size": 160, "timeout_seconds": 210},
@@ -192,9 +302,7 @@ def test_prompt_supplements_allow_preferences_but_reject_contract_overrides(clie
     assert rejected.status_code == 422
 
 
-def test_changed_prompt_supplement_replays_from_earliest_affected_step(
-    client, app_and_session
-) -> None:
+def test_changed_prompt_supplement_replays_from_earliest_affected_step(client, app_and_session) -> None:
     _, factory = app_and_session
     replayable_until = datetime.now(UTC) + timedelta(hours=1)
     with factory() as db:
@@ -256,9 +364,7 @@ def test_changed_prompt_supplement_replays_from_earliest_affected_step(
     ]
 
 
-def test_partial_success_without_failed_step_does_not_replay_cleanup(
-    client, app_and_session
-) -> None:
+def test_partial_success_without_failed_step_does_not_replay_cleanup(client, app_and_session) -> None:
     _, factory = app_and_session
     with factory() as db:
         job = Job(
@@ -383,8 +489,8 @@ def test_llm_steps_use_longer_stall_warning(client, app_and_session) -> None:
     with factory() as db:
         jobs = []
         for title, step_name, inactive_minutes in (
-            ("正常 AI 调用", "GENERATE_AI_NOTE", 9),
-            ("超长 AI 调用", "GENERATE_AI_NOTE", 11),
+            ("正常 AI 调用", "GENERATE_AI_NOTE", 8),
+            ("超长 AI 调用", "GENERATE_AI_NOTE", 9),
             ("普通步骤停滞", "FETCH_METADATA", 2),
         ):
             activity_at = now - timedelta(minutes=inactive_minutes)
@@ -831,7 +937,7 @@ def test_custom_model_profiles_route_and_history_deletion(client, app_and_sessio
     monkeypatch.setattr(
         api_router,
         "_test_model_connection",
-        lambda value, api_key: LLMResult("{\"ok\":true}", value["provider"], value["model"], {}),
+        lambda value, api_key: LLMResult('{"ok":true}', value["provider"], value["model"], {}),
     )
     draft = client.post(
         "/api/settings/model-profiles/test-draft",

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, Download, EyeOff, ListOrdered, Plus, RotateCcw, Search } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, EyeOff, ListOrdered, RotateCcw, Search } from 'lucide-react'
 import { useCallback, useDeferredValue, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -20,6 +20,8 @@ export function MapOverviewPage() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [placeType, setPlaceType] = useState('')
+  const [draft, setDraft] = useState<{ longitude: number; latitude: number } | null>(null)
+  const [customName, setCustomName] = useState('')
   const [viewport, setViewport] = useState(() => {
     const stored = sessionStorage.getItem('zhijian-map-viewport')
     return stored ? JSON.parse(stored) as { bbox: number[]; zoom: number } : { bbox: [73.5, 18, 135.1, 53.6], zoom: 4 }
@@ -52,7 +54,8 @@ export function MapOverviewPage() {
     },
   })
   const hideMarker = useMutation({ mutationFn: (markerId: string) => api.deleteMapMarker(markerId), onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['map'] }) })
-  const addMarker = useMutation({ mutationFn: (payload: { longitude: number; latitude: number; custom_name: string }) => api.createMapMarker(payload), onSuccess: (value) => { setSelectedId(value.place_id); void queryClient.invalidateQueries({ queryKey: ['map'] }) } })
+  const nearby = useQuery({ queryKey: ['nearby-pois', draft], queryFn: () => api.nearbyPois(draft!.longitude, draft!.latitude), enabled: Boolean(draft) })
+  const addPlace = useMutation({ mutationFn: api.createManualPlace, onSuccess: (value) => { setSelectedId(value.place_id); setDraft(null); setCustomName(''); void queryClient.invalidateQueries({ queryKey: ['map'] }) } })
 
   function moveSelection(offset: number) {
     if (!markerIds.length) return
@@ -65,13 +68,6 @@ export function MapOverviewPage() {
     setViewport(next)
     sessionStorage.setItem('zhijian-map-viewport', JSON.stringify(next))
     setSelectedId(undefined)
-  }
-
-  function addCurrentLocation() {
-    navigator.geolocation?.getCurrentPosition((position) => {
-      const name = window.prompt('为这个用户地点命名')
-      if (name) addMarker.mutate({ longitude: position.coords.longitude, latitude: position.coords.latitude, custom_name: name })
-    })
   }
 
   async function exportGeoJson() {
@@ -88,13 +84,13 @@ export function MapOverviewPage() {
   return (
     <div className="map-page">
       <header className="map-page__header">
-        <div><h1>中国大陆地点地图</h1><p>当前视野 · {overview.data?.visible_places ?? 0}/{overview.data?.total_places ?? 0} 个地点</p></div>
-        <div><button className="icon-button" aria-label="导出地点 GeoJSON" onClick={() => void exportGeoJson()}><Download /></button><button className="icon-button" aria-label="回到全国视野" onClick={resetChinaView}><RotateCcw /></button><button className="icon-button" aria-label="搜索地点" onClick={() => setSearchOpen((value) => !value)}><Search /></button></div>
+        <div><h1>旅行地图</h1><p>全国地点 · 当前视野 {overview.data?.visible_places ?? 0}/{overview.data?.total_places ?? 0}</p></div>
+        <div className="map-page__actions"><Link className="map-review-link" to="/place-reviews">待确认</Link><button className="icon-button" aria-label="导出地点 GeoJSON" onClick={() => void exportGeoJson()}><Download /></button><button className="icon-button" aria-label="回到全国视野" onClick={resetChinaView}><RotateCcw /></button><button className="icon-button" aria-label="搜索地点" onClick={() => setSearchOpen((value) => !value)}><Search /></button></div>
       </header>
       {searchOpen && <div className="map-search"><Search /><input autoFocus value={query} onChange={(event) => { setQuery(event.target.value); setSelectedId(undefined) }} placeholder="搜索地点或地址" /><span>{overview.data?.visible_places ?? 0} 个结果</span></div>}
       <div className="map-filters">
         {stateFilters.map((filter) => <button key={filter.label} className={state === filter.value ? 'is-active' : ''} onClick={() => { setState(filter.value); setSelectedId(undefined) }}>{filter.label}</button>)}
-        <button className={placeType ? 'is-active' : ''} onClick={() => { setPlaceType((value) => value ? '' : 'SCENIC_AREA'); setSelectedId(undefined) }}>{placeType || '景区'}</button>
+        <button className={placeType ? 'is-active' : ''} aria-pressed={Boolean(placeType)} onClick={() => { setPlaceType((value) => value ? '' : 'SCENIC_AREA'); setSelectedId(undefined) }}>景区</button>
       </div>
       <div className="map-page__stage">
         <MapCanvas
@@ -104,10 +100,11 @@ export function MapOverviewPage() {
           onSelect={setSelectedId}
           viewport={viewport}
           onViewportChange={persistViewport}
+          onDraftLocation={setDraft}
         />
         <Link className="route-badge" to="/routes"><ListOrdered />路线清单 <strong>{route?.places.length ?? 0}</strong></Link>
-        <button className="map-add-marker button button--primary" onClick={addCurrentLocation} disabled={addMarker.isPending}><Plus />新增地点</button>
       </div>
+      {draft && <section className="map-add-flow"><h2>选择附近地点</h2><p>已在地图上选点；优先选择高德 POI。</p>{nearby.isPending && <p>正在搜索附近地点…</p>}{nearby.isError && <p>附近搜索失败，请改为自定义地点或重新点选。</p>}{nearby.data?.length === 0 && <p>附近没有可用 POI，可创建自定义地点。</p>}{nearby.data?.map((poi) => <button key={poi.provider_id} onClick={() => addPlace.mutate({ mode: 'AMAP_POI', poi_id: poi.provider_id, place_type: 'LANDMARK', longitude: draft.longitude, latitude: draft.latitude })}><strong>{poi.name}</strong><span>{poi.address}</span></button>)}<div className="map-add-flow__custom"><input value={customName} onChange={(event) => setCustomName(event.target.value)} placeholder="附近都不对：输入自定义名称" /><button className="button button--outline" disabled={!customName || addPlace.isPending} onClick={() => addPlace.mutate({ mode: 'CUSTOM', name: customName, place_type: 'LANDMARK', longitude: draft.longitude, latitude: draft.latitude })}>创建自定义地点</button></div><button className="text-action" onClick={() => setDraft(null)}>取消</button></section>}
       {selected && <section className="place-preview">
         <div className="place-preview__handle" />
         <div className="place-preview__nav"><span><strong>{activeIndex + 1}</strong> / {markerIds.length}</span><div><button onClick={() => moveSelection(-1)} aria-label="上一地点"><ChevronLeft /></button><button onClick={() => moveSelection(1)} aria-label="下一地点"><ChevronRight /></button></div></div>

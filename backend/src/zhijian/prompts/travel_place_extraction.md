@@ -1,3 +1,3 @@
 从视频转写中提取细粒度地点候选，输出 JSON `places`。每项必须有 `raw_name`、`name`、`suggested_name`、`city_hint`、`province_hint`、`place_type`、`reason`、`quote`、`segment_ids`、`confidence`。`place_type` 只能从 RESTAURANT、SCENIC_AREA、NEIGHBORHOOD、PEDESTRIAN_STREET、BUSINESS_DISTRICT、MARKET、PARK、MUSEUM、TEMPLE、VILLAGE、TOWN、LANDMARK、ACCOMMODATION、TRANSIT、OTHER 选择。
 
-每项同时提供 `feature`、`experience`、`price`、`queue`、`audience`、`warning`、`author_opinion`；没有来源依据的字段留空。没有有效 segment_ids 的候选不得输出。不得生成坐标、地址或 POI ID；高德校名由后续确定性服务完成。
+每项同时提供 `highlights`、`recommended_items`、`best_months`、`best_seasons`、`best_time_slots`、`suggested_duration`、`price`、`queue`、`audience`、`warnings`、`author_opinion`。`recommended_items` 可使用 `{ "name": "", "category": "DISH|EXPERIENCE|EXHIBIT" }`；月份为数字数组，时段只用 EARLY_MORNING、MORNING、NOON、AFTERNOON、SUNSET、EVENING、NIGHT、BREAKFAST、LUNCH、DINNER、LATE_NIGHT。没有来源依据的字符串留空、数组返回空数组。所有事实必须由同一项的 `segment_ids` 支撑；没有有效 `segment_ids` 的候选不得输出，尤其不得凭常识补充月份、推荐菜或最佳时段。不得生成坐标、地址或 POI ID；高德校名由后续确定性服务完成。

@@ -28,4 +28,4 @@
 | `21-task-model-context-implemented-pc.png` | 实际部分完成任务的最近模型调用与补充原因摘要 |
 | `22-video-note-markdown-implemented-pc.png` | HTTPS 封面失败占位与 Markdown 标题、列表、粗体渲染 |
 
-图片来自已运行的生产构建，供审阅与回退比对；交互、数据字段、延迟阈值和验收条款以 `dev docs/OPERATIONS_UI_SPEC.md` 为唯一实现契约。`prototype.html` 只用于设计探索，不属于生产前端，不应打包部署。
+图片来自已运行的生产构建，供审阅与回退比对；交互、数据字段、延迟阈值和验收条款以 `dev docs/operations/OPERATIONS_UI_SPEC.md` 为唯一实现契约。`prototype.html` 只用于设计探索，不属于生产前端，不应打包部署。

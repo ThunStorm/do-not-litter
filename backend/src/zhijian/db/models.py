@@ -178,12 +178,16 @@ class Place(Base, TimestampMixin):
     latitude: Mapped[float] = mapped_column(Float, nullable=False)
     longitude: Mapped[float] = mapped_column(Float, nullable=False)
     coordinate_system: Mapped[str] = mapped_column(String(16), default="GCJ02", nullable=False)
+    coordinate_source: Mapped[str] = mapped_column(String(32), default="AMAP_POI", nullable=False)
     external_provider: Mapped[str | None] = mapped_column(String(64))
     external_poi_id: Mapped[str | None] = mapped_column(String(128))
     resolution_status: Mapped[str] = mapped_column(String(32), default="CONFIRMED", nullable=False)
+    poi_binding_status: Mapped[str] = mapped_column(String(32), default="AUTO_CONFIRMED", nullable=False)
     user_state: Mapped[str] = mapped_column(String(32), default="DISCOVERED", nullable=False)
     summary: Mapped[str] = mapped_column(Text, default="", nullable=False)
     metadata_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revision: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
 
 class PlaceObservation(Base):
@@ -348,6 +352,54 @@ class PlaceMention(Base, TimestampMixin):
     place_id: Mapped[str | None] = mapped_column(ForeignKey("places.id", ondelete="SET NULL"))
     metadata_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     brief_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+
+class PlaceInsightItem(Base, TimestampMixin):
+    __tablename__ = "place_insight_items"
+    __table_args__ = (Index("ix_place_insights_place_status", "place_id", "status"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("ins"))
+    place_id: Mapped[str] = mapped_column(ForeignKey("places.id", ondelete="CASCADE"), nullable=False)
+    place_mention_id: Mapped[str | None] = mapped_column(ForeignKey("place_mentions.id", ondelete="CASCADE"))
+    source_id: Mapped[str | None] = mapped_column(ForeignKey("sources.id", ondelete="SET NULL"))
+    insight_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    value_key: Mapped[str] = mapped_column(String(128), default="", nullable=False)
+    value_text: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    value_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    provenance: Mapped[str] = mapped_column(String(32), nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="ACTIVE", nullable=False)
+    supersedes_id: Mapped[str | None] = mapped_column(
+        ForeignKey("place_insight_items.id", ondelete="SET NULL")
+    )
+    segment_ids_json: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    metadata_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    created_by: Mapped[str] = mapped_column(String(64), default="system", nullable=False)
+
+
+class PlaceUserNote(Base, TimestampMixin):
+    __tablename__ = "place_user_notes"
+    __table_args__ = (UniqueConstraint("place_id", name="uq_place_user_note"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("pnote"))
+    place_id: Mapped[str] = mapped_column(ForeignKey("places.id", ondelete="CASCADE"), nullable=False)
+    markdown: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_by: Mapped[str] = mapped_column(String(64), default="local-user", nullable=False)
+    updated_by: Mapped[str] = mapped_column(String(64), default="local-user", nullable=False)
+
+
+class PlaceUserOverlay(Base, TimestampMixin):
+    __tablename__ = "place_user_overlays"
+    __table_args__ = (UniqueConstraint("place_id", name="uq_place_user_overlay"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("poverlay"))
+    place_id: Mapped[str] = mapped_column(ForeignKey("places.id", ondelete="CASCADE"), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(300), default="", nullable=False)
+    override_place_type: Mapped[str] = mapped_column(String(64), default="", nullable=False)
+    custom_tags_json: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
 
 class MapMarkerState(Base, TimestampMixin):
@@ -360,6 +412,8 @@ class MapMarkerState(Base, TimestampMixin):
     visibility: Mapped[str] = mapped_column(String(32), default="VISIBLE", nullable=False)
     custom_label: Mapped[str | None] = mapped_column(String(300))
     created_by: Mapped[str] = mapped_column(String(64), default="system", nullable=False)
+    updated_by: Mapped[str] = mapped_column(String(64), default="system", nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 

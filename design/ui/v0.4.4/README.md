@@ -22,10 +22,10 @@
 
 ## 文档映射
 
-- `../../../dev docs/VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md`
-- `../../../dev docs/PIPELINE_STEP_REPLAY_V044_SPEC.md`
-- `../../../dev docs/VIDEO_NOTE_DELETE_V044_SPEC.md`
-- `../../../dev docs/VIDEO_AI_NOTE_IMPLEMENTATION_GUIDE.md`
+- `../../../dev docs/video/VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md`
+- `../../../dev docs/jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md`
+- `../../../dev docs/video/VIDEO_NOTE_DELETE_V044_SPEC.md`
+- `../../../dev docs/video/VIDEO_AI_NOTE_IMPLEMENTATION_GUIDE.md`
 
 ## 图稿注意
 

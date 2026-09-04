@@ -7,6 +7,7 @@ import { ContentPage } from './features/content/ContentPage'
 import { DashboardPage } from './features/dashboard/DashboardPage'
 import { MapOverviewPage } from './features/map/MapOverviewPage'
 import { PlaceDetailPage } from './features/map/PlaceDetailPage'
+import { PlaceReviewsPage } from './features/map/PlaceReviewsPage'
 import { RoutesPage } from './features/map/RoutesPage'
 import { SettingsPage } from './features/settings/SettingsPage'
 import { CapturePage } from './features/tasks/CapturePage'
@@ -33,6 +34,7 @@ export function App() {
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/map" element={<MapOverviewPage />} />
         <Route path="/places/:placeId" element={<PlaceDetailPage />} />
+        <Route path="/place-reviews" element={<PlaceReviewsPage />} />
         <Route path="/routes" element={<RoutesPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
