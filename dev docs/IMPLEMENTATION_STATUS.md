@@ -1,11 +1,11 @@
 # 当前实施状态
 
-> 状态记录日期：2026-09-04。本文唯一记录当前源码能力与自动验证；生产状态只见 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
+> 状态记录日期：2026-09-08。本文唯一记录当前源码能力与自动验证；生产状态只见 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
 
 ## Current repository freeze
 
 - 当前工作分支为 `codex/mac-mini-implementation`；提交前仍须用 git 状态核对，保护同批文档拆分与地图改动。
-- 仓库 migration head 为 Alembic 0013；生产版本见 CURRENT_HANDOFF 的实际采样，不由仓库推断。
+- 仓库 migration head 为 Alembic 0017；生产版本见 CURRENT_HANDOFF 的实际采样，不由仓库推断。
 - 唯一支持的后端为 Mac mini；FastAPI、SQLite/WAL、独立 Worker；其他平台不在当前支持范围。
 - 真实验收与自动回归分开记录；规格中的“待实施”、历史 Work Package、未来规划均不得单独认定为当前缺口。
 
@@ -14,7 +14,7 @@
 | 领域 | 已进入源码的能力 | 契约入口 |
 | --- | --- | --- |
 | Capture / 基础 | URL、正文、DOCX、PDF、XLSX、图像 OCR、音视频；局域网配对与 Session；Source/Evidence | product/PRODUCT_REQUIREMENTS.md、architecture/SECURITY_PRIVACY.md |
-| 招聘 / 旅行 | 首批招聘结构化与证据；Place Insight、POI Review、全国交互地图、Marker 生命周期、地图点选 POI 与人工路线 | product/RECRUITMENT_PIPELINE.md、product/TRAVEL_FOOD_PIPELINE.md |
+| 招聘 / 旅行 | 首批招聘结构化与证据；Place Insight、POI Review、全国交互地图、Marker 生命周期、地点管理/人工路线；地点时间窗口提取并保留原文 Segment 证据，覆盖观赏期、丰枯水、渔业限制、花/红叶/雪/迁徙与季节性开放 | product/RECRUITMENT_PIPELINE.md、product/TRAVEL_FOOD_PIPELINE.md |
 | 视频 | 字幕优先、ASR、校对、笔记/章节、地点、截图、列表封面、保留式删除 | video/VIDEO_AI_NOTE_PIPELINE.md（分篇索引） |
 | Bilibili 登录恢复 | 站内扫码、nav 账号验证、Keychain 保存；登录失败进入 NEEDS_USER；核心恢复与非核心截图显式跳过；字幕多轨与官方 CDN Host Policy | video/02-input-transcript.md |
 | Job / Replay | 独立 Worker 心跳、协作取消、租约门禁、终态表达、步骤续跑和完整重跑；后端决定 Replay Options | jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md |
@@ -25,7 +25,7 @@
 
 ## 自动验证记录
 
-2026-09-04：后端 pytest 93 项、Ruff；Node 22.21.0 下前端 ESLint、Vitest 11 项、TypeScript 与 Vite build 通过；0013 在隔离 SQLite 可升级。生产真实视频 Job 已完成字幕、笔记、地点提取与截图，因全部 POI 需要人工确认而为 `PARTIAL_SUCCESS`。真实 Provider/视频结论仅覆盖该样本，不能外推为全部 Provider 验收。
+2026-09-08：后端 pytest 96 项、Ruff；Node 22.21.0 下前端 ESLint、Vitest 15 项、TypeScript 与 Vite build 通过。隔离 SQLite 已验证新库完整升级和模拟旧 0016 库升级至 0017：0017 检查列存在性，仅为旧库补齐时间窗口语义列，避免 0001 使用当前 ORM 元数据建表时的重复列错误。生产真实视频 Job 已完成字幕、笔记、地点提取与截图，因全部 POI 需要人工确认而为 `PARTIAL_SUCCESS`；真实 Provider/视频结论仅覆盖该样本，不能外推为全部 Provider 验收。
 
 ## 未闭环与外部条件
 
