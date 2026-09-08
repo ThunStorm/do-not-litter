@@ -46,11 +46,13 @@ from zhijian.db.models import (
     JobStep,
     MapMarkerState,
     Place,
+    PlaceDeletionTombstone,
     PlaceInsightItem,
     PlaceMention,
     PlaceObservation,
     PlaceUserNote,
     PlaceUserOverlay,
+    PlaceVisitWindow,
     RouteDraft,
     RouteDraftItem,
     Segment,
@@ -64,6 +66,7 @@ from zhijian.db.session import get_db
 from zhijian.domain.enums import JobStatus, ResolutionStatus
 from zhijian.domain.schemas import (
     AMapConfig,
+    BulkPlaceUpdate,
     CaptureRequest,
     CaptureResponse,
     ContentView,
@@ -79,9 +82,12 @@ from zhijian.domain.schemas import (
     PlaceDetailView,
     PlaceInsightUpdate,
     PlaceInsightView,
+    PlaceListView,
     PlaceNoteUpdate,
     PlaceOverlayUpdate,
     PlacePreview,
+    PlaceVisitWindowUpdate,
+    PlaceVisitWindowView,
     POIReviewDecision,
     POISearchRequest,
     ProfileConfig,
@@ -1381,6 +1387,66 @@ def list_logs(
     }
 
 
+def _place_query(
+    *,
+    city: str | None = None,
+    place_type: str | None = None,
+    user_state: str | None = None,
+    origin: str | None = None,
+    query: str | None = None,
+    season: str | None = None,
+    month: int | None = None,
+    month_segment: str | None = None,
+    day_time_slot: str | None = None,
+    source_id: str | None = None,
+    route_id: str | None = None,
+):
+    statement = select(Place).where(
+        or_(Place.resolution_status == ResolutionStatus.CONFIRMED.value, Place.origin == "USER_CREATED"),
+        Place.deleted_at.is_(None),
+    )
+    if city:
+        statement = statement.where(Place.city == city)
+    if place_type:
+        statement = statement.where(Place.place_type == place_type)
+    if user_state:
+        statement = statement.where(Place.user_state == user_state)
+    if query:
+        statement = statement.where(Place.name.contains(query) | Place.address.contains(query))
+    if origin:
+        statement = statement.where(Place.origin == origin)
+    if any(value is not None for value in (season, month, month_segment, day_time_slot)):
+        window = select(PlaceVisitWindow.id).where(
+            PlaceVisitWindow.place_id == Place.id, PlaceVisitWindow.status == "ACTIVE"
+        )
+        if season:
+            window = window.where(PlaceVisitWindow.season == season)
+        if month is not None:
+            window = window.where(PlaceVisitWindow.month == month)
+        if month_segment:
+            window = window.where(PlaceVisitWindow.month_segment == month_segment)
+        if day_time_slot:
+            window = window.where(PlaceVisitWindow.day_time_slot == day_time_slot)
+        statement = statement.where(window.exists())
+    if source_id:
+        statement = statement.where(
+            select(PlaceInsightItem.id)
+            .where(
+                PlaceInsightItem.place_id == Place.id,
+                PlaceInsightItem.status == "ACTIVE",
+                PlaceInsightItem.source_id == source_id,
+            )
+            .exists()
+        )
+    if route_id:
+        statement = statement.where(
+            select(RouteDraftItem.id)
+            .where(RouteDraftItem.place_id == Place.id, RouteDraftItem.route_draft_id == route_id)
+            .exists()
+        )
+    return statement
+
+
 @router.get("/api/travel/map", response_model=MapOverviewView)
 def map_overview(
     _: Protected,
@@ -1393,6 +1459,10 @@ def map_overview(
     best_month: str | None = None,
     best_season: str | None = None,
     best_time_slot: str | None = None,
+    season: str | None = None,
+    month: int | None = Query(default=None, ge=1, le=12),
+    month_segment: str | None = Query(default=None, pattern="^(EARLY|MID|LATE)$"),
+    day_time_slot: str | None = None,
     route_id: str | None = None,
     source_id: str | None = None,
     visibility: str = Query(default="VISIBLE", pattern="^(VISIBLE|HIDDEN|ALL)$"),
@@ -1410,20 +1480,22 @@ def map_overview(
             west, south, east, north = (float(part) for part in bbox.split(","))
         except ValueError as exc:
             raise HTTPException(status_code=422, detail="bbox 格式应为 west,south,east,north") from exc
-    statement = select(Place).where(
-        or_(Place.resolution_status == ResolutionStatus.CONFIRMED.value, Place.origin == "USER_CREATED"),
-        Place.deleted_at.is_(None),
+    statement = _place_query(
+        city=city,
+        place_type=place_type,
+        user_state=user_state,
+        query=query,
+        season=season,
+        month=month,
+        month_segment=month_segment,
+        day_time_slot=day_time_slot,
+        source_id=source_id,
+        route_id=route_id,
     )
-    if city:
-        statement = statement.where(Place.city == city)
     if district:
         statement = statement.where(Place.district == district)
-    if place_type:
-        statement = statement.where(Place.place_type == place_type)
-    if user_state:
-        statement = statement.where(Place.user_state == user_state)
-    if query:
-        statement = statement.where(Place.name.contains(query) | Place.address.contains(query))
+    # The old query names remain a one-dimensional compatibility surface.  They
+    # never participate in the new correlated-window conjunction.
     for insight_type, value in (
         ("BEST_MONTH", best_month.zfill(2) if best_month and best_month.isdigit() else best_month),
         ("BEST_SEASON", best_season),
@@ -1440,22 +1512,6 @@ def map_overview(
                 )
                 .exists()
             )
-    if source_id:
-        statement = statement.where(
-            select(PlaceInsightItem.id)
-            .where(
-                PlaceInsightItem.place_id == Place.id,
-                PlaceInsightItem.status == "ACTIVE",
-                PlaceInsightItem.source_id == source_id,
-            )
-            .exists()
-        )
-    if route_id:
-        statement = statement.where(
-            select(RouteDraftItem.id)
-            .where(RouteDraftItem.place_id == Place.id, RouteDraftItem.route_draft_id == route_id)
-            .exists()
-        )
     statement = statement.where(Place.longitude.between(west, east), Place.latitude.between(south, north))
     ordered_places = db.scalars(statement.order_by(Place.name.asc())).all()
     places = list({place.id: place for place in ordered_places}.values())
@@ -1500,14 +1556,11 @@ def map_overview(
         ]
     selected = next((place for place in visible_places if place.id == selected_place_id), None)
     route_count = db.scalar(select(func.count(RouteDraftItem.id))) or 0
-    clusters = _map_clusters(visible_places, zoom) if zoom < 6 else []
     return MapOverviewView(
         total_places=len(places),
         visible_places=len(visible_places),
-        markers=[_map_marker_view(db, place, states.get(place.id)) for place in visible_places]
-        if zoom >= 6
-        else [],
-        clusters=clusters,
+        markers=[_map_marker_view(db, place, states.get(place.id)) for place in visible_places],
+        clusters=[],
         selected_place_id=selected.id if selected else None,
         selected_preview=preview_for_place(db, selected) if selected else None,
         route_draft_count=route_count,
@@ -1515,7 +1568,7 @@ def map_overview(
     )
 
 
-@router.get("/api/travel/places", response_model=list[MapMarker])
+@router.get("/api/travel/places", response_model=PlaceListView)
 def travel_places(
     _: Protected,
     city: str | None = None,
@@ -1523,21 +1576,34 @@ def travel_places(
     user_state: str | None = None,
     origin: str | None = None,
     query: str | None = None,
+    season: str | None = None,
+    month: int | None = Query(default=None, ge=1, le=12),
+    month_segment: str | None = Query(default=None, pattern="^(EARLY|MID|LATE)$"),
+    day_time_slot: str | None = None,
+    route_id: str | None = None,
+    visibility: str = Query(default="ALL", pattern="^(VISIBLE|HIDDEN|ALL)$"),
+    cursor: str | None = None,
+    limit: int = Query(default=50, ge=1, le=100),
     db: Session = Depends(get_db),
-) -> list[MapMarker]:
-    statement = select(Place).where(
-        or_(Place.resolution_status == ResolutionStatus.CONFIRMED.value, Place.origin == "USER_CREATED"),
-        Place.deleted_at.is_(None),
+) -> PlaceListView:
+    statement = _place_query(
+        city=city,
+        place_type=place_type,
+        user_state=user_state,
+        origin=origin,
+        query=query,
+        season=season,
+        month=month,
+        month_segment=month_segment,
+        day_time_slot=day_time_slot,
+        route_id=route_id,
     )
-    if city:
-        statement = statement.where(Place.city == city)
-    if place_type:
-        statement = statement.where(Place.place_type == place_type)
-    if user_state:
-        statement = statement.where(Place.user_state == user_state)
-    if query:
-        statement = statement.where(Place.name.contains(query) | Place.address.contains(query))
-    places = db.scalars(statement.order_by(Place.name.asc())).all()
+    if cursor:
+        statement = statement.where(Place.id > cursor)
+    total = db.scalar(select(func.count()).select_from(statement.subquery())) or 0
+    places = db.scalars(statement.order_by(Place.id.asc()).limit(limit + 1)).all()
+    next_cursor = places[limit].id if len(places) > limit else None
+    places = places[:limit]
     states = (
         {
             state.place_id: state
@@ -1548,12 +1614,13 @@ def travel_places(
         if places
         else {}
     )
-    return [
+    items = [
         _map_marker_view(db, place, states.get(place.id))
         for place in places
-        if (states.get(place.id) is None or states[place.id].visibility == "VISIBLE")
-        and (not origin or (states.get(place.id).origin if states.get(place.id) else place.origin) == origin)
+        if visibility == "ALL"
+        or (states.get(place.id).visibility if states.get(place.id) else "VISIBLE") == visibility
     ]
+    return PlaceListView(items=items, next_cursor=next_cursor, total=total)
 
 
 @router.get("/api/travel/dashboard")
@@ -1720,23 +1787,6 @@ def _map_marker_view(db: Session, place: Place, state: MapMarkerState | None) ->
     )
 
 
-def _map_clusters(places: list[Place], zoom: float) -> list[dict]:
-    grid = 4 if zoom < 5 else 2
-    buckets: dict[tuple[int, int], list[Place]] = {}
-    for place in places:
-        key = (int(place.longitude / grid), int(place.latitude / grid))
-        buckets.setdefault(key, []).append(place)
-    return [
-        {
-            "id": f"cluster:{lng}:{lat}",
-            "longitude": sum(item.longitude for item in values) / len(values),
-            "latitude": sum(item.latitude for item in values) / len(values),
-            "count": len(values),
-        }
-        for (lng, lat), values in buckets.items()
-    ]
-
-
 @router.get("/api/travel/map/bootstrap")
 def map_bootstrap(
     _: Protected,
@@ -1846,6 +1896,11 @@ def place_detail(place_id: str, _: Protected, db: Session = Depends(get_db)) -> 
     overlay = db.scalar(select(PlaceUserOverlay).where(PlaceUserOverlay.place_id == place.id))
     note = db.scalar(select(PlaceUserNote).where(PlaceUserNote.place_id == place.id))
     marker = db.scalar(select(MapMarkerState).where(MapMarkerState.place_id == place.id))
+    visit_windows = db.scalars(
+        select(PlaceVisitWindow)
+        .where(PlaceVisitWindow.place_id == place.id, PlaceVisitWindow.status == "ACTIVE")
+        .order_by(PlaceVisitWindow.created_at)
+    ).all()
     return PlaceDetailView(
         **preview_for_place(db, place).model_dump(),
         coordinate_system=place.coordinate_system,
@@ -1867,6 +1922,7 @@ def place_detail(place_id: str, _: Protected, db: Session = Depends(get_db)) -> 
             )
             for item in insights
         ],
+        visit_windows=[_visit_window_view(item) for item in visit_windows],
         display={
             "name": overlay.display_name or place.name if overlay else place.name,
             "place_type": overlay.override_place_type or place.place_type if overlay else place.place_type,
@@ -1884,6 +1940,201 @@ def place_detail(place_id: str, _: Protected, db: Session = Depends(get_db)) -> 
 
 def _revision_conflict(current: int) -> HTTPException:
     return HTTPException(status_code=409, detail={"code": "REVISION_CONFLICT", "latest_revision": current})
+
+
+def _visit_window_view(item: PlaceVisitWindow) -> PlaceVisitWindowView:
+    return PlaceVisitWindowView(
+        id=item.id,
+        season=item.season,
+        month=item.month,
+        month_segment=item.month_segment,
+        day_time_slot=item.day_time_slot,
+        period_type=item.period_type,
+        suitability=item.suitability,
+        source_text=item.source_text,
+        segment_ids=item.segment_ids_json,
+        provenance=item.provenance,
+        confidence=item.confidence,
+        status=item.status,
+    )
+
+
+@router.post("/api/travel/places/{place_id}/visit-windows", response_model=PlaceVisitWindowView)
+def create_visit_window(
+    place_id: str,
+    payload: PlaceVisitWindowUpdate,
+    _: Protected,
+    db: Session = Depends(get_db),
+) -> PlaceVisitWindowView:
+    if db.get(Place, place_id) is None:
+        raise HTTPException(status_code=404, detail={"code": "PLACE_NOT_FOUND"})
+    item = PlaceVisitWindow(
+        place_id=place_id,
+        season=payload.season,
+        month=payload.month,
+        month_segment=payload.month_segment,
+        day_time_slot=payload.day_time_slot,
+        period_type=payload.period_type,
+        suitability=payload.suitability,
+        source_text=payload.source_text,
+        provenance="USER_ADDED",
+        confidence=1.0,
+    )
+    db.add(item)
+    record_event(
+        db,
+        "place.visit_window.created",
+        "地点适宜时间已更新",
+        actor="user",
+        entity_type="place",
+        entity_id=place_id,
+        commit=False,
+    )
+    db.commit()
+    return _visit_window_view(item)
+
+
+@router.delete("/api/travel/places/{place_id}/visit-windows/{window_id}")
+def delete_visit_window(place_id: str, window_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
+    item = db.get(PlaceVisitWindow, window_id)
+    if item is None or item.place_id != place_id or item.provenance == "SOURCE_FACT":
+        raise HTTPException(status_code=409, detail={"code": "CANNOT_DELETE_SOURCE_FACT"})
+    item.status = "REMOVED"
+    db.commit()
+    return {"id": item.id, "status": item.status}
+
+
+def _deletion_impact(db: Session, place: Place) -> dict:
+    return {
+        "place_id": place.id,
+        "name": place.name,
+        "marker": db.scalar(select(func.count(MapMarkerState.id)).where(MapMarkerState.place_id == place.id))
+        or 0,
+        "notes": db.scalar(select(func.count(PlaceUserNote.id)).where(PlaceUserNote.place_id == place.id))
+        or 0,
+        "overlays": db.scalar(
+            select(func.count(PlaceUserOverlay.id)).where(PlaceUserOverlay.place_id == place.id)
+        )
+        or 0,
+        "insights": db.scalar(
+            select(func.count(PlaceInsightItem.id)).where(PlaceInsightItem.place_id == place.id)
+        )
+        or 0,
+        "visit_windows": db.scalar(
+            select(func.count(PlaceVisitWindow.id)).where(PlaceVisitWindow.place_id == place.id)
+        )
+        or 0,
+        "route_references": db.scalar(
+            select(func.count(RouteDraftItem.id)).where(RouteDraftItem.place_id == place.id)
+        )
+        or 0,
+        "mentions_preserved": db.scalar(
+            select(func.count(PlaceMention.id)).where(PlaceMention.place_id == place.id)
+        )
+        or 0,
+        "source_evidence_preserved": True,
+    }
+
+
+@router.get("/api/travel/places/{place_id}/deletion-impact")
+def place_deletion_impact(place_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
+    place = db.get(Place, place_id)
+    if place is None:
+        raise HTTPException(status_code=404, detail={"code": "PLACE_NOT_FOUND"})
+    return _deletion_impact(db, place)
+
+
+@router.delete("/api/travel/places/{place_id}/hard")
+def hard_delete_place(place_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
+    place = db.get(Place, place_id)
+    if place is None:
+        raise HTTPException(status_code=404, detail={"code": "PLACE_NOT_FOUND"})
+    impact = _deletion_impact(db, place)
+    if place.external_provider and place.external_poi_id:
+        db.add(
+            PlaceDeletionTombstone(
+                external_provider=place.external_provider,
+                external_poi_id=place.external_poi_id,
+                normalized_name=place.name.casefold(),
+                former_place_id=place.id,
+            )
+        )
+    for mention in db.scalars(select(PlaceMention).where(PlaceMention.place_id == place.id)).all():
+        mention.place_id, mention.resolution_status, mention.metadata_json = (
+            None,
+            ResolutionStatus.REJECTED.value,
+            {
+                **mention.metadata_json,
+                "deleted_by_user": True,
+                "former_place_id": place.id,
+                "former_provider": place.external_provider,
+                "former_poi_id": place.external_poi_id,
+            },
+        )
+    for model in (
+        PlaceObservation,
+        PlaceInsightItem,
+        PlaceVisitWindow,
+        MapMarkerState,
+        PlaceUserNote,
+        PlaceUserOverlay,
+        RouteDraftItem,
+    ):
+        db.execute(delete(model).where(model.place_id == place.id))
+    db.delete(place)
+    record_event(
+        db,
+        "place.deleted.hard",
+        "地点已永久删除；来源与证据已保留",
+        actor="user",
+        entity_type="place",
+        entity_id=place_id,
+        detail=impact,
+        commit=False,
+    )
+    db.commit()
+    return {"place_id": place_id, "status": "DELETED", "impact": impact}
+
+
+@router.patch("/api/travel/places/bulk")
+def bulk_update_places(payload: BulkPlaceUpdate, _: Protected, db: Session = Depends(get_db)) -> dict:
+    places = db.scalars(
+        select(Place).where(Place.id.in_(list(dict.fromkeys(payload.place_ids))), Place.deleted_at.is_(None))
+    ).all()
+    if len(places) != len(set(payload.place_ids)):
+        raise HTTPException(status_code=404, detail={"code": "PLACE_NOT_FOUND"})
+    if payload.action in {"hide", "restore"}:
+        for place in places:
+            marker = db.scalar(select(MapMarkerState).where(MapMarkerState.place_id == place.id))
+            if marker is None:
+                marker = MapMarkerState(place_id=place.id, origin=place.origin)
+                db.add(marker)
+            marker.visibility = "HIDDEN" if payload.action == "hide" else "VISIBLE"
+    elif payload.action == "state":
+        if payload.value not in {"SAVED", "PLANNED", "VISITED", "DISMISSED"}:
+            raise HTTPException(status_code=422, detail={"code": "INVALID_STATE"})
+        for place in places:
+            place.user_state = payload.value
+    elif payload.action in {"add_route", "remove_route"}:
+        route = db.get(RouteDraft, payload.value)
+        if route is None:
+            raise HTTPException(status_code=404, detail={"code": "ROUTE_NOT_FOUND"})
+        current = [
+            item.place_id
+            for item in db.scalars(
+                select(RouteDraftItem).where(RouteDraftItem.route_draft_id == route.id)
+            ).all()
+        ]
+        selected = {place.id for place in places}
+        _replace_route_items(
+            db,
+            route.id,
+            current + list(selected)
+            if payload.action == "add_route"
+            else [item for item in current if item not in selected],
+        )
+    db.commit()
+    return {"requested": len(payload.place_ids), "succeeded": len(places), "failed": []}
 
 
 @router.put("/api/travel/places/{place_id}/note")
@@ -2054,6 +2305,13 @@ def create_manual_place(
         candidate = AMapPOIProvider(web_key).detail(payload.poi_id)
         if candidate is None:
             raise HTTPException(status_code=422, detail={"code": "INVALID_POI"})
+        if db.scalar(
+            select(PlaceDeletionTombstone).where(
+                PlaceDeletionTombstone.external_provider == "AMAP",
+                PlaceDeletionTombstone.external_poi_id == candidate.provider_id,
+            )
+        ):
+            raise HTTPException(status_code=409, detail={"code": "PLACE_SUPPRESSED_BY_USER"})
         existing = db.scalar(
             select(Place).where(
                 Place.external_provider == "AMAP", Place.external_poi_id == candidate.provider_id
@@ -2248,7 +2506,10 @@ def search_map_pois(
     web_key = store.get("amap:web-service-key") or settings.amap_api_key
     if not web_key:
         raise HTTPException(status_code=422, detail={"code": "POI_PROVIDER_UNAVAILABLE"})
-    return [_poi_candidate_view(item) for item in AMapPOIProvider(web_key).search(payload.query, "")]
+    query = payload.query.strip()
+    candidates = AMapPOIProvider(web_key).search(query, "", city_limit=False)
+    candidates.sort(key=lambda item: (query not in item.name, abs(len(item.name) - len(query)), item.name))
+    return [_poi_candidate_view(item) for item in candidates]
 
 
 @router.post("/api/travel/place-mentions/{mention_id}/poi-search")
@@ -2469,6 +2730,7 @@ def delete_route(route_id: str, _: Protected, db: Session = Depends(get_db)) -> 
     route = db.get(RouteDraft, route_id)
     if route is None:
         raise HTTPException(status_code=404, detail="路线清单不存在")
+    db.execute(delete(RouteDraftItem).where(RouteDraftItem.route_draft_id == route_id))
     db.delete(route)
     db.commit()
     return {"id": route_id, "status": "DELETED"}

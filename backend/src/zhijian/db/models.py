@@ -381,6 +381,44 @@ class PlaceInsightItem(Base, TimestampMixin):
     created_by: Mapped[str] = mapped_column(String(64), default="system", nullable=False)
 
 
+class PlaceVisitWindow(Base, TimestampMixin):
+    __tablename__ = "place_visit_windows"
+    __table_args__ = (
+        Index("ix_place_visit_window_place_status", "place_id", "status"),
+        Index("ix_place_visit_window_time", "season", "month", "month_segment", "status"),
+        Index("ix_place_visit_window_slot", "day_time_slot", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("pvw"))
+    place_id: Mapped[str] = mapped_column(ForeignKey("places.id", ondelete="CASCADE"), nullable=False)
+    place_mention_id: Mapped[str | None] = mapped_column(ForeignKey("place_mentions.id", ondelete="SET NULL"))
+    source_id: Mapped[str | None] = mapped_column(ForeignKey("sources.id", ondelete="SET NULL"))
+    season: Mapped[str | None] = mapped_column(String(16))
+    month: Mapped[int | None] = mapped_column(Integer)
+    month_segment: Mapped[str | None] = mapped_column(String(16))
+    day_time_slot: Mapped[str | None] = mapped_column(String(32))
+    period_type: Mapped[str] = mapped_column(String(32), default="BEST_VISIT", nullable=False)
+    suitability: Mapped[str] = mapped_column(String(16), default="INFORMATIONAL", nullable=False)
+    source_text: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    segment_ids_json: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    provenance: Mapped[str] = mapped_column(String(32), nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="ACTIVE", nullable=False)
+
+
+class PlaceDeletionTombstone(Base):
+    __tablename__ = "place_deletion_tombstones"
+    __table_args__ = (Index("ix_place_tombstone_provider_poi", "external_provider", "external_poi_id"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("ptomb"))
+    external_provider: Mapped[str | None] = mapped_column(String(64))
+    external_poi_id: Mapped[str | None] = mapped_column(String(128))
+    normalized_name: Mapped[str] = mapped_column(String(300), default="", nullable=False)
+    former_place_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    deleted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    reason: Mapped[str] = mapped_column(String(500), default="用户永久删除", nullable=False)
+
+
 class PlaceUserNote(Base, TimestampMixin):
     __tablename__ = "place_user_notes"
     __table_args__ = (UniqueConstraint("place_id", name="uq_place_user_note"),)

@@ -30,9 +30,11 @@ from zhijian.db.models import (
     ExternalCallAudit,
     Job,
     Place,
+    PlaceDeletionTombstone,
     PlaceInsightItem,
     PlaceMention,
     PlaceNoteVersion,
+    PlaceVisitWindow,
     Segment,
     Setting,
     Snapshot,
@@ -70,17 +72,17 @@ PROMPT_CORE_CONTRACTS = {
     ],
     "video_note_summary": [
         "固定返回 JSON 对象及约定字段结构。",
-        "顶层只使用 overview、warnings、sections。",
+        "顶层只使用 overview、warnings、sections、section_facts。",
         "章节字段保持 heading、thesis、summary、bullets、body_markdown、segment_ids。",
         "每个章节必须引用当前输入中的有效 Segment ID。",
-        "不得用无证据内容替代 Transcript 或 Evidence。",
+        "地点时间窗口必须逐字引用 Transcript 并绑定有效 Segment ID。",
         "Section 锚点和时间范围由服务端生成，模型不得编造。",
     ],
     "travel_place_extraction": [
         "固定返回 JSON 对象与 places 数组。",
-        "地点名称、类型、理由、引文、置信度等字段结构不可改变。",
+        "地点及时间窗口的字段结构不可改变。",
         "每个地点必须引用当前输入中的有效 Segment ID。",
-        "不得用模型推测替代来源引文或 Transcript Evidence。",
+        "时间窗口必须逐字引用 Transcript 并绑定有效 Segment ID。",
         "不得生成、猜测或改写经纬度。",
         "名称歧义只能保留候选并进入校验，不得伪造已确认 POI。",
     ],
@@ -90,6 +92,235 @@ ROLE_STAGE = {
     "video_note_summary": "GENERATE_AI_NOTE",
     "travel_place_extraction": "EXTRACT_TRAVEL_FACTS",
 }
+
+VISIT_PERIOD_TYPES = {
+    "BEST_VISIT",
+    "BEST_VIEWING",
+    "HIGH_WATER",
+    "LOW_WATER",
+    "FISHING_CLOSURE",
+    "SEASONAL_CLOSURE",
+    "BLOOM",
+    "FOLIAGE",
+    "SNOW",
+    "MIGRATION",
+    "WEATHER_SEASON",
+    "PEAK_SEASON",
+    "OFF_SEASON",
+    "OTHER",
+}
+VISIT_SUITABILITIES = {"RECOMMENDED", "AVOID", "RESTRICTED", "INFORMATIONAL"}
+VISIT_SEASONS = {"SPRING", "SUMMER", "AUTUMN", "WINTER"}
+VISIT_MONTH_SEGMENTS = {"EARLY", "MID", "LATE"}
+VISIT_DAY_TIME_SLOTS = {
+    "EARLY_MORNING",
+    "MORNING",
+    "NOON",
+    "AFTERNOON",
+    "SUNSET",
+    "EVENING",
+    "NIGHT",
+    "BREAKFAST",
+    "LUNCH",
+    "DINNER",
+    "LATE_NIGHT",
+}
+TEMPORAL_CUE = re.compile(
+    r"最佳(?:观赏|游览|旅行|到访|拍摄)?(?:期|时间|季节)?|最好|最美|最漂亮|最适合|最合适|"
+    r"适合.{0,8}(?:去|前往|游览|观赏|拍摄)|建议.{0,8}(?:去|前往|游览|观赏)|"
+    r"丰水期|丰水季|汛期|枯水期|枯水季|平水期|休渔期|禁渔期|禁捕期|开渔期|捕捞期|"
+    r"封山期|闭园期|开放期|停航期|封航期|结冰期|融冰期|"
+    r"花期|花季|樱花季|赏花期|红叶期|红叶季|赏枫期|雪季|冰雪季|"
+    r"候鸟季|迁徙期|雨季|旱季|旺季|淡季"
+)
+MONTH_TOKEN = re.compile(r"(?:(1[0-2]|0?[1-9])|([一二三四五六七八九十]{1,3}))月")
+
+
+def _chinese_month(value: str) -> int | None:
+    digits = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
+    if value == "十":
+        return 10
+    if value.startswith("十"):
+        return 10 + digits.get(value[1:], 0)
+    if value.endswith("十"):
+        return digits.get(value[:-1], 0) * 10
+    return digits.get(value)
+
+
+def _months_in_text(value: str) -> list[int]:
+    matches = list(MONTH_TOKEN.finditer(value))
+    parsed = []
+    for match in matches:
+        month = int(match.group(1)) if match.group(1) else _chinese_month(match.group(2))
+        parsed.append(month if month and 1 <= month <= 12 else None)
+    months = []
+    for compact in re.finditer(r"([一二三四五六七八九])([一二三四五六七八九])月", value):
+        months.extend(
+            month
+            for month in (_chinese_month(compact.group(1)), _chinese_month(compact.group(2)))
+            if month and month not in months
+        )
+    for compact in re.finditer(r"(1[0-2]|[1-9])[、和及与](1[0-2]|[1-9])月", value):
+        months.extend(month for month in map(int, compact.groups()) if month not in months)
+    for index, month in enumerate(parsed):
+        if month and index + 1 < len(parsed) and parsed[index + 1]:
+            connector = value[matches[index].end() : matches[index + 1].start()]
+            if re.fullmatch(r"\s*(?:至|到|[-—~～])\s*", connector):
+                end = parsed[index + 1]
+                span = (
+                    list(range(month, end + 1))
+                    if month <= end
+                    else list(range(month, 13)) + list(range(1, end + 1))
+                )
+                months.extend(value for value in span if value not in months)
+        if month and month not in months:
+            months.append(month)
+    return months
+
+
+def _period_type_from_text(value: str) -> str:
+    for pattern, period_type in (
+        (r"休渔期|禁渔期|禁捕期|开渔期|捕捞期", "FISHING_CLOSURE"),
+        (r"封山期|闭园期|开放期|停航期|封航期", "SEASONAL_CLOSURE"),
+        (r"丰水期|丰水季|汛期", "HIGH_WATER"),
+        (r"枯水期|枯水季|平水期", "LOW_WATER"),
+        (r"花期|花季|樱花季|赏花期", "BLOOM"),
+        (r"红叶期|红叶季|赏枫期", "FOLIAGE"),
+        (r"雪季|冰雪季|结冰期|融冰期", "SNOW"),
+        (r"候鸟季|迁徙期", "MIGRATION"),
+        (r"雨季|旱季", "WEATHER_SEASON"),
+        (r"旺季", "PEAK_SEASON"),
+        (r"淡季", "OFF_SEASON"),
+        (r"最佳|最好|最美|最漂亮|最适合|最合适", "BEST_VIEWING"),
+    ):
+        if re.search(pattern, value):
+            return period_type
+    return "OTHER"
+
+
+def _suitability_from_text(value: str, period_type: str) -> str:
+    if period_type in {"FISHING_CLOSURE", "SEASONAL_CLOSURE"} and re.search(
+        r"休渔|禁渔|禁捕|封山|闭园|停航|封航", value
+    ):
+        return "RESTRICTED"
+    if re.search(r"避开|不建议|不适合|不要|谨慎", value):
+        return "AVOID"
+    if re.search(r"最佳|最好|最美|最漂亮|最适合|最合适|推荐|适宜|值得", value):
+        return "RECOMMENDED"
+    return "INFORMATIONAL"
+
+
+def _calendar_fields_from_text(value: str) -> dict[str, object]:
+    seasons = (
+        (r"春季|春天|春日", "SPRING"),
+        (r"夏季|夏天|夏日", "SUMMER"),
+        (r"秋季|秋天|秋日", "AUTUMN"),
+        (r"冬季|冬天|冬日", "WINTER"),
+    )
+    season = next(
+        (code for pattern, code in seasons if re.search(pattern, value)),
+        None,
+    )
+    month_segment = next(
+        (code for text, code in (("上旬", "EARLY"), ("中旬", "MID"), ("下旬", "LATE")) if text in value),
+        None,
+    )
+    day_times = (
+        (r"清晨|日出", "EARLY_MORNING"),
+        (r"上午", "MORNING"),
+        (r"中午|正午", "NOON"),
+        (r"下午", "AFTERNOON"),
+        (r"日落|黄昏", "SUNSET"),
+        (r"傍晚|晚间", "EVENING"),
+        (r"夜间|夜晚", "NIGHT"),
+    )
+    day_time_slot = next(
+        (code for pattern, code in day_times if re.search(pattern, value)),
+        None,
+    )
+    return {"season": season, "month_segment": month_segment, "day_time_slot": day_time_slot}
+
+
+def _normalized_evidence_text(value: str) -> str:
+    return re.sub(r"[^\w]", "", value.casefold())
+
+
+def _visit_windows_from_candidate(
+    item: dict[str, Any], segment_ids: list[str], segment_texts: dict[str, str]
+) -> list[dict[str, Any]]:
+    windows: list[dict[str, Any]] = []
+    seen: set[tuple[object, ...]] = set()
+
+    def add(raw: dict[str, Any], evidence_ids: list[str], source_text: str) -> None:
+        evidence = "".join(segment_texts.get(segment_id, "") for segment_id in evidence_ids)
+        if not source_text or _normalized_evidence_text(source_text) not in _normalized_evidence_text(
+            evidence
+        ):
+            return
+        period_type = str(raw.get("period_type") or "OTHER").upper()
+        suitability = str(raw.get("suitability") or "INFORMATIONAL").upper()
+        season = str(raw.get("season") or "").upper() or None
+        month_segment = str(raw.get("month_segment") or "").upper() or None
+        day_time_slot = str(raw.get("day_time_slot") or "").upper() or None
+        period_type = period_type if period_type in VISIT_PERIOD_TYPES else "OTHER"
+        suitability = suitability if suitability in VISIT_SUITABILITIES else "INFORMATIONAL"
+        season = season if season in VISIT_SEASONS else None
+        month_segment = month_segment if month_segment in VISIT_MONTH_SEGMENTS else None
+        day_time_slot = day_time_slot if day_time_slot in VISIT_DAY_TIME_SLOTS else None
+        raw_months = raw.get("months") if isinstance(raw.get("months"), list) else [raw.get("month")]
+        months = list(
+            dict.fromkeys(
+                int(value) for value in raw_months if str(value).isdigit() and 1 <= int(value) <= 12
+            )
+        )
+        for month in months or [None]:
+            candidate = {
+                "period_type": period_type,
+                "suitability": suitability,
+                "season": season,
+                "month": month,
+                "month_segment": month_segment,
+                "day_time_slot": day_time_slot,
+                "source_text": source_text[:500],
+                "segment_ids": evidence_ids,
+            }
+            key = tuple(candidate[field] for field in candidate if field != "segment_ids")
+            if key not in seen:
+                seen.add(key)
+                windows.append(candidate)
+
+    for raw in item.get("visit_windows") or []:
+        if not isinstance(raw, dict):
+            continue
+        evidence_ids = [value for value in raw.get("segment_ids", []) if value in segment_ids]
+        add(raw, evidence_ids, str(raw.get("source_text") or "").strip())
+
+    covered_sources = {_normalized_evidence_text(window["source_text"]) for window in windows}
+    for segment_id in segment_ids:
+        text = segment_texts.get(segment_id, "")
+        if not TEMPORAL_CUE.search(text):
+            continue
+        for sentence in (part.strip() for part in re.split(r"[。！？!?；;]", text)):
+            if (
+                not sentence
+                or not TEMPORAL_CUE.search(sentence)
+                or _normalized_evidence_text(sentence) in covered_sources
+            ):
+                continue
+            period_type = _period_type_from_text(sentence)
+            fields = _calendar_fields_from_text(sentence)
+            add(
+                {
+                    **fields,
+                    "period_type": period_type,
+                    "suitability": _suitability_from_text(sentence, period_type),
+                    "months": _months_in_text(sentence),
+                },
+                [segment_id],
+                sentence,
+            )
+            covered_sources.add(_normalized_evidence_text(sentence))
+    return windows
 
 
 class ProviderUnavailable(RuntimeError):
@@ -1207,6 +1438,7 @@ def extract_place_mentions(
             if isinstance(candidate, dict)
         ]
     valid_ids = {segment.id for segment in segments}
+    segment_texts = {segment.id: segment.text for segment in segments}
     rejected_names = {
         _normalized_insight_key(item.raw_name or item.name)
         for item in db.scalars(
@@ -1226,6 +1458,7 @@ def extract_place_mentions(
         if _normalized_insight_key(item.get("raw_name") or item["name"]) in rejected_names:
             continue
         insights = _insights_from_candidate(item, ids)
+        visit_windows = _visit_windows_from_candidate(item, ids, segment_texts)
         mention = PlaceMention(
             video_asset_id=asset.id,
             ai_note_version_id=note.id,
@@ -1241,7 +1474,7 @@ def extract_place_mentions(
             confidence=normalized_confidence(item.get("confidence")),
             extraction_status="EXTRACTED",
             resolution_status=ResolutionStatus.UNRESOLVED.value,
-            metadata_json={"insights": insights},
+            metadata_json={"insights": insights, "visit_windows": visit_windows},
             brief_json={
                 "feature": str(item.get("feature") or item.get("reason") or "")[:500],
                 "experience": str(item.get("experience") or "")[:500],
@@ -1344,6 +1577,30 @@ def materialize_place_insights(db: Session, mention: PlaceMention) -> None:
                 segment_ids_json=list(mention.segment_ids_json),
             )
         )
+    db.query(PlaceVisitWindow).filter(
+        PlaceVisitWindow.place_mention_id == mention.id,
+        PlaceVisitWindow.provenance == "SOURCE_FACT",
+    ).delete(synchronize_session=False)
+    for item in mention.metadata_json.get("visit_windows", []):
+        if not isinstance(item, dict):
+            continue
+        db.add(
+            PlaceVisitWindow(
+                place_id=mention.place_id,
+                place_mention_id=mention.id,
+                source_id=asset.source_id if asset else None,
+                season=item.get("season"),
+                month=item.get("month"),
+                month_segment=item.get("month_segment"),
+                day_time_slot=item.get("day_time_slot"),
+                period_type=item.get("period_type") or "OTHER",
+                suitability=item.get("suitability") or "INFORMATIONAL",
+                source_text=str(item.get("source_text") or "")[:500],
+                segment_ids_json=list(item.get("segment_ids") or mention.segment_ids_json),
+                provenance="SOURCE_FACT",
+                confidence=mention.confidence,
+            )
+        )
 
 
 def resolve_mentions_with_amap(
@@ -1360,7 +1617,7 @@ def resolve_mentions_with_amap(
         try:
             candidates = _rank_poi_candidates(provider, mention)
         except Exception as exc:
-            mention.metadata_json = {"poi_error": str(exc)[:240]}
+            mention.metadata_json = {**mention.metadata_json, "poi_error": str(exc)[:240]}
             continue
         if not candidates:
             mention.resolution_status = ResolutionStatus.UNRESOLVED.value
@@ -1370,6 +1627,7 @@ def resolve_mentions_with_amap(
         if selected.score < 80 or (runner_up and selected.score - runner_up.score < 15):
             mention.resolution_status = ResolutionStatus.REVIEW.value
             mention.metadata_json = {
+                **mention.metadata_json,
                 "poi_candidates": [_candidate_metadata(item) for item in candidates[:5]],
                 "reason": "候选得分不足或第一、二候选过于接近，等待人工确认",
             }
@@ -1381,11 +1639,26 @@ def resolve_mentions_with_amap(
         if verified is None:
             mention.resolution_status = ResolutionStatus.REVIEW.value
             mention.metadata_json = {
+                **mention.metadata_json,
                 "poi_candidates": [_candidate_metadata(item) for item in candidates[:5]],
                 "reason": "POI 详情复核失败，等待人工确认",
             }
             continue
         selected = verified
+        tombstone = db.scalar(
+            select(PlaceDeletionTombstone).where(
+                PlaceDeletionTombstone.external_provider == "AMap",
+                PlaceDeletionTombstone.external_poi_id == selected.provider_id,
+            )
+        )
+        if tombstone is not None:
+            mention.resolution_status = ResolutionStatus.REJECTED.value
+            mention.metadata_json = {
+                **mention.metadata_json,
+                "deleted_by_user": True,
+                "suppressed_poi_id": selected.provider_id,
+            }
+            continue
         place = db.scalar(
             select(Place).where(
                 Place.external_provider == "AMap", Place.external_poi_id == selected.provider_id

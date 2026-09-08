@@ -19,6 +19,7 @@ from zhijian.db.models import (
     Place,
     PlaceInsightItem,
     PlaceMention,
+    PlaceVisitWindow,
     Setting,
     Source,
     SystemEvent,
@@ -678,7 +679,8 @@ def test_map_overview_switches_selected_preview(client) -> None:
 def test_national_map_clusters_and_user_marker_lifecycle(client) -> None:
     overview = client.get("/api/travel/map?zoom=4").json()
     assert overview["viewport"]["is_default_china"] is True
-    assert overview["clusters"]
+    assert overview["clusters"] == []
+    assert len(overview["markers"]) == overview["visible_places"]
     created = client.post(
         "/api/travel/map/markers",
         json={"longitude": 116.397, "latitude": 39.908, "custom_name": "用户确认地点"},
@@ -697,7 +699,7 @@ def test_national_map_clusters_and_user_marker_lifecycle(client) -> None:
     )
     user_places = client.get("/api/travel/places?origin=USER")
     assert user_places.status_code == 200
-    assert any(item["marker_id"] == marker_id for item in user_places.json())
+    assert any(item["marker_id"] == marker_id for item in user_places.json()["items"])
     geojson = client.post("/api/travel/export?format=geojson")
     assert geojson.status_code == 200
     assert geojson.json()["coordinate_system"] == "GCJ02"
@@ -732,9 +734,7 @@ def test_map_visibility_time_and_route_facets(client) -> None:
         },
     )
     assert overlay.status_code == 200
-    month_markers = client.get(
-        "/api/travel/map?city=厦门市&zoom=8&best_month=10"
-    ).json()["markers"]
+    month_markers = client.get("/api/travel/map?city=厦门市&zoom=8&best_month=10").json()["markers"]
     assert place_id in {item["id"] for item in month_markers}
     assert next(item for item in month_markers if item["id"] == place_id)["name"] == "我的秋游地点"
     route = client.post(
@@ -758,6 +758,70 @@ def test_map_visibility_time_and_route_facets(client) -> None:
     }
     assert client.delete(f"/api/travel/route-drafts/{route['id']}").json()["status"] == "DELETED"
     assert client.get("/api/travel/place-reviews/count").json()["count"] >= 0
+
+
+def test_visit_window_is_correlated_and_hard_delete_preserves_mentions(client, app_and_session) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        joined = Place(
+            name="关联窗口",
+            canonical_name="关联窗口",
+            origin="USER_CREATED",
+            place_type="PARK",
+            latitude=30.0,
+            longitude=120.0,
+            resolution_status="CONFIRMED",
+        )
+        split = Place(
+            name="分离窗口",
+            canonical_name="分离窗口",
+            origin="USER_CREATED",
+            place_type="PARK",
+            latitude=30.1,
+            longitude=120.1,
+            resolution_status="CONFIRMED",
+        )
+        db.add_all([joined, split])
+        db.flush()
+        db.add_all(
+            [
+                PlaceVisitWindow(
+                    place_id=joined.id,
+                    season="AUTUMN",
+                    month=10,
+                    month_segment="MID",
+                    provenance="USER_ADDED",
+                    confidence=1,
+                ),
+                PlaceVisitWindow(place_id=split.id, season="AUTUMN", provenance="USER_ADDED", confidence=1),
+                PlaceVisitWindow(
+                    place_id=split.id, month=10, month_segment="MID", provenance="USER_ADDED", confidence=1
+                ),
+            ]
+        )
+        db.commit()
+    result = client.get("/api/travel/map?zoom=8&bbox=119,29,121,31&season=AUTUMN&month=10&month_segment=MID")
+    assert {item["id"] for item in result.json()["markers"]} == {joined.id}
+    qualitative = client.post(
+        f"/api/travel/places/{joined.id}/visit-windows",
+        json={
+            "period_type": "HIGH_WATER",
+            "suitability": "RECOMMENDED",
+            "source_text": "丰水期水量最大",
+        },
+    )
+    assert qualitative.status_code == 200
+    assert qualitative.json()["period_type"] == "HIGH_WATER"
+    assert qualitative.json()["segment_ids"] == []
+    created = client.post(
+        "/api/travel/map/markers",
+        json={"longitude": 116.397, "latitude": 39.908, "custom_name": "待永久删除"},
+    ).json()
+    place_id = created["place_id"]
+    impact = client.get(f"/api/travel/places/{place_id}/deletion-impact").json()
+    assert impact["source_evidence_preserved"] is True
+    assert client.delete(f"/api/travel/places/{place_id}/hard").status_code == 200
+    assert client.get(f"/api/travel/places/{place_id}").status_code == 404
 
 
 def test_screenshot_plan_binds_sections_and_quality_filter(app_and_session, tmp_path) -> None:

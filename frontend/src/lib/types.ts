@@ -299,6 +299,9 @@ export interface MapOverviewView {
   viewport: { bbox: number[]; zoom: number; is_default_china: boolean }
 }
 
+export interface PlaceListView { items: MapMarker[]; next_cursor: string | null; total: number }
+export interface PlaceVisitWindow { id: string; season: string | null; month: number | null; month_segment: string | null; day_time_slot: string | null; period_type: string; suitability: string; source_text: string; segment_ids: string[]; provenance: string; confidence: number; status: string }
+
 export interface RouteDraftView {
   id: string
   name: string

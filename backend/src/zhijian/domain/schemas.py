@@ -111,6 +111,47 @@ class PlaceInsightView(BaseModel):
     segment_ids: list[str]
 
 
+class PlaceVisitWindowView(BaseModel):
+    id: str
+    season: str | None = None
+    month: int | None = None
+    month_segment: str | None = None
+    day_time_slot: str | None = None
+    period_type: str = "BEST_VISIT"
+    suitability: str = "INFORMATIONAL"
+    source_text: str = ""
+    segment_ids: list[str] = Field(default_factory=list)
+    provenance: str
+    confidence: float
+    status: str
+
+
+class PlaceVisitWindowUpdate(BaseModel):
+    season: str | None = Field(default=None, pattern="^(SPRING|SUMMER|AUTUMN|WINTER)$")
+    month: int | None = Field(default=None, ge=1, le=12)
+    month_segment: str | None = Field(default=None, pattern="^(EARLY|MID|LATE)$")
+    day_time_slot: str | None = Field(
+        default=None,
+        pattern="^(EARLY_MORNING|MORNING|NOON|AFTERNOON|SUNSET|EVENING|NIGHT|BREAKFAST|LUNCH|DINNER|LATE_NIGHT)$",
+    )
+    period_type: str = Field(
+        default="BEST_VISIT",
+        pattern="^(BEST_VISIT|BEST_VIEWING|HIGH_WATER|LOW_WATER|FISHING_CLOSURE|SEASONAL_CLOSURE|BLOOM|FOLIAGE|SNOW|MIGRATION|WEATHER_SEASON|PEAK_SEASON|OFF_SEASON|OTHER)$",
+    )
+    suitability: str = Field(default="RECOMMENDED", pattern="^(RECOMMENDED|AVOID|RESTRICTED|INFORMATIONAL)$")
+    source_text: str = Field(default="", max_length=500)
+
+    def model_post_init(self, __context: Any) -> None:
+        if not any((self.season, self.month, self.month_segment, self.day_time_slot, self.source_text)):
+            raise ValueError("至少选择一个适宜时间条件")
+
+
+class BulkPlaceUpdate(BaseModel):
+    place_ids: list[str] = Field(min_length=1, max_length=100)
+    action: Literal["hide", "restore", "state", "add_route", "remove_route"]
+    value: str | None = Field(default=None, max_length=100)
+
+
 class PlaceDetailView(PlacePreview):
     coordinate_system: str
     coordinates: list[float]
@@ -118,6 +159,7 @@ class PlaceDetailView(PlacePreview):
     external_poi_id: str | None = None
     metadata: dict[str, Any]
     insights: list[PlaceInsightView] = Field(default_factory=list)
+    visit_windows: list[PlaceVisitWindowView] = Field(default_factory=list)
     display: dict[str, Any] = Field(default_factory=dict)
     note: dict[str, Any] = Field(default_factory=dict)
     marker: dict[str, Any] = Field(default_factory=dict)
@@ -171,6 +213,12 @@ class MapOverviewView(BaseModel):
     selected_preview: PlacePreview | None = None
     route_draft_count: int = 0
     viewport: dict[str, Any] = {}
+
+
+class PlaceListView(BaseModel):
+    items: list[MapMarker]
+    next_cursor: str | None = None
+    total: int
 
 
 class MapMarkerCreate(BaseModel):

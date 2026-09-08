@@ -2,31 +2,28 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 're
 
 import { api } from '../../lib/api'
 import type { MapMarker } from '../../lib/types'
+import { groupMarkersByPixel } from './markerClustering'
 
 export interface MapController {
   zoomIn: () => void
   zoomOut: () => void
   locate: () => void
   fitChina: () => void
-  enterAddMode: () => void
-  clearDraft: () => void
 }
 
 interface AmapLayerProps {
   markers: MapMarker[]
-  clusters: Array<Record<string, unknown>>
   selectedId: string | null
   onSelect: (id: string) => void
   viewport: { bbox: number[]; zoom: number }
   onReady: (ready: boolean) => void
   onViewportChange: (viewport: { bbox: number[]; zoom: number }) => void
-  onDraftLocation: (location: { longitude: number; latitude: number }) => void
 }
 
 type AmapMarker = { on: (event: string, callback: () => void) => void }
 type AmapLngLat = { getLng: () => number; getLat: () => number }
 type AmapBounds = { getSouthWest: () => AmapLngLat; getNorthEast: () => AmapLngLat }
-type AmapEvent = { lnglat?: { getLng: () => number; getLat: () => number } }
+type AmapEvent = Record<string, never>
 type AmapMap = {
   add: (items: AmapMarker[]) => void
   remove: (items: AmapMarker[]) => void
@@ -84,24 +81,20 @@ function fitChina(map: AmapMap, AMap: AmapRuntime) {
   else map.setZoomAndCenter(4, [104.3, 35.8])
 }
 
-export const AmapLayer = forwardRef<MapController, AmapLayerProps>(function AmapLayer({ markers, clusters, selectedId, onSelect, viewport, onReady, onViewportChange, onDraftLocation }, ref) {
+export const AmapLayer = forwardRef<MapController, AmapLayerProps>(function AmapLayer({ markers, selectedId, onSelect, viewport, onReady, onViewportChange }, ref) {
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<AmapMap | null>(null)
   const runtimeRef = useRef<AmapRuntime | null>(null)
   const mapMarkersRef = useRef<AmapMarker[]>([])
   const clusterMarkersRef = useRef<AmapMarker[]>([])
-  const draftMarkerRef = useRef<AmapMarker | null>(null)
   const markerElementsRef = useRef(new Map<string, HTMLButtonElement>())
   const lastViewportRef = useRef(viewport)
   const selectedIdRef = useRef(selectedId)
-  const draftModeRef = useRef(false)
-  const draftLocationRef = useRef(onDraftLocation)
   const [error, setError] = useState('')
   const [mapVersion, setMapVersion] = useState(0)
   const [config, setConfig] = useState<{ js_key: string; security_code: string; default_viewport: { zoom: number } } | null>(null)
 
   selectedIdRef.current = selectedId
-  draftLocationRef.current = onDraftLocation
 
   useImperativeHandle(ref, () => ({
     zoomIn: () => mapRef.current?.zoomIn(),
@@ -111,12 +104,6 @@ export const AmapLayer = forwardRef<MapController, AmapLayerProps>(function Amap
       const map = mapRef.current
       const AMap = runtimeRef.current
       if (map && AMap) fitChina(map, AMap)
-    },
-    enterAddMode: () => { draftModeRef.current = true },
-    clearDraft: () => {
-      const map = mapRef.current
-      if (map && draftMarkerRef.current) map.remove([draftMarkerRef.current])
-      draftMarkerRef.current = null
     },
   }), [])
 
@@ -131,7 +118,6 @@ export const AmapLayer = forwardRef<MapController, AmapLayerProps>(function Amap
     let cancelled = false
     let syncTimer: number | undefined
     let syncViewport: ((event: AmapEvent) => void) | undefined
-    let chooseLocation: ((event: AmapEvent) => void) | undefined
     let resizeObserver: ResizeObserver | undefined
     loadAmap(config.js_key, config.security_code).then((AMap) => {
       if (cancelled || !container.current) return
@@ -155,17 +141,8 @@ export const AmapLayer = forwardRef<MapController, AmapLayerProps>(function Amap
           onViewportChange(next)
         }, 250)
       }
-      chooseLocation = (event: AmapEvent) => {
-        if (!draftModeRef.current || !event.lnglat) return
-        draftModeRef.current = false
-        if (draftMarkerRef.current) map.remove([draftMarkerRef.current])
-        draftMarkerRef.current = new AMap.Marker({ position: [event.lnglat.getLng(), event.lnglat.getLat()], title: '待添加地点' })
-        map.add([draftMarkerRef.current])
-        draftLocationRef.current({ longitude: event.lnglat.getLng(), latitude: event.lnglat.getLat() })
-      }
       map.on('moveend', syncViewport)
       map.on('zoomend', syncViewport)
-      map.on('click', chooseLocation)
       resizeObserver = new ResizeObserver(() => {
         map.resize()
         if (lastViewportRef.current.bbox[0] <= 73.5 && lastViewportRef.current.bbox[2] >= 135.1) {
@@ -185,7 +162,6 @@ export const AmapLayer = forwardRef<MapController, AmapLayerProps>(function Amap
       if (map && syncViewport) {
         map.off('moveend', syncViewport)
         map.off('zoomend', syncViewport)
-        if (chooseLocation) map.off('click', chooseLocation)
       }
       resizeObserver?.disconnect()
       map?.destroy()
@@ -203,27 +179,29 @@ export const AmapLayer = forwardRef<MapController, AmapLayerProps>(function Amap
     map.remove(mapMarkersRef.current)
     map.remove(clusterMarkersRef.current)
     markerElementsRef.current.clear()
-    const mapMarkers = markers.map((marker) => {
+    const groups = groupMarkersByPixel(markers, viewport.zoom)
+    const mapMarkers = groups.filter((group) => group.length === 1).map(([marker]) => {
       const element = document.createElement('button')
       element.className = `amap-marker${marker.id === selectedIdRef.current ? ' is-selected' : ''}`
       element.type = 'button'
+      element.innerHTML = '<svg viewBox="0 0 26 34" aria-hidden="true"><path d="M13 1C6.5 1 1.3 6.2 1.3 12.7c0 8.8 11.7 20.1 11.7 20.1s11.7-11.3 11.7-20.1C24.7 6.2 19.5 1 13 1Zm0 16.3a4.6 4.6 0 1 1 0-9.2 4.6 4.6 0 0 1 0 9.2Z"/></svg>'
       element.setAttribute('aria-label', `查看 ${marker.name}`)
+      element.addEventListener('click', () => onSelect(marker.id))
       markerElementsRef.current.set(marker.id, element)
       const item = new AMap.Marker({ position: [marker.longitude, marker.latitude], content: element, offset: new AMap.Pixel(-13, -26), title: marker.name })
       item.on('click', () => onSelect(marker.id))
       return item
     })
-    const clusterMarkers = clusters.map((cluster) => {
-      const longitude = Number(cluster.longitude)
-      const latitude = Number(cluster.latitude)
-      const count = Number(cluster.count)
+    const clusterMarkers = groups.filter((group) => group.length > 1).map((group) => {
+      const longitude = group.reduce((sum, marker) => sum + marker.longitude, 0) / group.length
+      const latitude = group.reduce((sum, marker) => sum + marker.latitude, 0) / group.length
       const element = document.createElement('button')
       element.className = 'amap-cluster'
       element.type = 'button'
-      element.textContent = String(count)
-      element.setAttribute('aria-label', `${count} 个地点，点击放大查看`)
+      element.textContent = String(group.length)
+      element.setAttribute('aria-label', `${group.length} 个地点，点击放大查看`)
       const item = new AMap.Marker({ position: [longitude, latitude], content: element, offset: new AMap.Pixel(-17, -17) })
-      item.on('click', () => map.setZoomAndCenter(Math.min(map.getZoom() + 2, 20), [longitude, latitude]))
+      item.on('click', () => map.setZoomAndCenter(Math.min(map.getZoom() + 1, 20), [longitude, latitude]))
       return item
     })
     mapMarkersRef.current = mapMarkers
@@ -234,7 +212,7 @@ export const AmapLayer = forwardRef<MapController, AmapLayerProps>(function Amap
       map.remove(mapMarkers)
       map.remove(clusterMarkers)
     }
-  }, [clusters, mapVersion, markers, onSelect])
+  }, [mapVersion, markers, onSelect, viewport.zoom])
 
   useEffect(() => {
     for (const [id, element] of markerElementsRef.current) element.classList.toggle('is-selected', id === selectedId)

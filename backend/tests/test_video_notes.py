@@ -18,7 +18,9 @@ from zhijian.db.models import (
     AINoteVersion,
     ContentItem,
     Job,
+    Place,
     PlaceMention,
+    PlaceVisitWindow,
     Setting,
     Source,
     Transcript,
@@ -37,6 +39,7 @@ from zhijian.services.video_support import (
     correct_transcript,
     extract_place_mentions,
     generate_note,
+    materialize_place_insights,
     materialize_transcript,
     normalized_confidence,
     provider_for_role,
@@ -558,6 +561,98 @@ def test_place_extraction_uses_persisted_map_facts_without_model(app_and_session
         }
 
 
+def test_time_phrases_fall_back_to_evidence_bound_place_windows(app_and_session, monkeypatch) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        source = Source(source_type="URL", locator="https://example.test/time-video", title="fixture")
+        db.add(source)
+        db.flush()
+        asset = VideoAsset(source_id=source.id, canonical_url=source.locator, title="旅行季节")
+        db.add(asset)
+        db.flush()
+        _, segments = materialize_transcript(
+            db,
+            source,
+            asset,
+            [
+                {
+                    "text": "黑瞎子岛十月中旬是最佳观赏期。当地五月到八月为休渔期。",
+                    "start_ms": 0,
+                    "end_ms": 1000,
+                }
+            ],
+            source_kind="ASR",
+        )
+        note = AINote(video_asset_id=asset.id)
+        db.add(note)
+        db.flush()
+        version = AINoteVersion(
+            ai_note_id=note.id,
+            version=1,
+            markdown="# 旅行",
+            transcript_version=1,
+            map_facts_json=[
+                {
+                    "segment_ids": [segments[0].id],
+                    "places": [
+                        {
+                            "name": "黑瞎子岛",
+                            "segment_ids": [segments[0].id],
+                            "confidence": "high",
+                            "visit_windows": [
+                                {
+                                    "period_type": "SNOW",
+                                    "suitability": "RECOMMENDED",
+                                    "months": [12],
+                                    "source_text": "十二月雪季最美",
+                                    "segment_ids": [segments[0].id],
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ],
+        )
+        db.add(version)
+        db.commit()
+        monkeypatch.setattr(
+            video_support,
+            "provider_for_role",
+            lambda *_args: (_ for _ in ()).throw(AssertionError("默认地点聚合不应调用模型")),
+        )
+
+        mention = extract_place_mentions(db, Settings(_env_file=None), asset, version, segments)[0]
+        windows = mention.metadata_json["visit_windows"]
+        assert {(item["period_type"], item["month"]) for item in windows} == {
+            ("BEST_VIEWING", 10),
+            ("FISHING_CLOSURE", 5),
+            ("FISHING_CLOSURE", 6),
+            ("FISHING_CLOSURE", 7),
+            ("FISHING_CLOSURE", 8),
+        }
+        assert all(item["segment_ids"] == [segments[0].id] for item in windows)
+        place = Place(
+            name="黑瞎子岛",
+            canonical_name="黑瞎子岛",
+            origin="AI_EXTRACTED",
+            place_type="SCENIC_AREA",
+            latitude=48.3,
+            longitude=134.5,
+            resolution_status="CONFIRMED",
+        )
+        db.add(place)
+        db.flush()
+        mention.place_id = place.id
+        materialize_place_insights(db, mention)
+        db.commit()
+        stored = db.scalars(select(PlaceVisitWindow).where(PlaceVisitWindow.place_id == place.id)).all()
+        assert len(stored) == 5
+        assert {item.suitability for item in stored if item.period_type == "FISHING_CLOSURE"} == {
+            "RESTRICTED"
+        }
+        assert all(item.segment_ids_json == [segments[0].id] for item in stored)
+
+
 def test_poi_resolution_scores_candidates_and_sends_ambiguous_mentions_to_review(
     app_and_session, monkeypatch
 ) -> None:
@@ -623,6 +718,7 @@ def test_poi_resolution_scores_candidates_and_sends_ambiguous_mentions_to_review
             place_type="RESTAURANT",
             segment_ids_json=["seg_fixture"],
             confidence=0.9,
+            metadata_json={"visit_windows": [{"source_text": "秋季最好"}]},
         )
         db.add(mention)
         db.commit()
@@ -632,6 +728,7 @@ def test_poi_resolution_scores_candidates_and_sends_ambiguous_mentions_to_review
         assert (confirmed, unresolved) == (0, 1)
         assert mention.resolution_status == "REVIEW"
         assert mention.metadata_json["poi_candidates"][0]["score"] >= 80
+        assert mention.metadata_json["visit_windows"] == [{"source_text": "秋季最好"}]
 
 
 def test_note_map_reduce_persists_compact_facts(app_and_session, monkeypatch) -> None:

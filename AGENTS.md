@@ -11,6 +11,8 @@
 5. 默认不读 `dev docs/history/`、旧计划正文、`dev docs/planning/`、未来路线、设计截图、合订本。仅在用户指定或有直接证据缺口时读取必要部分；这些内容不自动授权实施。
 6. `dev docs/COMPLETE_PROJECT_SPEC.md` 仅在用户明确要求全局审计、完整导出或检查跨域冲突时按需读取；生成该文件不需要先读取它。
 
+前端页面布局、组件、样式、表单、地图覆盖物变更前，按需阅读 `dev docs/design/FRONTEND_VISUAL_DESIGN_SYSTEM.md`。不得新增裸原生 Dropdown、私有按钮体系或未登记的颜色/字号；受影响的 PC 与 Mobile 断点必须 Browser 验收。
+
 ## 文档唯一来源
 
 - 外部概览在根 `README.md`，Agent 路由在 `CODEX_CONTEXT.md`，全目录与拆合规则在 `dev docs/README.md`；三者不复制完整需求或状态。

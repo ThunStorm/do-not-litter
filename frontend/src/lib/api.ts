@@ -3,6 +3,7 @@ import type {
   DashboardView,
   JobView,
   MapOverviewView,
+  PlaceListView,
   PlacePreview,
   ProfileView,
   RouteDraftView,
@@ -80,7 +81,7 @@ export const api = {
     body.append('upload', file)
     return request<{ job_id: string }>('/api/capture/file', { method: 'POST', body })
   },
-  map: (options: { selectedPlaceId?: string; state?: string; origin?: string; query?: string; placeType?: string; bestMonth?: string; bestSeason?: string; bestTimeSlot?: string; routeId?: string; sourceId?: string; visibility?: 'VISIBLE' | 'HIDDEN' | 'ALL'; bbox?: number[]; zoom?: number } = {}) => {
+  map: (options: { selectedPlaceId?: string; state?: string; origin?: string; query?: string; placeType?: string; bestMonth?: string; bestSeason?: string; bestTimeSlot?: string; season?: string; month?: string; monthSegment?: string; dayTimeSlot?: string; routeId?: string; sourceId?: string; visibility?: 'VISIBLE' | 'HIDDEN' | 'ALL'; bbox?: number[]; zoom?: number } = {}) => {
     const params = new URLSearchParams()
     if (options.selectedPlaceId) params.set('selected_place_id', options.selectedPlaceId)
     if (options.state) params.set('user_state', options.state)
@@ -90,6 +91,10 @@ export const api = {
     if (options.bestMonth) params.set('best_month', options.bestMonth)
     if (options.bestSeason) params.set('best_season', options.bestSeason)
     if (options.bestTimeSlot) params.set('best_time_slot', options.bestTimeSlot)
+    if (options.season) params.set('season', options.season)
+    if (options.month) params.set('month', options.month)
+    if (options.monthSegment) params.set('month_segment', options.monthSegment)
+    if (options.dayTimeSlot) params.set('day_time_slot', options.dayTimeSlot)
     if (options.routeId) params.set('route_id', options.routeId)
     if (options.sourceId) params.set('source_id', options.sourceId)
     if (options.visibility) params.set('visibility', options.visibility)
@@ -107,8 +112,9 @@ export const api = {
   updatePlaceMention: (mentionId: string, action: 'reject' | 'restore') => request(`/api/travel/place-mentions/${mentionId}/${action}`, { method: 'POST' }),
   searchPlaceReview: (mentionId: string, query: string, expectedRevision: number) => request<{ revision: number; candidates: Array<{ provider_id: string; name: string; address: string; score: number; match_reasons: string[] }> }>(`/api/travel/place-mentions/${mentionId}/poi-search`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ query, expected_revision: expectedRevision }) }),
   nearbyPois: (longitude: number, latitude: number) => request<Array<{ provider_id: string; name: string; address: string; longitude: number; latitude: number }>>('/api/travel/map/nearby-pois', { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ longitude, latitude }) }),
-  searchMapPois: (query: string) => request<Array<{ provider_id: string; name: string; address: string; longitude: number; latitude: number }>>('/api/travel/map/place-search', { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ query, expected_revision: 0 }) }),
+  searchMapPois: (query: string) => request<Array<{ provider_id: string; name: string; address: string; city?: string; longitude: number; latitude: number }>>('/api/travel/map/place-search', { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ query, expected_revision: 0 }) }),
   createManualPlace: (payload: { mode: 'CUSTOM' | 'AMAP_POI'; name?: string; place_type: string; longitude: number; latitude: number; note?: string; poi_id?: string }) => request<{ place_id: string }>('/api/travel/places', { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) }),
+  places: (params = '') => request<PlaceListView>(`/api/travel/places${params ? `?${params}` : ''}`),
   place: (id: string) => request<PlacePreview & Record<string, unknown>>(`/api/travel/places/${id}`),
   placeHistory: (id: string) => request<LogEventView[]>(`/api/travel/places/${id}/history`),
   updatePlaceNote: (id: string, markdown: string, expectedRevision: number) => request(`/api/travel/places/${id}/note`, { method: 'PUT', headers: jsonHeaders, body: JSON.stringify({ markdown, expected_revision: expectedRevision }) }),
@@ -116,6 +122,11 @@ export const api = {
   hidePlaceMarker: (id: string) => request(`/api/travel/places/${id}/marker/hide`, { method: 'POST' }),
   restorePlaceMarker: (id: string) => request(`/api/travel/places/${id}/marker/restore`, { method: 'POST' }),
   deleteManualPlace: (id: string) => request(`/api/travel/places/${id}/user-created`, { method: 'DELETE' }),
+  placeDeletionImpact: (id: string) => request<Record<string, number | string | boolean>>(`/api/travel/places/${id}/deletion-impact`),
+  hardDeletePlace: (id: string) => request(`/api/travel/places/${id}/hard`, { method: 'DELETE' }),
+  bulkPlaces: (payload: { place_ids: string[]; action: string; value?: string }) => request('/api/travel/places/bulk', { method: 'PATCH', headers: jsonHeaders, body: JSON.stringify(payload) }),
+  createVisitWindow: (id: string, payload: Record<string, unknown>) => request(`/api/travel/places/${id}/visit-windows`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) }),
+  deleteVisitWindow: (id: string, windowId: string) => request(`/api/travel/places/${id}/visit-windows/${windowId}`, { method: 'DELETE' }),
   createPlaceInsight: (id: string, payload: { insight_type: string; value_key: string; value_text: string }) => request(`/api/travel/places/${id}/insights`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) }),
   deletePlaceInsight: (placeId: string, insightId: string) => request(`/api/travel/places/${placeId}/insights/${insightId}`, { method: 'DELETE' }),
   restoreManualPlace: (id: string) => request(`/api/travel/places/${id}/user-created/restore`, { method: 'POST' }),

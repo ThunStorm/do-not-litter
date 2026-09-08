@@ -40,6 +40,7 @@
 | 视频阅读、列表、删除 | 分别选 [阅读](video/VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md)、[列表](video/VIDEO_NOTE_LIST_V043_SPEC.md)、[删除](video/VIDEO_NOTE_DELETE_V044_SPEC.md) |
 | Prompt、来源保留、模型设置 | 分别选 ai-gateway/PROMPT_SUPPLEMENTS_V045_SPEC.md、ai-gateway/AI_ROUTING_SOURCE_RETENTION_V046_SPEC.md、ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md |
 | 地图、地点、POI | [旅行领域](product/TRAVEL_FOOD_PIPELINE.md) 命中段；Marker 导航见 [视频视图](video/05-views-safety-acceptance.md) |
+| 前端、UI、视觉、样式、布局、组件、Dropdown、Filter | [前端视觉设计系统](design/FRONTEND_VISUAL_DESIGN_SYSTEM.md) |
 | 地图 V2 草案（仅用户指定时） | [文档目录](README.md#地图-v2-草案的按需路由) 选章节，不能推断已冻结或已实现 |
 | 运维日志、监控、北京时间 | [日志](operations/LOGGING.md)；监控选 operations/OPERATIONS_UI_SPEC.md，时间选 jobs/TASK_STATUS_AND_BEIJING_TIME_SPEC.md |
 | 数据迁移、API、安全 | 分别在 architecture/DATA_MODEL.md、architecture/API_DESIGN.md、architecture/SECURITY_PRIVACY.md 中按表/路由/威胁定位 |
