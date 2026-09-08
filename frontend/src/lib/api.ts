@@ -209,7 +209,7 @@ export const api = {
   videoTranscript: (id: string) => request<{ text: string; correction_status: string; correction_coverage: number; segments: Array<{ id: string; text: string; raw_text: string; corrected_text: string; correction_status: string; start_ms: number; end_ms: number }> }>(`/api/video-notes/${id}/transcript`),
   videoTranscriptExportUrl: (id: string, version: 'raw' | 'corrected' = 'corrected') => `/api/video-notes/${id}/transcript/export?version=${version}`,
   videoScreenshots: (id: string) => request<VideoScreenshotView[]>(`/api/video-notes/${id}/screenshots`),
-  videoPlaces: (id: string) => request<Array<{ id: string; name: string; quote: string; resolution_status: string; place_id: string | null; start_ms: number | null; target_section_id: string | null; place: { name: string; address: string } | null }>>(`/api/video-notes/${id}/places`),
+  videoPlaces: (id: string) => request<Array<{ id: string; name: string; quote: string; resolution_status: string; place_id: string | null; start_ms: number | null; target_section_id: string | null; place: { name: string; address: string } | null; insights: Array<{ insight_type: string; value_text: string; segment_ids: string[]; source_quote: string; target_section_id: string | null }> }>>(`/api/video-notes/${id}/places`),
   regenerateVideoNote: (id: string) => request<{ job_id: string }>(`/api/video-notes/${id}/regenerate`, { method: 'POST' }),
   deleteVideoNote: (id: string) => request<{ status: string }>(`/api/video-notes/${id}`, { method: 'DELETE' }),
 }

@@ -8,6 +8,9 @@ from typing import Any, Protocol
 import httpx
 
 AttemptCallback = Callable[[str, str, str, int, int, "LLMResult | None", "Exception | None"], None]
+AttemptRunner = Callable[
+    ["LLMProvider", str, list[dict[str, str]], str, "ProviderRequestOptions | None"], "LLMResult"
+]
 
 
 @dataclass(slots=True)
@@ -168,6 +171,7 @@ class FallbackLLMProvider:
         request_interval_seconds: float = 1,
         on_retry: Callable[[int, Exception], None] | None = None,
         on_attempt: AttemptCallback | None = None,
+        attempt_runner: AttemptRunner | None = None,
         sleeper: Callable[[float], None] = sleep,
         request_options: ProviderRequestOptions | None = None,
     ) -> None:
@@ -182,6 +186,7 @@ class FallbackLLMProvider:
         self.request_interval_seconds = request_interval_seconds
         self.on_retry = on_retry
         self.on_attempt = on_attempt
+        self.attempt_runner = attempt_runner
         self.sleeper = sleeper
         self.request_options = request_options
 
@@ -232,7 +237,9 @@ class FallbackLLMProvider:
             if self.before_fallback:
                 self.before_fallback()
             try:
-                if self.request_options is None:
+                if self.attempt_runner:
+                    result = self.attempt_runner(provider, method, messages, model, self.request_options)
+                elif self.request_options is None:
                     result = getattr(provider, method)(messages, model=model)
                 else:
                     result = getattr(provider, method)(messages, model=model, options=self.request_options)

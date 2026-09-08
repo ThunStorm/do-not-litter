@@ -16,6 +16,7 @@ from zhijian.db.models import (
     ContentItem,
     Job,
     Place,
+    PlaceInsightItem,
     PlaceMention,
     PlaceNoteVersion,
     Segment,
@@ -343,6 +344,11 @@ def video_note_places(note_id: str, _: Protected, db: Session = Depends(get_db))
             ),
             None,
         )
+        insights = db.scalars(
+            select(PlaceInsightItem)
+            .where(PlaceInsightItem.place_mention_id == mention.id, PlaceInsightItem.status == "ACTIVE")
+            .order_by(PlaceInsightItem.created_at)
+        ).all()
         result.append(
             {
                 "id": mention.id,
@@ -357,6 +363,23 @@ def video_note_places(note_id: str, _: Protected, db: Session = Depends(get_db))
                 ),
                 "target_section_id": target_section.id if target_section else None,
                 "confidence": mention.confidence,
+                "insights": [
+                    {
+                        "insight_type": item.insight_type,
+                        "value_text": item.value_text,
+                        "segment_ids": item.segment_ids_json,
+                        "source_quote": item.source_quote,
+                        "target_section_id": next(
+                            (
+                                section.id
+                                for section in sections
+                                if set(section.segment_ids_json) & set(item.segment_ids_json)
+                            ),
+                            None,
+                        ),
+                    }
+                    for item in insights
+                ],
                 "resolution_status": mention.resolution_status,
                 "place_id": mention.place_id,
                 "place": {

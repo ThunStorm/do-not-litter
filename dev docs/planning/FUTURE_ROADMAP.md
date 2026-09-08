@@ -270,6 +270,8 @@ VisualEvidence 与 TranscriptEvidence 并存。
 - city clustering
 - multi-day plan
 
+在自动规划之前，可先评估只并列已有来源事实的 2–6 个地点比较托盘；它不生成虚假的综合分。Recommendation Score 如被引入，必须与来源事实分层，不能反向决定原始事实是否展示。
+
 当前 Place 用户状态已为未来 PLANNED 留口子。
 
 ---

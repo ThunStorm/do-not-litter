@@ -56,6 +56,7 @@ def test_place_detail_returns_active_evidence_linked_insights(client, app_and_se
                 provenance="SOURCE_FACT",
                 confidence=0.9,
                 segment_ids_json=["seg_fixture"],
+                source_quote="视频明确推荐海蛎煎。",
             )
         )
         db.commit()
@@ -73,6 +74,7 @@ def test_place_detail_returns_active_evidence_linked_insights(client, app_and_se
             "confidence": 0.9,
             "status": "ACTIVE",
             "segment_ids": ["seg_fixture"],
+            "source_quote": "视频明确推荐海蛎煎。",
         }
     ]
 

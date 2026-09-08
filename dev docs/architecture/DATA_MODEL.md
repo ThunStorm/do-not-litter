@@ -722,20 +722,25 @@ metadata_json
 
 `raw_name` 永远保留字幕/ASR 原文；高德确认名称写入关联 Place 的 `canonical_name`，不得覆盖原始 Mention。
 
-## place_observations
+## place_insight_items
 
 ```text
 id
 place_id
 source_id
-segment_id
-observation_type
+place_mention_id
+insight_type
+value_key
+value_text
 value_json
-claim_id
-observed_at
+provenance
+confidence
+segment_ids_json
+source_quote
+status
 ```
 
-例如：
+每条 Insight 的 `segment_ids_json` 与 `source_quote` 只描述自身的原文证据，不能复用整个 PlaceMention 的宽泛范围。`SOURCE_FACT` 不可被用户编辑；例如：
 - price
 - dish
 - author_opinion

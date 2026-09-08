@@ -12,12 +12,10 @@ import httpx
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from zhijian.ai.budget import ensure_ai_budget
-from zhijian.ai.cache import cached_json_result
 from zhijian.ai.capabilities import AICapability
 from zhijian.ai.domain_context import domain_context_hash, domain_context_messages
+from zhijian.ai.gateway import AIWorkloadGateway
 from zhijian.ai.policies import resolve_stage_policy
-from zhijian.ai.resource_manager import local_ai_resource_manager
 from zhijian.ai.transcript_quality import correction_candidates
 from zhijian.core.config import Settings
 from zhijian.core.ids import new_id
@@ -381,17 +379,17 @@ def _cached_stage_json(
     if not hasattr(db, "scalar"):
         return provider.generate_json(messages, model=model)
     policy = _resolved_stage_policy(db, stage, job)
-    location = "LOCAL" if provider_name == "ollama" else "REMOTE"
     domain_messages, domain_versions = domain_context_messages(
         db, policy.domain_pack_ids, AICapability(capability)
     )
     enriched_messages = [messages[0], *domain_messages, *messages[1:]] if messages else domain_messages
-    return cached_json_result(
+    return AIWorkloadGateway().execute_cached_json(
         db,
         job=job,
         stage=stage,
         capability=capability,
-        provider=provider_name,
+        provider=provider,
+        provider_name=provider_name,
         model=model,
         messages=enriched_messages,
         semantic_options={
@@ -410,35 +408,9 @@ def _cached_stage_json(
                 }[stage],
             ),
         },
-        location=location,
         cache_enabled=bool(policy.cache_enabled),
         force_regenerate=policy.force_regenerate,
-        call=lambda: (
-            local_ai_resource_manager.run(
-                "TEXT_LLM",
-                lambda: _budgeted_json_call(db, job, location, enriched_messages, provider, model),
-            )
-            if location == "LOCAL"
-            else _budgeted_json_call(db, job, location, enriched_messages, provider, model)
-        ),
     )
-
-
-def _budgeted_json_call(
-    db: Session,
-    job: Job | None,
-    location: str,
-    messages: list[dict[str, str]],
-    provider: LLMProvider,
-    model: str,
-) -> LLMResult:
-    ensure_ai_budget(
-        db,
-        job,
-        location=location,
-        input_chars=sum(len(message.get("content") or "") for message in messages),
-    )
-    return provider.generate_json(messages, model=model)
 
 
 def normalized_confidence(value: object) -> float:
@@ -1457,7 +1429,7 @@ def extract_place_mentions(
             continue
         if _normalized_insight_key(item.get("raw_name") or item["name"]) in rejected_names:
             continue
-        insights = _insights_from_candidate(item, ids)
+        insights = _insights_from_candidate(item, ids, segment_texts)
         visit_windows = _visit_windows_from_candidate(item, ids, segment_texts)
         mention = PlaceMention(
             video_asset_id=asset.id,
@@ -1495,7 +1467,9 @@ def _normalized_insight_key(value: object) -> str:
     return re.sub(r"\s+", "", str(value).strip().lower())[:128]
 
 
-def _insights_from_candidate(item: dict[str, Any], segment_ids: list[str]) -> list[dict[str, Any]]:
+def _insights_from_candidate(
+    item: dict[str, Any], segment_ids: list[str], segment_texts: dict[str, str]
+) -> list[dict[str, Any]]:
     """Keep structured source facts beside their mention until POI resolution assigns a Place."""
     if not segment_ids:
         return []
@@ -1507,17 +1481,35 @@ def _insights_from_candidate(item: dict[str, Any], segment_ids: list[str]) -> li
         *,
         value_key: object = "",
         value_json: dict[str, Any] | None = None,
+        evidence_ids: list[str] | None = None,
+        source_quote: object = "",
     ) -> None:
         if value is None:
             return
         text = str(value).strip()
         if text:
+            ids = [value for value in evidence_ids or [] if value in segment_ids]
+            if not ids:
+                ids = [
+                    segment_id
+                    for segment_id in segment_ids
+                    if _normalized_insight_key(text)
+                    in _normalized_insight_key(segment_texts.get(segment_id, ""))
+                ][:1]
+            if not ids and insight_type == "BEST_MONTH":
+                ids = [
+                    segment_id for segment_id in segment_ids if "月" in segment_texts.get(segment_id, "")
+                ][:1]
+            ids = ids or list(segment_ids)
+            quote = str(source_quote or "").strip() or str(segment_texts.get(ids[0], "")).strip()
             result.append(
                 {
                     "insight_type": insight_type,
                     "value_key": _normalized_insight_key(value_key or text),
                     "value_text": text[:500],
                     "value_json": value_json or {},
+                    "segment_ids": ids,
+                    "source_quote": quote[:500],
                 }
             )
 
@@ -1530,6 +1522,8 @@ def _insights_from_candidate(item: dict[str, Any], segment_ids: list[str]) -> li
                 value.get("name") or value.get("value"),
                 value_key=value.get("category"),
                 value_json={"category": value.get("category", "")},
+                evidence_ids=value.get("segment_ids"),
+                source_quote=value.get("source_quote"),
             )
         else:
             add("RECOMMENDED_ITEM", value)
@@ -1574,7 +1568,8 @@ def materialize_place_insights(db: Session, mention: PlaceMention) -> None:
                 value_json=dict(item.get("value_json") or {}),
                 provenance="SOURCE_FACT",
                 confidence=mention.confidence,
-                segment_ids_json=list(mention.segment_ids_json),
+                segment_ids_json=list(item.get("segment_ids") or mention.segment_ids_json),
+                source_quote=str(item.get("source_quote") or "")[:500],
             )
         )
     db.query(PlaceVisitWindow).filter(
@@ -1782,38 +1777,37 @@ def _candidate_metadata(candidate: POICandidate) -> dict[str, Any]:
 
 def build_place_notes(db: Session, asset: VideoAsset, mentions: list[PlaceMention]) -> int:
     count = 0
-    for mention in mentions:
-        if not mention.place_id:
-            continue
-        place = db.get(Place, mention.place_id)
+    for place_id in dict.fromkeys(mention.place_id for mention in mentions if mention.place_id):
+        place = db.get(Place, place_id)
         if place is None:
             continue
         previous = (
             db.scalar(select(func.max(PlaceNoteVersion.version)).where(PlaceNoteVersion.place_id == place.id))
             or 0
         )
-        brief = mention.brief_json or {}
         lines = [
             f"# {place.canonical_name or place.name}",
             "",
-            f"- 视频来源：{asset.title}",
-            f"- 转写名称：{mention.raw_name or mention.name}",
             f"- 校正名称：{place.canonical_name or place.name}",
-            f"- 依据：{mention.quote or mention.reason}",
         ]
-        labels = {
-            "feature": "特色",
-            "experience": "菜品 / 体验",
-            "price": "价格",
-            "queue": "排队",
-            "audience": "适合人群",
-            "warning": "注意事项",
-            "author_opinion": "作者态度",
-        }
-        for key, label in labels.items():
-            value = brief.get(key)
-            if value:
-                lines.append(f"- {label}：{value}")
+        insights = db.scalars(
+            select(PlaceInsightItem)
+            .where(PlaceInsightItem.place_id == place.id, PlaceInsightItem.status == "ACTIVE")
+            .order_by(PlaceInsightItem.insight_type, PlaceInsightItem.created_at)
+        ).all()
+        by_type: dict[str, list[PlaceInsightItem]] = {}
+        for insight in insights:
+            by_type.setdefault(insight.insight_type, []).append(insight)
+        for insight_type, items in by_type.items():
+            values = {item.value_text for item in items}
+            state = "CONSENSUS" if len(items) > 1 and len(values) == 1 else "SINGLE_SOURCE"
+            if len(values) > 1:
+                state = "CONFLICT"
+            lines.append(f"\n## {insight_type} · {state}")
+            for item in items:
+                source = db.get(Source, item.source_id) if item.source_id else None
+                source_title = source.title if source else "来源未命名"
+                lines.append(f"- {item.value_text}（{source_title}：{item.source_quote}）")
         lines.append("- 状态：来源观察，建议到店前再次核验。")
         text = "\n".join(lines) + "\n"
         db.add(
@@ -1823,7 +1817,7 @@ def build_place_notes(db: Session, asset: VideoAsset, mentions: list[PlaceMentio
                 markdown=text,
                 model_provider="deterministic",
                 model_name="evidence-template",
-                evidence_count=1,
+                evidence_count=len(insights),
             )
         )
         count += 1

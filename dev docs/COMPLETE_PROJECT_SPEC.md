@@ -33,7 +33,7 @@
 | 不可回退约束 | [REGRESSION_AND_CHANGE_GUARD](REGRESSION_AND_CHANGE_GUARD.md) | 大段复制到各交接页 |
 | 设计契约 | 下表专项正文 | 实施状态的长篇叙述 |
 | 逐版本过程 / 旧计划 | history/，仅按需追溯 | 默认接手正文 |
-| 未来候选范围 | [待办池](planning/POST_FREEZE_TODO_BACKLOG.md)、[路线图](planning/FUTURE_ROADMAP.md) | 当前完成度或自动授权 |
+| 未来候选范围 | [待办池](planning/POST_FREEZE_TODO_BACKLOG.md)、[路线图](planning/FUTURE_ROADMAP.md)、[视频 Benchmark 与验收](planning/video/VIDEO_WORKFLOW_BENCHMARK_AND_ACCEPTANCE_PLAN.md) | 当前完成度或自动授权 |
 
 源码/测试证明实际行为，冻结契约表达必须保持的要求，两者冲突应报告差异，不能用一方静默覆盖另一方。新草案也不因日期更新就自动生效。
 
@@ -50,8 +50,8 @@
 | ai-gateway/ | Gateway 分篇、模型与 Prompt、运行配置、AI 验收 |
 | operations/ | 部署、日志、运维交互、运行监控 |
 | testing/、benchmark/ | 测试策略与样本说明；机器可读验收样本 |
-| planning/ | 待办池、未来路线、未冻结地图 V2 草案；不自动授权实施 |
-| history/ | 历史实施记录和旧计划；仅追溯时读取 |
+| planning/ | 待办池、未来路线、视频 Benchmark/验收候选；不自动授权实施 |
+| history/ | 历史实施记录和已覆盖的旧计划；仅追溯时读取 |
 
 | 领域 | 文档与职责 |
 | --- | --- |
@@ -70,10 +70,10 @@
 | 控制台 / 运维 | [CONTROL_CENTER](product/CONTROL_CENTER.md) 信息结构；[OPERATIONS_UI_SPEC](operations/OPERATIONS_UI_SPEC.md) 工作台交互；[LOGGING](operations/LOGGING.md) 日志契约与维护 |
 | 运行监控 / Provider | [监控与预设](operations/RUNTIME_MONITOR_AND_MODEL_PRESETS_SPEC.md)、[内存口径与预设切换](operations/RUNTIME_MONITOR_AND_PROVIDER_SWITCH_V06_SPEC.md) |
 | 部署 | [DEPLOYMENT_OPTIONS](operations/DEPLOYMENT_OPTIONS.md) 支持边界；[Mac mini 操作说明](../deploy/macos/README.md) 安装与维护 |
-| 验证 / 样本 | [TESTING_AND_ACCEPTANCE](testing/TESTING_AND_ACCEPTANCE.md) 验证策略；[GOLDEN_SAMPLES](testing/GOLDEN_SAMPLES.md) 样本/Fixture；benchmark/ 仅验收任务按需查看 |
+| 验证 / 样本 | [TESTING_AND_ACCEPTANCE](testing/TESTING_AND_ACCEPTANCE.md) 验证策略；[GOLDEN_SAMPLES](testing/GOLDEN_SAMPLES.md) 样本/Fixture；[视频 Fixture Golden](benchmark/video-workflow-golden-v1.json) 与 benchmark/ 仅验收任务按需查看 |
 | 设计 / 授权 | [design/ui](../design/ui/README.md) → 目标版本/页面；[THIRD_PARTY_NOTICES](../THIRD_PARTY_NOTICES.md) 授权记录 |
 | 提示词 / 写交接 | [CODEX_TASK_TEMPLATES](CODEX_TASK_TEMPLATES.md) 三条短指令；交接固定更新 CURRENT_HANDOFF.md 的任务续接段，不另建文件 |
-| 历史 / 未来 | [历史实施记录](history/IMPLEMENTATION_HISTORY.md)、[早期工程计划](history/PROJECT_PLAN.md)、[FUTURE_ROADMAP](planning/FUTURE_ROADMAP.md)；均非默认阅读 |
+| 历史 / 未来 | [历史实施记录](history/IMPLEMENTATION_HISTORY.md)、[归档实施计划](history/planning/README.md)、[早期工程计划](history/PROJECT_PLAN.md)、[FUTURE_ROADMAP](planning/FUTURE_ROADMAP.md)；均非默认阅读 |
 
 已删除 LOGGING_ARCHITECTURE.md、LOGGING_IMPLEMENTATION.md 与根层 PROJECT_PLAN.md 三个纯跳转页；正文分别在 operations/LOGGING.md 和 history/PROJECT_PLAN.md。仓库内使用处已直达正文，旧路径不再保留。
 
@@ -88,14 +88,14 @@
 | LOGGING_ARCHITECTURE + LOGGING_IMPLEMENTATION（82 + 92 行） | 已合并 operations/LOGGING.md | 同一维护任务反复跳转，且“已实施/待实施”互相冲突；删除重复与过期标签，保留契约与维护入口 |
 | 根 README / dev docs README / CODEX_CONTEXT | 已合并重复背景，职责分开 | 产品简介只在根入口；目录只导航；接手页只放代码地图与任务路由 |
 | CURRENT_HANDOFF / 状态 / 回归清单中的运行事实 | 已去重 | 当前源码、现场快照、冻结约束各有唯一来源 |
-| 地图 V2 计划（3,761 行） | 完整移入 planning/，暂不拆正文 | 作为实施与验收追溯；核心实现状态以 IMPLEMENTATION_STATUS 为准，仍不把后续推荐/路线规划自动升级为当前需求 |
+| 地图 V2 与后续地图执行计划 | 移入 history/planning/ 并保留原文 | 已由后续地图提交覆盖；实施状态只在 IMPLEMENTATION_STATUS，推荐/自动路线仍留 Future Roadmap |
 | DATA_MODEL（903 行） / API_DESIGN（427 行） | 本次保留，按表/路由检索 | 数据模型大量为字段/空行；单一数据字典不为行数机械拆碎。未来某领域持续独立改动时再抽出该域 |
 | 多份短 UI 规格 | 暂不合并成大 UI 文档 | 阅读/删除/Replay/时间具有独立风险与验收边界；目录统一导航即可 |
 | CONTROL_CENTER / OPERATIONS_UI / RUNTIME_MONITOR 系列 | 保持分层 | 页面信息结构、工作台交互、指标语义不同；不要把架构、交互、运行时混成新合订本 |
 
 ### 地图 V2 草案的按需路由
 
-原文：[地图 V2 计划](planning/PLACE_INTELLIGENCE_MAP_V2_IMPLEMENTATION_PLAN.md)。已归入 planning/；下表保留按需阅读边界。核心地图实现已获用户授权并进入源码，当前实现/验收以 IMPLEMENTATION_STATUS 为准；任何后续扩展仍须同时核对 §98–99 的 Review 修正、§106 原则和冻结约束。
+原文：[地图 V2 计划](history/planning/PLACE_INTELLIGENCE_MAP_V2_IMPLEMENTATION_PLAN.md)。已归档；下表只保留追溯时的按需阅读边界。核心地图实现已获用户授权并进入源码，当前实现/验收以 IMPLEMENTATION_STATUS 为准；任何后续扩展仍须同时核对 §98–99 的 Review 修正、§106 原则和冻结约束。
 
 | 拟拆领域 / 任务 | 原章节 |
 | --- | --- |
@@ -167,6 +167,7 @@
 | 视频阅读、列表、删除 | 分别选 [阅读](video/VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md)、[列表](video/VIDEO_NOTE_LIST_V043_SPEC.md)、[删除](video/VIDEO_NOTE_DELETE_V044_SPEC.md) |
 | Prompt、来源保留、模型设置 | 分别选 ai-gateway/PROMPT_SUPPLEMENTS_V045_SPEC.md、ai-gateway/AI_ROUTING_SOURCE_RETENTION_V046_SPEC.md、ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md |
 | 地图、地点、POI | [旅行领域](product/TRAVEL_FOOD_PIPELINE.md) 命中段；Marker 导航见 [视频视图](video/05-views-safety-acceptance.md) |
+| 前端、UI、视觉、样式、布局、组件、Dropdown、Filter | [前端视觉设计系统](design/FRONTEND_VISUAL_DESIGN_SYSTEM.md) |
 | 地图 V2 草案（仅用户指定时） | [文档目录](README.md#地图-v2-草案的按需路由) 选章节，不能推断已冻结或已实现 |
 | 运维日志、监控、北京时间 | [日志](operations/LOGGING.md)；监控选 operations/OPERATIONS_UI_SPEC.md，时间选 jobs/TASK_STATUS_AND_BEIJING_TIME_SPEC.md |
 | 数据迁移、API、安全 | 分别在 architecture/DATA_MODEL.md、architecture/API_DESIGN.md、architecture/SECURITY_PRIVACY.md 中按表/路由/威胁定位 |
@@ -325,12 +326,12 @@
 
 # 当前实施状态
 
-> 状态记录日期：2026-09-04。本文唯一记录当前源码能力与自动验证；生产状态只见 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
+> 状态记录日期：2026-09-08。本文唯一记录当前源码能力与自动验证；生产状态只见 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
 
 ## Current repository freeze
 
 - 当前工作分支为 `codex/mac-mini-implementation`；提交前仍须用 git 状态核对，保护同批文档拆分与地图改动。
-- 仓库 migration head 为 Alembic 0013；生产版本见 CURRENT_HANDOFF 的实际采样，不由仓库推断。
+- 仓库 migration head 为 Alembic 0018；生产版本见 CURRENT_HANDOFF 的实际采样，不由仓库推断。
 - 唯一支持的后端为 Mac mini；FastAPI、SQLite/WAL、独立 Worker；其他平台不在当前支持范围。
 - 真实验收与自动回归分开记录；规格中的“待实施”、历史 Work Package、未来规划均不得单独认定为当前缺口。
 
@@ -339,29 +340,31 @@
 | 领域 | 已进入源码的能力 | 契约入口 |
 | --- | --- | --- |
 | Capture / 基础 | URL、正文、DOCX、PDF、XLSX、图像 OCR、音视频；局域网配对与 Session；Source/Evidence | product/PRODUCT_REQUIREMENTS.md、architecture/SECURITY_PRIVACY.md |
-| 招聘 / 旅行 | 首批招聘结构化与证据；Place Insight、POI Review、全国交互地图、Marker 生命周期、地图点选 POI 与人工路线 | product/RECRUITMENT_PIPELINE.md、product/TRAVEL_FOOD_PIPELINE.md |
+| 招聘 / 旅行 | 首批招聘结构化与证据；Place Insight（逐条 Segment 与 source quote）、POI Review、全国交互地图、Marker 生命周期、地点管理/人工路线；地点时间窗口提取并保留原文 Segment 证据，覆盖观赏期、丰枯水、渔业限制、花/红叶/雪/迁徙与季节性开放 | product/RECRUITMENT_PIPELINE.md、product/TRAVEL_FOOD_PIPELINE.md |
 | 视频 | 字幕优先、ASR、校对、笔记/章节、地点、截图、列表封面、保留式删除 | video/VIDEO_AI_NOTE_PIPELINE.md（分篇索引） |
 | Bilibili 登录恢复 | 站内扫码、nav 账号验证、Keychain 保存；登录失败进入 NEEDS_USER；核心恢复与非核心截图显式跳过；字幕多轨与官方 CDN Host Policy | video/02-input-transcript.md |
 | Job / Replay | 独立 Worker 心跳、协作取消、租约门禁、终态表达、步骤续跑和完整重跑；后端决定 Replay Options | jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md |
 | Gateway | 显式 Profile/Stage Policy、路由、Usage、转写质量门禁、Map/Reduce Facts、Cache、Budget、Domain Context、Vision Profile 边界 | ai-gateway/AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md（分篇索引） |
-| 稳定性 | API/Worker 通过 OS flock 串行本机 AI；预算按 LOCAL/REMOTE 分账，Cache hit 不计真实模型尝试或预算 | ai-gateway/02-gateway-context.md、ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md |
+| 稳定性 | Gateway 按每次实际 Provider 尝试（含重试/fallback）执行预算与本地 OS flock；LOCAL/REMOTE 分账，Cache hit 不计真实模型尝试或预算 | ai-gateway/02-gateway-context.md、ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md |
 | 产品 / 运维 | PC/手机 Web、真实状态快照、自定义模型/补充 Prompt、JSONL + SQLite 审计、运维工作台 | product/CONTROL_CENTER.md、operations/LOGGING.md |
 | 部署 | Mac mini LaunchAgent 双服务、外置生产 venv Python 3.14、健康内容与 Worker 心跳门禁 | operations/DEPLOYMENT_OPTIONS.md、CURRENT_HANDOFF.md |
 
 ## 自动验证记录
 
-2026-09-04：后端 pytest 93 项、Ruff；Node 22.21.0 下前端 ESLint、Vitest 11 项、TypeScript 与 Vite build 通过；0013 在隔离 SQLite 可升级。生产真实视频 Job 已完成字幕、笔记、地点提取与截图，因全部 POI 需要人工确认而为 `PARTIAL_SUCCESS`。真实 Provider/视频结论仅覆盖该样本，不能外推为全部 Provider 验收。
+2026-09-08：后端 pytest 105 项、目标 Ruff；Node 22.21.0 下前端 ESLint、Vitest 15 项、TypeScript 与 Vite build 通过。隔离 SQLite 已从空库升级至 0018，确认 `place_insight_items.source_quote` 存在；0017 的列存在性保护仍避免 0001 使用当前 ORM 元数据建表时的重复列错误。生产真实视频 Job 已完成字幕、笔记、地点提取与截图，因全部 POI 需要人工确认而为 `PARTIAL_SUCCESS`；真实 Provider/视频结论仅覆盖该样本，不能外推为全部 Provider 验收。
 
 ## 未闭环与外部条件
 
+- 本轮视频工作包已按用户要求冻结：代码、Fixture 与离线验证保留，未部署、未迁移生产库、未重启服务；后续只在用户重新授权后继续。
 - Gateway 真实 Local/Remote Provider、真实视频、fallback、cache/force-regenerate、预算、取消/Replay 与 Benchmark 仍需按 [生产验收门禁](ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md) 取证；本次未执行。
+- 2026-09-08 已对本机 `qwen2.5:7b`、`qwen3:8b`、`qwen3.5:9b` 运行 Capability Probe：分类、结构化抽取、实体抽取与转写校对通过。其他 Stage 的 `FAIL` 只是该基础 Probe 未覆盖，不能视为模型能力否定；未更改默认模型或删除模型。
 - Bilibili 扫码、nav 验证和 Keychain 保存已有真实验收记录；曾暴露 VIDEO_HOST_BLOCKED 的现场 Job 未自动重跑，不把修复等同于该 Job 成功。
 - 高德、远程 Provider 等需要用户合法提供外部配置；不在文档保存 Secret，不通过编造状态代替配置/验收。
-- Vision Profile 绑定边界已实现，不代表已自动运行视觉理解。地图 V2 草案已获用户授权并落实核心 Insight、Review、地图 Runtime、点选 POI 和编辑历史；推荐评分、自动行程与其他规划项仍不自动实施。
+- Vision Profile 绑定边界已实现，不代表已自动运行视觉理解。视频 Fixture Golden（12 个冻结文本/POI 场景）、离线评分器与已有 Job/Replay 的只读采集器已就绪；真实模型比较与可选 Vision 尚未执行。视频 Insight 的更深层呈现/跨视频聚合增强仍须由用户从 planning/video 选择。地图 V2 的核心 Insight、Review、地图 Runtime、点选 POI 和编辑历史已落实；原实施计划已归档，推荐评分、自动行程与其他规划项仍不自动实施。
 
 ## 历史与维护
 
-[实施历史](history/IMPLEMENTATION_HISTORY.md) 保留本轮整理前的逐版本记录（含后来被覆盖的旧状态），默认不读。当前页只保留最新结论和未闭环项；完成项不持续追加长叙事。生产现场只更新 CURRENT_HANDOFF.md；冻结约束只更新 REGRESSION_AND_CHANGE_GUARD.md。新增证据必须写明日期、对象与验证层级。
+[实施历史](history/IMPLEMENTATION_HISTORY.md) 和 [归档实施计划](history/planning/README.md) 保留旧状态与计划追溯，默认不读。当前页只保留最新结论和未闭环项；完成项不持续追加长叙事。生产现场只更新 CURRENT_HANDOFF.md；冻结约束只更新 REGRESSION_AND_CHANGE_GUARD.md。新增证据必须写明日期、对象与验证层级。
 
 
 ---
@@ -2094,20 +2097,25 @@ metadata_json
 
 `raw_name` 永远保留字幕/ASR 原文；高德确认名称写入关联 Place 的 `canonical_name`，不得覆盖原始 Mention。
 
-## place_observations
+## place_insight_items
 
 ```text
 id
 place_id
 source_id
-segment_id
-observation_type
+place_mention_id
+insight_type
+value_key
+value_text
 value_json
-claim_id
-observed_at
+provenance
+confidence
+segment_ids_json
+source_quote
+status
 ```
 
-例如：
+每条 Insight 的 `segment_ids_json` 与 `source_quote` 只描述自身的原文证据，不能复用整个 PlaceMention 的宽泛范围。`SOURCE_FACT` 不可被用户编辑；例如：
 - price
 - dish
 - author_opinion
@@ -5520,12 +5528,13 @@ API 每 30 秒写入 SQLite 的同一快照仍是局域网与本机的唯一数�
 
 # AI Gateway 生产验收与发布门禁
 
-更新日期：2026-09-02。本文件取代已删除的阶段执行计划，保留尚未完成的生产验收边界，不把源码实现误写为生产已验证。
+更新日期：2026-09-08。本文件取代已删除的阶段执行计划，保留尚未完成的生产验收边界，不把源码实现误写为生产已验证。
 
 ## 已在源码验证
 
 - `LocalAIResourceManager` 使用共享 `data/runtime/local-ai.lock` 的 `flock` 串行化 API 与 Worker 的本地 ASR、文本、视觉及模型测试；进程退出由操作系统释放锁。
 - AI Budget 按审计中的 `location` 分别累计 LOCAL/REMOTE Token；缓存命中不计模型调用或 Token 预算，且保留位置与缓存节省用量。
+- Cache key 绑定请求路由的 Provider/Model，结果及命中审计保存实际返回的 Provider/Model；这定义了当前的 route-result 行为，但尚未用真实 fallback 验收其用户可见语义。
 - `scripts/run_ai_benchmark.py` 评估受控真实 E2E 采集的结果；Golden 样本定义在 `benchmark/golden-ai-gateway-samples.json`。它不调用 Provider、不下载视频。
 
 执行已采集数据的发布门禁：
@@ -5539,9 +5548,9 @@ API 每 30 秒写入 SQLite 的同一快照仍是局域网与本机的唯一数�
 
 ## 生产门禁（尚未由本文件宣称完成）
 
-生产迁移前确认无 `QUEUED/RUNNING` Job 或 lease，备份 SQLite，并执行 `PRAGMA integrity_check`。当前数据库须为 `0010 (head)`；迁移或重启只通过 `deploy/macos/manage.py`，不得以临时开发服务替代 LaunchAgent。
+生产迁移前确认无 `QUEUED/RUNNING` Job 或 lease，备份 SQLite，并执行 `PRAGMA integrity_check`。仓库 migration head 为 `0017`；生产实际版本须在操作时读取，不由本文推断。迁移或重启只通过 `deploy/macos/manage.py`，不得以临时开发服务替代 LaunchAgent。
 
-真实 E2E 必须分别留存：本地 Ollama text/JSON/structured output、一个已配置远程 Provider、LOCAL_ONLY/REMOTE_ONLY/LOCAL_FIRST/REMOTE_FIRST/AUTO 路由、跨进程 ASR 与模型测试等待、缓存与 force-regenerate、低预算拦截、AI 阶段取消与 Replay、一个平台字幕视频及一个 ASR 视频。未配置的 Key、Cookie、模型或可访问样本是明确的外部条件，不能以 Mock 或空记录替代。
+已有一条真实视频样本完成字幕、笔记、地点提取和截图，并因 POI 待人工确认以 `PARTIAL_SUCCESS` 结束；该样本不覆盖本门禁。真实 E2E 仍须分别留存：本地 Ollama text/JSON/structured output、一个已配置远程 Provider、LOCAL_ONLY/REMOTE_ONLY/LOCAL_FIRST/REMOTE_FIRST/AUTO 路由、跨进程 ASR 与模型测试等待、缓存与 force-regenerate（含 fallback 后再命中）、低预算拦截、AI 阶段取消与 Replay、一个平台字幕视频及一个 ASR 视频。未配置的 Key、Cookie、模型或可访问样本是明确的外部条件，不能以 Mock 或空记录替代。
 
 通过所有门禁前，禁止声明 “AI Workload Gateway Production Proven”，也不启动 GenericProcessor、Source Watch、RAG、Multi Worker、Cloud Worker 或高风险自动操作。
 

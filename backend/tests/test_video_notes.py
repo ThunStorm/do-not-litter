@@ -653,6 +653,38 @@ def test_time_phrases_fall_back_to_evidence_bound_place_windows(app_and_session,
         assert all(item.segment_ids_json == [segments[0].id] for item in stored)
 
 
+def test_place_insights_keep_their_own_segment_and_quote() -> None:
+    insights = video_support._insights_from_candidate(
+        {
+            "recommended_items": [
+                {"name": "海蛎煎", "segment_ids": ["seg_2"], "source_quote": "海蛎煎值得点"}
+            ],
+            "best_months": [10],
+        },
+        ["seg_1", "seg_2"],
+        {"seg_1": "十月最适合去。", "seg_2": "海蛎煎值得点。"},
+    )
+
+    assert insights == [
+        {
+            "insight_type": "RECOMMENDED_ITEM",
+            "value_key": "海蛎煎",
+            "value_text": "海蛎煎",
+            "value_json": {"category": ""},
+            "segment_ids": ["seg_2"],
+            "source_quote": "海蛎煎值得点",
+        },
+        {
+            "insight_type": "BEST_MONTH",
+            "value_key": "10",
+            "value_text": "10月",
+            "value_json": {},
+            "segment_ids": ["seg_1"],
+            "source_quote": "十月最适合去。",
+        },
+    ]
+
+
 def test_poi_resolution_scores_candidates_and_sends_ambiguous_mentions_to_review(
     app_and_session, monkeypatch
 ) -> None:

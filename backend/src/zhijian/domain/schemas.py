@@ -109,6 +109,7 @@ class PlaceInsightView(BaseModel):
     confidence: float
     status: str
     segment_ids: list[str]
+    source_quote: str
 
 
 class PlaceVisitWindowView(BaseModel):

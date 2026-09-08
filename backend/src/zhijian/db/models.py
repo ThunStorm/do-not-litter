@@ -377,6 +377,7 @@ class PlaceInsightItem(Base, TimestampMixin):
         ForeignKey("place_insight_items.id", ondelete="SET NULL")
     )
     segment_ids_json: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    source_quote: Mapped[str] = mapped_column(Text, default="", nullable=False)
     metadata_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     created_by: Mapped[str] = mapped_column(String(64), default="system", nullable=False)
 

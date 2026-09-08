@@ -1916,10 +1916,11 @@ def place_detail(place_id: str, _: Protected, db: Session = Depends(get_db)) -> 
                 value_text=item.value_text,
                 value_json=item.value_json,
                 provenance=item.provenance,
-                confidence=item.confidence,
-                status=item.status,
-                segment_ids=item.segment_ids_json,
-            )
+                    confidence=item.confidence,
+                    status=item.status,
+                    segment_ids=item.segment_ids_json,
+                    source_quote=item.source_quote,
+                )
             for item in insights
         ],
         visit_windows=[_visit_window_view(item) for item in visit_windows],
@@ -2088,10 +2089,32 @@ def hard_delete_place(place_id: str, _: Protected, db: Session = Depends(get_db)
         "地点已永久删除；来源与证据已保留",
         actor="user",
         entity_type="place",
-        entity_id=place_id,
+        entity_id=place.id,
         detail=impact,
         commit=False,
     )
+    return impact
+
+
+@router.delete("/api/travel/places/bulk-hard-delete")
+def hard_delete_places(
+    payload: HardDeletePlacesRequest, _: Protected, db: Session = Depends(get_db)
+) -> dict:
+    place_ids = list(dict.fromkeys(payload.place_ids))
+    places = db.scalars(select(Place).where(Place.id.in_(place_ids))).all()
+    if len(places) != len(place_ids):
+        raise HTTPException(status_code=404, detail={"code": "PLACE_NOT_FOUND"})
+    impacts = [_hard_delete_place(db, place) for place in places]
+    db.commit()
+    return {"requested": len(place_ids), "deleted": len(places), "impacts": impacts}
+
+
+@router.delete("/api/travel/places/{place_id}/hard")
+def hard_delete_place(place_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
+    place = db.get(Place, place_id)
+    if place is None:
+        raise HTTPException(status_code=404, detail={"code": "PLACE_NOT_FOUND"})
+    impact = _hard_delete_place(db, place)
     db.commit()
     return {"place_id": place_id, "status": "DELETED", "impact": impact}
 

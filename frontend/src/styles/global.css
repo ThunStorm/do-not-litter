@@ -198,6 +198,8 @@ svg { flex: 0 0 auto; }
 .video-place div { display: grid; gap: 4px; min-width: 0; }
 .video-place small { overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .video-place a, .video-place > span { color: var(--accent); font-size: 12px; white-space: nowrap; }
+.video-place__insights { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.video-place__insights button { min-height: 28px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 999px; background: #f6eee7; color: var(--accent); cursor: pointer; font-size: 11px; }
 .transcript-preview { max-height: 260px; overflow: auto; }
 .transcript-preview p { display: grid; grid-template-columns: 44px 1fr; gap: 9px; margin: 0; padding: 8px 0; border-bottom: 1px solid var(--line-soft); color: #554f48; font-size: 12px; line-height: 1.65; }
 .transcript-preview time { color: var(--accent); font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; }

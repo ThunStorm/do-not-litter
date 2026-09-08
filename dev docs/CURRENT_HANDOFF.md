@@ -4,12 +4,12 @@
 
 ## 任务续接
 
-- 更新：2026-09-08。范围为地图地点管理与证据化时间窗口。
-- 已完成：地点全选/删除确认、Marker 预览、路线/POI 管理；0016–0017 迁移；视频地点从转写提取观赏期、丰枯水、渔业限制、花/红叶/雪/迁徙等窗口，保留原文与 Segment 证据；POI Review 不再覆盖这些元数据。提交并推送 `161d320`。
-- 验证：后端 pytest 96、Ruff；前端 lint/Vitest 15/build；隔离新库完整升级与模拟旧 0016 升级均到 0017，重复列问题已消除。
-- 未完成：生产库仍为 2026-09-04 采样的 0013，本次未复核、未迁移或重启；没有新的真实视频验收。
-- 下一步：用户授权后，先确认无活跃 Job，再备份并迁移生产库至 0017，使用含明确时间表述的真实视频验收。
-- 注意：不得自动确认候选、清理审计或重跑真实视频；上述生产快照未复核。
+- 更新：2026-09-08。视频 Benchmark/知识工作包已冻结，未部署。
+- 已完成：Gateway 按真实 Provider attempt 执行预算/本地锁；12 个 Fixture Golden、离线评分与 Job/Replay 采集器；三种本地模型基础 Probe；0018 为 Insight 增加逐条 Segment/source quote；视频页展示 Insight 跳转；Place Note 跨来源汇总并标记 SINGLE_SOURCE/CONSENSUS/CONFLICT；POI 离线质量指标。
+- 验证：最后一次全量后端 pytest 105；后续 Place 聚合目标测试 26、POI Benchmark 测试 1 与目标 Ruff 通过；前端 lint/Vitest 15/build；隔离 SQLite 升级到 0018 并确认新列；文档生成测试与 diff check 通过。
+- 阻塞：WP1 正式 JSON Schema/完整 Probe、WP5 真实 POI 矩阵、WP6 Visual Fact/视觉模型、WP7 本地模型矩阵和真实视频 E2E；当前 qwen3.5:9b 仅验证文本能力，不可用于视觉。
+- 下一步：后续重新授权并具备 image-capable Profile 与合法标注视频后，先确认无活跃 Job，再从 WP1 未闭环项继续并运行视觉/真实 Benchmark。
+- 注意：不自动改默认模型、删除模型、确认 POI 或重跑真实视频；生产快照仍为 2026-09-04，本次未复核。
 
 ## 生产快照（采样 2026-09-04）
 

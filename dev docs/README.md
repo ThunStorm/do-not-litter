@@ -23,7 +23,7 @@
 | 不可回退约束 | [REGRESSION_AND_CHANGE_GUARD](REGRESSION_AND_CHANGE_GUARD.md) | 大段复制到各交接页 |
 | 设计契约 | 下表专项正文 | 实施状态的长篇叙述 |
 | 逐版本过程 / 旧计划 | history/，仅按需追溯 | 默认接手正文 |
-| 未来候选范围 | [待办池](planning/POST_FREEZE_TODO_BACKLOG.md)、[路线图](planning/FUTURE_ROADMAP.md) | 当前完成度或自动授权 |
+| 未来候选范围 | [待办池](planning/POST_FREEZE_TODO_BACKLOG.md)、[路线图](planning/FUTURE_ROADMAP.md)、[视频 Benchmark 与验收](planning/video/VIDEO_WORKFLOW_BENCHMARK_AND_ACCEPTANCE_PLAN.md) | 当前完成度或自动授权 |
 
 源码/测试证明实际行为，冻结契约表达必须保持的要求，两者冲突应报告差异，不能用一方静默覆盖另一方。新草案也不因日期更新就自动生效。
 
@@ -40,8 +40,8 @@
 | ai-gateway/ | Gateway 分篇、模型与 Prompt、运行配置、AI 验收 |
 | operations/ | 部署、日志、运维交互、运行监控 |
 | testing/、benchmark/ | 测试策略与样本说明；机器可读验收样本 |
-| planning/ | 待办池、未来路线、未冻结地图 V2 草案；不自动授权实施 |
-| history/ | 历史实施记录和旧计划；仅追溯时读取 |
+| planning/ | 待办池、未来路线、视频 Benchmark/验收候选；不自动授权实施 |
+| history/ | 历史实施记录和已覆盖的旧计划；仅追溯时读取 |
 
 | 领域 | 文档与职责 |
 | --- | --- |
@@ -60,10 +60,10 @@
 | 控制台 / 运维 | [CONTROL_CENTER](product/CONTROL_CENTER.md) 信息结构；[OPERATIONS_UI_SPEC](operations/OPERATIONS_UI_SPEC.md) 工作台交互；[LOGGING](operations/LOGGING.md) 日志契约与维护 |
 | 运行监控 / Provider | [监控与预设](operations/RUNTIME_MONITOR_AND_MODEL_PRESETS_SPEC.md)、[内存口径与预设切换](operations/RUNTIME_MONITOR_AND_PROVIDER_SWITCH_V06_SPEC.md) |
 | 部署 | [DEPLOYMENT_OPTIONS](operations/DEPLOYMENT_OPTIONS.md) 支持边界；[Mac mini 操作说明](../deploy/macos/README.md) 安装与维护 |
-| 验证 / 样本 | [TESTING_AND_ACCEPTANCE](testing/TESTING_AND_ACCEPTANCE.md) 验证策略；[GOLDEN_SAMPLES](testing/GOLDEN_SAMPLES.md) 样本/Fixture；benchmark/ 仅验收任务按需查看 |
+| 验证 / 样本 | [TESTING_AND_ACCEPTANCE](testing/TESTING_AND_ACCEPTANCE.md) 验证策略；[GOLDEN_SAMPLES](testing/GOLDEN_SAMPLES.md) 样本/Fixture；[视频 Fixture Golden](benchmark/video-workflow-golden-v1.json) 与 benchmark/ 仅验收任务按需查看 |
 | 设计 / 授权 | [design/ui](../design/ui/README.md) → 目标版本/页面；[THIRD_PARTY_NOTICES](../THIRD_PARTY_NOTICES.md) 授权记录 |
 | 提示词 / 写交接 | [CODEX_TASK_TEMPLATES](CODEX_TASK_TEMPLATES.md) 三条短指令；交接固定更新 CURRENT_HANDOFF.md 的任务续接段，不另建文件 |
-| 历史 / 未来 | [历史实施记录](history/IMPLEMENTATION_HISTORY.md)、[早期工程计划](history/PROJECT_PLAN.md)、[FUTURE_ROADMAP](planning/FUTURE_ROADMAP.md)；均非默认阅读 |
+| 历史 / 未来 | [历史实施记录](history/IMPLEMENTATION_HISTORY.md)、[归档实施计划](history/planning/README.md)、[早期工程计划](history/PROJECT_PLAN.md)、[FUTURE_ROADMAP](planning/FUTURE_ROADMAP.md)；均非默认阅读 |
 
 已删除 LOGGING_ARCHITECTURE.md、LOGGING_IMPLEMENTATION.md 与根层 PROJECT_PLAN.md 三个纯跳转页；正文分别在 operations/LOGGING.md 和 history/PROJECT_PLAN.md。仓库内使用处已直达正文，旧路径不再保留。
 
@@ -78,14 +78,14 @@
 | LOGGING_ARCHITECTURE + LOGGING_IMPLEMENTATION（82 + 92 行） | 已合并 operations/LOGGING.md | 同一维护任务反复跳转，且“已实施/待实施”互相冲突；删除重复与过期标签，保留契约与维护入口 |
 | 根 README / dev docs README / CODEX_CONTEXT | 已合并重复背景，职责分开 | 产品简介只在根入口；目录只导航；接手页只放代码地图与任务路由 |
 | CURRENT_HANDOFF / 状态 / 回归清单中的运行事实 | 已去重 | 当前源码、现场快照、冻结约束各有唯一来源 |
-| 地图 V2 计划（3,761 行） | 完整移入 planning/，暂不拆正文 | 作为实施与验收追溯；核心实现状态以 IMPLEMENTATION_STATUS 为准，仍不把后续推荐/路线规划自动升级为当前需求 |
+| 地图 V2 与后续地图执行计划 | 移入 history/planning/ 并保留原文 | 已由后续地图提交覆盖；实施状态只在 IMPLEMENTATION_STATUS，推荐/自动路线仍留 Future Roadmap |
 | DATA_MODEL（903 行） / API_DESIGN（427 行） | 本次保留，按表/路由检索 | 数据模型大量为字段/空行；单一数据字典不为行数机械拆碎。未来某领域持续独立改动时再抽出该域 |
 | 多份短 UI 规格 | 暂不合并成大 UI 文档 | 阅读/删除/Replay/时间具有独立风险与验收边界；目录统一导航即可 |
 | CONTROL_CENTER / OPERATIONS_UI / RUNTIME_MONITOR 系列 | 保持分层 | 页面信息结构、工作台交互、指标语义不同；不要把架构、交互、运行时混成新合订本 |
 
 ### 地图 V2 草案的按需路由
 
-原文：[地图 V2 计划](planning/PLACE_INTELLIGENCE_MAP_V2_IMPLEMENTATION_PLAN.md)。已归入 planning/；下表保留按需阅读边界。核心地图实现已获用户授权并进入源码，当前实现/验收以 IMPLEMENTATION_STATUS 为准；任何后续扩展仍须同时核对 §98–99 的 Review 修正、§106 原则和冻结约束。
+原文：[地图 V2 计划](history/planning/PLACE_INTELLIGENCE_MAP_V2_IMPLEMENTATION_PLAN.md)。已归档；下表只保留追溯时的按需阅读边界。核心地图实现已获用户授权并进入源码，当前实现/验收以 IMPLEMENTATION_STATUS 为准；任何后续扩展仍须同时核对 §98–99 的 Review 修正、§106 原则和冻结约束。
 
 | 拟拆领域 / 任务 | 原章节 |
 | --- | --- |
