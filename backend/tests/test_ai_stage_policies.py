@@ -122,6 +122,35 @@ def test_model_probe_persists_only_capability_results(client, app_and_session, m
         assert stored and "api_key" not in str(stored.value_json)
 
 
+def test_draft_model_probe_returns_results_without_persisting_key(
+    client, app_and_session, monkeypatch
+) -> None:
+    from zhijian.api import router as api_router
+
+    class Provider:
+        def generate_text(self, *_args, **_kwargs):
+            return LLMResult("PONG", "fixture", "draft-model", {})
+
+        def generate_json(self, *_args, **_kwargs):
+            return LLMResult('{"id":"evidence_probe_01","ok":true}', "fixture", "draft-model", {})
+
+    monkeypatch.setattr(api_router, "_model_profile_provider", lambda *_args: Provider())
+    response = client.post(
+        "/api/settings/model-profiles/probe-draft",
+        json={
+            "name": "未保存探测",
+            "provider": "fixture",
+            "base_url": "https://fixture.test/v1",
+            "model": "draft-model",
+            "api_key": "draft-key-must-not-persist",
+        },
+    )
+    assert response.status_code == 200
+    assert "STRUCTURED_EXTRACTION" in response.json()["capabilities"]
+    with app_and_session[1]() as db:
+        assert "draft-key-must-not-persist" not in str(db.query(Setting).all())
+
+
 def test_job_ai_usage_groups_stage_model_and_location(client, app_and_session) -> None:
     _, factory = app_and_session
     with factory() as db:

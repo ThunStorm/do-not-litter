@@ -31,6 +31,7 @@ from zhijian.services.auth import create_session
 from zhijian.services.job_replay import VIDEO_STEP_ORDER
 from zhijian.services.jobs import recover_stale_jobs, release_expired_cancelled_jobs
 from zhijian.services.pipeline import process_job
+from zhijian.services.place_knowledge import normalize_insight
 from zhijian.services.runtime_monitor import METRICS_SAMPLE_KEY
 from zhijian.services.video_screenshots import _quality, plan_screenshots
 
@@ -77,6 +78,79 @@ def test_place_detail_returns_active_evidence_linked_insights(client, app_and_se
             "source_quote": "视频明确推荐海蛎煎。",
         }
     ]
+
+
+def test_place_detail_returns_normalized_consensus_conflict_and_history(client, app_and_session) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        place = db.scalar(select(Place).limit(1))
+        assert place is not None
+        first = Source(source_type="URL", locator="https://example.test/price-one", title="视频一")
+        second = Source(source_type="URL", locator="https://example.test/price-two", title="视频二")
+        third = Source(source_type="URL", locator="https://example.test/price-three", title="视频三")
+        db.add_all([first, second, third])
+        db.flush()
+        asset = VideoAsset(source_id=first.id, canonical_url=first.locator, title="价格视频")
+        db.add(asset)
+        db.flush()
+        note = AINote(video_asset_id=asset.id, status="COMPLETED")
+        db.add(note)
+        db.flush()
+        version = AINoteVersion(
+            ai_note_id=note.id,
+            version=1,
+            markdown="# 价格视频",
+            transcript_version=1,
+        )
+        db.add(version)
+        db.flush()
+        mention = PlaceMention(
+            video_asset_id=asset.id,
+            ai_note_version_id=version.id,
+            name="测试地点",
+            place_id=place.id,
+        )
+        db.add(mention)
+        db.flush()
+        rows = []
+        for source, text, when in (
+            (first, "人均七八十", datetime(2025, 1, 1, tzinfo=UTC)),
+            (second, "约 80 元", datetime(2025, 2, 1, tzinfo=UTC)),
+            (third, "当前约 120 元", datetime(2025, 3, 1, tzinfo=UTC)),
+        ):
+            value_key, value_json = normalize_insight("PRICE", text)
+            rows.append(
+                PlaceInsightItem(
+                    place_id=place.id,
+                    source_id=source.id,
+                    place_mention_id=mention.id if source.id == first.id else None,
+                    insight_type="PRICE",
+                    value_key=value_key,
+                    value_text=text,
+                    value_json=value_json,
+                    provenance="SOURCE_FACT",
+                    segment_ids_json=["seg_fixture"],
+                    source_quote=text,
+                    created_at=when,
+                )
+            )
+        db.add_all(rows)
+        db.commit()
+        place_id = place.id
+    response = client.get(f"/api/travel/places/{place_id}")
+    assert response.status_code == 200
+    prices = response.json()["knowledge"]["prices"]
+    assert {item["state"] for item in prices} == {"CONFLICT"}
+    assert any(item["source_count"] == 2 for item in prices)
+    assert sum(item["current"] for item in prices) == 1
+    assert response.json()["knowledge"]["consensus"]["PRICE"] == "CONFLICT"
+    first_observation = next(
+        observation
+        for item in prices
+        for observation in item["observations"]
+        if observation["source_title"] == "视频一"
+    )
+    assert first_observation["evidence_url"] == f"/video-notes/{note.id}"
 
 
 def test_manual_place_and_edits_preserve_separate_user_layers(client) -> None:
@@ -819,11 +893,17 @@ def test_visit_window_is_correlated_and_hard_delete_preserves_mentions(client, a
         "/api/travel/map/markers",
         json={"longitude": 116.397, "latitude": 39.908, "custom_name": "待永久删除"},
     ).json()
-    place_id = created["place_id"]
-    impact = client.get(f"/api/travel/places/{place_id}/deletion-impact").json()
-    assert impact["source_evidence_preserved"] is True
-    assert client.delete(f"/api/travel/places/{place_id}/hard").status_code == 200
-    assert client.get(f"/api/travel/places/{place_id}").status_code == 404
+    other = client.post(
+        "/api/travel/map/markers",
+        json={"longitude": 116.398, "latitude": 39.909, "custom_name": "批量永久删除"},
+    ).json()
+    place_ids = [created["place_id"], other["place_id"]]
+    impacts = [client.get(f"/api/travel/places/{place_id}/deletion-impact").json() for place_id in place_ids]
+    assert all(impact["source_evidence_preserved"] for impact in impacts)
+    deleted = client.request("DELETE", "/api/travel/places/bulk-hard-delete", json={"place_ids": place_ids})
+    assert deleted.status_code == 200
+    assert deleted.json()["deleted"] == 2
+    assert all(client.get(f"/api/travel/places/{place_id}").status_code == 404 for place_id in place_ids)
 
 
 def test_screenshot_plan_binds_sections_and_quality_filter(app_and_session, tmp_path) -> None:

@@ -53,6 +53,7 @@ from zhijian.providers.llm import (
 )
 from zhijian.services.audit import record_event
 from zhijian.services.jobs import ensure_job_active
+from zhijian.services.place_knowledge import aggregate_place_knowledge, normalize_insight
 from zhijian.services.transcript_retention import retention_deadline
 
 TRANSCRIPT_CORRECTION_TIMEOUT_SECONDS = 180.0
@@ -805,6 +806,22 @@ def _transcript_context(segments: list[Segment], max_chars: int) -> str:
     return "\n".join(lines)
 
 
+def _map_facts_context(note: AINoteVersion, max_chars: int) -> str:
+    facts = [item for item in note.map_facts_json or [] if isinstance(item, dict)]
+    selected: list[dict[str, Any]] = []
+    for fact in facts:
+        candidate = json.dumps({"section_facts": [*selected, fact]}, ensure_ascii=False)
+        if len(candidate) > max_chars and selected:
+            break
+        if len(candidate) <= max_chars:
+            selected.append(fact)
+    if not selected:
+        return "没有可用的 SectionFacts；返回 {\"places\": []}，不要依据常识补全地点。"
+    return "以下是按时间块验证的 SectionFacts。仅据此提取地点，保留已有 Segment ID：\n" + json.dumps(
+        {"section_facts": selected}, ensure_ascii=False
+    )
+
+
 def _transcript_chunks(
     segments: list[Segment], max_chars: int, max_segments: int | None = None
 ) -> list[list[Segment]]:
@@ -1379,7 +1396,7 @@ def extract_place_mentions(
         messages = [
             {"role": "system", "content": prompt},
             *prompt_supplement_messages(db, "travel_place_extraction"),
-            {"role": "user", "content": _transcript_context(segments, settings.video_note_chunk_chars)},
+            {"role": "user", "content": _map_facts_context(note, settings.video_note_chunk_chars)},
         ]
         response = _cached_stage_json(
             db,
@@ -1446,7 +1463,17 @@ def extract_place_mentions(
             confidence=normalized_confidence(item.get("confidence")),
             extraction_status="EXTRACTED",
             resolution_status=ResolutionStatus.UNRESOLVED.value,
-            metadata_json={"insights": insights, "visit_windows": visit_windows},
+            metadata_json={
+                "insights": insights,
+                "visit_windows": visit_windows,
+                "resolver_context": {
+                    "aliases": [str(value)[:300] for value in item.get("aliases", []) if value][:10],
+                    "district_hint": str(item.get("district_hint") or "")[:64],
+                    "nearby_landmarks": [
+                        str(value)[:300] for value in item.get("nearby_landmarks", []) if value
+                    ][:10],
+                },
+            },
             brief_json={
                 "feature": str(item.get("feature") or item.get("reason") or "")[:500],
                 "experience": str(item.get("experience") or "")[:500],
@@ -1483,6 +1510,7 @@ def _insights_from_candidate(
         value_json: dict[str, Any] | None = None,
         evidence_ids: list[str] | None = None,
         source_quote: object = "",
+        provenance: str = "SOURCE_FACT",
     ) -> None:
         if value is None:
             return
@@ -1510,6 +1538,7 @@ def _insights_from_candidate(
                     "value_json": value_json or {},
                     "segment_ids": ids,
                     "source_quote": quote[:500],
+                    "provenance": provenance,
                 }
             )
 
@@ -1544,7 +1573,11 @@ def _insights_from_candidate(
     ):
         values = item.get(field) or (item.get("warning") if field == "warnings" else [])
         for value in values if isinstance(values, list) else [values]:
-            add(insight_type, value)
+            add(
+                insight_type,
+                value,
+                provenance="SOURCE_OPINION" if insight_type == "AUTHOR_OPINION" else "SOURCE_FACT",
+            )
     return result
 
 
@@ -1553,20 +1586,26 @@ def materialize_place_insights(db: Session, mention: PlaceMention) -> None:
         return
     db.query(PlaceInsightItem).filter(
         PlaceInsightItem.place_mention_id == mention.id,
-        PlaceInsightItem.provenance == "SOURCE_FACT",
+        PlaceInsightItem.provenance.in_(("SOURCE_FACT", "SOURCE_OPINION")),
     ).delete(synchronize_session=False)
     asset = db.get(VideoAsset, mention.video_asset_id)
     for item in mention.metadata_json.get("insights", []):
+        value_key, value_json = normalize_insight(
+            str(item["insight_type"]),
+            str(item["value_text"]),
+            str(item.get("value_key") or ""),
+            item.get("value_json") if isinstance(item.get("value_json"), dict) else {},
+        )
         db.add(
             PlaceInsightItem(
                 place_id=mention.place_id,
                 place_mention_id=mention.id,
                 source_id=asset.source_id if asset else None,
                 insight_type=str(item["insight_type"]),
-                value_key=str(item.get("value_key") or ""),
+                value_key=value_key,
                 value_text=str(item["value_text"]),
-                value_json=dict(item.get("value_json") or {}),
-                provenance="SOURCE_FACT",
+                value_json=value_json,
+                provenance=str(item.get("provenance") or "SOURCE_FACT"),
                 confidence=mention.confidence,
                 segment_ids_json=list(item.get("segment_ids") or mention.segment_ids_json),
                 source_quote=str(item.get("source_quote") or "")[:500],
@@ -1610,7 +1649,7 @@ def resolve_mentions_with_amap(
     confirmed = 0
     for mention in mentions:
         try:
-            candidates = _rank_poi_candidates(provider, mention)
+            candidates = _rank_poi_candidates(provider, mention, mentions)
         except Exception as exc:
             mention.metadata_json = {**mention.metadata_json, "poi_error": str(exc)[:240]}
             continue
@@ -1619,12 +1658,14 @@ def resolve_mentions_with_amap(
             continue
         selected = candidates[0]
         runner_up = candidates[1] if len(candidates) > 1 else None
-        if selected.score < 80 or (runner_up and selected.score - runner_up.score < 15):
+        review_reasons = _poi_review_reasons(selected, runner_up)
+        if review_reasons:
             mention.resolution_status = ResolutionStatus.REVIEW.value
             mention.metadata_json = {
                 **mention.metadata_json,
                 "poi_candidates": [_candidate_metadata(item) for item in candidates[:5]],
-                "reason": "候选得分不足或第一、二候选过于接近，等待人工确认",
+                "reason": "；".join(review_reasons),
+                "poi_decision": "REVIEW",
             }
             continue
         try:
@@ -1637,6 +1678,7 @@ def resolve_mentions_with_amap(
                 **mention.metadata_json,
                 "poi_candidates": [_candidate_metadata(item) for item in candidates[:5]],
                 "reason": "POI 详情复核失败，等待人工确认",
+                "poi_decision": "REVIEW",
             }
             continue
         selected = verified
@@ -1689,6 +1731,9 @@ def resolve_mentions_with_amap(
             "poi_id": selected.provider_id,
             "poi_score": candidates[0].score,
             "poi_match_reasons": candidates[0].match_reasons,
+            "poi_explanation": candidates[0].match_explanation,
+            "poi_candidates": [_candidate_metadata(item) for item in candidates[:5]],
+            "poi_decision": "CONFIRMED",
         }
         materialize_place_insights(db, mention)
         confirmed += 1
@@ -1696,7 +1741,9 @@ def resolve_mentions_with_amap(
     return confirmed, len(mentions) - confirmed
 
 
-def _rank_poi_candidates(provider: AMapPOIProvider, mention: PlaceMention) -> list[POICandidate]:
+def _rank_poi_candidates(
+    provider: AMapPOIProvider, mention: PlaceMention, mentions: list[PlaceMention] | None = None
+) -> list[POICandidate]:
     queries = _poi_queries(mention)
     deduped: dict[str, POICandidate] = {}
     for query, city in queries:
@@ -1704,13 +1751,17 @@ def _rank_poi_candidates(provider: AMapPOIProvider, mention: PlaceMention) -> li
             if candidate.provider_id and candidate.provider_id not in deduped:
                 deduped[candidate.provider_id] = candidate
     for candidate in deduped.values():
-        candidate.score, candidate.match_reasons = _poi_score(mention, candidate)
+        candidate.score, candidate.match_reasons, candidate.match_explanation = _poi_score(
+            mention, candidate, mentions or []
+        )
     return sorted(deduped.values(), key=lambda item: (-item.score, item.name))
 
 
 def _poi_queries(mention: PlaceMention) -> list[tuple[str, str]]:
-    names = (mention.suggested_name, mention.name, mention.raw_name)
-    locations = (mention.city_hint, mention.province_hint, "")
+    context = mention.metadata_json.get("resolver_context", {})
+    aliases = context.get("aliases", []) if isinstance(context, dict) else []
+    names = [mention.suggested_name, mention.name, mention.raw_name, *aliases]
+    locations = [mention.city_hint, mention.province_hint, "", *([mention.city_hint] * len(aliases))]
     result: list[tuple[str, str]] = []
     for name, location in zip(names, locations, strict=True):
         value = (name or "").strip()
@@ -1720,42 +1771,112 @@ def _poi_queries(mention: PlaceMention) -> list[tuple[str, str]]:
     return result[:5]
 
 
-def _poi_score(mention: PlaceMention, candidate: POICandidate) -> tuple[int, list[str]]:
+def _poi_score(
+    mention: PlaceMention, candidate: POICandidate, mentions: list[PlaceMention] | None = None
+) -> tuple[int, list[str], dict[str, Any]]:
     reasons: list[str] = []
-    names = [value for value in (mention.suggested_name, mention.name, mention.raw_name) if value]
+    context = mention.metadata_json.get("resolver_context", {})
+    context = context if isinstance(context, dict) else {}
+    aliases = [str(value) for value in context.get("aliases", []) if value]
+    names = [value for value in (mention.suggested_name, mention.name, mention.raw_name, *aliases) if value]
+    candidate_key = _normalized_insight_key(candidate.name)
     similarity = max(
         (
-            SequenceMatcher(
-                None, _normalized_insight_key(value), _normalized_insight_key(candidate.name)
-            ).ratio()
+            1.0
+            if _normalized_insight_key(value) == candidate_key
+            else 1.0
+            if _normalized_insight_key(value) in candidate_key
+            else SequenceMatcher(None, _normalized_insight_key(value), candidate_key).ratio()
             for value in names
         ),
         default=0.0,
     )
-    score = round(similarity * 45)
+    score = round(similarity * 50)
     if similarity >= 0.9:
         reasons.append("名称高度匹配")
+    district_hint = str(context.get("district_hint") or "")
+    nearby = [str(value) for value in context.get("nearby_landmarks", []) if value]
+    location_text = " ".join((candidate.province, candidate.city, candidate.district, candidate.address))
+    city_match = bool(mention.city_hint and mention.city_hint in location_text)
+    province_match = bool(mention.province_hint and mention.province_hint in location_text)
+    district_match = bool(district_hint and district_hint in location_text)
     if mention.city_hint and mention.city_hint in (candidate.city + candidate.address):
         score += 20
         reasons.append("城市匹配")
-    if mention.province_hint and mention.province_hint in candidate.province:
-        score += 10
+    if province_match:
+        score += 5
         reasons.append("省份匹配")
+    if district_match:
+        score += 10
+        reasons.append("区县匹配")
     type_prefixes = {
         "RESTAURANT": "05",
         "SCENIC_AREA": "11",
         "MUSEUM": "14",
         "PARK": "11",
+        "TEMPLE": "11",
+        "MARKET": "06",
+        "BUSINESS_DISTRICT": "06",
         "ACCOMMODATION": "10",
+        "TRANSIT": "15",
     }
     prefix = type_prefixes.get(mention.place_type)
-    if prefix and candidate.typecode.startswith(prefix):
+    category_match = bool(prefix and candidate.typecode.startswith(prefix))
+    if category_match:
         score += 15
         reasons.append("地点类型匹配")
-    if mention.city_hint and mention.city_hint in candidate.address:
-        score += 5
-        reasons.append("地址上下文匹配")
-    return min(score, 100), reasons
+    nearby_matches = [value for value in nearby if value in (candidate.name + candidate.address)]
+    if nearby_matches:
+        score += 10
+        reasons.append("附近地标匹配")
+    cross_cities = {
+        item.city_hint
+        for item in mentions or []
+        if item.id != mention.id and item.city_hint
+    }
+    cross_provinces = {
+        item.province_hint
+        for item in mentions or []
+        if item.id != mention.id and item.province_hint
+    }
+    cross_location_matches = sorted(
+        value for value in cross_cities | cross_provinces if value and value in location_text
+    )
+    if cross_location_matches:
+        score += 20 if not (city_match or province_match or district_match) else 5
+        reasons.append("视频内地域上下文匹配")
+    explanation = {
+        "name_match": round(similarity, 3),
+        "city_match": city_match,
+        "province_match": province_match,
+        "district_match": district_match,
+        "category_match": category_match,
+        "nearby_context": nearby_matches,
+        "cross_place_context": cross_location_matches,
+        "coordinate_valid": 73.5 <= candidate.longitude <= 135.1 and 18 <= candidate.latitude <= 53.6,
+    }
+    return min(score, 100), reasons, explanation
+
+
+def _poi_review_reasons(selected: POICandidate, runner_up: POICandidate | None) -> list[str]:
+    explanation = selected.match_explanation
+    reasons: list[str] = []
+    if selected.score < 85:
+        reasons.append("候选综合分不足")
+    if float(explanation.get("name_match") or 0) < 0.9:
+        reasons.append("名称匹配不够强")
+    if not any(
+        explanation.get(key)
+        for key in ("city_match", "province_match", "district_match", "nearby_context", "cross_place_context")
+    ):
+        reasons.append("地域上下文不足")
+    if not explanation.get("category_match"):
+        reasons.append("地点类型不兼容")
+    if runner_up and selected.score - runner_up.score < 15:
+        reasons.append("第一、二候选差距过小")
+    if not explanation.get("coordinate_valid"):
+        reasons.append("候选坐标异常")
+    return reasons
 
 
 def _candidate_metadata(candidate: POICandidate) -> dict[str, Any]:
@@ -1772,6 +1893,7 @@ def _candidate_metadata(candidate: POICandidate) -> dict[str, Any]:
         "latitude": candidate.latitude,
         "score": candidate.score,
         "match_reasons": candidate.match_reasons,
+        "match_explanation": candidate.match_explanation,
     }
 
 
@@ -1795,19 +1917,39 @@ def build_place_notes(db: Session, asset: VideoAsset, mentions: list[PlaceMentio
             .where(PlaceInsightItem.place_id == place.id, PlaceInsightItem.status == "ACTIVE")
             .order_by(PlaceInsightItem.insight_type, PlaceInsightItem.created_at)
         ).all()
-        by_type: dict[str, list[PlaceInsightItem]] = {}
-        for insight in insights:
-            by_type.setdefault(insight.insight_type, []).append(insight)
-        for insight_type, items in by_type.items():
-            values = {item.value_text for item in items}
-            state = "CONSENSUS" if len(items) > 1 and len(values) == 1 else "SINGLE_SOURCE"
-            if len(values) > 1:
-                state = "CONFLICT"
-            lines.append(f"\n## {insight_type} · {state}")
-            for item in items:
-                source = db.get(Source, item.source_id) if item.source_id else None
-                source_title = source.title if source else "来源未命名"
-                lines.append(f"- {item.value_text}（{source_title}：{item.source_quote}）")
+        labels = {
+            "highlights": "核心看点",
+            "dishes": "推荐菜 / 核心体验",
+            "visit_windows": "最佳月份/季节",
+            "warnings": "注意事项",
+            "prices": "价格",
+            "queues": "排队",
+            "opinions": "作者态度",
+            "other": "其他观察",
+        }
+        source_ids = {item.source_id for item in insights if item.source_id}
+        source_titles = {
+            source.id: source.title or "来源未命名"
+            for source in db.scalars(select(Source).where(Source.id.in_(source_ids))).all()
+        }
+        knowledge = aggregate_place_knowledge(insights, source_titles)
+        for category, title in labels.items():
+            for item in knowledge[category]:
+                current = "" if item["current"] else " · 较早观察"
+                lines.append(f"\n## {title} · {item['state']}{current}")
+                lines.append(f"- {item['source_count'] or 1} 个来源观察；以下内容不等同于系统或个人推断。")
+                provenance = {
+                    "SOURCE_FACT": "来源事实",
+                    "SOURCE_OPINION": "来源观点",
+                    "SYSTEM_AGGREGATION": "系统聚合",
+                    "PERSONAL_INFERENCE": "个人推断",
+                    "USER_ADDED": "个人补充",
+                }.get(item["provenance"], item["provenance"])
+                for observation in item["observations"]:
+                    lines.append(
+                        f"- [{provenance}] {item['value_text']}"
+                        f"（{observation['source_title']}：{observation['source_quote']}）"
+                    )
         lines.append("- 状态：来源观察，建议到店前再次核验。")
         text = "\n".join(lines) + "\n"
         db.add(

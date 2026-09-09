@@ -26,6 +26,9 @@ def test_video_fixture_benchmark_scores_complete_expected_outputs() -> None:
             "section_topics": sample["expected"]["section_topics"],
             "evidence_segment_ids": sample["expected"]["required_evidence"],
             "poi_resolution": sample["expected"]["poi_resolution"],
+            "poi_candidates": {
+                item["name"]: [item["name"]] for item in sample["expected"]["required_places"]
+            },
         }
         for sample in samples
     ]
@@ -39,5 +42,7 @@ def test_video_fixture_benchmark_scores_complete_expected_outputs() -> None:
     assert profile["insights"]["precision"] == 1
     assert profile["forbidden_place_count"] == 0
     assert profile["poi_resolution_accuracy"] == 1
+    assert profile["visit_window_recall"] == 1
+    assert profile["poi_quality"]["candidate_recall"] == 1
     assert profile["poi_quality"]["false_confirm_count"] == 0
     assert result["production_eligible"] is False

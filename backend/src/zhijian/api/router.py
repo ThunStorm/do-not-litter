@@ -38,6 +38,7 @@ from zhijian.core.secret_store import SecretStore
 from zhijian.core.time import as_utc, utc_now
 from zhijian.db.models import (
     AccessSession,
+    AINoteVersion,
     Claim,
     ContentItem,
     Evidence,
@@ -71,6 +72,7 @@ from zhijian.domain.schemas import (
     CaptureResponse,
     ContentView,
     GeneralConfig,
+    HardDeletePlacesRequest,
     JobView,
     ManualPlaceCreate,
     MapMarker,
@@ -130,6 +132,7 @@ from zhijian.services.bilibili_auth import (
 from zhijian.services.capture import create_capture_job, safe_upload_path
 from zhijian.services.input_normalizer import normalize_capture_input
 from zhijian.services.job_replay import queue_login_step_skip, queue_step_replay, replay_options
+from zhijian.services.place_knowledge import aggregate_place_knowledge, normalize_insight
 from zhijian.services.runtime_monitor import read_runtime_metrics_sample
 from zhijian.services.source_retention import prune_source_if_orphan, source_deletion_state
 from zhijian.services.video_support import (
@@ -1901,6 +1904,33 @@ def place_detail(place_id: str, _: Protected, db: Session = Depends(get_db)) -> 
         .where(PlaceVisitWindow.place_id == place.id, PlaceVisitWindow.status == "ACTIVE")
         .order_by(PlaceVisitWindow.created_at)
     ).all()
+    source_titles = {
+        source.id: source.title or "来源未命名"
+        for source in db.scalars(
+            select(Source).where(Source.id.in_({item.source_id for item in insights if item.source_id}))
+        ).all()
+    }
+    mention_ids = {item.place_mention_id for item in insights if item.place_mention_id}
+    mention_versions = {
+        mention.id: mention.ai_note_version_id
+        for mention in db.scalars(
+            select(PlaceMention).where(PlaceMention.id.in_(mention_ids))
+        ).all()
+    }
+    version_ids = set(mention_versions.values()) - {None}
+    note_ids = {
+        version.id: version.ai_note_id
+        for version in db.scalars(select(AINoteVersion).where(AINoteVersion.id.in_(version_ids))).all()
+    }
+    knowledge = aggregate_place_knowledge(insights, source_titles)
+    for category in (
+        "highlights", "dishes", "visit_windows", "warnings", "prices", "queues", "opinions", "other"
+    ):
+        for item in knowledge[category]:
+            for observation in item["observations"]:
+                note_id = note_ids.get(mention_versions.get(observation["place_mention_id"]))
+                if note_id:
+                    observation["evidence_url"] = f"/video-notes/{note_id}"
     return PlaceDetailView(
         **preview_for_place(db, place).model_dump(),
         coordinate_system=place.coordinate_system,
@@ -1908,6 +1938,7 @@ def place_detail(place_id: str, _: Protected, db: Session = Depends(get_db)) -> 
         provider=place.external_provider,
         external_poi_id=place.external_poi_id,
         metadata=place.metadata_json,
+        knowledge=knowledge,
         insights=[
             PlaceInsightView(
                 id=item.id,
@@ -2045,11 +2076,7 @@ def place_deletion_impact(place_id: str, _: Protected, db: Session = Depends(get
     return _deletion_impact(db, place)
 
 
-@router.delete("/api/travel/places/{place_id}/hard")
-def hard_delete_place(place_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
-    place = db.get(Place, place_id)
-    if place is None:
-        raise HTTPException(status_code=404, detail={"code": "PLACE_NOT_FOUND"})
+def _hard_delete_place(db: Session, place: Place) -> dict:
     impact = _deletion_impact(db, place)
     if place.external_provider and place.external_poi_id:
         db.add(
@@ -2261,6 +2288,7 @@ def _place_insight_view(insight: PlaceInsightItem) -> PlaceInsightView:
         confidence=insight.confidence,
         status=insight.status,
         segment_ids=insight.segment_ids_json,
+        source_quote=insight.source_quote,
     )
 
 
@@ -2270,12 +2298,15 @@ def create_place_insight(
 ) -> PlaceInsightView:
     if db.get(Place, place_id) is None:
         raise HTTPException(status_code=404, detail={"code": "PLACE_NOT_FOUND"})
+    value_key, value_json = normalize_insight(
+        payload.insight_type, payload.value_text, payload.value_key, payload.value_json
+    )
     insight = PlaceInsightItem(
         place_id=place_id,
         insight_type=payload.insight_type,
-        value_key=payload.value_key,
+        value_key=value_key,
         value_text=payload.value_text,
-        value_json=payload.value_json,
+        value_json=value_json,
         provenance="USER_ADDED",
         confidence=1.0,
         status="ACTIVE",
@@ -2293,11 +2324,10 @@ def update_place_insight(
     insight = db.get(PlaceInsightItem, insight_id)
     if insight is None or insight.place_id != place_id or insight.provenance == "SOURCE_FACT":
         raise HTTPException(status_code=409, detail={"code": "CANNOT_EDIT_SOURCE_FACT"})
-    insight.insight_type, insight.value_key, insight.value_text, insight.value_json = (
-        payload.insight_type,
-        payload.value_key,
-        payload.value_text,
-        payload.value_json,
+    insight.insight_type = payload.insight_type
+    insight.value_text = payload.value_text
+    insight.value_key, insight.value_json = normalize_insight(
+        payload.insight_type, payload.value_text, payload.value_key, payload.value_json
     )
     db.commit()
     return _place_insight_view(insight)
@@ -3243,6 +3273,34 @@ def probe_saved_model_profile(
     )
     db.commit()
     return _model_profile_view(setting)
+
+
+@router.post("/api/settings/model-profiles/probe-draft")
+def probe_model_profile_draft(payload: ModelProfileConfig, _: Protected) -> dict:
+    """Probe a draft without persisting its profile or API key."""
+    value = payload.model_dump(mode="json", exclude={"api_key"})
+    try:
+        profile = model_profile_from_value("draft", value)
+        provider = _model_profile_provider(value, payload.api_key)
+        def probe() -> dict[str, str]:
+            return probe_model_profile(provider, profile)
+
+        if profile.location == "LOCAL":
+            results = local_ai_resource_manager.run("MODEL_TEST", probe)
+        else:
+            results = probe()
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"草稿能力探测失败：{str(exc)[:240]}") from exc
+    capabilities = [key for key, status in results.items() if status == "PASS"]
+    return {
+        "status": "READY",
+        "message": "草稿能力探测已完成，保存后才会写入模型配置。",
+        "probe_results": results,
+        "capabilities": capabilities,
+        "supports_json_mode": "STRUCTURED_EXTRACTION" in capabilities,
+    }
 
 
 @router.get("/api/settings/providers")

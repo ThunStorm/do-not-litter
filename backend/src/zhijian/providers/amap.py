@@ -19,6 +19,7 @@ class POICandidate:
     coordinate_system: str = "GCJ02"
     score: int = 0
     match_reasons: list[str] = field(default_factory=list)
+    match_explanation: dict[str, object] = field(default_factory=dict)
 
 
 class AMapPOIProvider:

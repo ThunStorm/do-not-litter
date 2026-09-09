@@ -10,7 +10,7 @@ export const providerPresets = [
 
 export type ModelFormValues = {
   name: string; provider: string; base_url: string; model: string; timeout_seconds: number; api_key: string
-  location?: 'LOCAL' | 'REMOTE'; modalities?: string[]; supports_thinking?: boolean; quality_tier?: 'FAST' | 'MAIN' | 'STRONG' | 'SPECIALIST'
+  location?: 'LOCAL' | 'REMOTE'; modalities?: string[]; capabilities?: string[]; supports_json_mode?: boolean; supports_thinking?: boolean; quality_tier?: 'FAST' | 'MAIN' | 'STRONG' | 'SPECIALIST'
 }
 export type ManualModelFields = { model: boolean; baseUrl: boolean }
 

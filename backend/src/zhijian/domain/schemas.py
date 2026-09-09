@@ -153,12 +153,17 @@ class BulkPlaceUpdate(BaseModel):
     value: str | None = Field(default=None, max_length=100)
 
 
+class HardDeletePlacesRequest(BaseModel):
+    place_ids: list[str] = Field(min_length=1, max_length=100)
+
+
 class PlaceDetailView(PlacePreview):
     coordinate_system: str
     coordinates: list[float]
     provider: str | None = None
     external_poi_id: str | None = None
     metadata: dict[str, Any]
+    knowledge: dict[str, Any] = Field(default_factory=dict)
     insights: list[PlaceInsightView] = Field(default_factory=list)
     visit_windows: list[PlaceVisitWindowView] = Field(default_factory=list)
     display: dict[str, Any] = Field(default_factory=dict)

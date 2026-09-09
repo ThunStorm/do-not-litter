@@ -19,7 +19,9 @@ from zhijian.db.models import (
     ContentItem,
     Job,
     Place,
+    PlaceInsightItem,
     PlaceMention,
+    PlaceNoteVersion,
     PlaceVisitWindow,
     Setting,
     Source,
@@ -36,6 +38,7 @@ from zhijian.services.jobs import JobCancelled
 from zhijian.services.transcript_retention import purge_expired_transcripts
 from zhijian.services.video_support import (
     _section_facts,
+    build_place_notes,
     correct_transcript,
     extract_place_mentions,
     generate_note,
@@ -561,6 +564,63 @@ def test_place_extraction_uses_persisted_map_facts_without_model(app_and_session
         }
 
 
+def test_remote_place_extraction_uses_map_facts_not_full_transcript(app_and_session, monkeypatch) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        source = Source(source_type="URL", locator="https://example.test/remote-video", title="fixture")
+        db.add(source)
+        db.flush()
+        asset = VideoAsset(source_id=source.id, canonical_url=source.locator, title="旅行")
+        db.add(asset)
+        db.flush()
+        _, segments = materialize_transcript(
+            db,
+            source,
+            asset,
+            [{"text": "这段长转写不应再次送往地点模型", "start_ms": 0, "end_ms": 1000}],
+            source_kind="ASR",
+        )
+        note = AINote(video_asset_id=asset.id)
+        db.add(note)
+        db.flush()
+        version = AINoteVersion(
+            ai_note_id=note.id,
+            version=1,
+            markdown="# 旅行",
+            transcript_version=1,
+            map_facts_json=[
+                {
+                    "segment_ids": [segments[0].id],
+                    "places": [{"name": "菜市场", "segment_ids": [segments[0].id]}],
+                }
+            ],
+        )
+        job = Job(
+            job_type="TRAVEL",
+            status="RUNNING",
+            payload_json={"ai_overrides": {"EXTRACT_TRAVEL_FACTS": {"execution_mode": "REMOTE_ONLY"}}},
+        )
+        db.add_all([version, job])
+        db.flush()
+        captured: dict[str, object] = {}
+        monkeypatch.setattr(video_support, "provider_for_role", lambda *_args: (object(), "remote", "model"))
+        def cached(*_args, **kwargs):
+            captured["messages"] = kwargs["messages"]
+            return LLMResult(
+                '{"places":[{"name":"菜市场","segment_ids":["' + segments[0].id + '"]}]}',
+                "remote",
+                "model",
+                {},
+            )
+
+        monkeypatch.setattr(video_support, "_cached_stage_json", cached)
+        mentions = extract_place_mentions(db, Settings(_env_file=None), asset, version, segments, job)
+        assert mentions[0].name == "菜市场"
+        context = captured["messages"][-1]["content"]
+        assert "SectionFacts" in context
+        assert "这段长转写不应再次送往地点模型" not in context
+
+
 def test_time_phrases_fall_back_to_evidence_bound_place_windows(app_and_session, monkeypatch) -> None:
     _, factory = app_and_session
     with factory() as db:
@@ -673,6 +733,7 @@ def test_place_insights_keep_their_own_segment_and_quote() -> None:
             "value_json": {"category": ""},
             "segment_ids": ["seg_2"],
             "source_quote": "海蛎煎值得点",
+            "provenance": "SOURCE_FACT",
         },
         {
             "insight_type": "BEST_MONTH",
@@ -681,8 +742,61 @@ def test_place_insights_keep_their_own_segment_and_quote() -> None:
             "value_json": {},
             "segment_ids": ["seg_1"],
             "source_quote": "十月最适合去。",
+            "provenance": "SOURCE_FACT",
         },
     ]
+
+
+def test_place_notes_keep_cross_source_facts_and_opinions_distinct(app_and_session) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        source = Source(source_type="URL", locator="https://example.test/one", title="视频一")
+        other_source = Source(source_type="URL", locator="https://example.test/two", title="视频二")
+        db.add_all([source, other_source])
+        db.flush()
+        asset = VideoAsset(source_id=source.id, canonical_url=source.locator, title="旅行")
+        place = Place(
+            name="陶陶居",
+            canonical_name="陶陶居",
+            origin="AI_EXTRACTED",
+            place_type="RESTAURANT",
+            latitude=23.11,
+            longitude=113.24,
+        )
+        db.add_all([asset, place])
+        db.flush()
+        mention = PlaceMention(video_asset_id=asset.id, name="陶陶居", place_id=place.id)
+        db.add(mention)
+        db.add_all(
+            [
+                PlaceInsightItem(
+                    place_id=place.id,
+                    place_mention_id=mention.id,
+                    source_id=source.id,
+                    insight_type="RECOMMENDED_ITEM",
+                    value_text="虾饺",
+                    provenance="SOURCE_FACT",
+                    source_quote="虾饺值得点",
+                ),
+                PlaceInsightItem(
+                    place_id=place.id,
+                    source_id=other_source.id,
+                    insight_type="AUTHOR_OPINION",
+                    value_text="适合早茶",
+                    provenance="SOURCE_OPINION",
+                    source_quote="我更喜欢早上来",
+                ),
+            ]
+        )
+        db.commit()
+
+        assert build_place_notes(db, asset, [mention]) == 1
+        note = db.scalar(select(PlaceNoteVersion).where(PlaceNoteVersion.place_id == place.id))
+        assert note is not None
+        assert "推荐菜 / 核心体验" in note.markdown
+        assert "[来源事实] 虾饺（视频一：虾饺值得点）" in note.markdown
+        assert "作者态度" in note.markdown
+        assert "[来源观点] 适合早茶（视频二：我更喜欢早上来）" in note.markdown
 
 
 def test_poi_resolution_scores_candidates_and_sends_ambiguous_mentions_to_review(
