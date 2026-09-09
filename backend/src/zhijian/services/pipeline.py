@@ -6,6 +6,7 @@ import re
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from zhijian.core.config import get_settings
 from zhijian.core.time import utc_now
 from zhijian.db.models import (
     Claim,
@@ -100,6 +101,11 @@ def _extract_travel(text: str) -> dict:
 
 
 def process_job(db: Session, job: Job) -> None:
+    if job.payload_json.get("visual_fact_screenshot_id"):
+        from zhijian.services.visual_facts import process_visual_fact_job
+
+        process_visual_fact_job(db, job, get_settings())
+        return
     if job.payload_json.get("video_platform") == "BILIBILI":
         from zhijian.services.video_pipeline import process_video_job
 

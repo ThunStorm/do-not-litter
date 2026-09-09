@@ -27,6 +27,8 @@ type Detail = {
   note?: { markdown?: string; revision?: number }
   visit_windows?: PlaceVisitWindow[]
   knowledge?: Knowledge
+  recommendation?: { label?: string; reasons?: Array<{ kind: string; text: string }> }
+  visual_facts?: Array<{ id: string; fact_type: string; value: string; evidence_url: string }>
 } & Record<string, unknown>
 
 type KnowledgeObservation = { source_title: string; source_quote: string; segment_ids: string[]; evidence_url?: string }
@@ -106,6 +108,7 @@ export function PlaceDetailPage() {
   })
   const removeWindow = useMutation({ mutationFn: (id: string) => api.deleteVisitWindow(placeId, id), onSuccess: refresh })
   const hardDelete = useMutation({ mutationFn: () => api.hardDeletePlace(placeId), onSuccess: () => navigate('/places') })
+  const preference = useMutation({ mutationFn: (eventType: 'LIKE' | 'DISLIKE') => api.createPlacePreference(placeId, eventType), onSuccess: refresh })
 
   useEffect(() => {
     const detail = place.data as Detail | undefined
@@ -132,13 +135,15 @@ export function PlaceDetailPage() {
       <p className="place-location"><MapPin />{String(detail.address || '')}<a href={amapUrl} target="_blank" rel="noreferrer">在高德中打开 <ExternalLink /></a></p>
       <section className="place-facts"><div><span>类型</span><strong>{labelPlaceType(detail.display?.place_type || String(detail.place_type))}</strong></div><div><span>坐标系</span><strong>高德 GCJ-02</strong></div><div><span>状态</span><strong>{stateLabels[String(detail.user_state)] ?? String(detail.user_state)}</strong></div></section>
       <PlaceKnowledge knowledge={detail.knowledge} />
+      <section className="detail-section"><h2>为什么推荐给你</h2><p>{detail.recommendation?.label ?? '一般'}</p>{detail.recommendation?.reasons?.length ? <ul className="place-insights">{detail.recommendation.reasons.map((item, index) => <li key={`${item.kind}-${index}`}>{item.text}</li>)}</ul> : <p>尚未积累足够偏好行为；推荐仅使用已保存的地点事实与行为。</p>}</section>
+      <section className="detail-section"><h2>截图视觉事实</h2>{detail.visual_facts?.length ? <ul className="place-insights">{detail.visual_facts.map((item) => <li key={item.id}>截图 · {item.value} <a href={item.evidence_url} target="_blank" rel="noreferrer">查看截图</a></li>)}</ul> : <p>尚无截图视觉事实；视觉信息始终作为实验性补充 Evidence。</p>}</section>
       <section className="detail-section"><h2>显示覆盖</h2><div className="place-form"><label><span>显示名称</span><input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="保留为空则使用地点原名" /></label><label><span>地点类型</span><FilterMenu label="选择类型" value={placeType} onChange={setPlaceType} options={placeTypeOptions} /></label><label className="place-form__wide"><span>我的标签</span><input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="多个标签用逗号分隔" /></label></div><button className="button button--outline" onClick={() => saveOverlay.mutate(detail)} disabled={saveOverlay.isPending}><Save />保存显示信息</button></section>
       <section className="detail-section"><h2>适宜时间与季节限制</h2>{detail.visit_windows?.length ? <ul className="place-insights">{detail.visit_windows.map((item) => <li key={item.id}><b>{visitWindowLabel(item)}</b>{item.source_text || '用户补充'}{item.provenance !== 'SOURCE_FACT' ? <button className="text-action" onClick={() => removeWindow.mutate(item.id)}>移除</button> : null}</li>)}</ul> : <p>尚未记录适宜时间或季节限制。</p>}<div className="visit-window-editor"><FilterMenu label="季节" value={windowValue.season} onChange={setWindowField('season')} options={menuOptions(seasonLabels)} /><FilterMenu label="月份" value={windowValue.month} onChange={setWindowField('month')} options={monthOptions} /><FilterMenu label="旬段" value={windowValue.month_segment} onChange={setWindowField('month_segment')} options={menuOptions(segmentLabels)} /><FilterMenu label="时段" value={windowValue.day_time_slot} onChange={setWindowField('day_time_slot')} options={menuOptions(timeLabels)} /><label className="visit-window-editor__note"><span>说明</span><input value={windowValue.source_text} onChange={(event) => setWindowField('source_text')(event.target.value)} placeholder="例如：十月中旬秋色最好" /></label><button className="button button--outline" disabled={addWindow.isPending || !Object.values(windowValue).some(Boolean)} onClick={() => addWindow.mutate()}>添加时间窗口</button></div></section>
       <section className="detail-section"><h2>我的备注</h2><textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="记录自己的到访建议、提醒或感受" /><button className="button button--outline" onClick={() => saveNote.mutate(detail)} disabled={saveNote.isPending}><Save />保存备注</button></section>
       <section className="detail-section"><h2><History />编辑历史</h2>{history.data?.map((event) => <p className="place-history" key={event.id}><time>{new Date(event.created_at).toLocaleString('zh-CN')}</time>{event.message}</p>)}</section>
       <section className="detail-section danger-zone"><h2>危险操作</h2><p>永久删除地点会删除地点域数据和路线引用；来源、视频和 Evidence 会保留。</p><button className="button button--danger" onClick={() => setDeleteOpen(true)}><Trash2 />永久删除地点</button></section>
     </article>
-    <div className="detail-actions"><button onClick={() => update.mutate('dismiss')}>不感兴趣</button><button onClick={() => update.mutate('visited')}>去过</button><button className="button--primary" onClick={() => update.mutate('save')}>想去</button></div>
+    <div className="detail-actions"><button onClick={() => update.mutate('dismiss')}>不感兴趣</button><button onClick={() => preference.mutate('DISLIKE')} disabled={preference.isPending}>不喜欢</button><button onClick={() => preference.mutate('LIKE')} disabled={preference.isPending}>喜欢</button><button onClick={() => update.mutate('visited')}>去过</button><button className="button--primary" onClick={() => update.mutate('save')}>想去</button></div>
     {deleteOpen ? <ConfirmDialog title="永久删除地点" description="此操作不可恢复；地点域数据和路线引用会删除，来源、视频和 Evidence 会保留。" confirmLabel="永久删除地点" danger pending={hardDelete.isPending} error={hardDelete.error instanceof Error ? hardDelete.error.message : ''} onCancel={() => setDeleteOpen(false)} onConfirm={() => hardDelete.mutate()} /> : null}
   </div>
 }

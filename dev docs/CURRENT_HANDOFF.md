@@ -4,11 +4,11 @@
 
 ## 任务续接
 
-- 更新：2026-09-09。生产 SQLite 已按授权由 0016 升至 0018，API/Worker 已重启并健康；PLAN B B1–B8 已完成于工作树，未提交，新增源码尚未在验证后再次重启加载。
-- 已完成：PLAN A 的 Benchmark/探测/SectionFacts 和真实 `PARTIAL_SUCCESS` 样本继续保留；Plan B 完成 10 类 POI Golden、可解释候选门禁、事实归一化、来源去重的共识/冲突与新旧观察、Place Knowledge API/证据跳转、详情知识卡及 Review 上下文。
-- 验证：生产库 `integrity_check=ok`、0018 head 与 `source_quote` 已确认；API/首页/Worker 心跳就绪。完整后端 pytest、POI Golden（错误自动确认 0）、目标 Ruff、diff 检查及 Node 22.21.0 前端 verify 通过；桌面 Review 浏览器交互通过，390px 视觉验收未执行。
-- 阻塞：ASR、视觉、cache/force-regenerate、fallback、取消/Replay 的真实 Benchmark 证据仍未齐；真实高德/视频及移动视觉验收尚未执行。
-- 下一步：由用户决定是否部署 Plan B 源码，并在可用 Browser/Playwright 后补 390px 验收。
+- 更新：2026-09-09。Plan A/B 已提交 `6d88d84`；Plan C C1–C5 已提交 `10b84b6`，尚未部署或重启。
+- 已完成：月份/日期 Visit Window 状态、Preference Event、确定性可解释推荐、地图/详情 UI、Visual Fact 独立模型、`VISION_FACT` Stage 与离线 Golden；无图像 Profile 时正确 `SKIPPED_UNSUPPORTED`。
+- 验证：全量后端 pytest、空 SQLite 升级至 0019、Ruff、diff 检查及 Node 22.21.0 前端 verify 通过；桌面地图浏览器确认新筛选可见。未调用真实 Provider、高德或视频。
+- 阻塞：生产仍采样为 0018；真实 Vision/视频/高德及 390px 视觉验收未执行。
+- 下一步：用户确认后部署 0019 与源码，再以真实合法样本分别验收。
 - 注意：不自动调用真实高德/视频、改默认路由、确认 POI 或删除模型；真实 Key/Cookie/用户内容不写入交接。
 
 ## 生产快照（采样 2026-09-09）

@@ -51,6 +51,11 @@ STAGE_SPECS = {
         AICapability.SCREENSHOT_UNDERSTANDING,
         _COMMON,
     ),
+    "VISION_FACT": StageParameterSpec(
+        "VISION_FACT",
+        AICapability.SCREENSHOT_UNDERSTANDING,
+        _COMMON,
+    ),
 }
 
 

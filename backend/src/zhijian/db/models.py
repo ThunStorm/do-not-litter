@@ -407,6 +407,40 @@ class PlaceVisitWindow(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(String(32), default="ACTIVE", nullable=False)
 
 
+class PreferenceEvent(Base, TimestampMixin):
+    __tablename__ = "preference_events"
+    __table_args__ = (Index("ix_preference_events_place_created", "place_id", "created_at"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("pref"))
+    place_id: Mapped[str] = mapped_column(ForeignKey("places.id", ondelete="CASCADE"), nullable=False)
+    event_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    actor: Mapped[str] = mapped_column(String(32), default="user", nullable=False)
+    metadata_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class VisualFact(Base, TimestampMixin):
+    __tablename__ = "visual_facts"
+    __table_args__ = (
+        Index("ix_visual_facts_screenshot_status", "screenshot_id", "status"),
+        Index("ix_visual_facts_place_status", "place_id", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("vfact"))
+    screenshot_id: Mapped[str] = mapped_column(
+        ForeignKey("video_screenshots.id", ondelete="CASCADE"), nullable=False
+    )
+    place_id: Mapped[str | None] = mapped_column(ForeignKey("places.id", ondelete="SET NULL"))
+    source_id: Mapped[str | None] = mapped_column(ForeignKey("sources.id", ondelete="SET NULL"))
+    fact_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    value: Mapped[str] = mapped_column(Text, nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    timestamp_ms: Mapped[int | None] = mapped_column(Integer)
+    provider: Mapped[str] = mapped_column(String(64), default="", nullable=False)
+    model: Mapped[str] = mapped_column(String(160), default="", nullable=False)
+    model_version: Mapped[str] = mapped_column(String(64), default="vision-fact-v1", nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="EXPERIMENTAL", nullable=False)
+
+
 class PlaceDeletionTombstone(Base):
     __tablename__ = "place_deletion_tombstones"
     __table_args__ = (Index("ix_place_tombstone_provider_poi", "external_provider", "external_poi_id"),)

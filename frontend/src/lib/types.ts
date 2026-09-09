@@ -285,6 +285,10 @@ export interface MapMarker {
   preview_image: string | null
   brief: Record<string, unknown>
   source_count: number
+  visit_window_summary?: string
+  visit_window_state?: string
+  visit_window_reason?: string
+  recommendation?: { tier?: string; label?: string; reasons?: Array<{ text: string }> }
 }
 
 export interface MapOverviewView {

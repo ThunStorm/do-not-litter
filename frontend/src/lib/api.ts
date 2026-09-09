@@ -81,7 +81,7 @@ export const api = {
     body.append('upload', file)
     return request<{ job_id: string }>('/api/capture/file', { method: 'POST', body })
   },
-  map: (options: { selectedPlaceId?: string; state?: string; origin?: string; query?: string; placeType?: string; bestMonth?: string; bestSeason?: string; bestTimeSlot?: string; season?: string; month?: string; monthSegment?: string; dayTimeSlot?: string; routeId?: string; sourceId?: string; visibility?: 'VISIBLE' | 'HIDDEN' | 'ALL'; bbox?: number[]; zoom?: number } = {}) => {
+  map: (options: { selectedPlaceId?: string; state?: string; origin?: string; query?: string; placeType?: string; bestMonth?: string; bestSeason?: string; bestTimeSlot?: string; season?: string; month?: string; monthSegment?: string; dayTimeSlot?: string; visitWindowState?: string; recommendationTier?: string; routeId?: string; sourceId?: string; visibility?: 'VISIBLE' | 'HIDDEN' | 'ALL'; bbox?: number[]; zoom?: number } = {}) => {
     const params = new URLSearchParams()
     if (options.selectedPlaceId) params.set('selected_place_id', options.selectedPlaceId)
     if (options.state) params.set('user_state', options.state)
@@ -95,6 +95,8 @@ export const api = {
     if (options.month) params.set('month', options.month)
     if (options.monthSegment) params.set('month_segment', options.monthSegment)
     if (options.dayTimeSlot) params.set('day_time_slot', options.dayTimeSlot)
+    if (options.visitWindowState) params.set('visit_window_state', options.visitWindowState)
+    if (options.recommendationTier) params.set('recommendation_tier', options.recommendationTier)
     if (options.routeId) params.set('route_id', options.routeId)
     if (options.sourceId) params.set('source_id', options.sourceId)
     if (options.visibility) params.set('visibility', options.visibility)
@@ -132,6 +134,7 @@ export const api = {
   deletePlaceInsight: (placeId: string, insightId: string) => request(`/api/travel/places/${placeId}/insights/${insightId}`, { method: 'DELETE' }),
   restoreManualPlace: (id: string) => request(`/api/travel/places/${id}/user-created/restore`, { method: 'POST' }),
   updatePlace: (id: string, action: string) => request(`/api/travel/places/${id}/${action}`, { method: 'POST' }),
+  createPlacePreference: (id: string, eventType: 'LIKE' | 'DISLIKE') => request(`/api/travel/places/${id}/preferences`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ event_type: eventType }) }),
   routes: () => request<RouteDraftView[]>('/api/travel/route-drafts'),
   createRoute: (name: string, city: string) => request<RouteDraftView>('/api/travel/route-drafts', {
     method: 'POST', headers: jsonHeaders, body: JSON.stringify({ name, city, place_ids: [] }),

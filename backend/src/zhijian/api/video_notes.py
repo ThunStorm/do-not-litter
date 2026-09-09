@@ -129,25 +129,30 @@ def video_note_detail(note_id: str, _: Protected, db: Session = Depends(get_db))
         for section in section_rows
     ]
     data["needs_regeneration"] = bool(
-        section_rows
-        and any(not section.summary and not section.bullets_json for section in section_rows)
+        section_rows and any(not section.summary and not section.bullets_json for section in section_rows)
     )
     transcript = db.scalar(
         select(Transcript).where(Transcript.video_asset_id == asset.id).order_by(Transcript.version.desc())
     )
-    screenshot_total = db.scalar(
-        select(func.count(VideoScreenshot.id)).where(
-            VideoScreenshot.video_asset_id == asset.id,
-            VideoScreenshot.ai_note_version_id == note.current_version_id,
+    screenshot_total = (
+        db.scalar(
+            select(func.count(VideoScreenshot.id)).where(
+                VideoScreenshot.video_asset_id == asset.id,
+                VideoScreenshot.ai_note_version_id == note.current_version_id,
+            )
         )
-    ) or 0
-    screenshot_ready = db.scalar(
-        select(func.count(VideoScreenshot.id)).where(
-            VideoScreenshot.video_asset_id == asset.id,
-            VideoScreenshot.ai_note_version_id == note.current_version_id,
-            VideoScreenshot.status == "READY",
+        or 0
+    )
+    screenshot_ready = (
+        db.scalar(
+            select(func.count(VideoScreenshot.id)).where(
+                VideoScreenshot.video_asset_id == asset.id,
+                VideoScreenshot.ai_note_version_id == note.current_version_id,
+                VideoScreenshot.status == "READY",
+            )
         )
-    ) or 0
+        or 0
+    )
     transcript_status = "NOT_READY"
     if transcript:
         transcript_status = "EXPIRED" if transcript.purged_at else "AVAILABLE"
@@ -290,6 +295,38 @@ def video_screenshot_image(screenshot_id: str, _: Protected, db: Session = Depen
     return FileResponse(path, media_type="image/jpeg")
 
 
+@router.post("/api/video-screenshots/{screenshot_id}/visual-facts")
+def queue_visual_fact_extraction(screenshot_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
+    screenshot = db.get(VideoScreenshot, screenshot_id)
+    if screenshot is None or screenshot.status != "READY" or not screenshot.image_path:
+        raise HTTPException(status_code=409, detail="截图尚不可用")
+    active = db.scalar(
+        select(Job).where(
+            Job.payload_json["visual_fact_screenshot_id"].as_string() == screenshot_id,
+            Job.status.in_([JobStatus.QUEUED.value, JobStatus.RUNNING.value]),
+        )
+    )
+    if active:
+        return {"job_id": active.id, "status": active.status}
+    job = Job(
+        job_type=JobType.TRAVEL.value,
+        status=JobStatus.QUEUED.value,
+        payload_json={"visual_fact_screenshot_id": screenshot_id},
+    )
+    db.add(job)
+    record_event(
+        db,
+        "visual_fact.queued",
+        "已排入截图视觉事实提取任务",
+        component="vision-fact",
+        entity_type="job",
+        entity_id=job.id,
+        commit=False,
+    )
+    db.commit()
+    return {"job_id": job.id, "status": job.status}
+
+
 @router.get("/api/video-covers/{cover_id}/image")
 def video_cover_image(cover_id: str, _: Protected, db: Session = Depends(get_db)) -> FileResponse:
     cover = db.get(VideoCoverAsset, cover_id)
@@ -307,24 +344,18 @@ def video_cover_image(cover_id: str, _: Protected, db: Session = Depends(get_db)
 def video_note_places(note_id: str, _: Protected, db: Session = Depends(get_db)) -> list[dict]:
     note, asset = _asset_for_note(db, note_id)
     transcript = db.scalar(
-        select(Transcript)
-        .where(Transcript.video_asset_id == asset.id)
-        .order_by(Transcript.version.desc())
+        select(Transcript).where(Transcript.video_asset_id == asset.id).order_by(Transcript.version.desc())
     )
     segment_rows = (
         db.scalars(
-            select(Segment).where(
-                Segment.snapshot_id == transcript.metadata_json.get("snapshot_id")
-            )
+            select(Segment).where(Segment.snapshot_id == transcript.metadata_json.get("snapshot_id"))
         ).all()
         if transcript
         else []
     )
     segment_by_id = {segment.id: segment for segment in segment_rows}
     sections = db.scalars(
-        select(AINoteSection).where(
-            AINoteSection.ai_note_version_id == (note.current_version_id or "")
-        )
+        select(AINoteSection).where(AINoteSection.ai_note_version_id == (note.current_version_id or ""))
     ).all()
     result = []
     for mention in db.scalars(
@@ -357,9 +388,7 @@ def video_note_places(note_id: str, _: Protected, db: Session = Depends(get_db))
                 "quote": mention.quote,
                 "segment_ids": mention.segment_ids_json,
                 "start_ms": (
-                    evidence_segments[0].locator_json.get("start_ms")
-                    if evidence_segments
-                    else None
+                    evidence_segments[0].locator_json.get("start_ms") if evidence_segments else None
                 ),
                 "target_section_id": target_section.id if target_section else None,
                 "confidence": mention.confidence,

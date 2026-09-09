@@ -87,6 +87,10 @@ class MapMarker(BaseModel):
     preview_image: str | None = None
     brief: dict[str, Any] = {}
     source_count: int = 0
+    visit_window_summary: str = "时间未知"
+    visit_window_state: str = "UNKNOWN"
+    visit_window_reason: str = "尚无可追溯的适宜时间证据"
+    recommendation: dict[str, Any] = Field(default_factory=dict)
 
 
 class PlacePreview(BaseModel):
@@ -169,6 +173,12 @@ class PlaceDetailView(PlacePreview):
     display: dict[str, Any] = Field(default_factory=dict)
     note: dict[str, Any] = Field(default_factory=dict)
     marker: dict[str, Any] = Field(default_factory=dict)
+    recommendation: dict[str, Any] = Field(default_factory=dict)
+    visual_facts: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class PreferenceEventCreate(BaseModel):
+    event_type: Literal["SAVE", "DISMISS", "VISITED", "PLANNED", "LIKE", "DISLIKE"]
 
 
 class PlaceNoteUpdate(BaseModel):

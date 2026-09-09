@@ -1,0 +1,9 @@
+{
+  "version": "vision-fact-golden-v1",
+  "cases": [
+    {"id": "menu-price", "screenshot_id": "fixture-menu", "facts": [{"fact_type": "PRICE", "value": "招牌牛肉面 ¥28"}]},
+    {"id": "store-sign", "screenshot_id": "fixture-sign", "facts": [{"fact_type": "STORE_SIGN", "value": "山海小馆"}]},
+    {"id": "opening-hours", "screenshot_id": "fixture-hours", "facts": [{"fact_type": "OPENING_HOURS", "value": "10:00-22:00"}]},
+    {"id": "road-sign", "screenshot_id": "fixture-road", "facts": [{"fact_type": "ROAD_SIGN", "value": "天池景区"}]}
+  ]
+}

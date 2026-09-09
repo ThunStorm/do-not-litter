@@ -90,6 +90,7 @@ ROLE_STAGE = {
     "transcript_correction": "TRANSCRIPT_CORRECTION",
     "video_note_summary": "GENERATE_AI_NOTE",
     "travel_place_extraction": "EXTRACT_TRAVEL_FACTS",
+    "visual_fact": "VISION_FACT",
 }
 
 VISIT_PERIOD_TYPES = {
@@ -816,7 +817,7 @@ def _map_facts_context(note: AINoteVersion, max_chars: int) -> str:
         if len(candidate) <= max_chars:
             selected.append(fact)
     if not selected:
-        return "没有可用的 SectionFacts；返回 {\"places\": []}，不要依据常识补全地点。"
+        return '没有可用的 SectionFacts；返回 {"places": []}，不要依据常识补全地点。'
     return "以下是按时间块验证的 SectionFacts。仅据此提取地点，保留已有 Segment ID：\n" + json.dumps(
         {"section_facts": selected}, ensure_ascii=False
     )
@@ -1525,9 +1526,9 @@ def _insights_from_candidate(
                     in _normalized_insight_key(segment_texts.get(segment_id, ""))
                 ][:1]
             if not ids and insight_type == "BEST_MONTH":
-                ids = [
-                    segment_id for segment_id in segment_ids if "月" in segment_texts.get(segment_id, "")
-                ][:1]
+                ids = [segment_id for segment_id in segment_ids if "月" in segment_texts.get(segment_id, "")][
+                    :1
+                ]
             ids = ids or list(segment_ids)
             quote = str(source_quote or "").strip() or str(segment_texts.get(ids[0], "")).strip()
             result.append(
@@ -1829,15 +1830,9 @@ def _poi_score(
     if nearby_matches:
         score += 10
         reasons.append("附近地标匹配")
-    cross_cities = {
-        item.city_hint
-        for item in mentions or []
-        if item.id != mention.id and item.city_hint
-    }
+    cross_cities = {item.city_hint for item in mentions or [] if item.id != mention.id and item.city_hint}
     cross_provinces = {
-        item.province_hint
-        for item in mentions or []
-        if item.id != mention.id and item.province_hint
+        item.province_hint for item in mentions or [] if item.id != mention.id and item.province_hint
     }
     cross_location_matches = sorted(
         value for value in cross_cities | cross_provinces if value and value in location_text

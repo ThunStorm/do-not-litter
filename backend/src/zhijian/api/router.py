@@ -6,7 +6,7 @@ import hashlib
 import io
 import json
 import platform
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Annotated
 
@@ -54,6 +54,7 @@ from zhijian.db.models import (
     PlaceUserNote,
     PlaceUserOverlay,
     PlaceVisitWindow,
+    PreferenceEvent,
     RouteDraft,
     RouteDraftItem,
     Segment,
@@ -62,6 +63,7 @@ from zhijian.db.models import (
     Source,
     SystemEvent,
     VideoScreenshot,
+    VisualFact,
 )
 from zhijian.db.session import get_db
 from zhijian.domain.enums import JobStatus, ResolutionStatus
@@ -92,6 +94,7 @@ from zhijian.domain.schemas import (
     PlaceVisitWindowView,
     POIReviewDecision,
     POISearchRequest,
+    PreferenceEventCreate,
     ProfileConfig,
     PromptSupplementsConfig,
     ProviderConfig,
@@ -135,6 +138,11 @@ from zhijian.services.job_replay import queue_login_step_skip, queue_step_replay
 from zhijian.services.place_knowledge import aggregate_place_knowledge, normalize_insight
 from zhijian.services.runtime_monitor import read_runtime_metrics_sample
 from zhijian.services.source_retention import prune_source_if_orphan, source_deletion_state
+from zhijian.services.travel_recommendations import (
+    group_by_place,
+    recommendation_for_place,
+    visit_window_summary,
+)
 from zhijian.services.video_support import (
     PROMPT_CORE_CONTRACTS,
     PROMPT_SUPPLEMENT_SETTING_KEY,
@@ -1464,6 +1472,13 @@ def map_overview(
     best_time_slot: str | None = None,
     season: str | None = None,
     month: int | None = Query(default=None, ge=1, le=12),
+    visit_date: date | None = Query(default=None, alias="date"),
+    visit_window_state: str | None = Query(
+        default=None, pattern="^(BEST|GOOD|POSSIBLE|CAUTION|CLOSED|UNKNOWN)$"
+    ),
+    recommendation_tier: str | None = Query(
+        default=None, pattern="^(PRIORITY|WORTH_CONSIDERING|GENERAL|MISMATCH)$"
+    ),
     month_segment: str | None = Query(default=None, pattern="^(EARLY|MID|LATE)$"),
     day_time_slot: str | None = None,
     route_id: str | None = None,
@@ -1474,6 +1489,9 @@ def map_overview(
     zoom: float = Query(default=4.0, ge=3, le=20),
     db: Session = Depends(get_db),
 ) -> MapOverviewView:
+    if visit_date and month and month != visit_date.month:
+        raise HTTPException(status_code=422, detail="date 与 month 必须属于同一个月")
+    month = month or (visit_date.month if visit_date else None)
     if city and zoom == 4:
         zoom = 8
     default_bbox = (73.5, 18.0, 135.1, 53.6)
@@ -1489,7 +1507,7 @@ def map_overview(
         user_state=user_state,
         query=query,
         season=season,
-        month=month,
+        month=None if visit_window_state == "UNKNOWN" else month,
         month_segment=month_segment,
         day_time_slot=day_time_slot,
         source_id=source_id,
@@ -1545,12 +1563,67 @@ def map_overview(
         if places
         else {}
     )
+    windows_by_place = group_by_place(
+        db.scalars(
+            select(PlaceVisitWindow).where(
+                PlaceVisitWindow.place_id.in_(place_ids), PlaceVisitWindow.status == "ACTIVE"
+            )
+        ).all()
+        if place_ids
+        else []
+    )
+    temporal_by_place = {
+        place.id: visit_window_summary(windows_by_place.get(place.id, []), month) for place in places
+    }
+    insights_by_place = group_by_place(
+        db.scalars(
+            select(PlaceInsightItem).where(
+                PlaceInsightItem.place_id.in_(place_ids), PlaceInsightItem.status == "ACTIVE"
+            )
+        ).all()
+        if place_ids
+        else []
+    )
+    events_by_place = group_by_place(
+        db.scalars(select(PreferenceEvent).where(PreferenceEvent.place_id.in_(place_ids))).all()
+        if place_ids
+        else []
+    )
+    tags_by_place = (
+        {
+            item.place_id: item.custom_tags_json
+            for item in db.scalars(
+                select(PlaceUserOverlay).where(PlaceUserOverlay.place_id.in_(place_ids))
+            ).all()
+        }
+        if place_ids
+        else {}
+    )
+    recommendations = {
+        place.id: recommendation_for_place(
+            place,
+            windows=windows_by_place.get(place.id, []),
+            insights=insights_by_place.get(place.id, []),
+            events=events_by_place.get(place.id, []),
+            month=month,
+            tags=tags_by_place.get(place.id, []),
+        )
+        for place in places
+    }
     visible_places = [
         place
         for place in places
         if visibility == "ALL"
         or (states.get(place.id).visibility if states.get(place.id) else "VISIBLE") == visibility
     ]
+    if visit_window_state:
+        visible_places = [
+            place for place in visible_places if temporal_by_place[place.id]["state"] == visit_window_state
+        ]
+    if recommendation_tier:
+        visible_places = [
+            place for place in visible_places if recommendations[place.id]["tier"] == recommendation_tier
+        ]
     if origin:
         visible_places = [
             place
@@ -1562,7 +1635,16 @@ def map_overview(
     return MapOverviewView(
         total_places=len(places),
         visible_places=len(visible_places),
-        markers=[_map_marker_view(db, place, states.get(place.id)) for place in visible_places],
+        markers=[
+            _map_marker_view(
+                db,
+                place,
+                states.get(place.id),
+                visit_window=temporal_by_place[place.id],
+                recommendation=recommendations[place.id],
+            )
+            for place in visible_places
+        ],
         clusters=[],
         selected_place_id=selected.id if selected else None,
         selected_preview=preview_for_place(db, selected) if selected else None,
@@ -1749,7 +1831,14 @@ def export_travel_places(
     )
 
 
-def _map_marker_view(db: Session, place: Place, state: MapMarkerState | None) -> MapMarker:
+def _map_marker_view(
+    db: Session,
+    place: Place,
+    state: MapMarkerState | None,
+    *,
+    visit_window: dict | None = None,
+    recommendation: dict | None = None,
+) -> MapMarker:
     mention = db.scalar(
         select(PlaceMention).where(PlaceMention.place_id == place.id).order_by(PlaceMention.updated_at.desc())
     )
@@ -1787,6 +1876,10 @@ def _map_marker_view(db: Session, place: Place, state: MapMarkerState | None) ->
         source_count=(
             db.scalar(select(func.count(PlaceMention.id)).where(PlaceMention.place_id == place.id)) or 0
         ),
+        visit_window_summary=str((visit_window or {}).get("summary") or "时间未知"),
+        visit_window_state=str((visit_window or {}).get("state") or "UNKNOWN"),
+        visit_window_reason=str((visit_window or {}).get("reason") or "尚无可追溯的适宜时间证据"),
+        recommendation=recommendation or {},
     )
 
 
@@ -1913,9 +2006,7 @@ def place_detail(place_id: str, _: Protected, db: Session = Depends(get_db)) -> 
     mention_ids = {item.place_mention_id for item in insights if item.place_mention_id}
     mention_versions = {
         mention.id: mention.ai_note_version_id
-        for mention in db.scalars(
-            select(PlaceMention).where(PlaceMention.id.in_(mention_ids))
-        ).all()
+        for mention in db.scalars(select(PlaceMention).where(PlaceMention.id.in_(mention_ids))).all()
     }
     version_ids = set(mention_versions.values()) - {None}
     note_ids = {
@@ -1924,13 +2015,46 @@ def place_detail(place_id: str, _: Protected, db: Session = Depends(get_db)) -> 
     }
     knowledge = aggregate_place_knowledge(insights, source_titles)
     for category in (
-        "highlights", "dishes", "visit_windows", "warnings", "prices", "queues", "opinions", "other"
+        "highlights",
+        "dishes",
+        "visit_windows",
+        "warnings",
+        "prices",
+        "queues",
+        "opinions",
+        "other",
     ):
         for item in knowledge[category]:
             for observation in item["observations"]:
                 note_id = note_ids.get(mention_versions.get(observation["place_mention_id"]))
                 if note_id:
                     observation["evidence_url"] = f"/video-notes/{note_id}"
+    preference_events = db.scalars(select(PreferenceEvent).where(PreferenceEvent.place_id == place.id)).all()
+    recommendation = recommendation_for_place(
+        place,
+        windows=visit_windows,
+        insights=insights,
+        events=preference_events,
+        tags=overlay.custom_tags_json if overlay else [],
+    )
+    visual_facts = [
+        {
+            "id": item.id,
+            "fact_type": item.fact_type,
+            "value": item.value,
+            "confidence": item.confidence,
+            "provider": item.provider,
+            "model": item.model,
+            "status": item.status,
+            "timestamp_ms": item.timestamp_ms,
+            "evidence_url": f"/api/video-screenshots/{item.screenshot_id}/image",
+        }
+        for item in db.scalars(
+            select(VisualFact)
+            .where(VisualFact.place_id == place.id, VisualFact.status == "EXPERIMENTAL")
+            .order_by(VisualFact.created_at.desc())
+        ).all()
+    ]
     return PlaceDetailView(
         **preview_for_place(db, place).model_dump(),
         coordinate_system=place.coordinate_system,
@@ -1947,11 +2071,11 @@ def place_detail(place_id: str, _: Protected, db: Session = Depends(get_db)) -> 
                 value_text=item.value_text,
                 value_json=item.value_json,
                 provenance=item.provenance,
-                    confidence=item.confidence,
-                    status=item.status,
-                    segment_ids=item.segment_ids_json,
-                    source_quote=item.source_quote,
-                )
+                confidence=item.confidence,
+                status=item.status,
+                segment_ids=item.segment_ids_json,
+                source_quote=item.source_quote,
+            )
             for item in insights
         ],
         visit_windows=[_visit_window_view(item) for item in visit_windows],
@@ -1967,6 +2091,8 @@ def place_detail(place_id: str, _: Protected, db: Session = Depends(get_db)) -> 
         marker={"id": marker.id, "visibility": marker.visibility, "revision": marker.revision}
         if marker
         else {},
+        recommendation=recommendation,
+        visual_facts=visual_facts,
     )
 
 
@@ -1989,6 +2115,80 @@ def _visit_window_view(item: PlaceVisitWindow) -> PlaceVisitWindowView:
         confidence=item.confidence,
         status=item.status,
     )
+
+
+@router.post("/api/travel/places/{place_id}/preferences")
+def create_preference_event(
+    place_id: str, payload: PreferenceEventCreate, _: Protected, db: Session = Depends(get_db)
+) -> dict:
+    if db.get(Place, place_id) is None:
+        raise HTTPException(status_code=404, detail={"code": "PLACE_NOT_FOUND"})
+    event = PreferenceEvent(place_id=place_id, event_type=payload.event_type)
+    db.add(event)
+    record_event(
+        db,
+        "place.preference.recorded",
+        "已记录地点偏好反馈",
+        actor="user",
+        entity_type="place",
+        entity_id=place_id,
+        detail={"event_type": payload.event_type},
+        commit=False,
+    )
+    db.commit()
+    return {"id": event.id, "place_id": place_id, "event_type": event.event_type}
+
+
+@router.get("/api/travel/recommendations")
+def travel_recommendations(
+    _: Protected,
+    month: int | None = Query(default=None, ge=1, le=12),
+    include_mismatch: bool = False,
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    places = db.scalars(select(Place).where(Place.deleted_at.is_(None)).order_by(Place.name.asc())).all()
+    place_ids = [item.id for item in places]
+    windows = group_by_place(
+        db.scalars(select(PlaceVisitWindow).where(PlaceVisitWindow.place_id.in_(place_ids))).all()
+        if place_ids
+        else []
+    )
+    insights = group_by_place(
+        db.scalars(
+            select(PlaceInsightItem).where(
+                PlaceInsightItem.place_id.in_(place_ids), PlaceInsightItem.status == "ACTIVE"
+            )
+        ).all()
+        if place_ids
+        else []
+    )
+    events = group_by_place(
+        db.scalars(select(PreferenceEvent).where(PreferenceEvent.place_id.in_(place_ids))).all()
+        if place_ids
+        else []
+    )
+    overlays = (
+        {
+            item.place_id: item.custom_tags_json
+            for item in db.scalars(
+                select(PlaceUserOverlay).where(PlaceUserOverlay.place_id.in_(place_ids))
+            ).all()
+        }
+        if place_ids
+        else {}
+    )
+    values = [
+        recommendation_for_place(
+            place,
+            windows=windows.get(place.id, []),
+            insights=insights.get(place.id, []),
+            events=events.get(place.id, []),
+            month=month,
+            tags=overlays.get(place.id, []),
+        )
+        for place in places
+    ]
+    return [item for item in values if include_mismatch or item["tier"] != "MISMATCH"]
 
 
 @router.post("/api/travel/places/{place_id}/visit-windows", response_model=PlaceVisitWindowView)
@@ -2124,9 +2324,7 @@ def _hard_delete_place(db: Session, place: Place) -> dict:
 
 
 @router.delete("/api/travel/places/bulk-hard-delete")
-def hard_delete_places(
-    payload: HardDeletePlacesRequest, _: Protected, db: Session = Depends(get_db)
-) -> dict:
+def hard_delete_places(payload: HardDeletePlacesRequest, _: Protected, db: Session = Depends(get_db)) -> dict:
     place_ids = list(dict.fromkeys(payload.place_ids))
     places = db.scalars(select(Place).where(Place.id.in_(place_ids))).all()
     if len(places) != len(place_ids):
@@ -2718,6 +2916,11 @@ def update_place_state(
     if place is None:
         raise HTTPException(status_code=404, detail="地点不存在")
     place.user_state = mapping[action]
+    event_type = {"save": "SAVE", "dismiss": "DISMISS", "visited": "VISITED", "planned": "PLANNED"}.get(
+        action
+    )
+    if event_type:
+        db.add(PreferenceEvent(place_id=place.id, event_type=event_type))
     record_event(
         db,
         "place.user_state.updated",
@@ -3282,6 +3485,7 @@ def probe_model_profile_draft(payload: ModelProfileConfig, _: Protected) -> dict
     try:
         profile = model_profile_from_value("draft", value)
         provider = _model_profile_provider(value, payload.api_key)
+
         def probe() -> dict[str, str]:
             return probe_model_profile(provider, profile)
 
