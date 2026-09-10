@@ -164,6 +164,8 @@ AI 字幕可能要求有效 `SESSDATA`。用户在设置页或任务恢复卡内
 
 字幕选择按人工中文、AI 中文（包括 `ai-zh` 等平台变体）、其他语言排序。单条字幕发生 CDN、网络、空内容或格式错误时尝试下一轨；全部不可用时进入音频下载与 ASR fallback。只有明确的登录失效继续进入 `NEEDS_USER`，不得把普通单轨失败升级成整个任务失败。
 
+人工中文字幕通过来源和时间轴门禁后可成为权威 Transcript。AI/自动字幕及非中文轨属于不可信输入：记录请求 BV/CID、轨道 ID、实际 endpoint、URL/正文 SHA-256、片段数和时间轴比例，但不得保存 URL 临时参数、Cookie 或正文；随后进入 `DOWNLOAD_AUDIO → ASR`，不得以“字幕非空”为由跳过 ASR。超过 `duration_ms + max(30s, 20%)` 的字幕时间轴同样回退 ASR。
+
 ## 4.5 DOWNLOAD_AUDIO
 
 仅在没有可用字幕时下载音频。使用 `yt-dlp` 取得 best available audio，并由 FFmpeg 转为 ASR 所需格式。约束：
@@ -225,10 +227,14 @@ ASR 与本地 LLM 不默认并行争用 GPU。模型未安装、损坏或不就�
 - 原始字幕/ASR 响应以哈希和可选 raw snapshot 保留；
 - 后续事实 Evidence 必须指向 Transcript Segment，而不是只指向 AI 笔记。
 
+权威 Transcript 的 metadata 还必须包含 `validation_status`、`validation_reasons`、`requested_bvid`、`requested_cid`、`snapshot_id` 与时间轴比例。`LOCAL_ASR`、`TRUSTED_PLATFORM` 或后续受验证的生成字幕才可进入笔记阶段；身份、状态、Segment 或时间轴不符合时进入 `NEEDS_USER/TRANSCRIPT_SOURCE_MISMATCH` 或 `TRANSCRIPT_TIMELINE_INVALID`。
+
 ## 4.7.1 CORRECT_TRANSCRIPT
 
 归一化后、生成笔记前必须执行 AI 校对。每个 Segment 保留 `raw_text`，并生成时间码与 ID 不变的 `corrected_text`。校对修正口音/同音字、断句、重复词、标题/作者/地名/菜名和单位，但不得新增事实或改变作者立场。
 
 校对输出必须覆盖全部 Segment，顺序和时间范围与输入一致；缺段、乱序、新增 ID 或空文本均拒绝。无法确认的地名保留待确认标记，再由高德 POI 流程校正。默认 Note、目录、页面预览和 TXT 导出使用 corrected_text；raw_text 只在证据审计中查看。完整阅读与校对规范见 `video/VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md`。
+
+本机 Ollama 对 ASR 全量校对每批最多 32 段；这是既有分块机制的资源上限，不改变模型路由或允许跨 Job 并行。
 
 Whisper.cpp `-oj` JSON 的 `offsets.from/to` 已经是毫秒，适配器必须直接使用，不得再乘以 10。归一化后必须校验 `max(segment.end_ms)` 与 `VideoAsset.duration_ms`：允许片尾静音和平台元数据的小幅误差，但超过视频时长 2 倍必须中止后续 Note/截图物化并记录 `TRANSCRIPT_TIMELINE_INVALID`。已受影响的历史 Transcript 不原地篡改；当末段时间与视频时长比值约为 10 时，从现有 Segment 生成修正后的新 Transcript Version，再基于新版本重建 Note Version 与截图。

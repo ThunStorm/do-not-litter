@@ -89,6 +89,37 @@ def test_subtitle_priority_and_fallback_handle_platform_language_variants() -> N
     assert failures == [("zh-CN", "VIDEO_SUBTITLE_INVALID")]
 
 
+def test_resolver_records_generated_track_and_uses_wbi_endpoint(monkeypatch) -> None:
+    resolver = BilibiliResolver()
+    requested: list[str] = []
+
+    def get_json(url, _headers, **_kwargs):
+        requested.append(url)
+        return {
+            "code": 0,
+            "data": {
+                "subtitle": {
+                    "subtitles": [
+                        {
+                            "id_str": "track-fixture",
+                            "lan": "ai-zh",
+                            "lan_doc": "中文（自动生成）",
+                            "subtitle_url": "https://aisubtitle.hdslb.com/bfs/subtitle/fixture.json",
+                        }
+                    ]
+                }
+            },
+        }
+
+    monkeypatch.setattr(resolver, "_get_json", get_json)
+    tracks = resolver._fetch_subtitles("BV1fixture", "123", {})
+
+    assert requested == ["https://api.bilibili.com/x/player/wbi/v2?bvid=BV1fixture&cid=123"]
+    assert tracks[0].track_id == "track-fixture"
+    assert tracks[0].generated is True
+    assert tracks[0].source_kind == "BILIBILI_AI_SUBTITLE"
+
+
 def test_login_required_subtitle_does_not_silently_fallback() -> None:
     track = SubtitleTrack("https://a.hdslb.com/zh", "ai-zh", "中文")
 

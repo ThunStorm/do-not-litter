@@ -16,6 +16,8 @@ AI 视频笔记是一级业务产物，不再只是地点抽取的中间文本�
 - 笔记模板和 Prompt Version；
 - 用户选择的语言/详细程度（未来 UI 可配置，MVP 使用系统默认）。
 
+调用前服务端必须确认 Transcript 为可信版本：`validation_status` 合法、VideoAsset/Source/Snapshot 与请求 BV/CID 一致、Segment 非空且时间轴正常。否则不得调用总结、地点或截图阶段，任务进入可行动的转写来源错误状态。
+
 默认输出 Markdown，并同时保存可解析结构：
 
 ```text

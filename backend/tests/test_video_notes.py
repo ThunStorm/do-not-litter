@@ -32,10 +32,16 @@ from zhijian.domain.enums import JobType
 from zhijian.providers.amap import POICandidate
 from zhijian.providers.llm import FallbackLLMProvider, LLMResult, OllamaProvider
 from zhijian.providers.media import YtDlpMediaProvider
+from zhijian.resolvers.video.bilibili import SubtitleTrack
 from zhijian.resolvers.video.url_parser import parse_bilibili_url
 from zhijian.services.capture import create_capture_job
 from zhijian.services.jobs import JobCancelled
 from zhijian.services.transcript_retention import purge_expired_transcripts
+from zhijian.services.video_pipeline import (
+    NeedsUser,
+    _subtitle_decision,
+    _trusted_transcript_or_raise,
+)
 from zhijian.services.video_support import (
     _section_facts,
     build_place_notes,
@@ -136,6 +142,107 @@ def test_transcript_repairs_only_the_known_tenfold_timeline(app_and_session) -> 
             source_kind="BILIBILI_PLAYER",
         )
         assert segments[-1].locator_json["end_ms"] == 1_000
+
+
+def test_generated_subtitle_is_rejected_without_retaining_text_or_url(app_and_session) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        source = Source(source_type="URL", locator="https://example.test/video", title="fixture")
+        db.add(source)
+        db.flush()
+        asset = VideoAsset(
+            source_id=source.id,
+            canonical_url=source.locator,
+            bvid="BV1fixture",
+            cid="123",
+            page_number=1,
+            title="九月旅行",
+            duration_ms=530_000,
+        )
+        db.add(asset)
+        db.commit()
+        decision = _subtitle_decision(
+            asset,
+            SubtitleTrack(
+                "https://aisubtitle.hdslb.com/bfs/subtitle/secret-query.json?token=not-for-audit",
+                "ai-zh",
+                "中文（自动生成）",
+                track_id="track-fixture",
+            ),
+            [{"text": "露丝独自照顾妹妹长大", "start_ms": 84_490, "end_ms": 85_970}],
+        )
+
+    serialized = json.dumps(decision, ensure_ascii=False)
+    assert decision["accepted"] is False
+    assert decision["validation_reasons"] == ["PLATFORM_SUBTITLE_UNVERIFIED"]
+    assert decision["generated"] is True
+    assert "露丝" not in serialized
+    assert "token=" not in serialized
+    assert len(decision["url_sha256"]) == len(decision["body_sha256"]) == 64
+
+
+def test_generated_subtitle_timeline_anomaly_is_rejected(app_and_session) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        source = Source(source_type="URL", locator="https://example.test/timeline", title="fixture")
+        db.add(source)
+        db.flush()
+        asset = VideoAsset(
+            source_id=source.id,
+            canonical_url=source.locator,
+            title="fixture",
+            duration_ms=530_000,
+        )
+        db.add(asset)
+        db.commit()
+        decision = _subtitle_decision(
+            asset,
+            SubtitleTrack("https://a.hdslb.com/ai-zh", "ai-zh", "中文（自动生成）"),
+            [{"text": "错误字幕", "start_ms": 0, "end_ms": 838_520}],
+        )
+
+    assert decision["accepted"] is False
+    assert decision["timeline_ratio"] == 1.5821
+    assert "PLATFORM_SUBTITLE_TIMELINE_INVALID" in decision["validation_reasons"]
+
+
+def test_note_generation_requires_a_trusted_transcript(app_and_session) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        source = Source(source_type="URL", locator="https://example.test/trusted", title="fixture")
+        db.add(source)
+        db.flush()
+        asset = VideoAsset(
+            source_id=source.id,
+            canonical_url=source.locator,
+            bvid="BV1fixture",
+            cid="123",
+            page_number=1,
+            title="fixture",
+            duration_ms=10_000,
+        )
+        db.add(asset)
+        db.flush()
+        transcript, segments = materialize_transcript(
+            db,
+            source,
+            asset,
+            [{"text": "可信转写", "start_ms": 0, "end_ms": 1_000}],
+            source_kind="WHISPER_CPP_ASR",
+            metadata={
+                "requested_bvid": asset.bvid,
+                "requested_cid": asset.cid,
+                "validation_status": "LOCAL_ASR",
+            },
+        )
+        _trusted_transcript_or_raise(db, source, asset, transcript, segments)
+        transcript.metadata_json = {**transcript.metadata_json, "validation_status": "REJECTED_PLATFORM"}
+        db.commit()
+
+        with pytest.raises(NeedsUser, match="来源一致性") as raised:
+            _trusted_transcript_or_raise(db, source, asset, transcript, segments)
+
+    assert raised.value.code == "TRANSCRIPT_SOURCE_MISMATCH"
 
 
 def test_ai_correction_is_persisted_before_note_generation(monkeypatch, app_and_session) -> None:
@@ -400,6 +507,11 @@ def test_transcript_correction_chunks_limit_segment_count() -> None:
         max_segments=video_support.TRANSCRIPT_CORRECTION_BATCH_SIZE,
     )
     assert [len(chunk) for chunk in chunks] == [128, 104]
+
+
+def test_ollama_transcript_correction_caps_batch_size() -> None:
+    assert video_support._correction_batch_size("ollama", 128) == 32
+    assert video_support._correction_batch_size("OpenAI Compatible", 128) == 128
 
 
 def test_transcript_stage_policy_overrides_general_route(monkeypatch, app_and_session) -> None:

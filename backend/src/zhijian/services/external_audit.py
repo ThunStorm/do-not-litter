@@ -18,6 +18,7 @@ def audited_call[T](
     operation: str,
     request_meta: dict[str, Any],
     call: Callable[[], T],
+    response_meta: Callable[[T], dict[str, Any]] | None = None,
 ) -> T:
     started = perf_counter()
     try:
@@ -47,6 +48,7 @@ def audited_call[T](
             status="COMPLETED",
             duration_ms=round((perf_counter() - started) * 1000),
             request_meta_json=request_meta,
+            response_meta_json=response_meta(value) if response_meta else {},
         )
     )
     db.commit()

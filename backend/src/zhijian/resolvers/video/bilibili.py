@@ -30,7 +30,17 @@ class SubtitleTrack:
     url: str
     language: str
     language_doc: str
-    source: str = "BILIBILI_PLAYER"
+    track_id: str = ""
+    is_generated: bool = False
+    endpoint: str = "/x/player/wbi/v2"
+
+    @property
+    def generated(self) -> bool:
+        return self.is_generated or _is_generated_subtitle(self.language, self.language_doc, {})
+
+    @property
+    def source_kind(self) -> str:
+        return "BILIBILI_AI_SUBTITLE" if self.generated else "BILIBILI_HUMAN_SUBTITLE"
 
 
 @dataclass(slots=True)
@@ -183,9 +193,11 @@ class BilibiliResolver:
             raise VideoResolveError("VIDEO_NETWORK_FAILED", "Bilibili 接口请求失败") from exc
 
     def _fetch_subtitles(self, bvid: str, cid: str, headers: dict[str, str]) -> list[SubtitleTrack]:
+        endpoint = "/x/player/wbi/v2"
         try:
             data = self._get_json(
-                "https://api.bilibili.com/x/player/v2?" + urlencode({"bvid": bvid, "cid": cid}), headers
+                "https://api.bilibili.com" + endpoint + "?" + urlencode({"bvid": bvid, "cid": cid}),
+                headers,
             )
         except VideoResolveError as exc:
             if exc.code == "VIDEO_LOGIN_REQUIRED":
@@ -203,7 +215,18 @@ class BilibiliResolver:
                 url = "https:" + url
             if not url.startswith("https://"):
                 continue
-            tracks.append(SubtitleTrack(url, str(item.get("lan") or ""), str(item.get("lan_doc") or "")))
+            language = str(item.get("lan") or "")
+            language_doc = str(item.get("lan_doc") or "")
+            tracks.append(
+                SubtitleTrack(
+                    url,
+                    language,
+                    language_doc,
+                    track_id=str(item.get("id_str") or item.get("id") or ""),
+                    is_generated=_is_generated_subtitle(language, language_doc, item),
+                    endpoint=endpoint,
+                )
+            )
         return sorted(tracks, key=_subtitle_priority)
 
 
@@ -211,8 +234,27 @@ def _subtitle_priority(track: SubtitleTrack) -> tuple[int, str]:
     language = track.language.lower().replace("_", "-")
     description = track.language_doc.lower()
     chinese = "zh" in language.split("-") or "中文" in description or "汉语" in description
-    generated = "ai" in language.split("-") or "自动" in description or "机器" in description
+    generated = (
+        track.generated
+        or "ai" in language.split("-")
+        or "自动" in description
+        or "机器" in description
+    )
     return (0 if chinese and not generated else 1 if chinese else 2, language)
+
+
+def _is_generated_subtitle(language: str, language_doc: str, payload: dict[str, Any]) -> bool:
+    marker = " ".join(
+        [
+            language.lower(),
+            language_doc.lower(),
+            str(payload.get("type") or "").lower(),
+            str(payload.get("ai_type") or "").lower(),
+        ]
+    )
+    return "ai" in language.lower().replace("_", "-").split("-") or any(
+        value in marker for value in ("自动", "机器", "generated")
+    )
 
 
 def first_usable_subtitle(

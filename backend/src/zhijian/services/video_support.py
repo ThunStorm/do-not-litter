@@ -711,6 +711,7 @@ def materialize_transcript(
     *,
     source_kind: str,
     language: str = "zh-CN",
+    metadata: dict[str, Any] | None = None,
 ) -> tuple[Transcript, list[Segment]]:
     normalized = []
     for item in raw_segments:
@@ -738,12 +739,15 @@ def materialize_transcript(
             raise ValueError("转写末段时间显著超过视频时长，拒绝物化异常时间轴")
     fingerprint = "\n".join(f"{item['start_ms']}:{item['end_ms']}:{item['text']}" for item in normalized)
     fingerprint_sha = __import__("hashlib").sha256(fingerprint.encode()).hexdigest()
+    provenance = metadata or {}
     existing = db.scalar(
         select(Transcript).where(Transcript.video_asset_id == asset.id).order_by(Transcript.version.desc())
     )
     if existing and (
         existing.metadata_json.get("fingerprint") == fingerprint
         or existing.metadata_json.get("fingerprint_sha256") == fingerprint_sha
+    ) and existing.source_kind == source_kind and (
+        existing.metadata_json.get("validation_status") == provenance.get("validation_status")
     ):
         snapshot_id = existing.metadata_json.get("snapshot_id")
         segments = db.scalars(
@@ -754,7 +758,12 @@ def materialize_transcript(
     snapshot = Snapshot(
         source_id=source.id,
         content_hash=fingerprint_sha,
-        metadata_json={"kind": "VIDEO_TRANSCRIPT", "video_asset_id": asset.id, "source_kind": source_kind},
+        metadata_json={
+            "kind": "VIDEO_TRANSCRIPT",
+            "video_asset_id": asset.id,
+            "source_kind": source_kind,
+            **provenance,
+        },
     )
     db.add(snapshot)
     db.flush()
@@ -784,6 +793,7 @@ def materialize_transcript(
         segment_count=len(segments),
         retention_until=retention_deadline(),
         metadata_json={
+            **provenance,
             "snapshot_id": snapshot.id,
             "fingerprint_sha256": fingerprint_sha,
         },
@@ -908,6 +918,10 @@ def _stage_execution_mode(db: Session, stage: str, job: Job | None) -> str:
     return str(_resolved_stage_policy(db, stage, job).execution_mode)
 
 
+def _correction_batch_size(provider_name: str, configured: int) -> int:
+    return min(configured, 32) if provider_name.lower() == "ollama" else configured
+
+
 def correct_transcript(
     db: Session,
     settings: Settings,
@@ -950,7 +964,7 @@ def correct_transcript(
     chunks = _transcript_chunks(
         candidates,
         processing.chunk_chars,
-        processing.batch_size,
+        _correction_batch_size(provider_name, processing.batch_size),
     )
 
     def request_batch(batch: list[Segment]) -> list[tuple[list[Segment], LLMResult, list]]:

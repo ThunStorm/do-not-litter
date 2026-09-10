@@ -23,6 +23,7 @@ from zhijian.db.models import (
     JobStepArtifact,
     PlaceMention,
     Segment,
+    Snapshot,
     Source,
     Transcript,
     VideoAsset,
@@ -76,6 +77,9 @@ VIDEO_STEPS = (
     "CLEAN_CACHE",
 )
 
+TRUSTED_TRANSCRIPT_STATUSES = frozenset({"TRUSTED_PLATFORM", "VERIFIED_GENERATED", "LOCAL_ASR"})
+SUBTITLE_VALIDATION_VERSION = "subtitle-alignment-v1"
+
 
 class NeedsUser(RuntimeError):
     def __init__(self, code: str, message: str) -> None:
@@ -87,6 +91,63 @@ def _hash(value: Any) -> str:
     return hashlib.sha256(
         json.dumps(value, ensure_ascii=False, sort_keys=True, default=str).encode()
     ).hexdigest()
+
+
+def _subtitle_decision(
+    asset: VideoAsset, track: SubtitleTrack, raw_segments: list[dict[str, Any]]
+) -> dict[str, Any]:
+    timestamps = [int(item.get("end_ms") or item.get("start_ms") or 0) for item in raw_segments]
+    starts = [int(item.get("start_ms") or 0) for item in raw_segments]
+    first_ms = min(starts) if starts else 0
+    last_ms = max(timestamps) if timestamps else 0
+    timeline_ratio = round(last_ms / asset.duration_ms, 4) if asset.duration_ms else None
+    reasons = []
+    language = track.language.lower().replace("_", "-")
+    if track.generated:
+        reasons.append("PLATFORM_SUBTITLE_UNVERIFIED")
+    elif "zh" not in language.split("-"):
+        reasons.append("PLATFORM_SUBTITLE_LANGUAGE_UNVERIFIED")
+    if asset.duration_ms and last_ms > asset.duration_ms + max(30_000, round(asset.duration_ms * 0.2)):
+        reasons.append("PLATFORM_SUBTITLE_TIMELINE_INVALID")
+    return {
+        "accepted": not reasons,
+        "validation_status": "TRUSTED_PLATFORM" if not reasons else "REJECTED_PLATFORM",
+        "validation_reasons": reasons,
+        "validation_version": SUBTITLE_VALIDATION_VERSION,
+        "track_id": track.track_id,
+        "language": track.language,
+        "generated": track.generated,
+        "endpoint": track.endpoint,
+        "url_sha256": hashlib.sha256(track.url.encode()).hexdigest(),
+        "body_sha256": _hash(raw_segments),
+        "segments": len(raw_segments),
+        "first_ms": first_ms,
+        "last_ms": last_ms,
+        "timeline_ratio": timeline_ratio,
+    }
+
+
+def _trusted_transcript_or_raise(
+    db: Session, source: Source, asset: VideoAsset, transcript: Transcript, segments: list[Segment]
+) -> None:
+    metadata = transcript.metadata_json or {}
+    status = str(metadata.get("validation_status") or "")
+    if status not in TRUSTED_TRANSCRIPT_STATUSES:
+        raise NeedsUser("TRANSCRIPT_SOURCE_MISMATCH", "转写未通过来源一致性验证，请从字幕步骤重新处理")
+    snapshot_id = str(metadata.get("snapshot_id") or "")
+    snapshot = db.get(Snapshot, snapshot_id)
+    if transcript.video_asset_id != asset.id or snapshot is None or snapshot.source_id != source.id:
+        raise NeedsUser("TRANSCRIPT_SOURCE_MISMATCH", "转写来源与当前视频不一致，请从字幕步骤重新处理")
+    if asset.bvid and metadata.get("requested_bvid") != asset.bvid:
+        raise NeedsUser("TRANSCRIPT_SOURCE_MISMATCH", "转写 BV 身份不一致，请从字幕步骤重新处理")
+    if asset.cid and metadata.get("requested_cid") != asset.cid:
+        raise NeedsUser("TRANSCRIPT_SOURCE_MISMATCH", "转写 CID 身份不一致，请从字幕步骤重新处理")
+    last_ms = max((int(item.locator_json.get("end_ms") or 0) for item in segments), default=0)
+    if not segments or (
+        asset.duration_ms
+        and last_ms > asset.duration_ms + max(30_000, round(asset.duration_ms * 0.2))
+    ):
+        raise NeedsUser("TRANSCRIPT_TIMELINE_INVALID", "转写时间轴异常，请从字幕步骤重新处理")
 
 
 def _step(db: Session, job: Job, name: str, progress: int, input_value: dict[str, Any]) -> JobStep:
@@ -222,6 +283,7 @@ def _download_and_transcribe_audio(
     canonical_url: str,
     bvid: str,
     cookie_path: Path | None,
+    validation_reasons: list[str] | None = None,
 ) -> tuple[Path, Transcript, list[Segment]]:
     download = _step(
         db,
@@ -290,9 +352,24 @@ def _download_and_transcribe_audio(
         raise NeedsUser("ASR_UNAVAILABLE", str(exc)) from exc
     if not text or not raw_segments:
         raise NeedsUser("ASR_EMPTY", "本地转写没有产生带时间码的结果")
+    last_ms = max(int(item.get("end_ms") or item.get("start_ms") or 0) for item in raw_segments)
     _stage_event(db, job, "asr.completed", "本机转写已完成", segments=len(raw_segments))
     _done(db, job, asr_step, 62, {"segments": len(raw_segments)})
-    transcript, segments = materialize_transcript(db, source, asset, raw_segments, source_kind="ASR")
+    transcript, segments = materialize_transcript(
+        db,
+        source,
+        asset,
+        raw_segments,
+        source_kind="WHISPER_CPP_ASR",
+        metadata={
+            "requested_bvid": bvid,
+            "requested_cid": asset.cid or "",
+            "validation_status": "LOCAL_ASR",
+            "validation_reasons": validation_reasons or [],
+            "validation_version": SUBTITLE_VALIDATION_VERSION,
+            "timeline_ratio": round(last_ms / asset.duration_ms, 4) if asset.duration_ms else None,
+        },
+    )
     return audio_path, transcript, segments
 
 
@@ -395,6 +472,13 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
                 operation="metadata",
                 request_meta={"url_host": "bilibili"},
                 call=lambda: resolver.resolve(raw_url, cookie),
+                response_meta=lambda item: {
+                    "bvid": item.bvid,
+                    "cid": item.cid,
+                    "page_number": item.page_number,
+                    "subtitle_tracks": len(item.subtitles),
+                    "subtitle_endpoints": sorted({track.endpoint for track in item.subtitles}),
+                },
             )
         except VideoResolveError as exc:
             if exc.code == "VIDEO_LOGIN_REQUIRED":
@@ -516,8 +600,17 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
                 capability="VIDEO_SUBTITLE",
                 provider="bilibili",
                 operation="subtitle",
-                request_meta={"track": track.language},
+                request_meta={
+                    "bvid": resolved.bvid,
+                    "cid": resolved.cid,
+                    "track_id": track.track_id,
+                    "language": track.language,
+                    "generated": track.generated,
+                    "endpoint": track.endpoint,
+                    "url_sha256": hashlib.sha256(track.url.encode()).hexdigest(),
+                },
                 call=lambda: resolver.fetch_subtitle_segments(track),
+                response_meta=lambda items: _subtitle_decision(asset, track, items),
             )
 
         try:
@@ -538,14 +631,31 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
                 reason=reason,
             )
 
-        if selected_track:
+        subtitle_decision = (
+            _subtitle_decision(asset, selected_track, raw_segments) if selected_track else None
+        )
+        if selected_track and subtitle_decision and subtitle_decision["accepted"]:
             transcript, segments = materialize_transcript(
                 db,
                 source,
                 asset,
                 raw_segments,
-                source_kind=selected_track.source,
+                source_kind=selected_track.source_kind,
                 language=selected_track.language or "zh-CN",
+                metadata={
+                    "requested_bvid": resolved.bvid,
+                    "requested_cid": resolved.cid,
+                    "subtitle_endpoint": selected_track.endpoint,
+                    "subtitle_track_id": selected_track.track_id,
+                    "subtitle_language": selected_track.language,
+                    "subtitle_generated": selected_track.generated,
+                    "subtitle_url_sha256": subtitle_decision["url_sha256"],
+                    "subtitle_body_sha256": subtitle_decision["body_sha256"],
+                    "timeline_ratio": subtitle_decision["timeline_ratio"],
+                    "validation_status": subtitle_decision["validation_status"],
+                    "validation_reasons": subtitle_decision["validation_reasons"],
+                    "validation_version": SUBTITLE_VALIDATION_VERSION,
+                },
             )
             _stage_event(
                 db,
@@ -561,8 +671,8 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
                 42,
                 {
                     "source": "subtitle",
-                    "language": selected_track.language,
-                    "segments": len(segments),
+                    "accepted": True,
+                    "subtitle": subtitle_decision,
                     "transcript_id": transcript.id,
                     "failed_tracks": subtitle_failures,
                 },
@@ -572,12 +682,23 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
             skipped = _step(db, job, "ASR", 44, {"reason": "subtitle_available"})
             _done(db, job, skipped, 44, {"skipped": True})
         else:
+            reasons = (
+                subtitle_decision["validation_reasons"]
+                if subtitle_decision
+                else ["PLATFORM_SUBTITLE_UNAVAILABLE"]
+            )
             _done(
                 db,
                 job,
                 subtitle,
                 28,
-                {"source": "none", "segments": 0, "failed_tracks": subtitle_failures},
+                {
+                    "source": "subtitle_rejected" if subtitle_decision else "none",
+                    "accepted": False,
+                    "subtitle": subtitle_decision,
+                    "validation_reasons": reasons,
+                    "failed_tracks": subtitle_failures,
+                },
             )
             audio_path, transcript, segments = _download_and_transcribe_audio(
                 db,
@@ -588,6 +709,7 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
                 resolved.canonical_url,
                 resolved.bvid,
                 cookie_path,
+                reasons,
             )
 
         normalize = _step(
@@ -595,7 +717,19 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
         )
         if transcript is None or not segments:
             raise NeedsUser("TRANSCRIPT_MISSING", "未获得可用于笔记生成的时间码转写")
-        _done(db, job, normalize, 68, {"segments": len(segments), "source": transcript.source_kind})
+        _trusted_transcript_or_raise(db, source, asset, transcript, segments)
+        _done(
+            db,
+            job,
+            normalize,
+            68,
+            {
+                "segments": len(segments),
+                "source": transcript.source_kind,
+                "validation_status": transcript.metadata_json.get("validation_status"),
+                "timeline_ratio": transcript.metadata_json.get("timeline_ratio"),
+            },
+        )
 
         correction = _step(
             db,
@@ -993,6 +1127,10 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                 {"transcript_id": transcript.id},
             )
             _done(db, job, step, 68, {"segments": len(segments), "source": transcript.source_kind})
+
+        if transcript is None:
+            raise NeedsUser("REPLAY_ARTIFACT_MISSING", "完整转写中间产物已不可用")
+        _trusted_transcript_or_raise(db, source, asset, transcript, segments)
 
         if start <= VIDEO_STEPS.index("CORRECT_TRANSCRIPT"):
             step = _step(
