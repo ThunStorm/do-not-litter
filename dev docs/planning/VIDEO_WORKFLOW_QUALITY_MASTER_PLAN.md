@@ -1,9 +1,9 @@
 # 视频工作流质量总优化计划
 
-> 仓库：`ThunStorm/do-not-litter`  
-> 分支：`codex/mac-mini-implementation`  
-> 日期：2026-09-10  
-> 用途：Codex / Agent 可直接执行  
+> 仓库：`ThunStorm/do-not-litter`
+> 分支：`codex/mac-mini-implementation`
+> 日期：2026-09-10
+> 用途：Codex / Agent 可直接执行
 > 合并来源：视频字幕与音画一致性优化方案 + 视频笔记地点化/地点召回/Evidence/审核优化方案
 
 ---
