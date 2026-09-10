@@ -64,6 +64,7 @@ class ModelProfile(BaseModel):
     id: str
     provider: str
     model: str
+    request_interval_seconds: float | None = Field(default=None, ge=0, le=300)
     location: Literal["LOCAL", "REMOTE"] = "REMOTE"
     modalities: set[str] = Field(default_factory=lambda: {"text"})
     capabilities: set[AICapability] = Field(default_factory=set)

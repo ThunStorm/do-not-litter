@@ -445,6 +445,11 @@ def _profile_location(config: dict[str, str] | None) -> str:
     return config.get("location") or ("LOCAL" if config.get("provider", "").lower() == "ollama" else "REMOTE")
 
 
+def _profile_request_interval(config: dict[str, str] | None, default: float) -> float:
+    value = (config or {}).get("request_interval_seconds", "")
+    return default if not value else float(value)
+
+
 def transcript_processing_config(db: Session) -> TranscriptProcessingConfig:
     if not hasattr(db, "get"):
         return TranscriptProcessingConfig()
@@ -636,6 +641,8 @@ def provider_for_role(
         primary_model: str,
         fallback: LLMProvider | None = None,
         fallback_model: str | None = None,
+        primary_interval: float | None = None,
+        fallback_interval: float | None = None,
     ) -> FallbackLLMProvider:
         request_options = None
         if resolved_policy and any(
@@ -662,7 +669,10 @@ def provider_for_role(
                 else policy.ai_retry_count
             ),
             retry_wait_seconds=policy.ai_retry_wait_seconds,
-            request_interval_seconds=policy.ai_request_interval_seconds,
+            request_interval_seconds=(
+                policy.ai_request_interval_seconds if primary_interval is None else primary_interval
+            ),
+            fallback_request_interval_seconds=fallback_interval,
             on_retry=on_retry,
             on_attempt=on_attempt,
             request_options=request_options,
@@ -689,7 +699,17 @@ def provider_for_role(
         fallback, fallback_name, fallback_model = _provider_from_config(
             fallback_config, settings, fallback_id, timeout_cap
         )
-        return with_policy(fallback, fallback_model), fallback_name, fallback_model
+        return (
+            with_policy(
+                fallback,
+                fallback_model,
+                primary_interval=_profile_request_interval(
+                    fallback_config, policy.ai_request_interval_seconds
+                ),
+            ),
+            fallback_name,
+            fallback_model,
+        )
     fallback: LLMProvider | None = None
     fallback_model: str | None = None
     if fallback_config and fallback_id:
@@ -700,7 +720,20 @@ def provider_for_role(
         except ProviderUnavailable:
             fallback = None
             fallback_model = None
-    return with_policy(primary, primary_model, fallback, fallback_model), primary_name, primary_model
+    return (
+        with_policy(
+            primary,
+            primary_model,
+            fallback,
+            fallback_model,
+            _profile_request_interval(primary_config, policy.ai_request_interval_seconds),
+            _profile_request_interval(fallback_config, policy.ai_request_interval_seconds)
+            if fallback_config
+            else None,
+        ),
+        primary_name,
+        primary_model,
+    )
 
 
 def materialize_transcript(

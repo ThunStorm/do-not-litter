@@ -160,6 +160,7 @@ export interface ModelProfileView {
   base_url: string
   model: string
   timeout_seconds: number
+  request_interval_seconds: number | null
   api_key_saved: boolean
   location: 'LOCAL' | 'REMOTE'
   modalities: string[]

@@ -14,6 +14,7 @@ def model_profile_from_value(profile_id: str, value: dict[str, Any]) -> ModelPro
         id=profile_id,
         provider=str(value.get("provider") or ""),
         model=str(value.get("model") or ""),
+        request_interval_seconds=value.get("request_interval_seconds"),
         location=location,
         modalities=set(value.get("modalities") or {"text"}),
         capabilities={AICapability(item) for item in capabilities},

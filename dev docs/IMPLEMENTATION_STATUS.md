@@ -39,5 +39,6 @@
 ## 历史与维护
 
 - 2026-09-10：视频字幕 P0 一致性门禁已进入源码。`ai-zh` 等生成字幕只保留非敏感来源哈希并强制走 Whisper ASR；人工中文字幕仍可通过来源/时间轴门禁直通。生成 Note 前验证 Transcript 的 VideoAsset、Source、BV/CID、Snapshot 与状态，长 ASR 校对在 Ollama 下每批最多 32 段。目标 Ruff、视频相关 36 项与后端全量 117 项通过；前端 verify 在可用 Node 24 通过。真实结果和未完成非核心截图不在本页判定，见当前任务证据。
+- 2026-09-10：已保存模型可选保存 `request_interval_seconds`（0–300 秒，留空继承全局设置），并分别作用于主/备用 Profile 的每次调用。该字段不保存 Key、不新增 Schema migration；后端全量与前端 verify 通过，未调用真实 Provider。
 
 [实施历史](history/IMPLEMENTATION_HISTORY.md) 和 [归档实施计划](history/planning/README.md) 保留旧状态与计划追溯，默认不读。当前页只保留最新结论和未闭环项；完成项不持续追加长叙事。生产现场只更新 CURRENT_HANDOFF.md；冻结约束只更新 REGRESSION_AND_CHANGE_GUARD.md。新增证据必须写明日期、对象与验证层级。

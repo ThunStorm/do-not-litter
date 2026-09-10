@@ -1151,6 +1151,41 @@ def test_custom_model_profiles_route_and_history_deletion(client, app_and_sessio
         assert "draft-key-must-not-persist" not in str(db.query(Setting).all())
 
 
+def test_model_profile_request_interval_is_optional_and_persisted(client, app_and_session) -> None:
+    _, factory = app_and_session
+    created = client.post(
+        "/api/settings/model-profiles",
+        json={
+            "name": "慢速远程模型",
+            "provider": "OpenAI Compatible",
+            "base_url": "https://example.test/v1",
+            "model": "fixture",
+            "timeout_seconds": 300,
+            "request_interval_seconds": 45.5,
+        },
+    )
+    assert created.status_code == 200
+    assert created.json()["request_interval_seconds"] == 45.5
+    profile_id = created.json()["id"]
+
+    updated = client.put(
+        f"/api/settings/model-profiles/{profile_id}",
+        json={
+            "name": "慢速远程模型",
+            "provider": "OpenAI Compatible",
+            "base_url": "https://example.test/v1",
+            "model": "fixture",
+            "timeout_seconds": 300,
+            "request_interval_seconds": 0,
+        },
+    )
+    assert updated.status_code == 200
+    assert updated.json()["request_interval_seconds"] == 0
+    with factory() as db:
+        saved = db.get(Setting, f"model-profile:{profile_id}")
+        assert saved and saved.value_json["request_interval_seconds"] == 0
+
+
 def test_docx_upload_enters_the_same_durable_pipeline(client, app_and_session) -> None:
     _, factory = app_and_session
     document = Document()

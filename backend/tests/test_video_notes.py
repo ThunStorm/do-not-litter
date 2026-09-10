@@ -499,6 +499,34 @@ def test_llm_attempt_callback_tracks_primary_and_fallback() -> None:
     ]
 
 
+def test_llm_uses_a_distinct_interval_for_the_fallback_profile() -> None:
+    sleeps: list[float] = []
+
+    class Primary:
+        def generate_json(self, _messages, *, model):
+            request = httpx.Request("POST", "https://primary.test/chat/completions")
+            raise httpx.HTTPStatusError(
+                "unavailable", request=request, response=httpx.Response(503, request=request)
+            )
+
+    class Fallback:
+        def generate_json(self, _messages, *, model):
+            return LLMResult('{"ok":true}', "fallback", model, {})
+
+    provider = FallbackLLMProvider(
+        Primary(),
+        "primary-model",
+        Fallback(),
+        "fallback-model",
+        retry_count=0,
+        request_interval_seconds=17,
+        fallback_request_interval_seconds=43,
+        sleeper=sleeps.append,
+    )
+    assert provider.generate_json([], model="ignored").provider == "fallback"
+    assert sleeps == [17, 43]
+
+
 def test_transcript_correction_chunks_limit_segment_count() -> None:
     segments = [SimpleNamespace(text="x" * 9, corrected_text="x" * 9) for _ in range(232)]
     chunks = video_support._transcript_chunks(

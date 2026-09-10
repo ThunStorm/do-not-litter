@@ -8,6 +8,7 @@ const moonshot = {
   base_url: 'https://api.moonshot.cn/v1',
   model: 'kimi-k2.6',
   timeout_seconds: 300,
+  request_interval_seconds: null,
   api_key: '',
 }
 

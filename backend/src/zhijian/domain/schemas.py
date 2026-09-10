@@ -286,6 +286,7 @@ class ProviderConfig(BaseModel):
 
 class ModelProfileConfig(ProviderConfig):
     name: str = Field(min_length=1, max_length=80)
+    request_interval_seconds: float | None = Field(default=None, ge=0, le=300)
     location: Literal["LOCAL", "REMOTE"] | None = None
     modalities: set[str] = Field(default_factory=lambda: {"text"})
     capabilities: set[str] = Field(default_factory=set)

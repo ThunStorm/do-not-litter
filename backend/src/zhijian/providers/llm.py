@@ -174,6 +174,7 @@ class FallbackLLMProvider:
         attempt_runner: AttemptRunner | None = None,
         sleeper: Callable[[float], None] = sleep,
         request_options: ProviderRequestOptions | None = None,
+        fallback_request_interval_seconds: float | None = None,
     ) -> None:
         self.primary = primary
         self.primary_model = primary_model
@@ -184,6 +185,7 @@ class FallbackLLMProvider:
         self.retry_count = retry_count
         self.retry_wait_seconds = retry_wait_seconds
         self.request_interval_seconds = request_interval_seconds
+        self.fallback_request_interval_seconds = fallback_request_interval_seconds
         self.on_retry = on_retry
         self.on_attempt = on_attempt
         self.attempt_runner = attempt_runner
@@ -232,8 +234,13 @@ class FallbackLLMProvider:
                         exc,
                     )
                 raise exc
-            if self.request_interval_seconds:
-                self.sleeper(self.request_interval_seconds)
+            interval = (
+                self.fallback_request_interval_seconds
+                if route == "fallback" and self.fallback_request_interval_seconds is not None
+                else self.request_interval_seconds
+            )
+            if interval:
+                self.sleeper(interval)
             if self.before_fallback:
                 self.before_fallback()
             try:

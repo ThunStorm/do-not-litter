@@ -3027,6 +3027,7 @@ def _model_profile_view(setting: Setting) -> dict:
         "base_url": str(value.get("base_url") or ""),
         "model": str(value.get("model") or ""),
         "timeout_seconds": int(value.get("timeout_seconds") or 60),
+        "request_interval_seconds": value.get("request_interval_seconds"),
         "api_key_saved": setting.is_secret_ref,
         "location": profile.location,
         "modalities": sorted(profile.modalities),
