@@ -59,6 +59,9 @@ from zhijian.services.transcript_retention import retention_deadline
 TRANSCRIPT_CORRECTION_TIMEOUT_SECONDS = 180.0
 TRANSCRIPT_CORRECTION_CHUNK_CHARS = 12_000
 TRANSCRIPT_CORRECTION_BATCH_SIZE = 128
+PLACE_EXTRACTION_CHUNK_CHARS = 8_000
+PLACE_EXTRACTION_NEIGHBOR_SEGMENTS = 3
+NOTE_SECTION_KINDS = {"PLACE", "AREA", "ROUTE", "SUPPLEMENTAL"}
 PROMPT_SUPPLEMENT_SETTING_KEY = "prompt:supplements"
 PROMPT_CORE_CONTRACTS = {
     "transcript_correction": [
@@ -776,11 +779,14 @@ def materialize_transcript(
     existing = db.scalar(
         select(Transcript).where(Transcript.video_asset_id == asset.id).order_by(Transcript.version.desc())
     )
-    if existing and (
-        existing.metadata_json.get("fingerprint") == fingerprint
-        or existing.metadata_json.get("fingerprint_sha256") == fingerprint_sha
-    ) and existing.source_kind == source_kind and (
-        existing.metadata_json.get("validation_status") == provenance.get("validation_status")
+    if (
+        existing
+        and (
+            existing.metadata_json.get("fingerprint") == fingerprint
+            or existing.metadata_json.get("fingerprint_sha256") == fingerprint_sha
+        )
+        and existing.source_kind == source_kind
+        and (existing.metadata_json.get("validation_status") == provenance.get("validation_status"))
     ):
         snapshot_id = existing.metadata_json.get("snapshot_id")
         segments = db.scalars(
@@ -883,6 +889,189 @@ def _transcript_chunks(
     if current:
         chunks.append(current)
     return chunks
+
+
+def _overlapped_transcript_chunks(
+    segments: list[Segment], max_chars: int, neighbor_segments: int
+) -> list[list[Segment]]:
+    chunks = _transcript_chunks(segments, max_chars)
+    if neighbor_segments <= 0 or len(chunks) < 2:
+        return chunks
+    positions = {segment.id: index for index, segment in enumerate(segments)}
+    result = []
+    for index, chunk in enumerate(chunks):
+        if index == 0:
+            result.append(chunk)
+            continue
+        first = positions[chunk[0].id]
+        result.append(segments[max(0, first - neighbor_segments) : positions[chunk[-1].id] + 1])
+    return result
+
+
+def _normalized_text(value: object) -> str:
+    return re.sub(r"\s+", "", str(value or ""))
+
+
+def _candidate_has_evidence(candidate: dict[str, Any], ids: list[str], segment_texts: dict[str, str]) -> bool:
+    quote = _normalized_text(candidate.get("quote"))
+    raw_name = _normalized_text(candidate.get("raw_name") or candidate.get("name"))
+    evidence = "".join(_normalized_text(segment_texts.get(segment_id, "")) for segment_id in ids)
+    return bool(quote and raw_name and quote in evidence and raw_name in evidence)
+
+
+def _merge_place_candidates(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    merged: dict[tuple[str, str, str], dict[str, Any]] = {}
+    for candidate in candidates:
+        raw_name = str(candidate.get("raw_name") or candidate.get("name") or "")
+        key = (
+            _normalized_insight_key(raw_name),
+            _normalized_insight_key(candidate.get("city_hint")),
+            str(candidate.get("place_type") or "UNKNOWN"),
+        )
+        if not key[0]:
+            continue
+        current = merged.get(key)
+        if current is None:
+            merged[key] = {
+                **candidate,
+                "segment_ids": list(candidate.get("segment_ids") or []),
+            }
+            continue
+        current["segment_ids"] = list(
+            dict.fromkeys([*current["segment_ids"], *candidate.get("segment_ids", [])])
+        )
+        quotes = [value for value in (current.get("quote"), candidate.get("quote")) if value]
+        current["quote"] = "\n".join(dict.fromkeys(str(value) for value in quotes))[:1000]
+        for field in (
+            "highlights",
+            "recommended_items",
+            "best_months",
+            "best_seasons",
+            "best_time_slots",
+            "visit_windows",
+            "warnings",
+        ):
+            before = current.get(field, [])
+            after = candidate.get(field, [])
+            values = [
+                *(before if isinstance(before, list) else []),
+                *(after if isinstance(after, list) else []),
+            ]
+            current[field] = list(
+                dict.fromkeys(json.dumps(value, ensure_ascii=False, sort_keys=True) for value in values)
+            )
+            current[field] = [json.loads(value) for value in current[field]]
+        current["confidence"] = max(
+            normalized_confidence(current.get("confidence")),
+            normalized_confidence(candidate.get("confidence")),
+        )
+    return list(merged.values())
+
+
+def _place_evidence_index(mentions: list[PlaceMention]) -> list[dict[str, object]]:
+    return [
+        {
+            "mention_id": mention.id,
+            "name": mention.name,
+            "place_type": mention.place_type,
+            "segment_ids": mention.segment_ids_json,
+            "quotes": [mention.quote],
+        }
+        for mention in mentions
+        if mention.extraction_status != "USER_REJECTED" and mention.quote
+    ]
+
+
+def _ground_section(
+    item: dict[str, object], segments: list[Segment], mentions: list[PlaceMention]
+) -> dict[str, object] | None:
+    valid_ids = {segment.id for segment in segments}
+    ids = [str(value) for value in item.get("segment_ids", []) if value in valid_ids]
+    if not ids:
+        return None
+    evidence = "\n".join(
+        str(segment.corrected_text or segment.text) for segment in segments if segment.id in ids
+    )
+    requested_quotes = [str(value).strip() for value in item.get("supporting_quotes", []) if value]
+    quotes = [quote for quote in requested_quotes if _normalized_text(quote) in _normalized_text(evidence)]
+    related = [mention for mention in mentions if set(mention.segment_ids_json) & set(ids)]
+    requested_ids = {str(value) for value in item.get("place_mention_ids", [])}
+    related = [mention for mention in related if not requested_ids or mention.id in requested_ids]
+    kind = str(item.get("section_kind") or "").upper()
+    if kind not in NOTE_SECTION_KINDS:
+        kind = "PLACE" if related else "SUPPLEMENTAL"
+    if kind in {"PLACE", "AREA", "ROUTE"} and not related:
+        return None
+    if not quotes:
+        quotes = [
+            str(
+                next(
+                    (
+                        segment.corrected_text or segment.text
+                        for segment in segments
+                        if segment.id in ids
+                    ),
+                )
+            )
+        ]
+    names = list(dict.fromkeys(mention.name for mention in related))
+    if kind == "PLACE":
+        heading = names[0]
+    elif kind == "AREA":
+        city = next((mention.city_hint for mention in related if mention.city_hint), "周边")
+        heading = f"{city}｜{'・'.join(names[:3])}"
+    elif kind == "ROUTE":
+        heading = " → ".join(names[:4])
+    else:
+        heading = "补充信息"
+    return {
+        **item,
+        "section_kind": kind,
+        "heading": heading[:500],
+        "segment_ids": ids,
+        "place_mention_ids": [mention.id for mention in related],
+        "supporting_quotes": quotes[:8],
+    }
+
+
+def _ground_map_facts(
+    facts: list[dict[str, object]], segments: list[Segment], mentions: list[PlaceMention]
+) -> list[dict[str, object]]:
+    valid_ids = {segment.id for segment in segments}
+    result = []
+    for fact in facts:
+        ids = [str(value) for value in fact.get("segment_ids", []) if value in valid_ids]
+        if not ids:
+            continue
+        evidence = "\n".join(
+            str(segment.corrected_text or segment.text) for segment in segments if segment.id in ids
+        )
+        quotes = [
+            str(value)
+            for value in fact.get("supporting_quotes", [])
+            if _normalized_text(value) in _normalized_text(evidence)
+        ]
+        if not quotes:
+            quotes = [
+                str(
+                    next(
+                        (segment.corrected_text or segment.text for segment in segments if segment.id in ids),
+                        "",
+                    )
+                )
+            ]
+        result.append(
+            {
+                **fact,
+                "segment_ids": ids,
+                "supporting_quotes": quotes[:8],
+                "place_mention_ids": [
+                    mention.id for mention in mentions if set(mention.segment_ids_json) & set(ids)
+                ],
+                "places": [],
+            }
+        )
+    return result
 
 
 def _fallback_sections(chunks: list[list[Segment]]) -> list[dict[str, object]]:
@@ -1235,7 +1424,9 @@ def generate_note(
     transcript: Transcript,
     segments: list[Segment],
     job: Job | None = None,
+    mentions: list[PlaceMention] | None = None,
 ) -> AINoteVersion:
+    mentions = mentions or []
     provider, provider_name, model = provider_for_role(db, settings, "video_note_summary", job)
     chunks = _transcript_chunks(segments, settings.video_note_chunk_chars)
     system = Path(__file__).resolve().parents[1] / "prompts" / "video_note.md"
@@ -1254,7 +1445,9 @@ def generate_note(
                 {
                     "role": "user",
                     "content": (
-                        f"视频标题：{asset.title}\n分块：{chunk_index + 1}/{max(1, len(chunks))}\n{context}"
+                        f"视频标题：{asset.title}\n已验证地点 Evidence Index："
+                        f"{json.dumps(_place_evidence_index(mentions), ensure_ascii=False)}\n"
+                        f"分块：{chunk_index + 1}/{max(1, len(chunks))}\n{context}"
                     ),
                 },
             ]
@@ -1273,7 +1466,7 @@ def generate_note(
                 overview_parts.append(str(payload["overview"]).strip())
             warnings.extend(str(value) for value in payload.get("warnings", []) if value)
             chunk_ids = {segment.id for segment in chunk}
-            map_facts.extend(_section_facts(payload, chunk_ids))
+            map_facts.extend(_ground_map_facts(_section_facts(payload, chunk_ids), chunk, mentions))
             sections = payload.get("sections") if isinstance(payload.get("sections"), list) else []
             raw_sections.extend(
                 item
@@ -1302,7 +1495,7 @@ def generate_note(
                 *prompt_supplement_messages(db, "video_note_summary"),
                 {
                     "role": "user",
-                    "content": ("以下是按时间块验证的 SectionFacts。仅据此生成全局笔记，不要要求完整转写：\n")
+                    "content": ("以下是带逐字 Evidence 的 GroundedEvidencePack。仅据此生成全局笔记：\n")
                     + json.dumps(map_facts, ensure_ascii=False),
                 },
             ]
@@ -1368,10 +1561,11 @@ def generate_note(
     db.flush()
     rendered = [f"# {asset.title}", "", overview]
     created_sections = 0
-    for ordinal, item in enumerate(raw_sections):
-        segment_ids = [value for value in item.get("segment_ids", []) if value in valid_ids]
-        if not segment_ids:
+    for ordinal, raw_item in enumerate(raw_sections):
+        item = _ground_section(raw_item, segments, mentions)
+        if item is None:
             continue
+        segment_ids = list(item["segment_ids"])
         body = str(item.get("body_markdown") or item.get("body") or "")
         heading = str(item.get("heading") or f"要点 {ordinal + 1}")
         thesis = str(item.get("thesis") or item.get("summary") or "")[:500]
@@ -1387,12 +1581,15 @@ def generate_note(
                 ai_note_version_id=version.id,
                 ordinal=ordinal,
                 heading=heading,
+                section_kind=str(item["section_kind"]),
                 thesis=thesis,
                 summary=summary,
                 bullets_json=bullets,
                 anchor_id=f"section-{section_id}",
                 body_markdown=body,
                 segment_ids_json=segment_ids,
+                place_mention_ids_json=list(item["place_mention_ids"]),
+                evidence_quotes_json=list(item["supporting_quotes"]),
                 start_ms=refs[0].locator_json.get("start_ms") if refs else None,
                 end_ms=refs[-1].locator_json.get("end_ms") if refs else None,
             )
@@ -1401,7 +1598,12 @@ def generate_note(
         created_sections += 1
     if not created_sections and segments:
         fallback = _fallback_sections([segments])
-        item = fallback[0]
+        item = _ground_section(fallback[0], segments, mentions) or {
+            **fallback[0],
+            "section_kind": "SUPPLEMENTAL",
+            "place_mention_ids": [],
+            "supporting_quotes": [str(segments[0].corrected_text or segments[0].text)],
+        }
         refs = segments
         section_id = new_id("nsc")
         db.add(
@@ -1410,12 +1612,15 @@ def generate_note(
                 ai_note_version_id=version.id,
                 ordinal=0,
                 heading=str(item["heading"]),
+                section_kind=str(item["section_kind"]),
                 thesis=str(item.get("thesis") or ""),
                 summary=str(item.get("summary") or ""),
                 bullets_json=list(item.get("bullets") or []),
                 anchor_id=f"section-{section_id}",
                 body_markdown=str(item["body_markdown"]),
                 segment_ids_json=list(item["segment_ids"]),
+                place_mention_ids_json=list(item["place_mention_ids"]),
+                evidence_quotes_json=list(item["supporting_quotes"]),
                 start_ms=refs[0].locator_json.get("start_ms"),
                 end_ms=refs[-1].locator_json.get("end_ms"),
             )
@@ -1431,21 +1636,20 @@ def extract_place_mentions(
     db: Session,
     settings: Settings,
     asset: VideoAsset,
-    note: AINoteVersion,
+    note: AINoteVersion | None,
     segments: list[Segment],
     job: Job | None = None,
 ) -> list[PlaceMention]:
-    remote_reprocess = _stage_execution_mode(db, "EXTRACT_TRAVEL_FACTS", job) == "REMOTE_ONLY"
-    if remote_reprocess:
-        provider, provider_name, model = provider_for_role(db, settings, "travel_place_extraction", job)
-        prompt = (Path(__file__).resolve().parents[1] / "prompts" / "travel_place_extraction.md").read_text(
-            encoding="utf-8"
-        )
-        messages = [
-            {"role": "system", "content": prompt},
-            *prompt_supplement_messages(db, "travel_place_extraction"),
-            {"role": "user", "content": _map_facts_context(note, settings.video_note_chunk_chars)},
-        ]
+    policy = _resolved_stage_policy(db, "EXTRACT_TRAVEL_FACTS", job)
+    chunk_chars = int(policy.chunk_size or PLACE_EXTRACTION_CHUNK_CHARS)
+    neighbor_segments = int(policy.neighbor_segments or PLACE_EXTRACTION_NEIGHBOR_SEGMENTS)
+    provider, provider_name, model = provider_for_role(db, settings, "travel_place_extraction", job)
+    prompt = (Path(__file__).resolve().parents[1] / "prompts" / "travel_place_extraction.md").read_text(
+        encoding="utf-8"
+    )
+    candidates: list[dict[str, Any]] = []
+    chunks = _overlapped_transcript_chunks(segments, chunk_chars, neighbor_segments)
+    for chunk_index, chunk in enumerate(chunks):
         response = _cached_stage_json(
             db,
             job=job,
@@ -1454,7 +1658,17 @@ def extract_place_mentions(
             provider=provider,
             provider_name=provider_name,
             model=model,
-            messages=messages,
+            messages=[
+                {"role": "system", "content": prompt},
+                *prompt_supplement_messages(db, "travel_place_extraction"),
+                {
+                    "role": "user",
+                    "content": (
+                        f"视频标题：{asset.title}\n分块：{chunk_index + 1}\n"
+                        + _transcript_context(chunk, chunk_chars)
+                    ),
+                },
+            ],
         )
         if response.provider != provider_name or response.model != model:
             record_event(
@@ -1465,17 +1679,10 @@ def extract_place_mentions(
                 entity_type="video_asset",
                 entity_id=asset.id,
             )
-        candidates = parse_model_json(response.content).get("places", [])
-    else:
-        candidates = [
-            candidate
-            for fact in note.map_facts_json or []
-            if isinstance(fact, dict)
-            for candidate in fact.get("places", [])
-            if isinstance(candidate, dict)
-        ]
+        values = parse_model_json(response.content).get("places", [])
+        candidates.extend(value for value in values if isinstance(value, dict))
     valid_ids = {segment.id for segment in segments}
-    segment_texts = {segment.id: segment.text for segment in segments}
+    segment_texts = {segment.id: segment.corrected_text or segment.text for segment in segments}
     rejected_names = {
         _normalized_insight_key(item.raw_name or item.name)
         for item in db.scalars(
@@ -1486,11 +1693,20 @@ def extract_place_mentions(
         )
     }
     created: list[PlaceMention] = []
-    for item in candidates[:80]:
-        if not isinstance(item, dict):
-            continue
+    for item in _merge_place_candidates(candidates)[:80]:
         ids = [value for value in item.get("segment_ids", []) if value in valid_ids]
-        if not ids or not item.get("name"):
+        if not ids or not item.get("name") or not _candidate_has_evidence(item, ids, segment_texts):
+            record_event(
+                db,
+                "place.extraction.evidence_rejected",
+                "地点候选缺少可逐字核验的转写 Evidence，已丢弃",
+                component="video-pipeline",
+                level="WARNING",
+                entity_type="video_asset",
+                entity_id=asset.id,
+                detail={"name": str(item.get("name") or "")[:300]},
+                commit=False,
+            )
             continue
         if _normalized_insight_key(item.get("raw_name") or item["name"]) in rejected_names:
             continue
@@ -1498,7 +1714,7 @@ def extract_place_mentions(
         visit_windows = _visit_windows_from_candidate(item, ids, segment_texts)
         mention = PlaceMention(
             video_asset_id=asset.id,
-            ai_note_version_id=note.id,
+            ai_note_version_id=note.id if note else None,
             name=str(item["name"])[:300],
             raw_name=str(item.get("raw_name") or item["name"])[:300],
             suggested_name=str(item.get("suggested_name") or item["name"])[:300],

@@ -41,6 +41,7 @@ from zhijian.resolvers.video.bilibili import (
 from zhijian.services.audit import record_event
 from zhijian.services.external_audit import audited_call
 from zhijian.services.jobs import JobCancelled, ensure_job_active
+from zhijian.services.transcript_validation import assess_transcript_quality
 from zhijian.services.video_cover import materialize_cover
 from zhijian.services.video_screenshots import (
     download_screenshot_video,
@@ -66,8 +67,8 @@ VIDEO_STEPS = (
     "ASR",
     "NORMALIZE_TRANSCRIPT",
     "CORRECT_TRANSCRIPT",
-    "GENERATE_AI_NOTE",
     "EXTRACT_TRAVEL_FACTS",
+    "GENERATE_AI_NOTE",
     "RESOLVE_POI",
     "BUILD_PLACE_NOTES",
     "PLAN_SCREENSHOTS",
@@ -96,23 +97,17 @@ def _hash(value: Any) -> str:
 def _subtitle_decision(
     asset: VideoAsset, track: SubtitleTrack, raw_segments: list[dict[str, Any]]
 ) -> dict[str, Any]:
-    timestamps = [int(item.get("end_ms") or item.get("start_ms") or 0) for item in raw_segments]
-    starts = [int(item.get("start_ms") or 0) for item in raw_segments]
-    first_ms = min(starts) if starts else 0
-    last_ms = max(timestamps) if timestamps else 0
-    timeline_ratio = round(last_ms / asset.duration_ms, 4) if asset.duration_ms else None
-    reasons = []
-    language = track.language.lower().replace("_", "-")
-    if track.generated:
-        reasons.append("PLATFORM_SUBTITLE_UNVERIFIED")
-    elif "zh" not in language.split("-"):
-        reasons.append("PLATFORM_SUBTITLE_LANGUAGE_UNVERIFIED")
-    if asset.duration_ms and last_ms > asset.duration_ms + max(30_000, round(asset.duration_ms * 0.2)):
-        reasons.append("PLATFORM_SUBTITLE_TIMELINE_INVALID")
+    assessment = assess_transcript_quality(
+        raw_segments,
+        duration_ms=asset.duration_ms,
+        generated=track.generated,
+        language=track.language,
+    )
+    metrics = assessment["metrics"]
     return {
-        "accepted": not reasons,
-        "validation_status": "TRUSTED_PLATFORM" if not reasons else "REJECTED_PLATFORM",
-        "validation_reasons": reasons,
+        "accepted": assessment["status"] == "PASS",
+        "validation_status": assessment["validation_status"],
+        "validation_reasons": assessment["reasons"],
         "validation_version": SUBTITLE_VALIDATION_VERSION,
         "track_id": track.track_id,
         "language": track.language,
@@ -121,9 +116,8 @@ def _subtitle_decision(
         "url_sha256": hashlib.sha256(track.url.encode()).hexdigest(),
         "body_sha256": _hash(raw_segments),
         "segments": len(raw_segments),
-        "first_ms": first_ms,
-        "last_ms": last_ms,
-        "timeline_ratio": timeline_ratio,
+        "metrics": metrics,
+        "timeline_ratio": metrics["timeline_ratio"],
     }
 
 
@@ -142,11 +136,8 @@ def _trusted_transcript_or_raise(
         raise NeedsUser("TRANSCRIPT_SOURCE_MISMATCH", "转写 BV 身份不一致，请从字幕步骤重新处理")
     if asset.cid and metadata.get("requested_cid") != asset.cid:
         raise NeedsUser("TRANSCRIPT_SOURCE_MISMATCH", "转写 CID 身份不一致，请从字幕步骤重新处理")
-    last_ms = max((int(item.locator_json.get("end_ms") or 0) for item in segments), default=0)
-    if not segments or (
-        asset.duration_ms
-        and last_ms > asset.duration_ms + max(30_000, round(asset.duration_ms * 0.2))
-    ):
+    assessment = assess_transcript_quality(segments, duration_ms=asset.duration_ms)
+    if assessment["status"] != "PASS":
         raise NeedsUser("TRANSCRIPT_TIMELINE_INVALID", "转写时间轴异常，请从字幕步骤重新处理")
 
 
@@ -756,53 +747,54 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
             {"corrected": corrected_count, "review": len(segments) - corrected_count},
         )
 
+        extract = _step(
+            db,
+            job,
+            "EXTRACT_TRAVEL_FACTS",
+            72,
+            {
+                "transcript": transcript.id,
+                "prompt_supplement_hash": prompt_supplement_hash(db, "travel_place_extraction"),
+            },
+        )
+        _stage_event(db, job, "places.requested", "正在从完整转写提取旅行地点与观察")
+        try:
+            mentions = extract_place_mentions(db, settings, asset, None, segments, job)
+        except ProviderUnavailable as exc:
+            raise NeedsUser(exc.code, str(exc)) from exc
+        _done(db, job, extract, 80, {"mentions": len(mentions)})
+
         note_step = _step(
             db,
             job,
             "GENERATE_AI_NOTE",
-            72,
+            82,
             {
                 "transcript": transcript.id,
                 "version": transcript.version,
+                "place_mentions": len(mentions),
                 "prompt_supplement_hash": prompt_supplement_hash(db, "video_note_summary"),
             },
         )
-        _stage_event(db, job, "note.requested", "正在生成 AI 视频笔记", segments=len(segments))
+        _stage_event(db, job, "note.requested", "正在基于已验证地点生成 AI 视频笔记", segments=len(segments))
         try:
-            note_version = generate_note(db, settings, asset, transcript, segments, job)
+            note_version = generate_note(db, settings, asset, transcript, segments, job, mentions)
         except ProviderUnavailable as exc:
             raise NeedsUser(exc.code, str(exc)) from exc
+        for mention in mentions:
+            mention.ai_note_version_id = note_version.id
+        db.commit()
         _done(
             db,
             job,
             note_step,
-            80,
+            87,
             {
                 "note_id": note_version.ai_note_id,
                 "note_version_id": note_version.id,
                 "version": note_version.version,
             },
         )
-
-        extract = _step(
-            db,
-            job,
-            "EXTRACT_TRAVEL_FACTS",
-            82,
-            {
-                "note_version": note_version.id,
-                "prompt_supplement_hash": prompt_supplement_hash(db, "travel_place_extraction"),
-            },
-        )
-        _stage_event(db, job, "places.requested", "正在提取旅行地点与观察")
-        try:
-            mentions = extract_place_mentions(db, settings, asset, note_version, segments, job)
-        except ProviderUnavailable as exc:
-            # The video note is usable without travel POI enrichment.
-            mentions = []
-            _done(db, job, extract, 84, {"skipped": True, "reason": exc.code})
-        else:
-            _done(db, job, extract, 87, {"mentions": len(mentions)})
 
         poi = _step(db, job, "RESOLVE_POI", 88, {"mentions": len(mentions), "provider": "AMap"})
         _stage_event(db, job, "poi.requested", "正在校验地点 POI", mentions=len(mentions))
@@ -1150,28 +1142,6 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
         note_version = (
             db.get(AINoteVersion, note.current_version_id) if note and note.current_version_id else None
         )
-        if start <= VIDEO_STEPS.index("GENERATE_AI_NOTE"):
-            step = _step(
-                db,
-                job,
-                "GENERATE_AI_NOTE",
-                72,
-                {
-                    "transcript": transcript.id,
-                    "prompt_supplement_hash": prompt_supplement_hash(db, "video_note_summary"),
-                },
-            )
-            note_version = generate_note(db, settings, asset, transcript, segments, job)
-            _done(
-                db,
-                job,
-                step,
-                80,
-                {"note_id": note_version.ai_note_id, "note_version_id": note_version.id},
-            )
-        if note_version is None:
-            raise NeedsUser("REPLAY_ARTIFACT_MISSING", "AI 笔记中间产物已不可用")
-
         mentions = db.scalars(select(PlaceMention).where(PlaceMention.video_asset_id == asset.id)).all()
         if start <= VIDEO_STEPS.index("EXTRACT_TRAVEL_FACTS"):
             for mention in mentions:
@@ -1182,14 +1152,39 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                 db,
                 job,
                 "EXTRACT_TRAVEL_FACTS",
-                82,
+                72,
                 {
-                    "note_version": note_version.id,
+                    "transcript": transcript.id,
                     "prompt_supplement_hash": prompt_supplement_hash(db, "travel_place_extraction"),
                 },
             )
-            mentions = extract_place_mentions(db, settings, asset, note_version, segments, job)
-            _done(db, job, step, 87, {"mentions": len(mentions)})
+            mentions = extract_place_mentions(db, settings, asset, None, segments, job)
+            _done(db, job, step, 80, {"mentions": len(mentions)})
+        if start <= VIDEO_STEPS.index("GENERATE_AI_NOTE"):
+            step = _step(
+                db,
+                job,
+                "GENERATE_AI_NOTE",
+                82,
+                {
+                    "transcript": transcript.id,
+                    "place_mentions": len(mentions),
+                    "prompt_supplement_hash": prompt_supplement_hash(db, "video_note_summary"),
+                },
+            )
+            note_version = generate_note(db, settings, asset, transcript, segments, job, mentions)
+            for mention in mentions:
+                mention.ai_note_version_id = note_version.id
+            db.commit()
+            _done(
+                db,
+                job,
+                step,
+                87,
+                {"note_id": note_version.ai_note_id, "note_version_id": note_version.id},
+            )
+        if note_version is None:
+            raise NeedsUser("REPLAY_ARTIFACT_MISSING", "AI 笔记中间产物已不可用")
 
         confirmed = sum(mention.resolution_status == "CONFIRMED" for mention in mentions)
         unresolved = len(mentions) - confirmed

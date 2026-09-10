@@ -5,7 +5,7 @@
 ## Current repository freeze
 
 - 当前工作分支为 `codex/mac-mini-implementation`；提交前仍须用 git 状态核对，保护同批文档拆分与地图改动。
-- 仓库 migration head 为 Alembic 0019；生产版本见 CURRENT_HANDOFF 的实际采样，不由仓库推断。
+- 仓库 migration head 为 Alembic 0020；生产版本见 CURRENT_HANDOFF 的实际采样，不由仓库推断。
 - 唯一支持的后端为 Mac mini；FastAPI、SQLite/WAL、独立 Worker；其他平台不在当前支持范围。
 - 真实验收与自动回归分开记录；规格中的“待实施”、历史 Work Package、未来规划均不得单独认定为当前缺口。
 
@@ -34,11 +34,13 @@
 - 2026-09-08 已对本机 `qwen2.5:7b`、`qwen3:8b`、`qwen3.5:9b` 运行 Capability Probe：分类、结构化抽取、实体抽取与转写校对通过。其他 Stage 的 `FAIL` 只是该基础 Probe 未覆盖，不能视为模型能力否定；未更改默认模型或删除模型。
 - Bilibili 扫码、nav 验证和 Keychain 保存已有真实验收记录；曾暴露 VIDEO_HOST_BLOCKED 的现场 Job 未自动重跑，不把修复等同于该 Job 成功。
 - 高德、远程 Provider 等需要用户合法提供外部配置；不在文档保存 Secret，不通过编造状态代替配置/验收。
-- Vision Profile 绑定边界已实现，不代表已自动运行视觉理解。视频 Fixture Golden（12 个冻结文本/POI 场景）现覆盖访期、知识与 POI 候选排名指标；Plan C Visual Fact Golden 覆盖菜单、店招、营业时间与路牌，并对严重幻觉设为 0 门禁。Harness 在缺少合法视频、远程 Key 或 Vision Profile 时标记 `BLOCKED_EXTERNAL`；真实模型比较与可选 Vision 尚未执行。已有 Job/Replay 的只读采集器保持可用。自动行程等其他规划项仍不自动实施。
+- Vision Profile 绑定边界已实现，不代表已自动运行视觉理解。视频 Fixture Golden（18 个冻结文本/POI 场景）现覆盖访期、知识、POI 候选排名、错误 AI 字幕、时间轴异常、快速多地点、长转写尾部地点和非地点事实；Plan C Visual Fact Golden 覆盖菜单、店招、营业时间与路牌，并对严重幻觉设为 0 门禁。Harness 在缺少合法视频、远程 Key 或 Vision Profile 时标记 `BLOCKED_EXTERNAL`；真实模型比较与可选 Vision 尚未执行。已有 Job/Replay 的只读采集器保持可用。自动行程等其他规划项仍不自动实施。
 
 ## 历史与维护
 
 - 2026-09-10：视频字幕 P0 一致性门禁已进入源码。`ai-zh` 等生成字幕只保留非敏感来源哈希并强制走 Whisper ASR；人工中文字幕仍可通过来源/时间轴门禁直通。生成 Note 前验证 Transcript 的 VideoAsset、Source、BV/CID、Snapshot 与状态，长 ASR 校对在 Ollama 下每批最多 32 段。目标 Ruff、视频相关 36 项与后端全量 117 项通过；前端 verify 在可用 Node 24 通过。真实结果和未完成非核心截图不在本页判定，见当前任务证据。
 - 2026-09-10：已保存模型可选保存 `request_interval_seconds`（0–300 秒，留空继承全局设置），并分别作用于主/备用 Profile 的每次调用。该字段不保存 Key、不新增 Schema migration；后端全量与前端 verify 通过，未调用真实 Provider。
+- 2026-09-10：视频质量总计划 WP0–22 的源码实现已完成：统一转写结构/时间轴门禁；所有模式独立分块扫描完整校对稿后再写入逐字 Evidence 地点候选；Pipeline/Replay 改为先地点后 Note；`0020` 保存地点化章节类型、关联 Mention 与引文；Note Map/Reduce 和最终章节只接收服务端 Grounded Evidence；全局和笔记页审核共用 `PlaceReviewCard` 与上下文 API，审核后同步刷新地点、笔记和地图缓存。后端完整 122 项、前端 verify、`git diff --check` 通过；`0020` 已在隔离的 0019 状态成功升级。WP23 仍按性能证据条件性延期；真实 Provider/视频重放、生产迁移/重启和历史截图补全本轮未执行。零库升级仍在既有 0019 历史 migration 重复创建 `preference_events` 处失败，未修改该已发布 migration。
+- 2026-09-11：视频笔记的确认态地点候选以当前绑定 `Place` 为唯一展示来源，显示最新名称/地址并跳转地点详情；不再携带该视频的时间码或 Insight 行注释。未确认的 `REVIEW` 与 `UNRESOLVED` 保留 Evidence，并可进入手动 POI 搜索/确认。前端 verify 与已部署页面验收通过，未自动确认真实 POI。
 
 [实施历史](history/IMPLEMENTATION_HISTORY.md) 和 [归档实施计划](history/planning/README.md) 保留旧状态与计划追溯，默认不读。当前页只保留最新结论和未闭环项；完成项不持续追加长叙事。生产现场只更新 CURRENT_HANDOFF.md；冻结约束只更新 REGRESSION_AND_CHANGE_GUARD.md。新增证据必须写明日期、对象与验证层级。

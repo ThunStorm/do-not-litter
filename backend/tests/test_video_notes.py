@@ -37,6 +37,7 @@ from zhijian.resolvers.video.url_parser import parse_bilibili_url
 from zhijian.services.capture import create_capture_job
 from zhijian.services.jobs import JobCancelled
 from zhijian.services.transcript_retention import purge_expired_transcripts
+from zhijian.services.transcript_validation import assess_transcript_quality
 from zhijian.services.video_pipeline import (
     NeedsUser,
     _subtitle_decision,
@@ -204,6 +205,18 @@ def test_generated_subtitle_timeline_anomaly_is_rejected(app_and_session) -> Non
     assert decision["accepted"] is False
     assert decision["timeline_ratio"] == 1.5821
     assert "PLATFORM_SUBTITLE_TIMELINE_INVALID" in decision["validation_reasons"]
+
+
+def test_transcript_quality_fixture_rejects_non_monotonic_timeline() -> None:
+    assessment = assess_transcript_quality(
+        [
+            {"text": "第一段", "start_ms": 5_000, "end_ms": 6_000},
+            {"text": "第二段", "start_ms": 1_000, "end_ms": 2_000},
+        ],
+        duration_ms=10_000,
+    )
+    assert assessment["status"] == "SUSPECT"
+    assert "PLATFORM_SUBTITLE_NON_MONOTONIC" in assessment["reasons"]
 
 
 def test_note_generation_requires_a_trusted_transcript(app_and_session) -> None:
@@ -537,6 +550,17 @@ def test_transcript_correction_chunks_limit_segment_count() -> None:
     assert [len(chunk) for chunk in chunks] == [128, 104]
 
 
+def test_place_extraction_chunks_keep_tail_place_with_overlap() -> None:
+    segments = [
+        SimpleNamespace(id="s1", text="前文" * 4_100, corrected_text=""),
+        SimpleNamespace(id="s2", text="中段" * 4_100, corrected_text=""),
+        SimpleNamespace(id="s3", text="最后去喜洲古镇。", corrected_text=""),
+    ]
+    chunks = video_support._overlapped_transcript_chunks(segments, 8_000, 1)
+    assert chunks[-1][-1].id == "s3"
+    assert chunks[-1][0].id == "s2"
+
+
 def test_ollama_transcript_correction_caps_batch_size() -> None:
     assert video_support._correction_batch_size("ollama", 128) == 32
     assert video_support._correction_batch_size("OpenAI Compatible", 128) == 128
@@ -647,7 +671,7 @@ def test_section_facts_keep_only_evidence_bound_places() -> None:
     assert facts[0]["places"] == [{"name": "菜市场", "segment_ids": ["seg_1"]}]
 
 
-def test_place_extraction_uses_persisted_map_facts_without_model(app_and_session, monkeypatch) -> None:
+def test_place_extraction_scans_full_transcript_with_exact_quote(app_and_session, monkeypatch) -> None:
     _, factory = app_and_session
     with factory() as db:
         source = Source(source_type="URL", locator="https://example.test/video", title="fixture")
@@ -659,42 +683,26 @@ def test_place_extraction_uses_persisted_map_facts_without_model(app_and_session
         _, segments = materialize_transcript(
             db, source, asset, [{"text": "去菜市场", "start_ms": 0, "end_ms": 1000}], source_kind="ASR"
         )
-        note = AINote(video_asset_id=asset.id)
-        db.add(note)
-        db.flush()
-        version = AINoteVersion(
-            id="version",
-            ai_note_id=note.id,
-            version=1,
-            markdown="# 旅行",
-            transcript_version=1,
-            map_facts_json=[
-                {
-                    "segment_ids": [segments[0].id],
-                    "places": [
-                        {
-                            "name": "菜市场",
-                            "segment_ids": [segments[0].id],
-                            "confidence": "high",
-                            "recommended_items": ["海蛎煎"],
-                            "highlights": ["清晨最热闹"],
-                            "best_months": [4],
-                            "best_time_slots": ["MORNING"],
-                        }
-                    ],
-                }
-            ],
-        )
-        note.current_version_id = version.id
-        db.add(version)
-        db.commit()
-        monkeypatch.setattr(
-            video_support,
-            "provider_for_role",
-            lambda *_args: (_ for _ in ()).throw(AssertionError("默认地点聚合不应调用模型")),
-        )
-        mentions = extract_place_mentions(db, Settings(_env_file=None), asset, version, segments)
+        captured: dict[str, object] = {}
+        monkeypatch.setattr(video_support, "provider_for_role", lambda *_args: (object(), "fixture", "model"))
+
+        def cached(*_args, **kwargs):
+            captured["context"] = kwargs["messages"][-1]["content"]
+            return LLMResult(
+                '{"places":[{"name":"菜市场","raw_name":"菜市场","quote":"去菜市场","segment_ids":["'
+                + segments[0].id
+                + '"],"confidence":"high","recommended_items":["海蛎煎"],'
+                + '"highlights":["清晨最热闹"],"best_months":[4],'
+                + '"best_time_slots":["MORNING"]}]}',
+                "fixture",
+                "model",
+                {},
+            )
+
+        monkeypatch.setattr(video_support, "_cached_stage_json", cached)
+        mentions = extract_place_mentions(db, Settings(_env_file=None), asset, None, segments)
         assert len(mentions) == 1 and mentions[0].name == "菜市场"
+        assert "去菜市场" in captured["context"]
         values = {(item["insight_type"], item["value_key"]) for item in mentions[0].metadata_json["insights"]}
         assert values == {
             ("RECOMMENDED_ITEM", "海蛎煎"),
@@ -704,7 +712,7 @@ def test_place_extraction_uses_persisted_map_facts_without_model(app_and_session
         }
 
 
-def test_remote_place_extraction_uses_map_facts_not_full_transcript(app_and_session, monkeypatch) -> None:
+def test_remote_place_extraction_uses_full_transcript_not_map_facts(app_and_session, monkeypatch) -> None:
     _, factory = app_and_session
     with factory() as db:
         source = Source(source_type="URL", locator="https://example.test/remote-video", title="fixture")
@@ -717,7 +725,7 @@ def test_remote_place_extraction_uses_map_facts_not_full_transcript(app_and_sess
             db,
             source,
             asset,
-            [{"text": "这段长转写不应再次送往地点模型", "start_ms": 0, "end_ms": 1000}],
+            [{"text": "这段长转写包含菜市场", "start_ms": 0, "end_ms": 1000}],
             source_kind="ASR",
         )
         note = AINote(video_asset_id=asset.id)
@@ -744,10 +752,13 @@ def test_remote_place_extraction_uses_map_facts_not_full_transcript(app_and_sess
         db.flush()
         captured: dict[str, object] = {}
         monkeypatch.setattr(video_support, "provider_for_role", lambda *_args: (object(), "remote", "model"))
+
         def cached(*_args, **kwargs):
             captured["messages"] = kwargs["messages"]
             return LLMResult(
-                '{"places":[{"name":"菜市场","segment_ids":["' + segments[0].id + '"]}]}',
+                '{"places":[{"name":"菜市场","raw_name":"菜市场","quote":"这段长转写包含菜市场","segment_ids":["'
+                + segments[0].id
+                + '"]}]}',
                 "remote",
                 "model",
                 {},
@@ -757,8 +768,8 @@ def test_remote_place_extraction_uses_map_facts_not_full_transcript(app_and_sess
         mentions = extract_place_mentions(db, Settings(_env_file=None), asset, version, segments, job)
         assert mentions[0].name == "菜市场"
         context = captured["messages"][-1]["content"]
-        assert "SectionFacts" in context
-        assert "这段长转写不应再次送往地点模型" not in context
+        assert "这段长转写包含菜市场" in context
+        assert "SectionFacts" not in context
 
 
 def test_time_phrases_fall_back_to_evidence_bound_place_windows(app_and_session, monkeypatch) -> None:
@@ -815,13 +826,20 @@ def test_time_phrases_fall_back_to_evidence_bound_place_windows(app_and_session,
         )
         db.add(version)
         db.commit()
+        monkeypatch.setattr(video_support, "provider_for_role", lambda *_args: (object(), "fixture", "model"))
         monkeypatch.setattr(
             video_support,
-            "provider_for_role",
-            lambda *_args: (_ for _ in ()).throw(AssertionError("默认地点聚合不应调用模型")),
+            "_cached_stage_json",
+            lambda *_args, **_kwargs: LLMResult(
+                '{"places":[{"name":"黑瞎子岛","raw_name":"黑瞎子岛","quote":"黑瞎子岛十月中旬是最佳观赏期","segment_ids":["'
+                + segments[0].id
+                + '"]}]}',
+                "fixture",
+                "model",
+                {},
+            ),
         )
-
-        mention = extract_place_mentions(db, Settings(_env_file=None), asset, version, segments)[0]
+        mention = extract_place_mentions(db, Settings(_env_file=None), asset, None, segments)[0]
         windows = mention.metadata_json["visit_windows"]
         assert {(item["period_type"], item["month"]) for item in windows} == {
             ("BEST_VIEWING", 10),
@@ -1074,7 +1092,8 @@ def test_note_map_reduce_persists_compact_facts(app_and_session, monkeypatch) ->
             transcript,
             segments,
         )
-        assert version.map_facts_json and version.map_facts_json[0]["places"][0]["name"] == "菜市场"
+        assert version.map_facts_json and version.map_facts_json[0]["supporting_quotes"]
+        assert version.map_facts_json[0]["places"] == []
 
 
 def test_transcript_correction_stops_before_next_batch_when_cancelled(monkeypatch) -> None:

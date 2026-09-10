@@ -302,10 +302,20 @@ svg { flex: 0 0 auto; }
 .review-candidates { display: grid; gap: 10px; }
 .review-candidates article { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 12px; border-top: 1px solid var(--line); }
 .review-candidates span, .review-candidates small { display: block; color: var(--muted); font-size: 12px; }
+.review-candidates__empty { margin: 0; padding: 12px; color: var(--muted); }
 .review-card__actions { display: flex; gap: 8px; }
 .review-search { display: flex; gap: 8px; align-items: center; padding: 0 0 12px; }
 .review-search input { min-width: 0; flex: 1; }
 .review-toast { position: sticky; top: 12px; z-index: 4; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; padding: 10px 12px; border: 1px solid #cdddbd; border-radius: 7px; background: #f2f8ec; }
+.place-review-card { display: grid; gap: 12px; }
+.review-source { display: grid; gap: 6px; padding: 10px 12px; border-left: 2px solid var(--accent); background: var(--paper-deep); }
+.review-source small { color: var(--muted); }
+.review-source img { width: min(260px, 100%); border-radius: 6px; }
+.review-transcript { display: grid; gap: 3px; }
+.review-transcript p { margin: 0; color: var(--muted); font-size: 13px; }
+.review-transcript p.is-evidence { color: var(--text); font-weight: 600; }
+.review-transcript time { display: inline-block; width: 42px; color: var(--accent); font-variant-numeric: tabular-nums; }
+.video-note-reviews { display: grid; gap: 12px; margin-top: 24px; }
 .map-add-flow { position: absolute; z-index: 10; right: 24px; bottom: 84px; display: grid; width: min(380px, calc(100% - 48px)); max-height: min(620px, calc(100vh - 130px)); overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: rgb(251 250 247 / 97%); box-shadow: var(--shadow); }
 .map-add-flow header { padding: 16px 16px 12px; border-bottom: 1px solid var(--line-soft); }.map-add-flow footer { display: flex; justify-content: flex-end; padding: 10px 16px; border-top: 1px solid var(--line-soft); }.map-add-results { min-height: 84px; overflow-y: auto; overscroll-behavior: contain; padding: 0 12px; }
 .map-add-flow h2 { margin: 0; font-size: 16px; }

@@ -34,6 +34,7 @@ from zhijian.services.pipeline import process_job
 from zhijian.services.place_knowledge import normalize_insight
 from zhijian.services.runtime_monitor import METRICS_SAMPLE_KEY
 from zhijian.services.video_screenshots import _quality, plan_screenshots
+from zhijian.services.video_support import materialize_transcript
 
 
 def test_health(client) -> None:
@@ -77,6 +78,70 @@ def test_place_detail_returns_active_evidence_linked_insights(client, app_and_se
             "segment_ids": ["seg_fixture"],
             "source_quote": "视频明确推荐海蛎煎。",
         }
+    ]
+
+
+def test_place_review_returns_video_evidence_context(client, app_and_session) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        source = Source(source_type="URL", locator="https://example.test/review", title="来源视频")
+        db.add(source)
+        db.flush()
+        asset = VideoAsset(source_id=source.id, canonical_url=source.locator, title="旅行视频")
+        db.add(asset)
+        db.flush()
+        transcript, segments = materialize_transcript(
+            db,
+            source,
+            asset,
+            [
+                {"text": "前文", "start_ms": 0, "end_ms": 1_000},
+                {"text": "去故宫参观", "start_ms": 1_000, "end_ms": 2_000},
+                {"text": "后文", "start_ms": 2_000, "end_ms": 3_000},
+            ],
+            source_kind="ASR",
+        )
+        note = AINote(video_asset_id=asset.id)
+        db.add(note)
+        db.flush()
+        version = AINoteVersion(
+            ai_note_id=note.id, version=1, markdown="# 旅行", transcript_version=transcript.version
+        )
+        db.add(version)
+        db.flush()
+        note.current_version_id = version.id
+        db.add(
+            AINoteSection(
+                ai_note_version_id=version.id,
+                ordinal=0,
+                heading="故宫",
+                section_kind="PLACE",
+                body_markdown="正文",
+                segment_ids_json=[segments[1].id],
+            )
+        )
+        db.add(
+            PlaceMention(
+                video_asset_id=asset.id,
+                ai_note_version_id=version.id,
+                name="故宫",
+                raw_name="故宫",
+                quote="去故宫参观",
+                segment_ids_json=[segments[1].id],
+                resolution_status="UNRESOLVED",
+            )
+        )
+        db.commit()
+    response = client.get(f"/api/travel/place-reviews?video_note_id={note.id}")
+    assert response.status_code == 200
+    review = response.json()[0]
+    assert review["resolution_status"] == "UNRESOLVED"
+    assert review["source_context"]["video_title"] == "旅行视频"
+    assert review["source_context"]["section"]["heading"] == "故宫"
+    assert [item["text"] for item in review["source_context"]["transcript_context"]] == [
+        "前文",
+        "去故宫参观",
+        "后文",
     ]
 
 
@@ -434,11 +499,7 @@ def test_changed_prompt_supplement_replays_from_earliest_affected_step(client, a
     options = client.get(f"/api/jobs/{job_id}/replay-options").json()
     assert options["step_replay_available"] is True
     assert options["replay_from_step"] == "CORRECT_TRANSCRIPT"
-    assert options["prompt_changed_steps"] == [
-        "CORRECT_TRANSCRIPT",
-        "GENERATE_AI_NOTE",
-        "EXTRACT_TRAVEL_FACTS",
-    ]
+    assert options["prompt_changed_steps"] == ["CORRECT_TRANSCRIPT", "EXTRACT_TRAVEL_FACTS"]
 
 
 def test_partial_success_without_failed_step_does_not_replay_cleanup(client, app_and_session) -> None:

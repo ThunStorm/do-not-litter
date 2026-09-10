@@ -38,6 +38,32 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>
 }
 
+export type PlaceReview = {
+  mention_id: string
+  name: string
+  raw_name: string
+  suggested_name: string
+  place_type: string
+  reason: string
+  confidence: number
+  resolution_status: 'REVIEW' | 'UNRESOLVED'
+  revision: number
+  candidates: Array<{ provider_id: string; name: string; address: string; city: string; district: string; typecode: string; score: number; match_reasons: string[]; match_explanation?: { nearby_context?: string[]; cross_place_context?: string[] } }>
+  source_context: { video_note_id: string | null; video_title: string; canonical_url: string; quote: string; segment_ids: string[]; start_ms: number | null; end_ms: number | null; section: { id: string; heading: string; summary: string } | null; transcript_context: Array<{ id: string; text: string; start_ms: number | null; end_ms: number | null; is_evidence: boolean }>; transcript_expired: boolean; screenshot: { id: string; caption: string; image_url: string } | null }
+}
+
+export type VideoPlace = {
+  id: string
+  name: string
+  quote: string
+  resolution_status: string
+  place_id: string | null
+  start_ms: number | null
+  target_section_id: string | null
+  place: { name: string; address: string } | null
+  insights: Array<{ insight_type: string; value_text: string; segment_ids: string[]; source_quote: string; target_section_id: string | null }>
+}
+
 export const api = {
   createSession: (token: string) =>
     request<{ status: string }>('/api/auth/session', {
@@ -108,7 +134,7 @@ export const api = {
   createMapMarker: (payload: { longitude: number; latitude: number; custom_name: string; place_type?: string; summary?: string }) => request<{ marker_id: string; place_id: string }>('/api/travel/map/markers', { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) }),
   deleteMapMarker: (markerId: string) => request<{ marker_id: string; visibility: string }>(`/api/travel/map/markers/${markerId}`, { method: 'DELETE' }),
   restoreMapMarker: (markerId: string) => request<{ marker_id: string; visibility: string }>(`/api/travel/map/markers/${markerId}/restore`, { method: 'POST' }),
-  placeReviews: () => request<Array<{ mention_id: string; name: string; place_type: string; reason: string; revision: number; candidates: Array<{ provider_id: string; name: string; address: string; score: number; match_reasons: string[] }> }>>('/api/travel/place-reviews'),
+  placeReviews: (videoNoteId?: string) => request<PlaceReview[]>(`/api/travel/place-reviews${videoNoteId ? `?video_note_id=${encodeURIComponent(videoNoteId)}` : ''}`),
   placeReviewCount: () => request<{ count: number }>('/api/travel/place-reviews/count'),
   confirmPlaceReview: (mentionId: string, poiId: string, expectedRevision: number) => request(`/api/travel/place-mentions/${mentionId}/confirm`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ provider: 'AMAP', poi_id: poiId, expected_revision: expectedRevision }) }),
   updatePlaceMention: (mentionId: string, action: 'reject' | 'restore') => request(`/api/travel/place-mentions/${mentionId}/${action}`, { method: 'POST' }),
@@ -214,7 +240,7 @@ export const api = {
   videoTranscript: (id: string) => request<{ text: string; correction_status: string; correction_coverage: number; segments: Array<{ id: string; text: string; raw_text: string; corrected_text: string; correction_status: string; start_ms: number; end_ms: number }> }>(`/api/video-notes/${id}/transcript`),
   videoTranscriptExportUrl: (id: string, version: 'raw' | 'corrected' = 'corrected') => `/api/video-notes/${id}/transcript/export?version=${version}`,
   videoScreenshots: (id: string) => request<VideoScreenshotView[]>(`/api/video-notes/${id}/screenshots`),
-  videoPlaces: (id: string) => request<Array<{ id: string; name: string; quote: string; resolution_status: string; place_id: string | null; start_ms: number | null; target_section_id: string | null; place: { name: string; address: string } | null; insights: Array<{ insight_type: string; value_text: string; segment_ids: string[]; source_quote: string; target_section_id: string | null }> }>>(`/api/video-notes/${id}/places`),
+  videoPlaces: (id: string) => request<VideoPlace[]>(`/api/video-notes/${id}/places`),
   regenerateVideoNote: (id: string) => request<{ job_id: string }>(`/api/video-notes/${id}/regenerate`, { method: 'POST' }),
   deleteVideoNote: (id: string) => request<{ status: string }>(`/api/video-notes/${id}`, { method: 'DELETE' }),
 }

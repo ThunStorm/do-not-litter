@@ -4,16 +4,17 @@
 
 ## 任务续接
 
-- 更新：2026-09-10。字幕一致性 P0 已提交并推送 `0a9ac2f`，并完成最终部署：AI 字幕只审计、不作权威转写，强制 Whisper ASR；生成前校验 Source、BV/CID、Snapshot、状态与时间轴，Ollama 校对每批至多 32 段。
-- 已完成：真实串行重放两条污染视频；`note_d0a…`、`note_dcd…` 均切至 Transcript/Note v2，来源 `WHISPER_CPP_ASR/LOCAL_ASR`，摘要已去除电影解说/兴趣自述污染。前者 `PARTIAL_SUCCESS` 仅有 2 个 POI 待确认；后者的 Note、地点和章节完成。
-- 验证：目标 Ruff、视频相关 36 项、后端全量 117 项、Node 24 前端 verify、`diff --check`；生产 revision 0019、完整性/服务/心跳 READY、无活跃 Job/lease。备份 `data/backups/app-pre-transcript-alignment-20260910-153500.db` 已校验。
-- 未完成：第二条在非核心 `DOWNLOAD_VIDEO_FOR_FRAMES` 协作取消，新截图与列表 ContentItem 物化未完成；不得为此盲目完整重放或原地篡改历史版本。
-- 下一步：仅在用户允许真实视频/模型调用后，走受支持恢复路径补第二条截图/列表物化；P1 抽样验证暂缓，当前完整 ASR 用时可接受。
-- 注意：真实 Provider 串行并尊重 QPS；不写入 Key/Cookie，不删历史 Transcript/Note/Evidence，不迁移数据库或改默认路由。
+- 更新：2026-09-11。视频质量总计划 WP0–22 已部署；`0020` 增加地点化章节 Evidence，地点抽取改为完整转写分块后先于 Note，审核页/笔记页共用 Review Context。
+- 已完成：生产库从 `0019` 升级至 `0020`，备份 `data/backups/app-pre-video-quality-0020-20260910-234552.db` 完整性为 ok；API/Worker 重启后 health、首页、Worker 心跳、`/place-reviews` source_context 与 revision 均正常，无活跃 Job/lease。
+- 已完成：确认后的地点候选直接显示当前绑定 `Place` 的名称/地址并链接地点详情，不再显示视频时间码或 Insight 行注释；`REVIEW` 与 `UNRESOLVED` 均可在笔记页打开搜索/确认 POI。
+- 验证：目标 Ruff、后端完整测试、Node 24 前端 verify、`diff --check` 均通过；已在已部署笔记页确认确认态不带转写行、待确认卡可点击“搜索 POI”；未调用 Provider、未重跑真实视频、未自动确认 POI。
+- 未完成：WP23 仍按性能证据延期；现有 `PARTIAL_SUCCESS` Job 没有失败步骤可续跑，剩余 POI 需用户审核。
+- 下一步：用户在视频笔记或 `/place-reviews` 审核 POI；如需真实 Benchmark/视频重跑，单任务串行并遵守 QPS。
+- 注意：不删历史 Transcript/Note/Evidence，不自动确认不确定 POI；零库升级仍受已发布的 `0019` 重复建表问题影响，禁止回改历史 migration。
 
 ## 生产快照（采样 2026-09-10）
 
 - 2026-09-10 已重启 cn.zhijian.api、cn.zhijian.worker；health、首页正文和 Worker 心跳 READY，活跃 Job/lease 为 0。
-- SQLite/WAL 实读 Alembic 0019（head），`integrity_check=ok`；最终部署前逻辑备份为 `data/backups/app-pre-clean-deploy-20260910-170000.db`，其完整性与 revision 均已复核。本次未跑 migration。
+- SQLite/WAL 实读 Alembic 0020（head），`integrity_check=ok`；本次升级前逻辑备份为 `data/backups/app-pre-video-quality-0020-20260910-234552.db`，其完整性与 revision 均已复核。
 - 运行时为 Python 3.14.6，/Volumes/D/Library/Application Support/Zhijian/venv/bin/python；LaunchAgent 的 PYTHONPATH 指向仓库 backend/src。精确 Git SHA 未嵌入进程。
 - Gateway 的真实 Local/Remote、ASR、视觉、fallback、cache/force-regenerate、预算、取消/Replay 仍须按 [生产验收门禁](ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md) 单独留证；不得以本次健康和单个字幕样本外推。

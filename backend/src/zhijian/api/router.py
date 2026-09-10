@@ -38,6 +38,8 @@ from zhijian.core.secret_store import SecretStore
 from zhijian.core.time import as_utc, utc_now
 from zhijian.db.models import (
     AccessSession,
+    AINote,
+    AINoteSection,
     AINoteVersion,
     Claim,
     ContentItem,
@@ -62,6 +64,8 @@ from zhijian.db.models import (
     Snapshot,
     Source,
     SystemEvent,
+    Transcript,
+    VideoAsset,
     VideoScreenshot,
     VisualFact,
 )
@@ -550,8 +554,8 @@ def get_job(job_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
         "ASR": 50,
         "NORMALIZE_TRANSCRIPT": 60,
         "CORRECT_TRANSCRIPT": 65,
-        "GENERATE_AI_NOTE": 70,
-        "EXTRACT_TRAVEL_FACTS": 80,
+        "EXTRACT_TRAVEL_FACTS": 70,
+        "GENERATE_AI_NOTE": 80,
         "RESOLVE_POI": 90,
         "BUILD_PLACE_NOTES": 100,
         "PLAN_SCREENSHOTS": 110,
@@ -2680,24 +2684,110 @@ def place_history(place_id: str, _: Protected, db: Session = Depends(get_db)) ->
     return [event_view(event) for event in events]
 
 
+def _place_review_view(db: Session, mention: PlaceMention) -> dict:
+    asset = db.get(VideoAsset, mention.video_asset_id)
+    source = db.get(Source, asset.source_id) if asset else None
+    version = db.get(AINoteVersion, mention.ai_note_version_id) if mention.ai_note_version_id else None
+    note = db.get(AINote, version.ai_note_id) if version else None
+    sections = db.scalars(
+        select(AINoteSection)
+        .where(AINoteSection.ai_note_version_id == (version.id if version else ""))
+        .order_by(AINoteSection.ordinal)
+    ).all()
+    section = next(
+        (item for item in sections if set(item.segment_ids_json) & set(mention.segment_ids_json)), None
+    )
+    transcript = db.scalar(
+        select(Transcript)
+        .where(Transcript.video_asset_id == mention.video_asset_id)
+        .order_by(Transcript.version.desc())
+    )
+    rows = (
+        db.scalars(
+            select(Segment)
+            .where(Segment.snapshot_id == transcript.metadata_json.get("snapshot_id"))
+            .order_by(Segment.ordinal)
+        ).all()
+        if transcript and not transcript.purged_at
+        else []
+    )
+    evidence_indices = [index for index, item in enumerate(rows) if item.id in mention.segment_ids_json]
+    context = (
+        [
+            {
+                "id": item.id,
+                "text": item.corrected_text or item.text,
+                "start_ms": item.locator_json.get("start_ms"),
+                "end_ms": item.locator_json.get("end_ms"),
+                "is_evidence": item.id in mention.segment_ids_json,
+            }
+            for item in rows[max(0, min(evidence_indices) - 2) : min(len(rows), max(evidence_indices) + 3)]
+        ]
+        if evidence_indices
+        else []
+    )
+    screenshot = db.scalar(
+        select(VideoScreenshot)
+        .where(VideoScreenshot.place_mention_id == mention.id, VideoScreenshot.status == "READY")
+        .order_by(VideoScreenshot.created_at.desc())
+    )
+    return {
+        "mention_id": mention.id,
+        "name": mention.name,
+        "raw_name": mention.raw_name,
+        "suggested_name": mention.suggested_name,
+        "place_type": mention.place_type,
+        "reason": mention.reason,
+        "confidence": mention.confidence,
+        "resolution_status": mention.resolution_status,
+        "revision": mention.revision,
+        "candidates": mention.metadata_json.get("poi_candidates", []),
+        "source_context": {
+            "video_note_id": note.id if note else None,
+            "video_title": asset.title if asset else "",
+            "canonical_url": asset.canonical_url if asset else "",
+            "quote": mention.quote,
+            "segment_ids": mention.segment_ids_json,
+            "start_ms": context[0]["start_ms"] if context else None,
+            "end_ms": context[-1]["end_ms"] if context else None,
+            "section": (
+                {"id": section.id, "heading": section.heading, "summary": section.summary}
+                if section
+                else None
+            ),
+            "transcript_context": context,
+            "transcript_expired": bool(transcript and transcript.purged_at),
+            "screenshot": (
+                {
+                    "id": screenshot.id,
+                    "caption": screenshot.caption,
+                    "image_url": "/api/video-screenshots/" f"{screenshot.id}/image",
+                }
+                if screenshot
+                else None
+            ),
+            "source_title": source.title if source else "",
+        },
+    }
+
+
 @router.get("/api/travel/place-reviews")
-def list_place_reviews(_: Protected, db: Session = Depends(get_db)) -> list[dict]:
+def list_place_reviews(
+    _: Protected, video_note_id: str | None = None, db: Session = Depends(get_db)
+) -> list[dict]:
     mentions = db.scalars(
         select(PlaceMention).where(
-            PlaceMention.resolution_status == ResolutionStatus.REVIEW.value,
+            PlaceMention.resolution_status.in_(
+                [ResolutionStatus.REVIEW.value, ResolutionStatus.UNRESOLVED.value]
+            ),
             PlaceMention.extraction_status != "USER_REJECTED",
         )
     ).all()
+    result = [_place_review_view(db, mention) for mention in mentions]
     return [
-        {
-            "mention_id": mention.id,
-            "name": mention.name,
-            "place_type": mention.place_type,
-            "revision": mention.revision,
-            "candidates": mention.metadata_json.get("poi_candidates", []),
-            "reason": mention.metadata_json.get("reason", ""),
-        }
-        for mention in mentions
+        item
+        for item in result
+        if not video_note_id or item["source_context"]["video_note_id"] == video_note_id
     ]
 
 
@@ -2706,7 +2796,9 @@ def place_review_count(_: Protected, db: Session = Depends(get_db)) -> dict[str,
     return {
         "count": db.scalar(
             select(func.count(PlaceMention.id)).where(
-                PlaceMention.resolution_status == ResolutionStatus.REVIEW.value,
+                PlaceMention.resolution_status.in_(
+                    [ResolutionStatus.REVIEW.value, ResolutionStatus.UNRESOLVED.value]
+                ),
                 PlaceMention.extraction_status != "USER_REJECTED",
             )
         )

@@ -36,7 +36,7 @@ def test_video_fixture_benchmark_scores_complete_expected_outputs() -> None:
     result = _runner().evaluate(samples, rows)
     profile = result["profiles"]["FIXTURE"]
 
-    assert len(samples) == 12
+    assert len(samples) == 18
     assert profile["schema_pass_rate"] == 1
     assert profile["places"]["recall"] == 1
     assert profile["insights"]["precision"] == 1

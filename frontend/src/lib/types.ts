@@ -338,7 +338,7 @@ export interface VideoNoteDetail extends VideoNoteView {
   markdown: string
   warnings: string[]
   needs_regeneration: boolean
-  sections: Array<{ id: string; heading: string; thesis: string; summary: string; bullets: string[]; anchor_id: string; body_markdown: string; segment_ids: string[]; start_ms: number | null; end_ms: number | null }>
+  sections: Array<{ id: string; heading: string; section_kind: 'PLACE' | 'AREA' | 'ROUTE' | 'SUPPLEMENTAL'; thesis: string; summary: string; bullets: string[]; anchor_id: string; body_markdown: string; segment_ids: string[]; place_mention_ids: string[]; evidence_quotes: string[]; start_ms: number | null; end_ms: number | null }>
   transcript_status: 'AVAILABLE' | 'EXPIRED' | 'NOT_READY'
   transcript_segment_count: number
   transcript_retention_until: string | null

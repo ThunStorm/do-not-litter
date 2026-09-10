@@ -117,12 +117,15 @@ def video_note_detail(note_id: str, _: Protected, db: Session = Depends(get_db))
         {
             "id": section.id,
             "heading": section.heading,
+            "section_kind": section.section_kind,
             "thesis": section.thesis,
             "summary": section.summary,
             "bullets": section.bullets_json,
             "anchor_id": section.anchor_id or f"section-{section.id}",
             "body_markdown": section.body_markdown,
             "segment_ids": section.segment_ids_json,
+            "place_mention_ids": section.place_mention_ids_json,
+            "evidence_quotes": section.evidence_quotes_json,
             "start_ms": section.start_ms,
             "end_ms": section.end_ms,
         }

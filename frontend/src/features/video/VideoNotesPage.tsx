@@ -5,7 +5,8 @@ import { Link, useParams } from 'react-router-dom'
 
 import { EmptyState, PageHeader } from '../../components/AppShell'
 import { MarkdownContent } from '../../components/MarkdownContent'
-import { api } from '../../lib/api'
+import { api, type PlaceReview, type VideoPlace } from '../../lib/api'
+import { PlaceReviewCard } from '../places/PlaceReviewCard'
 
 function duration(value: number | null) {
   if (!value) return '时长待读取'
@@ -33,6 +34,11 @@ function InsightChips({ insights, jump }: { insights: Array<{ insight_type: stri
   return insights.length ? <ul className="video-place__insights">{insights.slice(0, 4).map((item) => <li key={`${item.insight_type}-${item.value_text}`}><button title={item.source_quote || '回到对应证据'} onClick={() => jump(item.target_section_id)}>{item.value_text}</button></li>)}</ul> : null
 }
 
+function VideoPlaceCandidate({ place, review, jump, jumpToReview }: { place: VideoPlace; review?: PlaceReview; jump: (sectionId?: string | null) => void; jumpToReview: (mentionId: string) => void }) {
+  if (place.resolution_status === 'CONFIRMED' && place.place_id && place.place) return <div className="video-place video-place--confirmed"><Link to={`/places/${place.place_id}`}><strong>{place.place.name}</strong><small>{place.place.address || '已确认 POI'}</small></Link></div>
+  return <div className="video-place"><button onClick={() => jump(place.target_section_id)}><strong>{place.name}</strong><small>待确认</small></button><time>{timecode(place.start_ms)}</time><InsightChips insights={place.insights} jump={jump} />{review ? <button className="text-action" onClick={() => jumpToReview(place.id)}>确认 POI</button> : null}</div>
+}
+
 export function VideoNotesPage() {
   const notes = useQuery({ queryKey: ['video-notes'], queryFn: () => api.videoNotes() })
   const client = useQueryClient()
@@ -56,6 +62,7 @@ export function VideoNoteDetailPage() {
   const transcript = useQuery({ queryKey: ['video-transcript', canonicalNoteId], queryFn: () => api.videoTranscript(canonicalNoteId), enabled: Boolean(note.data) })
   const places = useQuery({ queryKey: ['video-places', canonicalNoteId], queryFn: () => api.videoPlaces(canonicalNoteId), enabled: Boolean(note.data) })
   const screenshots = useQuery({ queryKey: ['video-screenshots', canonicalNoteId], queryFn: () => api.videoScreenshots(canonicalNoteId), enabled: Boolean(note.data) })
+  const reviews = useQuery({ queryKey: ['place-reviews', canonicalNoteId], queryFn: () => api.placeReviews(canonicalNoteId), enabled: Boolean(note.data) })
   const regenerate = useMutation({ mutationFn: () => api.regenerateVideoNote(canonicalNoteId), onSuccess: () => void client.invalidateQueries({ queryKey: ['jobs'] }) })
   const remove = useMutation({ mutationFn: () => api.deleteVideoNote(canonicalNoteId), onSuccess: () => { void client.invalidateQueries({ queryKey: ['video-notes'] }); void client.invalidateQueries({ queryKey: ['sources'] }); window.location.assign('/video-notes') } })
   useEffect(() => {
@@ -75,6 +82,7 @@ export function VideoNoteDetailPage() {
     target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     target?.focus({ preventScroll: true })
   }
+  const jumpToReview = (mentionId: string) => document.getElementById(`review-${mentionId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   if (note.isPending) return <div className="detail-loading">正在读取视频笔记…</div>
   if (note.isError) return <div className="detail-loading"><p>无法读取视频笔记：{note.error instanceof Error ? note.error.message : '请求失败'}</p><div><Link className="button button--outline" to="/video-notes"><ArrowLeft />返回视频笔记</Link><button className="button button--primary" onClick={() => void note.refetch()}>重试读取</button></div></div>
   if (!note.data) return <div className="detail-loading">视频笔记不存在。</div>
@@ -91,6 +99,6 @@ export function VideoNoteDetailPage() {
       const heading = legacyNeedsRegeneration ? '章节内容待重新归纳' : section.heading
       return <section id={`section-${section.id}`} tabIndex={-1} key={section.id}><div className="video-note-prose__heading"><time>{timecode(section.start_ms)}</time><h3>{heading}</h3></div><div className={`video-section-layout ${shots.length ? 'video-section-layout--with-shot' : ''}`}><div className="video-markdown"><MarkdownContent value={concise} /></div>{shots.slice(0, 1).map((shot) => <button className="video-section-shot" key={shot.id} onClick={() => shot.image_url && setLightbox({ src: shot.image_url, alt: shot.caption || `${heading}关键截图` })}><img src={shot.image_url ?? ''} alt={shot.caption || `${heading}关键截图`} /><span><b>{shot.caption || shot.selection_reason}</b><time>{timecode(shot.actual_timestamp_ms)}</time><em>点击放大</em></span></button>)}</div></section>
     }) : <p>时间线章节正在生成。</p>}</section>
-    <section className="video-evidence-grid"><div><h2><MapPin />地点候选</h2>{legacyNeedsRegeneration ? <p>旧版地点候选可能受口音误读影响，已隐藏；重新生成后再由地图搜索校对。</p> : places.data?.length ? places.data.map((place) => <div className="video-place" key={place.id}><button onClick={() => jump(place.target_section_id)}><strong>{place.name}</strong><small>{place.place?.address || (place.resolution_status === 'CONFIRMED' ? '已由高德确认' : '等待高德 POI 确认')}</small></button><time>{timecode(place.start_ms)}</time><InsightChips insights={place.insights} jump={jump} />{place.place_id && <Link to={`/places/${place.place_id}`}>查看</Link>}</div>) : <p>模型尚未输出带证据的地点候选。</p>}</div><div><div className="transcript-card-heading"><h2><TextQuote />完整转写</h2>{note.data.transcript_status !== 'EXPIRED' && !legacyNeedsRegeneration && <a className="transcript-export" href={api.videoTranscriptExportUrl(canonicalNoteId, 'corrected')}><Download />导出 TXT</a>}</div>{note.data.transcript_status === 'EXPIRED' ? <p>完整转写已按 180 天策略删除。</p> : legacyNeedsRegeneration ? <p>旧版原始识别稿已保留，但不会冒充 AI 校对稿展示或导出。重新生成后可查看校对版本。</p> : <><p className="transcript-retention">共 {note.data.transcript_segment_count} 段 · AI 校对稿 · 保留至 {note.data.transcript_retention_until ? new Date(note.data.transcript_retention_until).toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' }) : '待生成'}</p><div className="transcript-preview">{transcript.data?.segments.slice(0, 8).map((segment) => <button key={segment.id} onClick={() => jump(sectionForSegment.get(segment.id))}><time>{timecode(segment.start_ms)}</time><span>{segment.text}</span></button>) || <p>正在读取转写…</p>}</div></>}</div></section>
+    <section className="video-evidence-grid"><div><h2><MapPin />地点候选</h2>{legacyNeedsRegeneration ? <p>旧版地点候选可能受口音误读影响，已隐藏；重新生成后再由地图搜索校对。</p> : places.data?.length ? places.data.map((place) => <VideoPlaceCandidate place={place} review={reviews.data?.find((item) => item.mention_id === place.id)} key={place.id} jump={jump} jumpToReview={jumpToReview} />) : <p>模型尚未输出带证据的地点候选。</p>}</div><div><div className="transcript-card-heading"><h2><TextQuote />完整转写</h2>{note.data.transcript_status !== 'EXPIRED' && !legacyNeedsRegeneration && <a className="transcript-export" href={api.videoTranscriptExportUrl(canonicalNoteId, 'corrected')}><Download />导出 TXT</a>}</div>{note.data.transcript_status === 'EXPIRED' ? <p>完整转写已按 180 天策略删除。</p> : legacyNeedsRegeneration ? <p>旧版原始识别稿已保留，但不会冒充 AI 校对稿展示或导出。重新生成后可查看校对版本。</p> : <><p className="transcript-retention">共 {note.data.transcript_segment_count} 段 · AI 校对稿 · 保留至 {note.data.transcript_retention_until ? new Date(note.data.transcript_retention_until).toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' }) : '待生成'}</p><div className="transcript-preview">{transcript.data?.segments.slice(0, 8).map((segment) => <button key={segment.id} onClick={() => jump(sectionForSegment.get(segment.id))}><time>{timecode(segment.start_ms)}</time><span>{segment.text}</span></button>) || <p>正在读取转写…</p>}</div></>}</div></section>{!legacyNeedsRegeneration && reviews.data?.length ? <section className="video-note-reviews"><h2><MapPin />待确认地点</h2>{reviews.data.map((review) => <PlaceReviewCard review={review} key={review.mention_id} onJump={jump} />)}</section> : null}
   </article>{lightbox && <div className="video-lightbox" role="dialog" aria-modal="true" aria-label={lightbox.alt} onClick={() => setLightbox(null)}><button aria-label="关闭图片"><X /></button><img src={lightbox.src} alt={lightbox.alt} onClick={(event) => event.stopPropagation()} /></div>}</div>
 }
