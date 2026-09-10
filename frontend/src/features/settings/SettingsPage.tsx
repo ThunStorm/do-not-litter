@@ -120,7 +120,7 @@ function StagePolicyEditor({ policy, profiles, packs }: { policy: AIStagePolicy;
   const save = useMutation({ mutationFn: () => api.saveAiStagePolicy(policy.stage, values), onSuccess: saved, onError: (error) => setMessage(error.message) })
   const reset = useMutation({ mutationFn: () => api.resetAiStagePolicy(policy.stage), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['ai-stage-policies'] }); setMessage('已恢复系统默认') }, onError: (error) => setMessage(error.message) })
   const update = <K extends keyof AIStagePolicy>(key: K, value: AIStagePolicy[K]) => setValues((current) => ({ ...current, [key]: value }))
-  const label = ({ TRANSCRIPT_CORRECTION: '转写校对', GENERATE_AI_NOTE: '视频笔记', EXTRACT_TRAVEL_FACTS: '地点提取', SCREENSHOT_UNDERSTANDING: '截图理解' } as Record<string, string>)[policy.stage] ?? policy.stage
+  const label = ({ TRANSCRIPT_CORRECTION: '转写校对', GENERATE_AI_NOTE: '视频笔记', EXTRACT_TRAVEL_FACTS: '地点提取', SCREENSHOT_UNDERSTANDING: '截图理解', VISION_FACT: '视觉事实' } as Record<string, string>)[policy.stage] ?? policy.stage
   const local = profiles.filter((item) => item.location === 'LOCAL' && item.enabled)
   const remote = profiles.filter((item) => item.location === 'REMOTE' && item.enabled)
   const busy = save.isPending || reset.isPending
