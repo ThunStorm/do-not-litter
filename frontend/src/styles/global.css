@@ -303,6 +303,8 @@ svg { flex: 0 0 auto; }
 .review-candidates article { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 12px; border-top: 1px solid var(--line); }
 .review-candidates span, .review-candidates small { display: block; color: var(--muted); font-size: 12px; }
 .review-candidates__empty { margin: 0; padding: 12px; color: var(--muted); }
+.video-place__time-link { color: var(--accent); font-variant-numeric: tabular-nums; text-decoration: none; }
+.video-place__time-link:hover { text-decoration: underline; }
 .review-card__actions { display: flex; gap: 8px; }
 .review-search { display: flex; gap: 8px; align-items: center; padding: 0 0 12px; }
 .review-search input { min-width: 0; flex: 1; }
