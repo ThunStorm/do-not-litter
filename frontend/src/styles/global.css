@@ -317,6 +317,8 @@ svg { flex: 0 0 auto; }
 .review-transcript p { margin: 0; color: var(--muted); font-size: 13px; }
 .review-transcript p.is-evidence { color: var(--text); font-weight: 600; }
 .review-transcript time { display: inline-block; width: 42px; color: var(--accent); font-variant-numeric: tabular-nums; }
+.review-time-link { color: inherit; text-decoration: none; }
+.review-time-link:hover time { text-decoration: underline; }
 .video-note-reviews { display: grid; gap: 12px; margin-top: 24px; }
 .map-add-flow { position: absolute; z-index: 10; right: 24px; bottom: 84px; display: grid; width: min(380px, calc(100% - 48px)); max-height: min(620px, calc(100vh - 130px)); overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: rgb(251 250 247 / 97%); box-shadow: var(--shadow); }
 .map-add-flow header { padding: 16px 16px 12px; border-bottom: 1px solid var(--line-soft); }.map-add-flow footer { display: flex; justify-content: flex-end; padding: 10px 16px; border-top: 1px solid var(--line-soft); }.map-add-results { min-height: 84px; overflow-y: auto; overscroll-behavior: contain; padding: 0 12px; }

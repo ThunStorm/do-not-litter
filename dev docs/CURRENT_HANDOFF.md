@@ -7,7 +7,7 @@
 - 更新：2026-09-11。视频质量总计划 WP0–22 已部署；`0020` 增加地点化章节 Evidence，地点抽取改为完整转写分块后先于 Note，审核页/笔记页共用 Review Context。
 - 已完成：生产库从 `0019` 升级至 `0020`，备份 `data/backups/app-pre-video-quality-0020-20260910-234552.db` 完整性为 ok；API/Worker 重启后 health、首页、Worker 心跳、`/place-reviews` source_context 与 revision 均正常，无活跃 Job/lease。
 - 已完成：确认后的地点候选直接显示当前绑定 `Place` 的名称/地址并链接地点详情，不再显示视频时间码或 Insight 行注释；`REVIEW` 与 `UNRESOLVED` 均可在笔记页打开搜索/确认 POI。
-- 已完成：未确认候选的时间戳会以新窗口链接打开原 Bilibili 视频并传递 `t` 秒级定位参数；保留原链接查询参数。
+- 已完成：未确认候选及审核 Evidence 上下文的全部时间戳会以新窗口链接打开原 Bilibili 视频并传递 `t` 秒级定位参数；保留原链接查询参数。
 - 验证：目标 Ruff、后端完整测试、Node 24 前端 verify、`diff --check` 均通过；已在已部署笔记页确认确认态不带转写行、待确认卡可点击“搜索 POI”；未调用 Provider、未重跑真实视频、未自动确认 POI。
 - 未完成：WP23 仍按性能证据延期；现有 `PARTIAL_SUCCESS` Job 没有失败步骤可续跑，剩余 POI 需用户审核。
 - 下一步：用户在视频笔记或 `/place-reviews` 审核 POI；如需真实 Benchmark/视频重跑，单任务串行并遵守 QPS。
