@@ -1318,6 +1318,31 @@ def event_view(event: SystemEvent) -> dict:
     }
 
 
+def attempt_view(attempt: ExternalCallAudit) -> dict:
+    request_meta = attempt.request_meta_json or {}
+    response_meta = attempt.response_meta_json or {}
+    return {
+        "id": attempt.id,
+        "created_at": as_utc(attempt.created_at),
+        "capability": attempt.capability,
+        "operation": attempt.operation,
+        "provider": attempt.provider,
+        "model": request_meta.get("model") or attempt.provider,
+        "route": request_meta.get("route"),
+        "attempt": request_meta.get("attempt"),
+        "timeout_seconds": request_meta.get("timeout_seconds"),
+        "status": attempt.status,
+        "duration_ms": attempt.duration_ms,
+        "input_chars": request_meta.get("input_chars"),
+        "chunk_index": request_meta.get("chunk_index"),
+        "chunk_count": request_meta.get("chunk_count"),
+        "status_code": response_meta.get("status_code"),
+        "error_code": attempt.error_code,
+        "error_message": attempt.error_message,
+        "provider_error": _redact_detail(response_meta.get("provider_error")),
+    }
+
+
 @router.get("/api/logs")
 def list_logs(
     _: Protected,
@@ -1381,10 +1406,22 @@ def list_logs(
             SystemEvent.id.asc() if sort == "asc" else SystemEvent.id.desc(),
         ).limit(limit + 1)
     ).all()
+    attempts = []
+    if job_id:
+        attempts = [
+            attempt_view(item)
+            for item in db.scalars(
+                select(ExternalCallAudit)
+                .where(ExternalCallAudit.job_id == job_id, ExternalCallAudit.capability == "LLM")
+                .order_by(ExternalCallAudit.created_at)
+                .limit(200)
+            ).all()
+        ]
     has_more = len(events) > limit
     events = events[:limit]
     return {
         "items": [event_view(event) for event in events],
+        "attempts": attempts,
         "next_cursor": events[-1].id if has_more and events else None,
         "server_time": utc_now(),
         "applied_filters": {
@@ -2761,7 +2798,7 @@ def _place_review_view(db: Session, mention: PlaceMention) -> dict:
                 {
                     "id": screenshot.id,
                     "caption": screenshot.caption,
-                    "image_url": "/api/video-screenshots/" f"{screenshot.id}/image",
+                    "image_url": f"/api/video-screenshots/{screenshot.id}/image",
                 }
                 if screenshot
                 else None
@@ -3153,6 +3190,21 @@ def _routing_value(db: Session) -> dict[str, str | None]:
     }
 
 
+def _routing_profile_summary(db: Session, profile_id: str | None) -> dict[str, str] | None:
+    if not profile_id:
+        return None
+    setting = db.get(Setting, f"model-profile:{profile_id}")
+    value = setting.value_json if setting and isinstance(setting.value_json, dict) else None
+    if value is None:
+        return {"id": profile_id}
+    return {
+        "id": profile_id,
+        "name": str(value.get("name") or profile_id),
+        "provider": str(value.get("provider") or ""),
+        "model": str(value.get("model") or ""),
+    }
+
+
 def _test_model_connection(value: dict, api_key: str | None) -> object:
     provider = _model_profile_provider(value, api_key)
 
@@ -3205,7 +3257,20 @@ def create_model_profile(
         store.set(f"model-profile:{profile_id}:api-key", payload.api_key)
         setting.is_secret_ref = True
     db.add(setting)
-    record_event(db, "model_profile.created", f"已保存自定义模型：{payload.name}", actor="user")
+    record_event(
+        db,
+        "model_profile.created",
+        f"已保存自定义模型：{payload.name}",
+        actor="user",
+        detail={
+            "profile_id": profile_id,
+            "provider": payload.provider,
+            "model": payload.model,
+            "location": payload.location,
+            "timeout_seconds": payload.timeout_seconds,
+            "max_output_tokens": payload.max_output_tokens,
+        },
+    )
     db.commit()
     return _model_profile_view(setting)
 
@@ -3225,7 +3290,20 @@ def update_model_profile(
     if payload.api_key:
         store.set(f"model-profile:{profile_id}:api-key", payload.api_key)
         setting.is_secret_ref = True
-    record_event(db, "model_profile.updated", f"已更新模型：{payload.name}", actor="user")
+    record_event(
+        db,
+        "model_profile.updated",
+        f"已更新模型：{payload.name}",
+        actor="user",
+        detail={
+            "profile_id": profile_id,
+            "provider": payload.provider,
+            "model": payload.model,
+            "location": payload.location,
+            "timeout_seconds": payload.timeout_seconds,
+            "max_output_tokens": payload.max_output_tokens,
+        },
+    )
     db.commit()
     return _model_profile_view(setting)
 
@@ -3266,12 +3344,30 @@ def save_model_routing(
         raise HTTPException(status_code=422, detail="主模型和备用模型不能相同")
     value = payload.model_dump()
     setting = db.get(Setting, "model-routing")
+    previous = dict(setting.value_json) if setting and isinstance(setting.value_json, dict) else {}
     if setting is None:
         setting = Setting(key="model-routing", value_json=value)
         db.add(setting)
     else:
         setting.value_json = value
-    record_event(db, "model_routing.updated", "已更新通用模型路由", actor="user")
+    record_event(
+        db,
+        "model_routing.updated",
+        "已更新通用模型路由",
+        actor="user",
+        detail={
+            "previous": previous,
+            "current": value,
+            "previous_profiles": {
+                "primary": _routing_profile_summary(db, previous.get("primary_id")),
+                "fallback": _routing_profile_summary(db, previous.get("fallback_id")),
+            },
+            "current_profiles": {
+                "primary": _routing_profile_summary(db, value.get("primary_id")),
+                "fallback": _routing_profile_summary(db, value.get("fallback_id")),
+            },
+        },
+    )
     db.commit()
     return value
 

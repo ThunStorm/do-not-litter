@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
-from time import monotonic, sleep
+from time import monotonic, perf_counter, sleep
 from typing import Any, Protocol
 
 import httpx
 
-AttemptCallback = Callable[[str, str, str, int, int, "LLMResult | None", "Exception | None"], None]
+AttemptCallback = Callable[
+    [str, str, str, int, int, "LLMResult | None", "Exception | None", int, dict[str, Any]], None
+]
 AttemptRunner = Callable[
     ["LLMProvider", str, list[dict[str, str]], str, "ProviderRequestOptions | None"], "LLMResult"
 ]
@@ -40,6 +43,60 @@ class LLMProvider(Protocol):
     def generate(
         self, messages: list[dict[str, str]], *, model: str, options: ProviderRequestOptions | None = None
     ) -> LLMResult: ...
+
+
+def provider_error_details(exc: Exception) -> dict[str, Any]:
+    """Return bounded, structured provider diagnostics without persisting response bodies."""
+
+    response = getattr(exc, "response", None)
+    status_code = getattr(response, "status_code", None)
+    details: dict[str, Any] = {"type": type(exc).__name__, "message": _redact_provider_text(str(exc))}
+    if status_code is not None:
+        details["status_code"] = int(status_code)
+        headers = getattr(response, "headers", {})
+        for key in ("x-request-id", "request-id"):
+            if headers.get(key):
+                details["request_id"] = str(headers[key])[:160]
+                break
+        try:
+            payload = response.json()
+        except (TypeError, ValueError):
+            payload = None
+        error = payload.get("error") if isinstance(payload, dict) else None
+        if isinstance(error, dict):
+            for key in ("code", "type", "message"):
+                value = error.get(key)
+                if isinstance(value, (str, int, float)) and value != "":
+                    details[f"provider_{key}"] = _redact_provider_text(str(value))
+            if details.get("provider_message"):
+                details["message"] = details["provider_message"]
+        retry_after = headers.get("retry-after")
+        if retry_after:
+            details["retry_after"] = str(retry_after)[:32]
+    if isinstance(exc, httpx.ReadTimeout):
+        details["code"] = "AI_PROVIDER_READ_TIMEOUT"
+    elif status_code is not None:
+        details["code"] = {
+            400: "AI_PROVIDER_BAD_REQUEST",
+            404: "AI_PROVIDER_NOT_FOUND",
+            408: "AI_PROVIDER_TIMEOUT",
+            429: "AI_PROVIDER_RATE_LIMITED",
+        }.get(int(status_code), f"AI_PROVIDER_HTTP_{int(status_code)}")
+    elif isinstance(exc, httpx.TimeoutException):
+        details["code"] = "AI_PROVIDER_TIMEOUT"
+    elif isinstance(exc, httpx.HTTPError):
+        details["code"] = "AI_PROVIDER_NETWORK_ERROR"
+    elif isinstance(exc, ValueError):
+        details["code"] = "AI_PROVIDER_RESPONSE_INVALID"
+    return details
+
+
+def _redact_provider_text(value: str) -> str:
+    text = str(value)
+    text = re.sub(r"(?i)(bearer\s+)[^\s,;]+", r"\1[REDACTED]", text)
+    text = re.sub(r"(?i)(api[-_]?key\s*[:=]\s*)[^\s,;]+", r"\1[REDACTED]", text)
+    text = re.sub(r"\bsk-[A-Za-z0-9_-]{8,}\b", "[REDACTED]", text)
+    return text[:500]
 
 
 class OllamaProvider:
@@ -175,6 +232,8 @@ class FallbackLLMProvider:
         sleeper: Callable[[float], None] = sleep,
         request_options: ProviderRequestOptions | None = None,
         fallback_request_interval_seconds: float | None = None,
+        fallback_request_options: ProviderRequestOptions | None = None,
+        attempt_metadata: dict[str, Any] | None = None,
     ) -> None:
         self.primary = primary
         self.primary_model = primary_model
@@ -191,6 +250,8 @@ class FallbackLLMProvider:
         self.attempt_runner = attempt_runner
         self.sleeper = sleeper
         self.request_options = request_options
+        self.fallback_request_options = fallback_request_options
+        self.attempt_metadata = dict(attempt_metadata or {})
 
     @staticmethod
     def _endpoint(provider: LLMProvider) -> str:
@@ -210,6 +271,13 @@ class FallbackLLMProvider:
         if isinstance(exc, httpx.HTTPStatusError):
             return exc.response.status_code in {408, 409, 425, 429} or exc.response.status_code >= 500
         return isinstance(exc, (httpx.HTTPError, TimeoutError, ConnectionError, ValueError))
+
+    def _attempt_metadata(self, provider: LLMProvider) -> dict[str, Any]:
+        metadata = dict(self.attempt_metadata)
+        timeout = getattr(provider, "timeout", None)
+        if timeout is not None:
+            metadata["timeout_seconds"] = timeout
+        return metadata
 
     def _invoke(
         self, provider: LLMProvider, method: str, messages: list[dict[str, str]], model: str, route: str
@@ -232,6 +300,8 @@ class FallbackLLMProvider:
                         input_chars,
                         None,
                         exc,
+                        0,
+                        self._attempt_metadata(provider),
                     )
                 raise exc
             interval = (
@@ -243,18 +313,30 @@ class FallbackLLMProvider:
                 self.sleeper(interval)
             if self.before_fallback:
                 self.before_fallback()
+            started = perf_counter()
             try:
+                request_options = (
+                    self.fallback_request_options if route == "fallback" else self.request_options
+                )
                 if self.attempt_runner:
-                    result = self.attempt_runner(provider, method, messages, model, self.request_options)
-                elif self.request_options is None:
+                    result = self.attempt_runner(provider, method, messages, model, request_options)
+                elif request_options is None:
                     result = getattr(provider, method)(messages, model=model)
                 else:
-                    result = getattr(provider, method)(messages, model=model, options=self.request_options)
+                    result = getattr(provider, method)(messages, model=model, options=request_options)
                 if not result.content or not result.content.strip():
                     raise ValueError("模型返回了空内容")
                 if self.on_attempt:
                     self.on_attempt(
-                        result.provider, result.model, route, attempt + 1, input_chars, result, None
+                        result.provider,
+                        result.model,
+                        route,
+                        attempt + 1,
+                        input_chars,
+                        result,
+                        None,
+                        round((perf_counter() - started) * 1000),
+                        self._attempt_metadata(provider),
                     )
                 return result
             except Exception as exc:
@@ -267,6 +349,8 @@ class FallbackLLMProvider:
                         input_chars,
                         None,
                         exc,
+                        round((perf_counter() - started) * 1000),
+                        self._attempt_metadata(provider),
                     )
                 cooldown = self._retry_after(exc)
                 if cooldown and endpoint:
@@ -306,6 +390,7 @@ class FallbackLLMProvider:
     ) -> LLMResult:
         if options is not None:
             self.request_options = options
+            self.fallback_request_options = options
         return self._call("generate_text", messages)
 
     def generate_json(
@@ -313,6 +398,7 @@ class FallbackLLMProvider:
     ) -> LLMResult:
         if options is not None:
             self.request_options = options
+            self.fallback_request_options = options
         return self._call("generate_json", messages)
 
     def generate(
@@ -320,4 +406,5 @@ class FallbackLLMProvider:
     ) -> LLMResult:
         if options is not None:
             self.request_options = options
+            self.fallback_request_options = options
         return self._call("generate", messages)

@@ -148,9 +148,31 @@ export interface LogEventView {
 
 export interface LogsView {
   items: LogEventView[]
+  attempts: LogAttemptView[]
   next_cursor: string | null
   server_time: string
   applied_filters: Record<string, unknown>
+}
+
+export interface LogAttemptView {
+  id: string
+  created_at: string
+  capability: string
+  operation: string
+  provider: string
+  model: string
+  route: string | null
+  attempt: number | null
+  timeout_seconds: number | null
+  status: string
+  duration_ms: number | null
+  input_chars: number | null
+  chunk_index: number | null
+  chunk_count: number | null
+  status_code: number | null
+  error_code: string | null
+  error_message: string | null
+  provider_error: Record<string, unknown> | null
 }
 
 export interface ModelProfileView {

@@ -1,3 +1,5 @@
+import json
+from hashlib import sha256
 from time import perf_counter
 from typing import Any
 
@@ -29,11 +31,26 @@ class AIWorkloadGateway:
         semantic_options: dict[str, Any],
         cache_enabled: bool,
         force_regenerate: bool,
+        attempt_metadata: dict[str, Any] | None = None,
     ) -> LLMResult:
         """Cache one route result while enforcing budget and local serialization per actual attempt."""
 
         def call() -> LLMResult:
             if isinstance(provider, FallbackLLMProvider):
+                provider.attempt_metadata = {
+                    "stage": stage,
+                    "input_hash": sha256(
+                        json.dumps(
+                            messages, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+                        ).encode()
+                    ).hexdigest(),
+                    **{
+                        key: value
+                        for key, value in (attempt_metadata or {}).items()
+                        if key in {"chunk_index", "chunk_count"}
+                    },
+                }
+
                 def run_attempt(
                     attempt_provider: LLMProvider,
                     method: str,

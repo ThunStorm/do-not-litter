@@ -30,7 +30,14 @@ from zhijian.db.models import (
 )
 from zhijian.domain.enums import JobType
 from zhijian.providers.amap import POICandidate
-from zhijian.providers.llm import FallbackLLMProvider, LLMResult, OllamaProvider
+from zhijian.providers.llm import (
+    FallbackLLMProvider,
+    LLMResult,
+    OllamaProvider,
+    OpenAICompatibleProvider,
+    ProviderRequestOptions,
+    provider_error_details,
+)
 from zhijian.providers.media import YtDlpMediaProvider
 from zhijian.resolvers.video.bilibili import SubtitleTrack
 from zhijian.resolvers.video.url_parser import parse_bilibili_url
@@ -397,6 +404,39 @@ def test_ollama_requests_release_model_immediately(monkeypatch) -> None:
     assert captured["format"] == "json"
 
 
+def test_openai_compatible_provider_preserves_bounded_error_details(monkeypatch) -> None:
+    captured: dict = {}
+
+    def post(*_args, **kwargs):
+        captured.update(kwargs["json"])
+        request = httpx.Request("POST", "https://provider.test/chat/completions")
+        return httpx.Response(
+            400,
+            json={
+                "error": {"code": "invalid_request", "message": "unsupported response format api_key=secret"}
+            },
+            headers={"x-request-id": "req-123"},
+            request=request,
+        )
+
+    monkeypatch.setattr(httpx, "post", post)
+    provider = OpenAICompatibleProvider("provider", "https://provider.test", "secret", timeout=9)
+    with pytest.raises(httpx.HTTPStatusError) as raised:
+        provider.generate_json(
+            [{"role": "user", "content": "ping"}],
+            model="model",
+            options=ProviderRequestOptions(max_output_tokens=123),
+        )
+    details = provider_error_details(raised.value)
+    assert captured["response_format"] == {"type": "json_object"}
+    assert captured["max_tokens"] == 123
+    assert details["code"] == "AI_PROVIDER_BAD_REQUEST"
+    assert details["provider_code"] == "invalid_request"
+    assert details["provider_message"] == "unsupported response format api_key=[REDACTED]"
+    assert details["request_id"] == "req-123"
+    assert "secret" not in json.dumps(details)
+
+
 def test_blank_primary_response_uses_fallback_model() -> None:
     class Provider:
         def __init__(self, content: str, name: str) -> None:
@@ -479,7 +519,10 @@ def test_llm_retry_policy_waits_before_calls_and_between_retries() -> None:
 
 
 def test_llm_attempt_callback_tracks_primary_and_fallback() -> None:
-    attempts: list[tuple[str, str, int, bool, bool]] = []
+    attempts: list[tuple[str, str, int, bool, bool, int, dict]] = []
+
+    def capture(_provider, _model, route, attempt, _chars, result, exc, duration, metadata):
+        attempts.append((route, _model, attempt, result is not None, exc is not None, duration, metadata))
 
     class Primary:
         def generate_json(self, _messages, *, model):
@@ -499,17 +542,21 @@ def test_llm_attempt_callback_tracks_primary_and_fallback() -> None:
         "fallback-model",
         retry_count=0,
         request_interval_seconds=0,
-        on_attempt=lambda _provider, _model, route, attempt, chars, result, exc: attempts.append(
-            (route, _model, attempt, result is not None, exc is not None)
-        ),
+        attempt_metadata={"chunk_index": 2, "chunk_count": 4},
+        on_attempt=capture,
     )
     assert (
         provider.generate_json([{"role": "user", "content": "ping"}], model="ignored").provider == "fallback"
     )
-    assert attempts == [
+    assert [item[:5] for item in attempts] == [
         ("primary", "primary-model", 1, False, True),
         ("fallback", "fallback-model", 1, True, False),
     ]
+    assert [item[6] for item in attempts] == [
+        {"chunk_index": 2, "chunk_count": 4},
+        {"chunk_index": 2, "chunk_count": 4},
+    ]
+    assert all(item[5] >= 0 for item in attempts)
 
 
 def test_llm_uses_a_distinct_interval_for_the_fallback_profile() -> None:

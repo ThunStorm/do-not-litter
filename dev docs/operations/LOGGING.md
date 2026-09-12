@@ -10,9 +10,9 @@
 | --- | --- | --- |
 | API / Worker 运行日志 | data/logs/api.jsonl、worker.jsonl | 每行 JSON；单文件 10 MiB，5 个轮换；页面不直接暴露原文件 |
 | 审计事件 | SQLite system_events；GET /api/logs | 局域网 Session 保护；本机豁免取决于部署设置 |
-| 兜底日志 | data/logs/ 下 API/Worker 的 stdout.log、stderr.log | 日志子系统失效时排查，不作为业务状态证明 |
+| 兜底日志 | macOS LaunchAgent 的 `~/Library/Logs/Zhijian/api.stdout.log`、`api.stderr.log`、`worker.stdout.log`、`worker.stderr.log` | 日志子系统失效时排查，不作为业务状态证明；结构化 JSONL 已关闭 Uvicorn 重复 access log |
 
-JSONL 包含 timestamp、level、component、message，可选 request_id、event_type、duration_ms、status_code、path、job_id、脱敏异常。审计事件包含 ID、时间、级别、组件、类型、消息、Actor、实体类型/ID、Request ID 与非敏感 detail。data/ 不进入 Git。
+JSONL 包含 timestamp、level、component、message，可选 request_id、event_type、duration_ms、status_code、error_code、path、job_id、脱敏异常。审计事件包含 ID、时间、级别、组件、类型、消息、Actor、实体类型/ID、Request ID 与非敏感 detail。data/ 不进入 Git。
 
 ## 2. 事件与事务
 
@@ -30,14 +30,14 @@ API 生成或接受 X-Request-ID 并在响应头返回；业务动作关联 syst
 
 - 不记录配对码、Session Cookie、API Key、正文、文件内容、完整个人档案；Secret 仅进 Keychain/Secret Store。URL 保留在 Source 域，HTTP 日志只记路径，不记查询串/请求体。
 - Provider 日志只含 Provider、模型及脱敏摘要；页面与导出共用脱敏层。
-- JSONL 按大小轮换；审计保留期产品默认设计为 90 天，不能据此假定定时清理已上线，核对 app:general.data_retention_days 与实现。
-- 备份 SQLite 要有 WAL/SHM 的一致性快照及永久文件；可再生 JSONL 无强制备份要求。不得为日志升级直接执行删除审计表的历史 downgrade。
+- JSONL 按大小轮换；审计保留期由 `app:general.data_retention_days` 控制，默认 90 天，由 Worker 每日维护任务执行清理。
+- 备份 SQLite 要有 WAL/SHM 的一致性快照及永久文件；可再生 JSONL 无强制备份要求。Worker 每日按 `app:general.data_retention_days` 清理过期 `system_events` 与 `external_call_audits`，并记录清理摘要；不得为日志升级直接执行删除审计表的历史 downgrade。
 
 ## 4. 查询与工作台
 
 既有实施记录包含健康摘要、组合筛选、Job/Request 深链、游标分页、实时跟随暂停、结构化详情与单条脱敏导出。时间范围支持快捷项和自定义，服务端支持 from/to、cursor、asc/desc。UI 契约按需读 [operations/OPERATIONS_UI_SPEC.md](OPERATIONS_UI_SPEC.md) 第 5 节，精确参数以 API schema 为准。
 
-只读示例：GET /api/logs?level=ERROR&component=worker&query=Whisper&limit=20。先限定 Job、时间和数量，不导出全部日志。批量 CSV/JSONL、筛选链接复制、低水位告警和完整性哈希不因本次合并而列为已实现。
+只读示例：GET /api/logs?level=ERROR&component=worker&query=Whisper&limit=20。带 `job_id` 时响应还包含该任务脱敏的 LLM 尝试、耗时、路由、模型、分块和 Provider 错误摘要。先限定 Job、时间和数量，不导出全部日志。批量 CSV/JSONL、筛选链接复制、低水位告警和完整性哈希不因本次合并而列为已实现。
 
 ## 5. 错误事件与 Replay
 

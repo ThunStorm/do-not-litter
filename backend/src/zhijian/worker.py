@@ -15,6 +15,7 @@ from zhijian.core.time import utc_now
 from zhijian.db.models import Job, JobStep, Setting, VideoAsset, VideoCoverAsset
 from zhijian.db.session import SessionLocal, init_database
 from zhijian.domain.enums import JobStatus
+from zhijian.providers.llm import provider_error_details
 from zhijian.services.audit import record_event
 from zhijian.services.jobs import (
     lease_next_job,
@@ -22,6 +23,7 @@ from zhijian.services.jobs import (
     recover_stale_jobs,
     release_expired_cancelled_jobs,
 )
+from zhijian.services.log_retention import purge_expired_logs
 from zhijian.services.pipeline import process_job
 from zhijian.services.transcript_retention import purge_expired_transcripts
 from zhijian.services.video_cover import materialize_cover
@@ -48,9 +50,7 @@ def _fail_unhandled_job(db, job_id: str, exc: Exception) -> None:
     job.finished_at = now
     job.lease_owner = None
     job.lease_expire_at = None
-    step = db.scalar(
-        select(JobStep).where(JobStep.job_id == job.id, JobStep.step_name == job.current_step)
-    )
+    step = db.scalar(select(JobStep).where(JobStep.job_id == job.id, JobStep.step_name == job.current_step))
     if step and step.status == "RUNNING":
         step.status = "FAILED"
         step.error = reason
@@ -131,6 +131,7 @@ def worker_loop(once: bool = False) -> None:
                 if utc_now() - last_transcript_cleanup >= timedelta(days=1):
                     purge_expired_transcripts(db)
                     purge_expired_step_artifacts(db)
+                    purge_expired_logs(db)
                     last_transcript_cleanup = utc_now()
                 if not repaired_legacy_timing:
                     repair_legacy_transcript_timing(db)
@@ -152,7 +153,17 @@ def worker_loop(once: bool = False) -> None:
                     except Exception as exc:
                         db.rollback()
                         _fail_unhandled_job(db, job_id, exc)
-                        logger.exception("Job failed: %s", job_id)
+                        details = provider_error_details(exc)
+                        if details.get("code"):
+                            logger.error(
+                                "Job failed: %s (%s): %s",
+                                job_id,
+                                details["code"],
+                                details.get("message", "")[:500],
+                                extra={"job_id": job_id, "error_code": details["code"]},
+                            )
+                        else:
+                            logger.exception("Job failed: %s", job_id, extra={"job_id": job_id})
             if once:
                 return
             time.sleep(settings.worker_poll_seconds)

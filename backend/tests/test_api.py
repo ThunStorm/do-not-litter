@@ -13,6 +13,7 @@ from zhijian.db.models import (
     AINoteSection,
     AINoteVersion,
     ContentItem,
+    ExternalCallAudit,
     Job,
     JobStep,
     JobStepArtifact,
@@ -1098,6 +1099,33 @@ def test_logs_support_job_filter_pagination_and_redaction(client, app_and_sessio
                 entity_id="job_observe",
                 detail={"token": "should-not-leak", "step": "ASR"},
             )
+        db.add(Job(id="job_ai", job_type="TRAVEL", status="FAILED", payload_json={}))
+        db.flush()
+        db.add(
+            ExternalCallAudit(
+                job_id="job_ai",
+                capability="LLM",
+                provider="openai-compatible",
+                operation="travel_place_extraction",
+                status="FAILED",
+                duration_ms=1234,
+                request_meta_json={
+                    "model": "openrouter/free",
+                    "route": "fallback",
+                    "attempt": 1,
+                    "input_chars": 8000,
+                    "chunk_index": 2,
+                    "chunk_count": 4,
+                },
+                response_meta_json={
+                    "status_code": 400,
+                    "provider_error": {"code": "invalid_request", "message": "unsupported format"},
+                },
+                error_code="AI_PROVIDER_BAD_REQUEST",
+                error_message="unsupported format",
+            )
+        )
+        db.commit()
     response = client.get("/api/logs?job_id=job_observe&limit=2")
     assert response.status_code == 200
     payload = response.json()
@@ -1106,6 +1134,10 @@ def test_logs_support_job_filter_pagination_and_redaction(client, app_and_sessio
     assert payload["items"][0]["detail"]["token"] == "[REDACTED]"
     next_page = client.get(f"/api/logs?job_id=job_observe&limit=2&cursor={payload['next_cursor']}")
     assert len(next_page.json()["items"]) == 1
+    attempts = client.get("/api/logs?job_id=job_ai").json()["attempts"]
+    assert attempts[0]["duration_ms"] == 1234
+    assert attempts[0]["chunk_index"] == 2
+    assert attempts[0]["provider_error"]["message"] == "unsupported format"
 
 
 def test_provider_configuration_keeps_key_out_of_database(client, app_and_session) -> None:
@@ -1160,6 +1192,9 @@ def test_custom_model_profiles_route_and_history_deletion(client, app_and_sessio
         },
     )
     assert routed.json()["primary_id"] == primary_id
+    routing_event = client.get("/api/logs?event_type=model_routing.updated").json()["items"][0]
+    assert routing_event["detail"]["current_profiles"]["primary"]["id"] == primary_id
+    assert routing_event["detail"]["current_profiles"]["primary"]["name"]
     assert client.delete(f"/api/settings/model-profiles/{primary_id}").status_code == 409
     clear_routing = client.put(
         "/api/settings/model-routing",

@@ -50,6 +50,7 @@ from zhijian.providers.llm import (
     OllamaProvider,
     OpenAICompatibleProvider,
     ProviderRequestOptions,
+    provider_error_details,
 )
 from zhijian.services.audit import record_event
 from zhijian.services.jobs import ensure_job_active
@@ -380,6 +381,7 @@ def _cached_stage_json(
     provider_name: str,
     model: str,
     messages: list[dict[str, str]],
+    attempt_metadata: dict[str, Any] | None = None,
 ) -> LLMResult:
     if not hasattr(db, "scalar"):
         return provider.generate_json(messages, model=model)
@@ -415,6 +417,7 @@ def _cached_stage_json(
         },
         cache_enabled=bool(policy.cache_enabled),
         force_regenerate=policy.force_regenerate,
+        attempt_metadata=attempt_metadata,
     )
 
 
@@ -559,12 +562,15 @@ def provider_for_role(
     )
 
     def on_retry(attempt: int, exc: Exception) -> None:
+        error = provider_error_details(exc)
         record_event(
             db,
             "model.call.retrying",
             f"AI 接口异常，{policy.ai_retry_wait_seconds:g} 秒后执行第 {attempt} 次重试",
             component="video-pipeline",
             level="WARNING",
+            entity_type="job" if job else None,
+            entity_id=job.id if job else None,
             detail={
                 "role": role,
                 "stage": stage,
@@ -588,7 +594,8 @@ def provider_for_role(
                 "retry_attempt": attempt,
                 "retry_limit": policy.ai_retry_count,
                 "wait_seconds": policy.ai_retry_wait_seconds,
-                "reason": str(exc)[:240],
+                "error_code": error.get("code"),
+                "reason": error.get("message", "")[:240],
             },
         )
 
@@ -600,10 +607,12 @@ def provider_for_role(
         input_chars: int,
         result: LLMResult | None,
         exc: Exception | None,
+        duration_ms: int,
+        attempt_metadata: dict[str, Any],
     ) -> None:
         usage = result.usage if result else {}
-        response = getattr(exc, "response", None)
-        status_code = getattr(response, "status_code", None)
+        error = provider_error_details(exc) if exc else {}
+        status_code = error.get("status_code")
         cached = usage.get("cached_tokens")
         if cached is None:
             cached = (usage.get("prompt_tokens_details") or {}).get("cached_tokens")
@@ -625,6 +634,7 @@ def provider_for_role(
                     "route": route,
                     "attempt": attempt,
                     "input_chars": input_chars,
+                    **attempt_metadata,
                 },
                 response_meta_json={
                     "prompt_tokens": usage.get("prompt_tokens", usage.get("prompt_eval_count")),
@@ -632,9 +642,11 @@ def provider_for_role(
                     "cached_tokens": cached,
                     "usage": usage,
                     "status_code": status_code,
+                    "provider_error": error or None,
                 },
-                error_code=str(status_code) if status_code else getattr(exc, "code", None),
-                error_message=str(exc)[:500] if exc else None,
+                duration_ms=duration_ms,
+                error_code=(error.get("code") or getattr(exc, "code", None)) if exc else None,
+                error_message=error.get("message") if exc else None,
             )
         )
         db.commit()
@@ -647,20 +659,22 @@ def provider_for_role(
         primary_interval: float | None = None,
         fallback_interval: float | None = None,
     ) -> FallbackLLMProvider:
-        request_options = None
-        if resolved_policy and any(
-            value is not None
-            for value in (
-                resolved_policy.temperature,
-                resolved_policy.max_output_tokens,
-                resolved_policy.thinking,
+        def options_for(config: dict[str, str] | None) -> ProviderRequestOptions | None:
+            profile_max_output_tokens = int((config or {}).get("max_output_tokens") or 0) or None
+            max_output_tokens = (
+                resolved_policy.max_output_tokens
+                if resolved_policy and resolved_policy.max_output_tokens is not None
+                else profile_max_output_tokens
             )
-        ):
-            request_options = ProviderRequestOptions(
-                temperature=resolved_policy.temperature,
-                max_output_tokens=resolved_policy.max_output_tokens,
-                thinking=resolved_policy.thinking,
+            if not resolved_policy and max_output_tokens is None:
+                return None
+            return ProviderRequestOptions(
+                temperature=resolved_policy.temperature if resolved_policy else None,
+                max_output_tokens=max_output_tokens,
+                thinking=resolved_policy.thinking if resolved_policy else None,
             )
+
+        request_options = options_for(primary_config)
         return FallbackLLMProvider(
             primary,
             primary_model,
@@ -679,6 +693,7 @@ def provider_for_role(
             on_retry=on_retry,
             on_attempt=on_attempt,
             request_options=request_options,
+            fallback_request_options=options_for(fallback_config),
         )
 
     if primary_config is None:
@@ -1004,15 +1019,7 @@ def _ground_section(
         return None
     if not quotes:
         quotes = [
-            str(
-                next(
-                    (
-                        segment.corrected_text or segment.text
-                        for segment in segments
-                        if segment.id in ids
-                    ),
-                )
-            )
+            str(next(segment.corrected_text or segment.text for segment in segments if segment.id in ids))
         ]
     names = list(dict.fromkeys(mention.name for mention in related))
     if kind == "PLACE":
@@ -1669,6 +1676,7 @@ def extract_place_mentions(
                     ),
                 },
             ],
+            attempt_metadata={"chunk_index": chunk_index + 1, "chunk_count": len(chunks)},
         )
         if response.provider != provider_name or response.model != model:
             record_event(

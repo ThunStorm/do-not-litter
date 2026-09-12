@@ -134,7 +134,7 @@ app = create_app()
 
 def run() -> None:
     settings = get_settings()
-    uvicorn.run("zhijian.main:app", host=settings.host, port=settings.port, reload=False)
+    uvicorn.run("zhijian.main:app", host=settings.host, port=settings.port, reload=False, access_log=False)
 
 
 if __name__ == "__main__":

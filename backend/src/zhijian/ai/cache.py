@@ -101,6 +101,7 @@ def _record_cache_hit(
             provider=entry.provider,
             operation=stage,
             status="COMPLETED",
+            duration_ms=0,
             request_meta_json={
                 "stage": stage,
                 "model": entry.model,

@@ -18,6 +18,7 @@ from zhijian.db.models import (
     AINote,
     AINoteVersion,
     ContentItem,
+    ExternalCallAudit,
     Job,
     JobStep,
     JobStepArtifact,
@@ -1028,17 +1029,59 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
             current_step.status = "FAILED"
             current_step.error = str(exc)[:4000]
             current_step.finished_at = utc_now()
-        job.status, job.error, job.finished_at = JobStatus.FAILED.value, str(exc)[:4000], utc_now()
+        attempt_rows = db.scalars(
+            select(ExternalCallAudit)
+            .where(ExternalCallAudit.job_id == job.id)
+            .order_by(ExternalCallAudit.created_at)
+        ).all()
+        if current_step and current_step.started_at:
+            attempt_rows = [row for row in attempt_rows if row.created_at >= current_step.started_at]
+        failed_attempts = [row for row in attempt_rows if row.status == "FAILED"]
+        summary_attempts = attempt_rows[-8:]
+        attempt_detail: list[dict[str, Any]] = []
+        if failed_attempts:
+            latest = failed_attempts[-1]
+            if not job.error_code:
+                job.error_code = latest.error_code or "AI_PROVIDER_FAILED"
+            chain = []
+            for row in summary_attempts:
+                metadata = row.request_meta_json or {}
+                attempt_detail.append(
+                    {
+                        "route": metadata.get("route"),
+                        "model": metadata.get("model"),
+                        "status": row.status,
+                        "code": row.error_code,
+                        "duration_ms": row.duration_ms,
+                        "chunk_index": metadata.get("chunk_index"),
+                        "chunk_count": metadata.get("chunk_count"),
+                    }
+                )
+                summary = (
+                    f"{row.error_code or 'FAILED'} {str(row.error_message or '')[:180]}"
+                    if row.status == "FAILED"
+                    else f"COMPLETED {row.duration_ms or 0}ms"
+                )
+                chain.append(
+                    f"{metadata.get('route') or 'provider'}/"
+                    f"{metadata.get('model') or row.provider}: {summary}"
+                )
+            failure = f"{str(exc)[:240]}；调用链：{'；'.join(chain)}"
+        else:
+            failure = str(exc)[:4000]
+        if current_step and current_step.status == "FAILED":
+            current_step.error = failure[:4000]
+        job.status, job.error, job.finished_at = JobStatus.FAILED.value, failure[:4000], utc_now()
         job.lease_owner = job.lease_expire_at = None
         record_event(
             db,
             "video.note.failed",
-            str(exc),
+            failure,
             component="video-pipeline",
             level="ERROR",
             entity_type="job",
             entity_id=job.id,
-            detail={"code": job.error_code},
+            detail={"code": job.error_code, "step": job.current_step, "attempts": attempt_detail},
             commit=False,
         )
         db.commit()
