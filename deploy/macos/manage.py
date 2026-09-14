@@ -39,7 +39,7 @@ def environment() -> dict[str, str]:
         "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
         "PYTHONUNBUFFERED": "1",
         "PYTHONPATH": PYTHONPATH,
-        "ZHIJIAN_ENV": "production",
+        "ENV": "production",
         "ZHIJIAN_HOST": "0.0.0.0",
         "ZHIJIAN_PORT": "8787",
         "ZHIJIAN_DATA_DIR": str(ROOT / "data"),

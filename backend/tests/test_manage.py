@@ -3,6 +3,13 @@ from types import SimpleNamespace
 from deploy.macos import manage
 
 
+def test_launch_agent_uses_the_configured_production_env_alias() -> None:
+    environment = manage.environment()
+
+    assert environment["ENV"] == "production"
+    assert "ZHIJIAN_ENV" not in environment
+
+
 def test_bootout_waits_until_launchd_label_disappears(monkeypatch) -> None:
     results = iter((0, 0, 1))
     calls: list[tuple[str, ...]] = []
