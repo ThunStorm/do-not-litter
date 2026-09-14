@@ -1,0 +1,151 @@
+import json
+
+from sqlalchemy import select
+
+from zhijian.core.config import Settings
+from zhijian.db.models import AINote, ExternalCallAudit, Job, Source, VideoAsset
+from zhijian.providers.llm import LLMResult
+from zhijian.services.grounded_map import get_or_create_grounded_map
+from zhijian.services.video_support import (
+    extract_place_mentions,
+    generate_note,
+    materialize_transcript,
+)
+
+
+class FixtureProvider:
+    def __init__(self) -> None:
+        self.calls: list[list[dict[str, str]]] = []
+
+    def generate_json(self, messages, *, model):
+        self.calls.append(messages)
+        if "Grounded Map" in messages[0]["content"]:
+            return LLMResult(
+                json.dumps(
+                    {
+                        "section_facts": [
+                            {
+                                "summary": "西安蓝田水陆庵适合秋季到访。",
+                                "key_points": ["秋季开放"],
+                                "supporting_quotes": ["西安蓝田水陆庵秋天开放"],
+                                "segment_ids": ["seg-placeholder"],
+                            }
+                        ],
+                        "places": [
+                            {
+                                "raw_name": "西安蓝田水陆庵",
+                                "name": "西安蓝田水陆庵",
+                                "suggested_name": "西安蓝田水陆庵",
+                                "city_hint": "西安",
+                                "province_hint": "陕西",
+                                "place_type": "TEMPLE",
+                                "reason": "秋季开放",
+                                "quote": "西安蓝田水陆庵秋天开放",
+                                "segment_ids": ["seg-placeholder"],
+                                "confidence": 0.9,
+                            }
+                        ],
+                        "warnings": [],
+                    },
+                    ensure_ascii=False,
+                ).replace("seg-placeholder", _segment_id(messages)),
+                "fixture",
+                model,
+                {"prompt_tokens": 10, "completion_tokens": 2},
+            )
+        return LLMResult(
+            json.dumps(
+                {
+                    "overview": "已整理为可回溯的旅行笔记。",
+                    "sections": [
+                        {
+                            "section_kind": "PLACE",
+                            "heading": "水陆庵",
+                            "thesis": "秋季开放。",
+                            "summary": "适合秋季到访。",
+                            "bullets": ["秋季开放"],
+                            "body_markdown": "适合秋季到访。",
+                            "segment_ids": [_segment_id(messages)],
+                            "place_mention_ids": [],
+                            "supporting_quotes": ["西安蓝田水陆庵秋天开放"],
+                        }
+                    ],
+                },
+                ensure_ascii=False,
+            ),
+            "fixture",
+            model,
+            {"prompt_tokens": 5, "completion_tokens": 2},
+        )
+
+
+def _segment_id(messages: list[dict[str, str]]) -> str:
+    text = messages[-1]["content"]
+    marker = "segment:"
+    if marker in text:
+        return text.split(marker, 1)[1].split(" ", 1)[0]
+    return json.loads(text.split("GroundedEvidencePack。仅据此生成全局笔记：\n", 1)[1])[0]["segment_ids"][0]
+
+
+def test_grounded_map_is_reused_and_place_materialization_is_llm_free(app_and_session, monkeypatch) -> None:
+    _, factory = app_and_session
+    provider = FixtureProvider()
+    monkeypatch.setattr(
+        "zhijian.services.video_support.provider_for_role",
+        lambda *_args: (provider, "fixture", "fixture-model"),
+    )
+    with factory() as db:
+        source = Source(source_type="URL", locator="https://example.test/map", title="fixture")
+        db.add(source)
+        db.flush()
+        asset = VideoAsset(source_id=source.id, canonical_url=source.locator, title="西安旅行")
+        db.add(asset)
+        db.flush()
+        transcript, segments = materialize_transcript(
+            db,
+            source,
+            asset,
+            [{"text": "西安蓝田水陆庵秋天开放", "start_ms": 0, "end_ms": 1000}],
+            source_kind="ASR",
+        )
+        artifact = get_or_create_grounded_map(db, Settings(_env_file=None), asset, transcript, segments)
+        reused = get_or_create_grounded_map(db, Settings(_env_file=None), asset, transcript, segments)
+        assert reused.id == artifact.id
+        assert len(provider.calls) == 1
+
+        mentions = extract_place_mentions(
+            db, Settings(_env_file=None), asset, None, segments, candidates=artifact.places_json
+        )
+        assert [item.name for item in mentions] == ["西安蓝田水陆庵"]
+        assert db.scalars(select(ExternalCallAudit)).all() == []
+
+        compact = Job(job_type="TRAVEL", status="RUNNING", payload_json={"note_render_profile": "COMPACT"})
+        detailed = Job(job_type="TRAVEL", status="RUNNING", payload_json={"note_render_profile": "DETAILED"})
+        db.add_all([compact, detailed])
+        db.flush()
+        generate_note(db, Settings(_env_file=None), asset, transcript, segments, compact, mentions, artifact)
+        generate_note(db, Settings(_env_file=None), asset, transcript, segments, detailed, mentions, artifact)
+        assert len(provider.calls) == 3
+        assert all("Render Profile" not in call[-1]["content"] for call in provider.calls[:1])
+
+
+def test_note_profile_regeneration_starts_at_reduce(client, app_and_session) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        source = Source(source_type="URL", locator="https://example.test/note", title="fixture")
+        db.add(source)
+        db.flush()
+        asset = VideoAsset(source_id=source.id, canonical_url=source.locator, title="笔记")
+        db.add(asset)
+        db.flush()
+        note = AINote(video_asset_id=asset.id, status="COMPLETED")
+        db.add(note)
+        db.commit()
+        note_id, asset_id = note.id, asset.id
+
+    response = client.post(f"/api/video-notes/{note_id}/regenerate?profile_id=COMPACT")
+    assert response.status_code == 200
+    with factory() as db:
+        job = db.get(Job, response.json()["job_id"])
+        assert job and job.payload_json["replay_from_step"] == "GENERATE_AI_NOTE"
+        assert job.payload_json["video_asset_id"] == asset_id

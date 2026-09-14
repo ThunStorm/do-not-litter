@@ -8,7 +8,12 @@ from typing import Any
 
 from zhijian.db.models import PlaceMention
 from zhijian.providers.amap import POICandidate
-from zhijian.services.video_support import _poi_review_reasons, _poi_score
+from zhijian.services.video_support import (
+    _auto_strong_allowed,
+    _poi_review_reasons,
+    _poi_score,
+    _resolver_v2_shadow,
+)
 
 
 def _mention(value: dict[str, Any], suffix: str = "") -> PlaceMention:
@@ -52,7 +57,12 @@ def evaluate(cases: list[dict[str, Any]]) -> dict[str, float | int]:
         rank = next((index for index, item in enumerate(candidates) if item.provider_id == expected_id), None)
         correct_at_1 += int(rank == 0)
         correct_at_3 += int(rank is not None and rank < 3)
-        status = "CONFIRMED" if not _poi_review_reasons(candidates[0], candidates[1] if len(candidates) > 1 else None) else "REVIEW"
+        review_reasons = _poi_review_reasons(candidates[0], candidates[1] if len(candidates) > 1 else None)
+        status = (
+            "CONFIRMED"
+            if _auto_strong_allowed(candidates[0], _resolver_v2_shadow(mention, candidates), review_reasons)
+            else "REVIEW"
+        )
         auto_confirmed += int(status == "CONFIRMED")
         correct_auto_confirms += int(status == "CONFIRMED" and expected["status"] == "CONFIRMED" and rank == 0)
         wrong_confirm_count += int(status == "CONFIRMED" and (expected["status"] != "CONFIRMED" or rank != 0))

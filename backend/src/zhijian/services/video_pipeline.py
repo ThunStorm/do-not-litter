@@ -11,6 +11,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from zhijian.ai.resource_manager import local_ai_resource_manager
+from zhijian.ai.stage_decision import decide_stage, record_stage_decision
+from zhijian.ai.token_monitor import record_token_anomalies
 from zhijian.core.config import Settings, get_settings
 from zhijian.core.secret_store import build_secret_store
 from zhijian.core.time import as_utc, utc_now
@@ -41,6 +43,7 @@ from zhijian.resolvers.video.bilibili import (
 )
 from zhijian.services.audit import record_event
 from zhijian.services.external_audit import audited_call
+from zhijian.services.grounded_map import artifact_for_transcript, get_or_create_grounded_map
 from zhijian.services.jobs import JobCancelled, ensure_job_active
 from zhijian.services.transcript_validation import assess_transcript_quality
 from zhijian.services.video_cover import materialize_cover
@@ -839,10 +842,19 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
         )
         _stage_event(db, job, "places.requested", "正在从完整转写提取旅行地点与观察")
         try:
-            mentions = extract_place_mentions(db, settings, asset, None, segments, job)
+            grounded_map = get_or_create_grounded_map(db, settings, asset, transcript, segments, job)
+            mentions = extract_place_mentions(
+                db, settings, asset, None, segments, job, candidates=grounded_map.places_json
+            )
         except ProviderUnavailable as exc:
             raise NeedsUser(exc.code, str(exc)) from exc
-        _done(db, job, extract, 80, {"mentions": len(mentions)})
+        _done(
+            db,
+            job,
+            extract,
+            80,
+            {"mentions": len(mentions), "grounded_map_id": grounded_map.id, "llm_prompt_tokens": 0},
+        )
 
         note_step = _step(
             db,
@@ -858,7 +870,9 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
         )
         _stage_event(db, job, "note.requested", "正在基于已验证地点生成 AI 视频笔记", segments=len(segments))
         try:
-            note_version = generate_note(db, settings, asset, transcript, segments, job, mentions)
+            note_version = generate_note(
+                db, settings, asset, transcript, segments, job, mentions, grounded_map
+            )
         except ProviderUnavailable as exc:
             raise NeedsUser(exc.code, str(exc)) from exc
         for mention in mentions:
@@ -1026,6 +1040,7 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
         )
         job.current_step, job.progress, job.finished_at = "CLEAN_CACHE", 100, utc_now()
         job.lease_owner, job.lease_expire_at, job.error, job.error_code = None, None, None, None
+        record_token_anomalies(db, job)
         record_event(
             db,
             "video.note.completed",
@@ -1279,6 +1294,15 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
             db.get(AINoteVersion, note.current_version_id) if note and note.current_version_id else None
         )
         mentions = db.scalars(select(PlaceMention).where(PlaceMention.video_asset_id == asset.id)).all()
+        grounded_map = artifact_for_transcript(db, transcript)
+        if grounded_map is not None:
+            estimated_tokens = sum(len(item.corrected_text or item.text) for item in segments) // 4
+            record_stage_decision(
+                db,
+                job,
+                decide_stage("GROUND_MAP", reusable=True, estimated_tokens=estimated_tokens),
+            )
+            db.commit()
         if start <= VIDEO_STEPS.index("EXTRACT_TRAVEL_FACTS"):
             for mention in mentions:
                 if mention.extraction_status != "USER_REJECTED":
@@ -1294,8 +1318,17 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                     "prompt_supplement_hash": prompt_supplement_hash(db, "travel_place_extraction"),
                 },
             )
-            mentions = extract_place_mentions(db, settings, asset, None, segments, job)
-            _done(db, job, step, 80, {"mentions": len(mentions)})
+            grounded_map = get_or_create_grounded_map(db, settings, asset, transcript, segments, job)
+            mentions = extract_place_mentions(
+                db, settings, asset, None, segments, job, candidates=grounded_map.places_json
+            )
+            _done(
+                db,
+                job,
+                step,
+                80,
+                {"mentions": len(mentions), "grounded_map_id": grounded_map.id, "llm_prompt_tokens": 0},
+            )
         if start <= VIDEO_STEPS.index("GENERATE_AI_NOTE"):
             step = _step(
                 db,
@@ -1308,7 +1341,9 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                     "prompt_supplement_hash": prompt_supplement_hash(db, "video_note_summary"),
                 },
             )
-            note_version = generate_note(db, settings, asset, transcript, segments, job, mentions)
+            note_version = generate_note(
+                db, settings, asset, transcript, segments, job, mentions, grounded_map
+            )
             for mention in mentions:
                 mention.ai_note_version_id = note_version.id
             db.commit()
@@ -1434,6 +1469,7 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
             for key, value in job.payload_json.items()
             if key not in {"replay_from_step", "skip_login_step"}
         }
+        record_token_anomalies(db, job)
         record_event(
             db,
             "job.step_replay.completed",

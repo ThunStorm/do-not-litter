@@ -471,8 +471,11 @@ def regenerate_video_note(
             "locator": str(asset.metadata_json.get("local_path") or asset.canonical_url),
             "title": asset.title,
             "video_platform": asset.platform,
+            "video_asset_id": asset.id,
             "note_render_profile": profile_id,
-            "regenerate": True,
+            "replay_from_step": "GENERATE_AI_NOTE",
+            "reuse_reason": "NOTE_RENDER_PROFILE_CHANGED",
+            "ai_automation_version": "v2",
         },
         created_at=utc_now(),
     )

@@ -597,27 +597,35 @@ def get_job(job_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
 
 @router.get("/api/jobs/{job_id}/ai-usage")
 def job_ai_usage(job_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
-    if db.get(Job, job_id) is None:
+    job = db.get(Job, job_id)
+    if job is None:
         raise HTTPException(status_code=404, detail="任务不存在")
     rows = db.scalars(
         select(ExternalCallAudit)
-        .where(ExternalCallAudit.job_id == job_id)
+        .where(ExternalCallAudit.job_id == job_id, ExternalCallAudit.capability == "LLM")
         .order_by(ExternalCallAudit.created_at)
     ).all()
 
     def empty() -> dict[str, int]:
         return {
             "calls": 0,
+            "attempt_count": 0,
             "input_tokens": 0,
             "output_tokens": 0,
             "cached_tokens": 0,
+            "input_chars": 0,
+            "cache_hit_count": 0,
+            "retry_count": 0,
+            "fallback_count": 0,
             "duration_ms": 0,
         }
 
     total, local, remote = empty(), empty(), empty()
     by_stage: dict[str, dict] = {}
     by_model: dict[str, dict] = {}
-    cache_hits = escalations = 0
+    retry, fallback, waste = empty(), empty(), empty()
+    cache_hits = escalations = repeated_input_tokens = 0
+    seen_input_hashes: set[str] = set()
     for row in rows:
         request_meta = row.request_meta_json or {}
         response_meta = row.response_meta_json or {}
@@ -625,11 +633,18 @@ def job_ai_usage(job_id: str, _: Protected, db: Session = Depends(get_db)) -> di
         model = str(request_meta.get("model") or row.provider)
         location = str(request_meta.get("location") or ("LOCAL" if row.provider == "ollama" else "REMOTE"))
         cache_hit = bool(request_meta.get("cache_hit"))
+        retry_call = not cache_hit and int(request_meta.get("attempt") or 1) > 1
+        fallback_call = not cache_hit and str(request_meta.get("route") or "").lower() == "fallback"
         values = {
             "calls": 0 if cache_hit else 1,
+            "attempt_count": 0 if cache_hit else 1,
             "input_tokens": 0 if cache_hit else int(response_meta.get("prompt_tokens") or 0),
             "output_tokens": 0 if cache_hit else int(response_meta.get("completion_tokens") or 0),
             "cached_tokens": int(response_meta.get("cached_tokens") or 0),
+            "input_chars": 0 if cache_hit else int(request_meta.get("input_chars") or 0),
+            "cache_hit_count": int(cache_hit),
+            "retry_count": int(retry_call),
+            "fallback_count": int(fallback_call),
             "duration_ms": int(row.duration_ms or 0),
         }
         targets = (
@@ -641,15 +656,76 @@ def job_ai_usage(job_id: str, _: Protected, db: Session = Depends(get_db)) -> di
         for target in targets:
             for key, value in values.items():
                 target[key] += value
+        for target, applies in (
+            (retry, retry_call),
+            (fallback, fallback_call),
+            (waste, retry_call or fallback_call),
+        ):
+            if applies:
+                for key, value in values.items():
+                    target[key] += value
+        input_hash = str(request_meta.get("input_hash") or "")
+        if input_hash and not cache_hit:
+            if input_hash in seen_input_hashes:
+                repeated_input_tokens += values["input_tokens"]
+            seen_input_hashes.add(input_hash)
         cache_hits += int(bool(request_meta.get("cache_hit")))
         escalations += int(bool(request_meta.get("escalated")))
+    decisions = [
+        event.detail_json
+        for event in db.scalars(
+            select(SystemEvent).where(
+                SystemEvent.entity_type == "job",
+                SystemEvent.entity_id == job_id,
+                SystemEvent.event_type == "ai.stage.decision",
+            )
+        )
+        if isinstance(event.detail_json, dict)
+    ]
+    anomalies = [
+        event.detail_json
+        for event in db.scalars(
+            select(SystemEvent).where(
+                SystemEvent.entity_type == "job",
+                SystemEvent.entity_id == job_id,
+                SystemEvent.event_type == "AI_TOKEN_ANOMALY",
+            )
+        )
+        if isinstance(event.detail_json, dict)
+    ]
+    total_tokens = total["input_tokens"] + total["output_tokens"]
     return {
         "total": total,
         "local": local,
         "remote": remote,
         "by_stage": by_stage,
         "by_model": by_model,
-        "cache": {"hits": cache_hits},
+        "cache": {
+            "hits": cache_hits,
+            "saved_prompt_tokens": sum(
+                int((row.response_meta_json or {}).get("prompt_tokens") or 0)
+                for row in rows
+                if (row.request_meta_json or {}).get("cache_hit")
+            ),
+        },
+        "retry": retry,
+        "fallback": fallback,
+        "waste": {**waste, "repeated_input_tokens": repeated_input_tokens},
+        "automation": {
+            "decisions": decisions,
+            "estimated_tokens_saved": sum(int(item.get("estimated_tokens_saved") or 0) for item in decisions),
+        },
+        "ratios": {
+            "cache_hit_ratio": cache_hits / max(1, len(rows)),
+            "retry_token_ratio": (retry["input_tokens"] + retry["output_tokens"]) / max(1, total_tokens),
+            "fallback_token_ratio": (
+                fallback["input_tokens"] + fallback["output_tokens"]
+            )
+            / max(1, total_tokens),
+            "repeated_input_ratio": repeated_input_tokens / max(1, total["input_tokens"]),
+        },
+        "budget": job.payload_json.get("ai_soft_budget") or {"status": "EXPECTED"},
+        "anomalies": anomalies,
         "escalations": escalations,
     }
 
@@ -3007,6 +3083,11 @@ def confirm_place_review(
             "selected_provider_id": payload.poi_id,
             "candidate": candidate,
         },
+        "resolver_feedback": {
+            "label": "MANUAL_CONFIRMED",
+            "selected_provider_id": payload.poi_id,
+            "recorded_at": utc_now().isoformat(),
+        },
     }
     materialize_place_insights(db, mention)
     record_event(
@@ -3040,6 +3121,11 @@ def update_place_mention_review(
     mention.extraction_status = "USER_REJECTED" if action == "reject" else "EXTRACTED"
     mention.resolution_status = "REJECTED" if action == "reject" else ResolutionStatus.REVIEW.value
     mention.revision += 1
+    if action == "reject":
+        mention.metadata_json = {
+            **(mention.metadata_json or {}),
+            "resolver_feedback": {"label": "MANUAL_REJECTED", "recorded_at": utc_now().isoformat()},
+        }
     record_event(
         db,
         "place_mention.rejected" if action == "reject" else "place_mention.restored",

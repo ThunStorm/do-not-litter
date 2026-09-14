@@ -46,6 +46,16 @@ STAGE_SPECS = {
         AICapability.ENTITY_EXTRACTION,
         _COMMON | {"chunk_size", "neighbor_segments"},
     ),
+    "GROUND_MAP": StageParameterSpec(
+        "GROUND_MAP",
+        AICapability.STRUCTURED_EXTRACTION,
+        _COMMON | {"chunk_size"},
+    ),
+    "NOTE_REDUCE": StageParameterSpec(
+        "NOTE_REDUCE",
+        AICapability.GLOBAL_SYNTHESIS,
+        _COMMON | {"chunk_size"},
+    ),
     "SCREENSHOT_UNDERSTANDING": StageParameterSpec(
         "SCREENSHOT_UNDERSTANDING",
         AICapability.SCREENSHOT_UNDERSTANDING,
@@ -81,7 +91,7 @@ def stage_defaults(stage: str) -> dict[str, object]:
             cache_enabled=True,
             force_full_correction=False,
         )
-    elif stage == "EXTRACT_TRAVEL_FACTS":
+    elif stage in {"EXTRACT_TRAVEL_FACTS", "GROUND_MAP"}:
         values.update(
             execution_mode=AIExecutionMode.LOCAL_FIRST,
             temperature=0.1,
@@ -89,6 +99,13 @@ def stage_defaults(stage: str) -> dict[str, object]:
             retry_count=0,
             confidence_threshold=0.75,
             domain="travel",
+            cache_enabled=True,
+        )
+    elif stage in {"GENERATE_AI_NOTE", "NOTE_REDUCE"}:
+        values.update(
+            execution_mode=AIExecutionMode.AUTO,
+            temperature=0.3,
+            retry_count=0,
             cache_enabled=True,
         )
     else:

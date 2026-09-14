@@ -50,6 +50,7 @@ def create_capture_job(
             "LOCAL" if is_local_video else "YOUTUBE" if is_youtube else "BILIBILI" if is_video else None
         ),
         "ai_overrides": ai_overrides or {},
+        "ai_automation_version": "v2",
     }
     job = Job(job_type=job_type.value, status=JobStatus.QUEUED.value, payload_json=payload)
     db.add(job)

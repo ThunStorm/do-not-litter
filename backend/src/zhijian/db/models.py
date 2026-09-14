@@ -258,6 +258,34 @@ class Transcript(Base, TimestampMixin):
     metadata_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
 
 
+class GroundedMapArtifact(Base, TimestampMixin):
+    """Profile-independent, evidence-bound semantic scan of one Transcript."""
+
+    __tablename__ = "grounded_map_artifacts"
+    __table_args__ = (
+        UniqueConstraint("semantic_hash", name="uq_grounded_map_semantic_hash"),
+        Index("ix_grounded_map_transcript", "transcript_id", "transcript_version"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("gma"))
+    video_asset_id: Mapped[str] = mapped_column(ForeignKey("video_assets.id", ondelete="CASCADE"))
+    transcript_id: Mapped[str] = mapped_column(ForeignKey("transcripts.id", ondelete="CASCADE"))
+    transcript_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    semantic_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    prompt_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    supplement_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    domain: Mapped[str] = mapped_column(String(80), default="travel", nullable=False)
+    domain_pack_version: Mapped[str] = mapped_column(String(128), default="", nullable=False)
+    provider: Mapped[str] = mapped_column(String(64), nullable=False)
+    model: Mapped[str] = mapped_column(String(160), nullable=False)
+    semantic_options_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    facts_json: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    places_json: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    warnings_json: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    producer_version: Mapped[str] = mapped_column(String(32), default="grounded-map-v1", nullable=False)
+
+
 class AINote(Base, TimestampMixin):
     __tablename__ = "ai_notes"
     __table_args__ = (UniqueConstraint("video_asset_id", name="uq_ai_note_video_asset"),)

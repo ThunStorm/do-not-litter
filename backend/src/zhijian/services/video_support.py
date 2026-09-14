@@ -14,9 +14,11 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from zhijian.ai.capabilities import AICapability
+from zhijian.ai.cost_router import RouteDecision, choose_auto_route
 from zhijian.ai.domain_context import domain_context_hash, domain_context_messages
 from zhijian.ai.gateway import AIWorkloadGateway
 from zhijian.ai.policies import resolve_stage_policy
+from zhijian.ai.stage_decision import decide_stage, record_stage_decision
 from zhijian.ai.transcript_quality import correction_candidates
 from zhijian.core.config import Settings
 from zhijian.core.ids import new_id
@@ -27,6 +29,7 @@ from zhijian.db.models import (
     AINoteSection,
     AINoteVersion,
     ExternalCallAudit,
+    GroundedMapArtifact,
     Job,
     Place,
     PlaceDeletionTombstone,
@@ -95,6 +98,8 @@ PROMPT_CORE_CONTRACTS = {
 ROLE_STAGE = {
     "transcript_correction": "TRANSCRIPT_CORRECTION",
     "video_note_summary": "GENERATE_AI_NOTE",
+    "note_reduce": "NOTE_REDUCE",
+    "grounded_map": "GROUND_MAP",
     "travel_place_extraction": "EXTRACT_TRAVEL_FACTS",
     "visual_fact": "VISION_FACT",
 }
@@ -452,10 +457,20 @@ def parse_model_json(content: str) -> dict[str, Any]:
     candidate = content.strip()
     if candidate.startswith("```"):
         candidate = re.sub(r"^```(?:json)?\s*|\s*```$", "", candidate, flags=re.I)
-    value = json.loads(candidate)
-    if not isinstance(value, dict):
-        raise ValueError("模型没有返回 JSON 对象")
-    return value
+    candidates = [candidate]
+    if "{" in candidate and "}" in candidate:
+        candidates.append(candidate[candidate.find("{") : candidate.rfind("}") + 1])
+    for item in candidates:
+        try:
+            value = json.loads(item)
+        except json.JSONDecodeError:
+            try:
+                value = json.loads(re.sub(r",\s*([}\]])", r"\1", item))
+            except json.JSONDecodeError:
+                continue
+        if isinstance(value, dict):
+            return value
+    raise ValueError("模型没有返回 JSON 对象")
 
 
 def _cached_stage_json(
@@ -499,6 +514,8 @@ def _cached_stage_json(
                     "TRANSCRIPT_CORRECTION": "transcript_correction",
                     "GENERATE_AI_NOTE": "video_note_summary",
                     "EXTRACT_TRAVEL_FACTS": "travel_place_extraction",
+                    "GROUND_MAP": "travel_place_extraction",
+                    "NOTE_REDUCE": "video_note_summary",
                 }[stage],
             ),
         },
@@ -603,6 +620,7 @@ def provider_for_role(
     stage = ROLE_STAGE.get(role)
     stage_setting = db.get(Setting, f"ai-stage-policy:{stage}") if stage else None
     job_override = (job.payload_json.get("ai_overrides") or {}).get(stage) if job and stage else None
+    automation_enabled = bool(job and job.payload_json.get("ai_automation_version") == "v2")
     resolved_policy = (
         resolve_stage_policy(
             stage,
@@ -613,11 +631,15 @@ def provider_for_role(
             ),
             job_override=job_override if isinstance(job_override, dict) else None,
         )
-        if stage and (stage_setting or job_override)
+        if stage and (stage_setting or job_override or automation_enabled)
         else None
     )
     primary_config = _profile_config(db, primary_id)
     fallback_config = _profile_config(db, fallback_id)
+    route_decision: RouteDecision | None = None
+    budget_pressure = bool(
+        job and str((job.payload_json.get("ai_soft_budget") or {}).get("status") or "") == "WARNING"
+    )
     if resolved_policy:
         local_id = resolved_policy.local_profile_id
         remote_id = resolved_policy.remote_profile_id
@@ -637,6 +659,24 @@ def provider_for_role(
             primary_id, fallback_id = (local_id, remote_id) if local_id else (remote_id, "")
         elif mode == "REMOTE_FIRST":
             primary_id, fallback_id = (remote_id, local_id) if remote_id else (local_id, "")
+        elif mode == "AUTO":
+            candidate_ids = {item for item in (primary_id, fallback_id, local_id, remote_id) if item}
+            candidates = {
+                item_id: config
+                for item_id in candidate_ids
+                if (config := _profile_config(db, item_id)) is not None
+            }
+            route_decision = choose_auto_route(
+                stage,
+                resolved_policy.capability,
+                candidates,
+                quality_preset=(
+                    str(job.payload_json.get("quality_preset") or "BALANCED") if job else "BALANCED"
+                ),
+                budget_pressure=budget_pressure,
+            )
+            if route_decision:
+                primary_id, fallback_id = route_decision.primary_id, route_decision.fallback_id
         primary_config = _profile_config(db, primary_id)
         fallback_config = _profile_config(db, fallback_id)
     general_setting = db.get(Setting, "app:general")
@@ -712,13 +752,17 @@ def provider_for_role(
                 status="COMPLETED" if result else "FAILED",
                 request_meta_json={
                     "step": {
-                        "transcript_correction": "CORRECT_TRANSCRIPT",
-                        "video_note_summary": "GENERATE_AI_NOTE",
-                        "travel_place_extraction": "EXTRACT_TRAVEL_FACTS",
+                    "transcript_correction": "CORRECT_TRANSCRIPT",
+                    "video_note_summary": "GENERATE_AI_NOTE",
+                    "note_reduce": "NOTE_REDUCE",
+                    "grounded_map": "GROUND_MAP",
+                    "travel_place_extraction": "EXTRACT_TRAVEL_FACTS",
                     }.get(role, role),
                     "model": model,
                     "location": "LOCAL" if provider == "ollama" else "REMOTE",
                     "route": route,
+                    "route_decision": route_decision.route if route_decision else None,
+                    "route_reason": route_decision.reason_code if route_decision else None,
                     "attempt": attempt,
                     "input_chars": input_chars,
                     **attempt_metadata,
@@ -768,7 +812,9 @@ def provider_for_role(
             fallback,
             fallback_model,
             retry_count=(
-                resolved_policy.retry_count
+                0
+                if budget_pressure
+                else resolved_policy.retry_count
                 if resolved_policy and resolved_policy.retry_count is not None
                 else policy.ai_retry_count
             ),
@@ -785,6 +831,22 @@ def provider_for_role(
 
     if primary_config is None:
         raise ProviderUnavailable("尚未在设置中选择主模型")
+    if route_decision and job:
+        record_event(
+            db,
+            "ai.route.decision",
+            f"{stage} 自动路由：{route_decision.route}",
+            component="ai-gateway",
+            entity_type="job",
+            entity_id=job.id,
+            detail={
+                "stage": stage,
+                "route": route_decision.route,
+                "reason_code": route_decision.reason_code,
+                "budget_pressure": budget_pressure,
+            },
+            commit=False,
+        )
     timeout_cap = (
         transcript_processing_config(db).timeout_seconds if role == "transcript_correction" else None
     )
@@ -1251,10 +1313,12 @@ def correct_transcript(
     pending = [segment for segment in segments if segment.correction_status != "CORRECTED"]
     if not pending:
         return segments
+    correction_policy = _resolved_stage_policy(db, "TRANSCRIPT_CORRECTION", job)
     candidates = correction_candidates(
         pending,
         source_kind=str(getattr(transcript, "source_kind", "ASR") or "ASR"),
         force_full=transcript_force_full_correction(db, job),
+        neighbor_segments=int(correction_policy.neighbor_segments or 2),
     )
     candidate_ids = {segment.id for segment in candidates}
     for segment in pending:
@@ -1262,6 +1326,9 @@ def correct_transcript(
             segment.correction_status = "UNCHANGED"
             segment.correction_reason = "平台字幕通过质量门禁，未发送模型校对"
     if not candidates:
+        record_stage_decision(
+            db, job, decide_stage("TRANSCRIPT_CORRECTION", has_relevant_segments=False)
+        )
         transcript.text = "\n".join(segment.corrected_text or segment.text for segment in segments)
         transcript.metadata_json = {
             **transcript.metadata_json,
@@ -1270,6 +1337,14 @@ def correct_transcript(
         }
         db.commit()
         return segments
+    record_stage_decision(
+        db,
+        job,
+        decide_stage(
+            "TRANSCRIPT_CORRECTION",
+            estimated_tokens=sum(len(segment.raw_text or segment.text) for segment in candidates) // 4,
+        ),
+    )
     provider, provider_name, model = provider_for_role(db, settings, "transcript_correction", job)
     if job and isinstance(provider, FallbackLLMProvider):
         provider.before_fallback = lambda: ensure_job_active(db, job)
@@ -1519,20 +1594,35 @@ def generate_note(
     segments: list[Segment],
     job: Job | None = None,
     mentions: list[PlaceMention] | None = None,
+    grounded_map: GroundedMapArtifact | None = None,
 ) -> AINoteVersion:
     mentions = mentions or []
     requested_profile = str((job.payload_json.get("note_render_profile") if job else "") or "CURRENT_DEFAULT")
     profile_id, render_profile = note_render_profile(requested_profile)
-    provider, provider_name, model = provider_for_role(db, settings, "video_note_summary", job)
+    provider, provider_name, model = provider_for_role(
+        db, settings, "note_reduce" if grounded_map else "video_note_summary", job
+    )
     chunks = _transcript_chunks(segments, settings.video_note_chunk_chars)
     system = Path(__file__).resolve().parents[1] / "prompts" / "video_note.md"
     valid_ids = {segment.id for segment in segments}
     raw_sections: list[dict[str, object]] = []
-    map_facts: list[dict[str, object]] = []
+    map_facts: list[dict[str, object]] = (
+        _ground_map_facts(grounded_map.facts_json, segments, mentions) if grounded_map else []
+    )
     overview_parts: list[str] = []
-    warnings: list[str] = []
+    warnings: list[str] = list(grounded_map.warnings_json) if grounded_map else []
     response = LLMResult("", provider_name, model, {})
-    for chunk_index, chunk in enumerate(chunks or [segments]):
+    if grounded_map is not None:
+        record_stage_decision(
+            db,
+            job,
+            decide_stage(
+                "NOTE_REDUCE",
+                has_relevant_segments=bool(map_facts),
+                estimated_tokens=len(json.dumps(map_facts, ensure_ascii=False)) // 4,
+            ),
+        )
+    for chunk_index, chunk in enumerate((chunks or [segments]) if grounded_map is None else []):
         context = _transcript_context(chunk, settings.video_note_chunk_chars)
         try:
             messages = [
@@ -1585,7 +1675,7 @@ def generate_note(
             )
     if not raw_sections:
         raw_sections = _fallback_sections(chunks)
-    if len(map_facts) > 1:
+    if map_facts:
         try:
             reduce_messages = [
                 {"role": "system", "content": system.read_text(encoding="utf-8")},
@@ -1594,6 +1684,8 @@ def generate_note(
                     "role": "user",
                     "content": (
                         f"Render Profile（{profile_id}）：{render_profile['instruction']}\n"
+                        "已验证地点 Evidence Index："
+                        f"{json.dumps(_place_evidence_index(mentions), ensure_ascii=False)}\n"
                         "以下是带逐字 Evidence 的 GroundedEvidencePack。仅据此生成全局笔记：\n"
                     )
                     + json.dumps(map_facts, ensure_ascii=False),
@@ -1602,7 +1694,7 @@ def generate_note(
             reduced = _cached_stage_json(
                 db,
                 job=job,
-                stage="GENERATE_AI_NOTE",
+                stage="NOTE_REDUCE" if grounded_map else "GENERATE_AI_NOTE",
                 capability="GLOBAL_SYNTHESIS",
                 provider=provider,
                 provider_name=provider_name,
@@ -1746,49 +1838,51 @@ def extract_place_mentions(
     note: AINoteVersion | None,
     segments: list[Segment],
     job: Job | None = None,
+    candidates: list[dict[str, Any]] | None = None,
 ) -> list[PlaceMention]:
-    policy = _resolved_stage_policy(db, "EXTRACT_TRAVEL_FACTS", job)
-    chunk_chars = int(policy.chunk_size or PLACE_EXTRACTION_CHUNK_CHARS)
-    neighbor_segments = int(policy.neighbor_segments or PLACE_EXTRACTION_NEIGHBOR_SEGMENTS)
-    provider, provider_name, model = provider_for_role(db, settings, "travel_place_extraction", job)
-    prompt = (Path(__file__).resolve().parents[1] / "prompts" / "travel_place_extraction.md").read_text(
-        encoding="utf-8"
-    )
-    candidates: list[dict[str, Any]] = []
-    chunks = _overlapped_transcript_chunks(segments, chunk_chars, neighbor_segments)
-    for chunk_index, chunk in enumerate(chunks):
-        response = _cached_stage_json(
-            db,
-            job=job,
-            stage="EXTRACT_TRAVEL_FACTS",
-            capability="ENTITY_EXTRACTION",
-            provider=provider,
-            provider_name=provider_name,
-            model=model,
-            messages=[
-                {"role": "system", "content": prompt},
-                *prompt_supplement_messages(db, "travel_place_extraction"),
-                {
-                    "role": "user",
-                    "content": (
-                        f"视频标题：{asset.title}\n分块：{chunk_index + 1}\n"
-                        + _transcript_context(chunk, chunk_chars)
-                    ),
-                },
-            ],
-            attempt_metadata={"chunk_index": chunk_index + 1, "chunk_count": len(chunks)},
+    if candidates is None:  # Explicit legacy / force re-extract path only.
+        policy = _resolved_stage_policy(db, "EXTRACT_TRAVEL_FACTS", job)
+        chunk_chars = int(policy.chunk_size or PLACE_EXTRACTION_CHUNK_CHARS)
+        neighbor_segments = int(policy.neighbor_segments or PLACE_EXTRACTION_NEIGHBOR_SEGMENTS)
+        provider, provider_name, model = provider_for_role(db, settings, "travel_place_extraction", job)
+        prompt = (Path(__file__).resolve().parents[1] / "prompts" / "travel_place_extraction.md").read_text(
+            encoding="utf-8"
         )
-        if response.provider != provider_name or response.model != model:
-            record_event(
+        candidates = []
+        chunks = _overlapped_transcript_chunks(segments, chunk_chars, neighbor_segments)
+        for chunk_index, chunk in enumerate(chunks):
+            response = _cached_stage_json(
                 db,
-                "model_routing.fallback_used",
-                f"地点提取主模型不可用，已切换至备用模型：{response.provider} / {response.model}",
-                component="video-pipeline",
-                entity_type="video_asset",
-                entity_id=asset.id,
+                job=job,
+                stage="EXTRACT_TRAVEL_FACTS",
+                capability="ENTITY_EXTRACTION",
+                provider=provider,
+                provider_name=provider_name,
+                model=model,
+                messages=[
+                    {"role": "system", "content": prompt},
+                    *prompt_supplement_messages(db, "travel_place_extraction"),
+                    {
+                        "role": "user",
+                        "content": (
+                            f"视频标题：{asset.title}\n分块：{chunk_index + 1}\n"
+                            + _transcript_context(chunk, chunk_chars)
+                        ),
+                    },
+                ],
+                attempt_metadata={"chunk_index": chunk_index + 1, "chunk_count": len(chunks)},
             )
-        values = parse_model_json(response.content).get("places", [])
-        candidates.extend(value for value in values if isinstance(value, dict))
+            if response.provider != provider_name or response.model != model:
+                record_event(
+                    db,
+                    "model_routing.fallback_used",
+                    f"地点提取主模型不可用，已切换至备用模型：{response.provider} / {response.model}",
+                    component="video-pipeline",
+                    entity_type="video_asset",
+                    entity_id=asset.id,
+                )
+            values = parse_model_json(response.content).get("places", [])
+            candidates.extend(value for value in values if isinstance(value, dict))
     valid_ids = {segment.id for segment in segments}
     segment_texts = {segment.id: segment.corrected_text or segment.text for segment in segments}
     rejected_names = {
@@ -2046,14 +2140,30 @@ def resolve_mentions_with_amap(
         runner_up = candidates[1] if len(candidates) > 1 else None
         shadow = _resolver_v2_shadow(mention, candidates)
         review_reasons = _poi_review_reasons(selected, runner_up)
-        if review_reasons:
+        contextual_verification: dict[str, Any] | None = None
+        if shadow["decision"] == "AUTO_CONTEXTUAL":
+            try:
+                contextual = provider.detail(selected.provider_id)
+            except Exception:
+                contextual = None
+            if contextual is not None:
+                contextual_verification = _candidate_metadata(contextual)
+        if not _auto_strong_allowed(selected, shadow, review_reasons):
+            reason_codes = list(selected.match_explanation.get("review_reason_codes", []))
+            if shadow["decision"] == "AUTO_CONTEXTUAL":
+                reason_codes.append(
+                    "CONTEXTUAL_VERIFICATION_COMPLETE"
+                    if contextual_verification
+                    else "CONTEXTUAL_VERIFICATION_FAILED"
+                )
             mention.resolution_status = ResolutionStatus.REVIEW.value
             mention.metadata_json = {
                 **mention.metadata_json,
                 "poi_candidates": [_candidate_metadata(item) for item in candidates[:5]],
-                "reason": "；".join(review_reasons),
-                "reason_codes": list(selected.match_explanation.get("review_reason_codes", [])),
-                "poi_decision": "REVIEW",
+                "reason": "；".join(review_reasons or ["候选未满足 AUTO_STRONG 门禁"]),
+                "reason_codes": list(dict.fromkeys(reason_codes or ["AUTO_STRONG_GATE_FAILED"])),
+                "poi_decision": shadow["decision"],
+                "contextual_verification": contextual_verification,
                 "resolver_v2_shadow": shadow,
             }
             continue
@@ -2125,9 +2235,7 @@ def resolve_mentions_with_amap(
             "poi_explanation": candidates[0].match_explanation,
             "poi_candidates": [_candidate_metadata(item) for item in candidates[:5]],
             "poi_decision": "CONFIRMED",
-            "confirmation_origin": (
-                "AUTO_STRONG" if shadow["decision"] == "AUTO_STRONG" else "AUTO_LEGACY"
-            ),
+            "confirmation_origin": "AUTO_STRONG",
             "confirmation_at": utc_now().isoformat(),
             "resolver_version": "poi-v1+v2-shadow",
             "resolver_v2_shadow": shadow,
@@ -2492,6 +2600,14 @@ def _resolver_v2_shadow(mention: PlaceMention, candidates: list[POICandidate]) -
         "selected_provider_id": selected.provider_id,
         "features": asdict(feature),
     }
+
+
+def _auto_strong_allowed(
+    selected: POICandidate, shadow: dict[str, Any], review_reasons: list[str]
+) -> bool:
+    """Only strict, evidence-clean candidates can create a confirmed Place."""
+    negative = set(selected.match_explanation.get("negative_evidence") or [])
+    return not review_reasons and shadow.get("decision") == "AUTO_STRONG" and not negative
 
 
 def _candidate_metadata(candidate: POICandidate) -> dict[str, Any]:

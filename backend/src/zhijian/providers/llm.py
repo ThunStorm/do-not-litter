@@ -215,6 +215,7 @@ class FallbackLLMProvider:
     """Use a second saved model only when a different provider can help."""
 
     _blocked_until: dict[str, float] = {}
+    _LONG_PROMPT_RETRY_CHARS = 8_000
 
     def __init__(
         self,
@@ -269,8 +270,10 @@ class FallbackLLMProvider:
     @staticmethod
     def _retryable(exc: Exception) -> bool:
         if isinstance(exc, httpx.HTTPStatusError):
-            return exc.response.status_code in {408, 409, 425, 429} or exc.response.status_code >= 500
-        return isinstance(exc, (httpx.HTTPError, TimeoutError, ConnectionError, ValueError))
+            if exc.response.status_code == 429:
+                return bool(exc.response.headers.get("Retry-After"))
+            return exc.response.status_code in {408, 409, 425} or exc.response.status_code >= 500
+        return isinstance(exc, (httpx.TransportError, TimeoutError, ConnectionError))
 
     def _attempt_metadata(self, provider: LLMProvider) -> dict[str, Any]:
         metadata = dict(self.attempt_metadata)
@@ -284,7 +287,8 @@ class FallbackLLMProvider:
     ) -> LLMResult:
         endpoint = self._endpoint(provider)
         input_chars = sum(len(str(message.get("content") or "")) for message in messages)
-        for attempt in range(self.retry_count + 1):
+        retry_count = 0 if input_chars >= self._LONG_PROMPT_RETRY_CHARS else self.retry_count
+        for attempt in range(retry_count + 1):
             if endpoint and self._blocked_until.get(endpoint, 0.0) > monotonic():
                 exc = httpx.HTTPStatusError(
                     "provider cooling down after rate limit",
@@ -355,7 +359,7 @@ class FallbackLLMProvider:
                 cooldown = self._retry_after(exc)
                 if cooldown and endpoint:
                     self._blocked_until[endpoint] = monotonic() + cooldown
-                if attempt >= self.retry_count or not self._retryable(exc):
+                if attempt >= retry_count or not self._retryable(exc):
                     raise
                 if self.on_retry:
                     self.on_retry(attempt + 1, exc)

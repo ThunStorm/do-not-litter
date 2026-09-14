@@ -9,6 +9,7 @@ from zhijian.db.models import PlaceMention, Segment, Snapshot, Source, VideoAsse
 from zhijian.providers.amap import POICandidate
 from zhijian.services.video_support import (
     _assign_geo_sessions,
+    _auto_strong_allowed,
     _category_compatibility,
     _nearby_radius,
     _poi_review_reasons,
@@ -116,6 +117,7 @@ def test_resolver_v2_shadow_is_deterministic_without_changing_v1_decision() -> N
     assert first == _resolver_v2_shadow(mention, candidates)
     assert first["decision"] == "AUTO_STRONG"
     assert first["features"]["candidate_gap"] >= 15
+    assert _auto_strong_allowed(candidates[0], first, [])
 
 
 def test_geo_sessions_keep_context_local_to_a_region_transition(app_and_session) -> None:

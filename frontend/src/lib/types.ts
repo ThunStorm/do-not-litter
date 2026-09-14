@@ -233,13 +233,33 @@ export interface AIStageView {
 }
 
 export interface AIUsageView {
-  total: { calls: number; input_tokens: number; output_tokens: number; cached_tokens: number; duration_ms: number }
-  local: { calls: number; input_tokens: number; output_tokens: number; cached_tokens: number; duration_ms: number }
-  remote: { calls: number; input_tokens: number; output_tokens: number; cached_tokens: number; duration_ms: number }
-  by_stage: Record<string, { calls: number; input_tokens: number; output_tokens: number; cached_tokens: number; duration_ms: number }>
-  by_model: Record<string, { calls: number; input_tokens: number; output_tokens: number; cached_tokens: number; duration_ms: number }>
-  cache: { hits: number }
+  total: AIUsageBucket
+  local: AIUsageBucket
+  remote: AIUsageBucket
+  by_stage: Record<string, AIUsageBucket>
+  by_model: Record<string, AIUsageBucket>
+  cache: { hits: number; saved_prompt_tokens?: number }
+  retry?: AIUsageBucket
+  fallback?: AIUsageBucket
+  waste?: AIUsageBucket & { repeated_input_tokens: number }
+  automation?: { decisions: Array<Record<string, unknown>>; estimated_tokens_saved: number }
+  ratios?: { cache_hit_ratio: number; retry_token_ratio: number; fallback_token_ratio: number; repeated_input_ratio: number }
+  budget?: { status: 'EXPECTED' | 'WARNING' | 'HARD_LIMIT'; expected_prompt_tokens?: number; expected_completion_tokens?: number; expected_total_calls?: number; projected_prompt_tokens?: number }
+  anomalies?: Array<Record<string, unknown>>
   escalations: number
+}
+
+export interface AIUsageBucket {
+  calls: number
+  attempt_count?: number
+  input_tokens: number
+  output_tokens: number
+  cached_tokens: number
+  input_chars?: number
+  cache_hit_count?: number
+  retry_count?: number
+  fallback_count?: number
+  duration_ms: number
 }
 
 export interface DomainPackView {

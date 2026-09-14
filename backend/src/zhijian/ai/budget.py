@@ -1,28 +1,139 @@
+from dataclasses import dataclass
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from zhijian.core.time import as_utc, utc_now
-from zhijian.db.models import ExternalCallAudit, Job, Setting
+from zhijian.db.models import ExternalCallAudit, Job, Setting, Transcript, VideoAsset
 from zhijian.domain.schemas import GeneralConfig
+from zhijian.services.audit import record_event
 
 
 class AIBudgetExceeded(RuntimeError):
     code = "AI_BUDGET_EXCEEDED"
 
 
-def ensure_ai_budget(db: Session, job: Job | None, *, location: str, input_chars: int) -> None:
-    if job is None:
-        return
+@dataclass(frozen=True)
+class SoftBudgetState:
+    status: str
+    expected_prompt_tokens: int
+    expected_completion_tokens: int
+    expected_total_calls: int
+    projected_prompt_tokens: int
+
+
+def _config(db: Session) -> GeneralConfig:
     setting = db.get(Setting, "app:general")
-    config = GeneralConfig(
+    return GeneralConfig(
         **(setting.value_json if setting and isinstance(setting.value_json, dict) else {})
     )
+
+
+def _expected_budget(db: Session, job: Job, input_chars: int) -> dict[str, int]:
+    stored = job.payload_json.get("ai_soft_budget") if isinstance(job.payload_json, dict) else None
+    if isinstance(stored, dict) and all(
+        key in stored
+        for key in ("expected_prompt_tokens", "expected_completion_tokens", "expected_total_calls")
+    ):
+        return {
+            key: int(stored.get(key) or 0)
+            for key in ("expected_prompt_tokens", "expected_completion_tokens", "expected_total_calls")
+        }
+    asset_id = str(job.payload_json.get("video_asset_id") or "")
+    transcript_chars = 0
+    if asset_id:
+        transcript = db.scalar(
+            select(Transcript)
+            .where(Transcript.video_asset_id == asset_id)
+            .order_by(Transcript.version.desc())
+        )
+        transcript_chars = len(transcript.text) if transcript else 0
+    if not transcript_chars and asset_id:
+        asset = db.get(VideoAsset, asset_id)
+        transcript_chars = max(0, int((asset.duration_ms or 0) / 1000) * 24)
+    base_tokens = max(1, max(transcript_chars, input_chars) // 4)
+    expected = {
+        "expected_prompt_tokens": base_tokens * 2,
+        "expected_completion_tokens": max(256, base_tokens // 5),
+        "expected_total_calls": max(1, (transcript_chars + 11_999) // 12_000 + 1),
+    }
+    job.payload_json = {**job.payload_json, "ai_soft_budget": {**expected, "status": "EXPECTED"}}
+    return expected
+
+
+def soft_budget_state(
+    db: Session, job: Job | None, *, location: str, input_chars: int = 0
+) -> SoftBudgetState | None:
+    if job is None:
+        return None
+    config = _config(db)
+    location = location.upper()
+    previous = (job.payload_json.get("ai_soft_budget") or {}).get("status")
+    expected = _expected_budget(db, job, input_chars)
+    rows = db.scalars(
+        select(ExternalCallAudit).where(
+            ExternalCallAudit.job_id == job.id,
+            ExternalCallAudit.capability == "LLM",
+        )
+    ).all()
+    actual = [row for row in rows if not (row.request_meta_json or {}).get("cache_hit")]
+    prompt_tokens = sum(
+        int((row.response_meta_json or {}).get("prompt_tokens") or 0)
+        for row in actual
+        if _audit_location(row) == location
+    )
+    estimate = max(1, input_chars // 4)
+    limit = (
+        config.ai_max_remote_prompt_tokens_per_job
+        if location == "REMOTE"
+        else config.ai_max_local_prompt_tokens_per_job
+    )
+    projected = max(prompt_tokens + estimate, expected["expected_prompt_tokens"])
+    status = (
+        "HARD_LIMIT"
+        if projected >= limit
+        else "WARNING"
+        if projected >= limit * config.ai_soft_budget_warning_ratio
+        else "EXPECTED"
+    )
+    job.payload_json = {
+        **job.payload_json,
+        "ai_soft_budget": {**expected, "status": status, "projected_prompt_tokens": projected},
+    }
+    if previous != status and status != "EXPECTED":
+        record_event(
+            db,
+            "ai.budget.soft_limit",
+            f"AI Token 预算进入 {status}",
+            component="ai-gateway",
+            level="WARNING",
+            entity_type="job",
+            entity_id=job.id,
+            detail={"location": location, "projected_prompt_tokens": projected, "prompt_limit": limit},
+            commit=False,
+        )
+    return SoftBudgetState(
+        status,
+        expected["expected_prompt_tokens"],
+        expected["expected_completion_tokens"],
+        expected["expected_total_calls"],
+        projected,
+    )
+
+
+def ensure_ai_budget(
+    db: Session, job: Job | None, *, location: str, input_chars: int
+) -> SoftBudgetState | None:
+    if job is None:
+        return None
+    config = _config(db)
     elapsed = (utc_now() - as_utc(job.started_at)).total_seconds() if job.started_at else 0
     if elapsed >= config.ai_max_wall_time_seconds_per_job:
         raise AIBudgetExceeded("本任务已达到 AI 处理时长上限")
     location = location.upper()
     if location not in {"LOCAL", "REMOTE"}:
         raise ValueError(f"未知 AI 执行位置：{location}")
+    soft_state = soft_budget_state(db, job, location=location, input_chars=input_chars)
     rows = db.scalars(select(ExternalCallAudit).where(ExternalCallAudit.job_id == job.id)).all()
     actual = [row for row in rows if not (row.request_meta_json or {}).get("cache_hit")]
     if len(actual) >= config.ai_max_model_attempts_per_job:
@@ -46,6 +157,7 @@ def ensure_ai_budget(db: Session, job: Job | None, *, location: str, input_chars
     )
     if prompt_tokens + estimate > prompt_limit or completion_tokens >= completion_limit:
         raise AIBudgetExceeded("本任务已达到 AI Token 预算上限")
+    return soft_state
 
 
 def _audit_location(row: ExternalCallAudit) -> str:

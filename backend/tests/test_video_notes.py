@@ -600,7 +600,7 @@ def test_llm_retry_policy_waits_before_calls_and_between_retries() -> None:
             attempts += 1
             if attempts < 3:
                 request = httpx.Request("POST", "https://model.test/chat/completions")
-                response = httpx.Response(429, request=request)
+                response = httpx.Response(429, headers={"Retry-After": "60"}, request=request)
                 raise httpx.HTTPStatusError("rate limited", request=request, response=response)
             return LLMResult('{"ok":true}', "primary", model, {})
 

@@ -200,6 +200,7 @@ def test_manual_poi_confirmation_keeps_audit_origin(client, app_and_session) -> 
         assert mention is not None
         assert mention.metadata_json["confirmation_origin"] == "MANUAL_CONFIRMED"
         assert mention.metadata_json["manual_confirmation"]["selected_provider_id"] == "cuihu"
+        assert mention.metadata_json["resolver_feedback"]["label"] == "MANUAL_CONFIRMED"
 
 
 def test_video_note_api_searches_current_body_and_removes_deleted_notes(client, app_and_session) -> None:

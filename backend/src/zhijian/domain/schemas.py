@@ -358,6 +358,7 @@ class GeneralConfig(BaseModel):
     ai_max_local_prompt_tokens_per_job: int = Field(default=600_000, ge=1_000, le=10_000_000)
     ai_max_local_completion_tokens_per_job: int = Field(default=200_000, ge=1_000, le=10_000_000)
     ai_max_wall_time_seconds_per_job: int = Field(default=1_800, ge=60, le=86_400)
+    ai_soft_budget_warning_ratio: float = Field(default=0.75, ge=0.5, le=0.95)
 
 
 class AMapConfig(BaseModel):

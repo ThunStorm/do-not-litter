@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend" / "src"))
 
 from zhijian.ai.benchmark import summarize as summarize_standard
+from zhijian.ai.regression import pipeline_regression_gate
 
 
 def evaluate(samples: list[dict[str, Any]], rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -78,7 +79,13 @@ def _release_gate(profiles: dict[str, dict[str, Any]]) -> dict[str, Any]:
         and candidate["key_entity_recall"] >= baseline["key_entity_recall"],
         "remote_token_reduction": reduction >= 50,
     }
-    return {"passed": all(checks.values()), "checks": checks, "remote_token_reduction_percent": reduction}
+    regression = pipeline_regression_gate(baseline, candidate)
+    return {
+        "passed": all(checks.values()) and regression["passed"],
+        "checks": {**checks, "pipeline_regression": regression["passed"]},
+        "remote_token_reduction_percent": reduction,
+        "pipeline_regression": regression,
+    }
 
 
 def evaluate_cases(cases: list[dict[str, Any]], rows: list[dict[str, Any]]) -> dict[str, Any]:
