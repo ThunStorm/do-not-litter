@@ -4,9 +4,9 @@
 
 ## 任务续接
 
-- 更新：2026-09-14。LLM Token 与自动化优化 WP0–WP14 已入源码：Grounded Map 复用、Delta Whisper 校对、Retry Guard、v2 AUTO 路由、Soft Budget、严格 AUTO_STRONG POI、Token Anomaly 与离线回归 Gate 均完成；WP15 仅完成证据 Gate。全量后端、Ruff、Node 24 前端 verify、`diff --check` 通过；未调用真实 Provider/视频。
-- 现场：迁移验证命令意外作用于 `data/app.db`，已到 `0023`；这是未授权的生产迁移，事前未做本轮备份/Job 门禁。事后只读复核 `integrity_check=ok`、active Job/lease=0，API/Worker/心跳 READY；未重启服务，不能据此宣称新源码已加载或真实 E2E 已通过。
-- 未完成/边界：WP15 尚无真实毕业证据；无 Vision Profile、ASR corpus、真实主备 fallback 或 390px Browser 验收。下一步仅在用户明确授权后，以固定 10/30/60 分钟视频按 Gate 采集 Local/Remote/fallback/timeout/invalid-JSON、Replay 与质量/Token 对比；真实调用/重启前先按部署门禁备份和复核，不得重跑既有媒体、ASR、校对，或改历史 Source/Transcript/Note/Evidence。
+- 更新：2026-09-14。LLM Token 自动化源码已部署（`09e4c6a`、`4226541`）：`0023` 已为 head，Grounded Map/Delta/Retry Guard/Router/Soft Budget/POI Gate/Anomaly/Regression 均已加载。部署前 active Job/lease=0、`integrity_check=ok`，备份 `data/backups/app-pre-llm-token-automation-20260914-143324.db` 完整性 ok；API/Worker/首页/心跳 READY。
+- 已修复：LaunchAgent 原传 `ZHIJIAN_ENV` 而配置读取 `ENV`，曾启动 development 并生成 2 条无来源演示 Job；已改为 `ENV=production`、删除该两条本次生成的空 Job 并重装，复核未再生成。真实本地 `qwen3.5:9b` JSON 连通通过；主远程 Profile 返回 429，未重试。
+- 未完成/边界：没有合规 10/30/60 分钟视频，WP15 真实毕业、远程成功/fallback、Vision、ASR corpus 和 390px Browser 仍未验证。下一步需用户提供或指定可重放样本后，串行按 Gate 采集；不得重跑既有媒体/ASR/校对或自动确认 POI。
 
 ## 生产快照（采样 2026-09-13）
 
@@ -16,3 +16,4 @@
 - 2026-09-13 修复后再次重启；API/Worker/首页/心跳 READY，生产 `integrity_check=ok`、active Job/lease=0。真实样本已证明下载、ASR、校对、抽取、Note、POI Review、截图和 FTS 交付；仍不外推为 Vision、Profile 切换、fallback、cache/force-regenerate、预算或 Browser/390px 验收。
 - 2026-09-14：Evidence Index 改为稳定 Mention ID 顺序，部署后真实验证 COMPACT Profile、Cache Hit 与 force-regenerate；API/Worker/心跳 READY。Local Video 只验证至 ASR，后续本地校对超时；本轮不再重试。
 - 2026-09-14（本次复核）：`data/app.db` revision 为 `0023`，`integrity_check=ok`，未见 active Job/lease；API/Worker 与心跳 READY。本次没有重启，以上只证明迁移后的存储和现有运行状态，不证明新源码已加载。
+- 2026-09-14（本次部署）：先备份 `app-pre-llm-token-automation-20260914-143324.db` 并验证 ok，revision `0023` 无需重复迁移；重装后 API/Worker/首页/心跳 READY，LaunchAgent 环境为 `ENV=production`，`grounded_map_artifacts` 表存在。主远程 Profile 返回 429，未重试；本地 JSON 测试通过。
