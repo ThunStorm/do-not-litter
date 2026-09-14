@@ -506,6 +506,7 @@ async def capture_file(
         ".wav",
         ".aac",
         ".mp4",
+        ".m4v",
         ".mov",
         ".webm",
     }
@@ -2722,6 +2723,9 @@ def place_history(place_id: str, _: Protected, db: Session = Depends(get_db)) ->
 
 
 def _place_review_view(db: Session, mention: PlaceMention) -> dict:
+    metadata = mention.metadata_json or {}
+    resolver_context = metadata.get("resolver_context", {})
+    resolver_context = resolver_context if isinstance(resolver_context, dict) else {}
     asset = db.get(VideoAsset, mention.video_asset_id)
     source = db.get(Source, asset.source_id) if asset else None
     version = db.get(AINoteVersion, mention.ai_note_version_id) if mention.ai_note_version_id else None
@@ -2774,11 +2778,18 @@ def _place_review_view(db: Session, mention: PlaceMention) -> dict:
         "raw_name": mention.raw_name,
         "suggested_name": mention.suggested_name,
         "place_type": mention.place_type,
-        "reason": mention.reason,
+        "reason": str(metadata.get("reason") or mention.reason),
+        "reason_codes": list(metadata.get("reason_codes") or []),
+        "source_reason": mention.reason,
         "confidence": mention.confidence,
         "resolution_status": mention.resolution_status,
         "revision": mention.revision,
-        "candidates": mention.metadata_json.get("poi_candidates", []),
+        "candidates": metadata.get("poi_candidates", []),
+        "review_context": {
+            "geo_session_id": str(resolver_context.get("geo_session_id") or ""),
+            "geo_city": str(resolver_context.get("geo_session_city") or ""),
+            "anchor_count": len(resolver_context.get("geo_anchor_mention_ids") or []),
+        },
         "source_context": {
             "video_note_id": note.id if note else None,
             "video_title": asset.title if asset else "",
@@ -2977,11 +2988,26 @@ def confirm_place_review(
         )
         db.add(place)
         db.flush()
+    else:
+        place.poi_binding_status = "USER_CONFIRMED"
     mention.place_id, mention.resolution_status, mention.revision = (
         place.id,
         ResolutionStatus.CONFIRMED.value,
         mention.revision + 1,
     )
+    mention.metadata_json = {
+        **(mention.metadata_json or {}),
+        "poi_name": str(candidate["name"]),
+        "poi_id": payload.poi_id,
+        "poi_decision": "CONFIRMED",
+        "confirmation_origin": "MANUAL_CONFIRMED",
+        "confirmation_at": utc_now().isoformat(),
+        "resolver_version": str((mention.metadata_json or {}).get("resolver_version") or "manual-v1"),
+        "manual_confirmation": {
+            "selected_provider_id": payload.poi_id,
+            "candidate": candidate,
+        },
+    }
     materialize_place_insights(db, mention)
     record_event(
         db,

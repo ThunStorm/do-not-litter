@@ -13,11 +13,20 @@ class MediaDownloadError(RuntimeError):
 class YtDlpMediaProvider:
     """Bounded temporary media adapter. Its caller has already validated the Bilibili URL."""
 
-    def __init__(self, cache_dir: Path, *, max_bytes: int, timeout: int, proxy_url: str = "") -> None:
+    def __init__(
+        self,
+        cache_dir: Path,
+        *,
+        max_bytes: int,
+        timeout: int,
+        proxy_url: str = "",
+        referer: str | None = "https://www.bilibili.com",
+    ) -> None:
         self.cache_dir = cache_dir
         self.max_bytes = max_bytes
         self.timeout = timeout
         self.proxy_url = proxy_url
+        self.referer = referer
 
     def download_audio(self, url: str, cookie_file: Path | None = None) -> Path:
         return self._download(url, cookie_file, "bestaudio/best")
@@ -49,7 +58,7 @@ class YtDlpMediaProvider:
             "max_filesize": self.max_bytes,
             "overwrites": False,
             "restrictfilenames": True,
-            "http_headers": {"Referer": "https://www.bilibili.com"},
+            "http_headers": {"Referer": self.referer} if self.referer else {},
         }
         if video_only:
             options["format_sort"] = ["res:720"]

@@ -341,6 +341,7 @@ export interface VideoNoteView {
   id: string
   status: string
   title: string
+  platform: 'BILIBILI' | 'LOCAL' | 'YOUTUBE'
   canonical_url: string
   cover_url: string | null
   cover_status?: string
@@ -351,7 +352,11 @@ export interface VideoNoteView {
   uploader: string
   duration_ms: number | null
   current_version_id: string | null
+  render_profile_id: 'CURRENT_DEFAULT' | 'COMPACT' | 'DETAILED' | 'TRAVEL_GUIDE'
+  render_profile_version: string
   overview: string
+  search_match?: string
+  search_snippet?: string
   updated_at: string
   place_summary: { total: number; confirmed: number }
 }

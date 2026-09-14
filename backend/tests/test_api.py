@@ -34,6 +34,7 @@ from zhijian.services.jobs import recover_stale_jobs, release_expired_cancelled_
 from zhijian.services.pipeline import process_job
 from zhijian.services.place_knowledge import normalize_insight
 from zhijian.services.runtime_monitor import METRICS_SAMPLE_KEY
+from zhijian.services.video_note_search import sync_video_note_search_index
 from zhijian.services.video_screenshots import _quality, plan_screenshots
 from zhijian.services.video_support import materialize_transcript
 
@@ -130,6 +131,11 @@ def test_place_review_returns_video_evidence_context(client, app_and_session) ->
                 quote="去故宫参观",
                 segment_ids_json=[segments[1].id],
                 resolution_status="UNRESOLVED",
+                reason="视频提到了故宫",
+                metadata_json={
+                    "reason": "地点类型尚无可靠分类映射",
+                    "reason_codes": ["CATEGORY_UNMAPPED"],
+                },
             )
         )
         db.commit()
@@ -137,6 +143,9 @@ def test_place_review_returns_video_evidence_context(client, app_and_session) ->
     assert response.status_code == 200
     review = response.json()[0]
     assert review["resolution_status"] == "UNRESOLVED"
+    assert review["reason"] == "地点类型尚无可靠分类映射"
+    assert review["reason_codes"] == ["CATEGORY_UNMAPPED"]
+    assert review["source_reason"] == "视频提到了故宫"
     assert review["source_context"]["video_title"] == "旅行视频"
     assert review["source_context"]["section"]["heading"] == "故宫"
     assert [item["text"] for item in review["source_context"]["transcript_context"]] == [
@@ -144,6 +153,88 @@ def test_place_review_returns_video_evidence_context(client, app_and_session) ->
         "去故宫参观",
         "后文",
     ]
+
+
+def test_manual_poi_confirmation_keeps_audit_origin(client, app_and_session) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        source = Source(source_type="URL", locator="https://example.test/manual-poi")
+        db.add(source)
+        db.flush()
+        asset = VideoAsset(source_id=source.id, canonical_url=source.locator)
+        db.add(asset)
+        db.flush()
+        mention = PlaceMention(
+            video_asset_id=asset.id,
+            name="翠湖公园",
+            raw_name="翠湖公园",
+            suggested_name="翠湖公园",
+            place_type="PARK",
+            metadata_json={
+                "poi_candidates": [
+                    {
+                        "provider_id": "cuihu",
+                        "name": "翠湖公园",
+                        "province": "云南省",
+                        "city": "昆明市",
+                        "district": "五华区",
+                        "address": "昆明市五华区",
+                        "longitude": 102.7,
+                        "latitude": 25.05,
+                    }
+                ]
+            },
+        )
+        db.add(mention)
+        db.commit()
+        mention_id = mention.id
+
+    response = client.post(
+        f"/api/travel/place-mentions/{mention_id}/confirm",
+        json={"provider": "AMAP", "poi_id": "cuihu", "expected_revision": 0},
+    )
+
+    assert response.status_code == 200
+    with factory() as db:
+        mention = db.get(PlaceMention, mention_id)
+        assert mention is not None
+        assert mention.metadata_json["confirmation_origin"] == "MANUAL_CONFIRMED"
+        assert mention.metadata_json["manual_confirmation"]["selected_provider_id"] == "cuihu"
+
+
+def test_video_note_api_searches_current_body_and_removes_deleted_notes(client, app_and_session) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        source = Source(source_type="URL", locator="https://example.test/note-search")
+        db.add(source)
+        db.flush()
+        asset = VideoAsset(source_id=source.id, canonical_url=source.locator, title="搜索测试")
+        db.add(asset)
+        db.flush()
+        note = AINote(video_asset_id=asset.id, status="COMPLETED")
+        db.add(note)
+        db.flush()
+        version = AINoteVersion(
+            ai_note_id=note.id,
+            version=1,
+            markdown="# 搜索测试\n\n正文关键词：菌子。",
+            overview="摘要",
+            transcript_version=1,
+        )
+        db.add(version)
+        db.flush()
+        note.current_version_id = version.id
+        sync_video_note_search_index(db, note, version, asset)
+        db.commit()
+        note_id = note.id
+
+    response = client.get("/api/video-notes?query=%E8%8F%8C%E5%AD%90")
+    assert response.status_code == 200
+    assert response.json()[0]["id"] == note_id
+    assert response.json()[0]["search_match"] == "正文命中"
+
+    assert client.delete(f"/api/video-notes/{note_id}").status_code == 200
+    assert client.get("/api/video-notes?query=%E8%8F%8C%E5%AD%90").json() == []
 
 
 def test_place_detail_returns_normalized_consensus_conflict_and_history(client, app_and_session) -> None:

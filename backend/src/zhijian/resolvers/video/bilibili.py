@@ -4,7 +4,7 @@ import ipaddress
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
-from urllib.parse import urlencode, urljoin, urlparse
+from urllib.parse import parse_qs, urlencode, urljoin, urlparse, urlunparse
 
 import httpx
 
@@ -33,6 +33,7 @@ class SubtitleTrack:
     track_id: str = ""
     is_generated: bool = False
     endpoint: str = "/x/player/wbi/v2"
+    platform: str = "BILIBILI"
 
     @property
     def generated(self) -> bool:
@@ -40,7 +41,7 @@ class SubtitleTrack:
 
     @property
     def source_kind(self) -> str:
-        return "BILIBILI_AI_SUBTITLE" if self.generated else "BILIBILI_HUMAN_SUBTITLE"
+        return f"{self.platform}_{'AI' if self.generated else 'HUMAN'}_SUBTITLE"
 
 
 @dataclass(slots=True)
@@ -64,6 +65,8 @@ def is_bilibili_url(url: str) -> bool:
 
 class BilibiliResolver:
     """Bounded resolver: only Bilibili/API HTTPS endpoints, no arbitrary redirects."""
+
+    platform = "BILIBILI"
 
     def __init__(self, *, timeout: int = 45, max_redirects: int = 3, proxy_url: str = "") -> None:
         self.timeout = timeout
@@ -143,6 +146,12 @@ class BilibiliResolver:
         if not result:
             raise VideoResolveError("VIDEO_SUBTITLE_EMPTY", "视频字幕为空")
         return result
+
+    def build_timestamp_url(self, canonical_url: str, timestamp_ms: int) -> str:
+        parsed = urlparse(canonical_url)
+        params = parse_qs(parsed.query, keep_blank_values=True)
+        params["t"] = [str(max(0, timestamp_ms // 1000))]
+        return urlunparse(parsed._replace(query=urlencode(params, doseq=True)))
 
     def _resolve_short_url(self, raw_url: str) -> str:
         parsed = parse_bilibili_url(raw_url)

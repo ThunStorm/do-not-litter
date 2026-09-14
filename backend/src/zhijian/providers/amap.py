@@ -35,10 +35,17 @@ class AMapPOIProvider:
             {"keywords": keywords, "city": city, "citylimit": str(city_limit).lower(), "page_size": 20},
         )
 
-    def around(self, longitude: float, latitude: float, keywords: str = "") -> list[POICandidate]:
+    def around(
+        self, longitude: float, latitude: float, keywords: str = "", *, radius: int = 1000
+    ) -> list[POICandidate]:
         return self._request(
             "around",
-            {"location": f"{longitude},{latitude}", "keywords": keywords, "radius": 1000, "page_size": 20},
+            {
+                "location": f"{longitude},{latitude}",
+                "keywords": keywords,
+                "radius": max(100, min(radius, 5000)),
+                "page_size": 20,
+            },
         )
 
     def detail(self, poi_id: str) -> POICandidate | None:

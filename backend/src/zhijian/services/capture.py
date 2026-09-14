@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from zhijian.core.config import Settings
 from zhijian.db.models import Job, Source
 from zhijian.domain.enums import JobStatus, JobType
-from zhijian.resolvers.video import is_bilibili_url
+from zhijian.resolvers.video import is_bilibili_url, is_youtube_url
 from zhijian.services.classifier import classify_capture
 
 
@@ -24,7 +24,13 @@ def create_capture_job(
     metadata: dict | None = None,
     ai_overrides: dict | None = None,
 ) -> tuple[Source, Job]:
-    is_video = source_type == "URL" and is_bilibili_url(locator)
+    is_local_video = bool(
+        source_type == "FILE"
+        and file_path
+        and file_path.suffix.lower() in {".mp4", ".mov", ".webm", ".m4v"}
+    )
+    is_youtube = source_type == "URL" and is_youtube_url(locator)
+    is_video = (source_type == "URL" and (is_bilibili_url(locator) or is_youtube)) or is_local_video
     job_type = JobType.TRAVEL if is_video else classify_capture(locator, title, text)
     source = Source(
         source_type=source_type,
@@ -40,7 +46,9 @@ def create_capture_job(
         "title": title,
         "text": text,
         "file_path": str(file_path) if file_path else None,
-        "video_platform": "BILIBILI" if is_video else None,
+        "video_platform": (
+            "LOCAL" if is_local_video else "YOUTUBE" if is_youtube else "BILIBILI" if is_video else None
+        ),
         "ai_overrides": ai_overrides or {},
     }
     job = Job(job_type=job_type.value, status=JobStatus.QUEUED.value, payload_json=payload)

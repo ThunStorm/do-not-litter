@@ -4,18 +4,18 @@
 
 ## 任务续接
 
-- 更新：2026-09-11。视频质量总计划 WP0–22 已部署；`0020` 增加地点化章节 Evidence，地点抽取改为完整转写分块后先于 Note，审核页/笔记页共用 Review Context。
-- 已完成：生产库从 `0019` 升级至 `0020`，备份 `data/backups/app-pre-video-quality-0020-20260910-234552.db` 完整性为 ok；API/Worker 重启后 health、首页、Worker 心跳、`/place-reviews` source_context 与 revision 均正常，无活跃 Job/lease。
-- 已完成：确认后的地点候选直接显示当前绑定 `Place` 的名称/地址并链接地点详情，不再显示视频时间码或 Insight 行注释；`REVIEW` 与 `UNRESOLVED` 均可在笔记页打开搜索/确认 POI。
-- 已完成：未确认候选及审核 Evidence 上下文的全部时间戳会以新窗口链接打开原 Bilibili 视频并传递 `t` 秒级定位参数；保留原链接查询参数。
-- 验证：目标 Ruff、后端完整测试、Node 24 前端 verify、`diff --check` 均通过；已在已部署笔记页确认确认态不带转写行、待确认卡可点击“搜索 POI”；未调用 Provider、未重跑真实视频、未自动确认 POI。
-- 未完成：WP23 仍按性能证据延期；现有 `PARTIAL_SUCCESS` Job 没有失败步骤可续跑，剩余 POI 需用户审核。
-- 下一步：用户在视频笔记或 `/place-reviews` 审核 POI；如需真实 Benchmark/视频重跑，单任务串行并遵守 QPS。
-- 注意：不删历史 Transcript/Note/Evidence，不自动确认不确定 POI；零库升级仍受已发布的 `0019` 重复建表问题影响，禁止回改历史 migration。
+- 更新：2026-09-13。UI/视频/POI V2 的 `0021`（Note Profile）与 `0022`（FTS5）已生产迁移、重启；备份 `data/backups/app-pre-ui-video-poi-v2-20260913-125600.db` 完整性 ok。
+- 已完成：API/Worker/首页/心跳 READY，生产 revision `0022`、FTS 表存在，active Job/lease 在迁移前为 0；现有 1 条 Note 的全文索引回填及 2 字中文标题搜索通过。
+- 已修复：重复 Capture 命中既有 canonical VideoAsset 时，Job 改绑资产原 Source 并清理无引用的新 Source；异常审计按 UTC 归一化时间后再筛选。目标与全量后端、Ruff、Node 24 前端 verify、`diff --check` 通过，生产重启后 Source/Asset 实读一致且空 Source 已删除。
+- 用户样本 `BV19sbV6eExE`：切换 Key 后从 `EXTRACT_TRAVEL_FACTS` Replay 成功，最终 `PARTIAL_SUCCESS`；已生成 Note version 2、9 张 READY 截图，FTS 命中新 Note，所有步骤完成且无失败/跳过。45 个 POI 为 REVIEW/UNRESOLVED，confirmed=0，未自动确认。
+- 已完成：COMPACT Profile Replay 产生 current Note version 7（6 章节均带 Evidence、7 张 READY 截图）；同 Profile 二次 Replay 的三个分块 Cache Hit 均为 0ms；force-regenerate 真实绕过命中，新增 Cache result chain。Local Video 上传入口/Adapter/ASR 已由同一视频轨+音频轨合成 MP4 验证，后续本地校对超时。
+- 未验证/条件缺口：无 image-capable Profile，Vision 不可跑；无授权的六类 ASR corpus，CPU fallback Benchmark 未跑；无有效 Browser/Playwright runtime（Computer Use 初始化超时），390px 未验；POI AUTO_STRONG 需要用户审核真实候选后才能晋级；fallback 需可用主备 Profile 和一次受控失败。本轮不再发起模型/视频 Job。
+- 下一步：用户在视频笔记或 `/place-reviews` 审核 45 个 POI；补齐 Vision Profile、ASR corpus 或 Browser runtime 后再单独验收。不得重跑已完成媒体/ASR/校对，不改历史 Source/Transcript/Note/Evidence。
 
-## 生产快照（采样 2026-09-10）
+## 生产快照（采样 2026-09-13）
 
-- 2026-09-10 已重启 cn.zhijian.api、cn.zhijian.worker；health、首页正文和 Worker 心跳 READY，活跃 Job/lease 为 0。
-- SQLite/WAL 实读 Alembic 0020（head），`integrity_check=ok`；本次升级前逻辑备份为 `data/backups/app-pre-video-quality-0020-20260910-234552.db`，其完整性与 revision 均已复核。
+- 2026-09-13 已重启 cn.zhijian.api、cn.zhijian.worker；health、首页正文和 Worker 心跳 READY。迁移前 active Job/lease=0，SQLite/WAL `integrity_check=ok`。
+- SQLite/WAL 实读 Alembic 0022（head），`video_note_search` 已存在；本次升级前逻辑备份为 `data/backups/app-pre-ui-video-poi-v2-20260913-125600.db`，完整性为 ok。
 - 运行时为 Python 3.14.6，/Volumes/D/Library/Application Support/Zhijian/venv/bin/python；LaunchAgent 的 PYTHONPATH 指向仓库 backend/src。精确 Git SHA 未嵌入进程。
-- Gateway 的真实 Local/Remote、ASR、视觉、fallback、cache/force-regenerate、预算、取消/Replay 仍须按 [生产验收门禁](ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md) 单独留证；不得以本次健康和单个字幕样本外推。
+- 2026-09-13 修复后再次重启；API/Worker/首页/心跳 READY，生产 `integrity_check=ok`、active Job/lease=0。真实样本已证明下载、ASR、校对、抽取、Note、POI Review、截图和 FTS 交付；仍不外推为 Vision、Profile 切换、fallback、cache/force-regenerate、预算或 Browser/390px 验收。
+- 2026-09-14：Evidence Index 改为稳定 Mention ID 顺序，部署后真实验证 COMPACT Profile、Cache Hit 与 force-regenerate；API/Worker/心跳 READY。Local Video 只验证至 ASR，后续本地校对超时；本轮不再重试。

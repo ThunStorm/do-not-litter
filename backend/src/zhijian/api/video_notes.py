@@ -31,6 +31,8 @@ from zhijian.domain.enums import JobStatus, JobType
 from zhijian.services.audit import record_event
 from zhijian.services.auth import require_session
 from zhijian.services.source_retention import prune_source_if_orphan
+from zhijian.services.video_note_search import remove_video_note_search_index, search_video_note_ids
+from zhijian.services.video_support import note_render_profile
 
 router = APIRouter(tags=["video-notes"])
 Protected = Annotated[object | None, Depends(require_session)]
@@ -67,6 +69,7 @@ def _note_view(db: Session, note: AINote, asset: VideoAsset) -> dict:
         "id": note.id,
         "status": note.status,
         "title": asset.title,
+        "platform": asset.platform,
         "canonical_url": asset.canonical_url,
         "cover_url": _cover_url(asset.cover_url),
         "cover_status": cover.status if cover else "PENDING",
@@ -79,6 +82,8 @@ def _note_view(db: Session, note: AINote, asset: VideoAsset) -> dict:
         "uploader": asset.uploader,
         "duration_ms": asset.duration_ms,
         "current_version_id": note.current_version_id,
+        "render_profile_id": current.render_profile_id if current else "CURRENT_DEFAULT",
+        "render_profile_version": current.render_profile_version if current else "1",
         "overview": current.overview if current else "",
         "created_at": note.created_at,
         "updated_at": note.updated_at,
@@ -96,9 +101,27 @@ def list_video_notes(_: Protected, query: str | None = None, db: Session = Depen
         .join(VideoAsset, VideoAsset.id == AINote.video_asset_id)
         .order_by(AINote.updated_at.desc())
     )
-    if query:
-        statement = statement.where(VideoAsset.title.contains(query))
-    return [_note_view(db, note, asset) for note, asset in db.execute(statement).all()]
+    if not query or not query.strip():
+        return [_note_view(db, note, asset) for note, asset in db.execute(statement).all()]
+    matches = search_video_note_ids(db, query)
+    if not matches:
+        return []
+    rows = {
+        note.id: (note, asset)
+        for note, asset in db.execute(
+            statement.where(AINote.id.in_([item["note_id"] for item in matches]))
+        ).all()
+    }
+    result = []
+    for match in matches:
+        row = rows.get(match["note_id"])
+        if row is None:
+            continue
+        item = _note_view(db, *row)
+        item["search_match"] = match["match_type"]
+        item["search_snippet"] = match["snippet"]
+        result.append(item)
+    return result
 
 
 @router.get("/api/video-notes/{note_id}")
@@ -429,16 +452,26 @@ def video_note_places(note_id: str, _: Protected, db: Session = Depends(get_db))
 
 
 @router.post("/api/video-notes/{note_id}/regenerate")
-def regenerate_video_note(note_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
+def regenerate_video_note(
+    note_id: str,
+    _: Protected,
+    profile_id: str = "CURRENT_DEFAULT",
+    db: Session = Depends(get_db),
+) -> dict:
     _, asset = _asset_for_note(db, note_id)
+    try:
+        note_render_profile(profile_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail={"code": "INVALID_NOTE_RENDER_PROFILE"}) from exc
     job = Job(
         job_type=JobType.TRAVEL.value,
         status=JobStatus.QUEUED.value,
         payload_json={
             "source_id": asset.source_id,
-            "locator": asset.canonical_url,
+            "locator": str(asset.metadata_json.get("local_path") or asset.canonical_url),
             "title": asset.title,
-            "video_platform": "BILIBILI",
+            "video_platform": asset.platform,
+            "note_render_profile": profile_id,
             "regenerate": True,
         },
         created_at=utc_now(),
@@ -467,6 +500,7 @@ def delete_video_note(note_id: str, _: Protected, db: Session = Depends(get_db))
         )
     ).all():
         db.delete(content)
+    remove_video_note_search_index(db, note.id)
     db.delete(note)
     db.flush()
     source_deleted = prune_source_if_orphan(db, source_id)

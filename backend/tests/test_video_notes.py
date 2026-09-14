@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import httpx
@@ -40,6 +40,7 @@ from zhijian.providers.llm import (
 )
 from zhijian.providers.media import YtDlpMediaProvider
 from zhijian.resolvers.video.bilibili import SubtitleTrack
+from zhijian.resolvers.video.local import LocalVideoAdapter
 from zhijian.resolvers.video.url_parser import parse_bilibili_url
 from zhijian.services.capture import create_capture_job
 from zhijian.services.jobs import JobCancelled
@@ -47,10 +48,13 @@ from zhijian.services.transcript_retention import purge_expired_transcripts
 from zhijian.services.transcript_validation import assess_transcript_quality
 from zhijian.services.video_pipeline import (
     NeedsUser,
+    _attempts_since,
+    _bind_job_to_asset_source,
     _subtitle_decision,
     _trusted_transcript_or_raise,
 )
 from zhijian.services.video_support import (
+    _place_evidence_index,
     _section_facts,
     build_place_notes,
     correct_transcript,
@@ -59,6 +63,7 @@ from zhijian.services.video_support import (
     materialize_place_insights,
     materialize_transcript,
     normalized_confidence,
+    note_render_profile,
     provider_for_role,
     resolve_mentions_with_amap,
 )
@@ -85,6 +90,101 @@ def test_video_capture_only_creates_durable_job_without_network(app_and_session)
         assert job.job_type == JobType.TRAVEL.value
         assert job.payload_json["video_platform"] == "BILIBILI"
         assert db.scalar(select(Job).where(Job.id == job.id)) is not None
+
+
+def test_repeated_capture_rebinds_job_to_canonical_asset_source(app_and_session) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        canonical = Source(source_type="URL", locator="https://example.test/video")
+        duplicate = Source(source_type="URL", locator="https://example.test/video")
+        db.add_all([canonical, duplicate])
+        db.flush()
+        asset = VideoAsset(source_id=canonical.id, canonical_url=canonical.locator)
+        job = Job(
+            job_type="TRAVEL",
+            status="RUNNING",
+            payload_json={"source_id": duplicate.id, "locator": duplicate.locator},
+        )
+        db.add_all([asset, job])
+        db.flush()
+        duplicate_id = duplicate.id
+
+        source = _bind_job_to_asset_source(db, job, duplicate, asset)
+        db.flush()
+
+        assert source.id == canonical.id
+        assert job.payload_json["source_id"] == canonical.id
+        assert asset.source_id == canonical.id
+        assert db.get(Source, duplicate_id) is None
+
+
+def test_attempt_filter_normalizes_sqlite_naive_timestamps() -> None:
+    started = datetime(2026, 9, 13, 10, 0, tzinfo=UTC)
+    rows = [
+        SimpleNamespace(created_at=datetime(2026, 9, 13, 9, 59, 59)),
+        SimpleNamespace(created_at=datetime(2026, 9, 13, 10, 0, 1)),
+    ]
+
+    assert _attempts_since(rows, started) == [rows[1]]
+
+
+def test_place_evidence_index_has_stable_mention_order() -> None:
+    first = PlaceMention(
+        id="pm-b",
+        video_asset_id="vid-fixture",
+        name="第二地点",
+        quote="第二段 Evidence",
+        segment_ids_json=["seg-b"],
+    )
+    second = PlaceMention(
+        id="pm-a",
+        video_asset_id="vid-fixture",
+        name="第一地点",
+        quote="第一段 Evidence",
+        segment_ids_json=["seg-a"],
+    )
+
+    assert [item["mention_id"] for item in _place_evidence_index([first, second])] == ["pm-a", "pm-b"]
+
+
+def test_local_video_capture_uses_the_existing_travel_job_and_adapter(app_and_session, tmp_path) -> None:
+    _, factory = app_and_session
+    media = tmp_path / "travel.mp4"
+    media.write_bytes(b"fixture")
+    settings = Settings(_env_file=None, data_dir="/tmp/zhijian-video-test")
+    with factory() as db:
+        source, job = create_capture_job(
+            db,
+            settings,
+            locator=str(media),
+            source_type="FILE",
+            title=media.name,
+            file_path=media,
+        )
+
+        descriptor = LocalVideoAdapter().resolve(str(media))
+
+    assert source.source_type == "FILE"
+    assert job.job_type == JobType.TRAVEL.value
+    assert job.payload_json["video_platform"] == "LOCAL"
+    assert descriptor.canonical_url == media.resolve().as_uri()
+    assert descriptor.subtitles == []
+    assert LocalVideoAdapter().build_timestamp_url(descriptor.canonical_url, 1000) == ""
+
+
+def test_youtube_capture_only_creates_the_existing_travel_job(app_and_session) -> None:
+    _, factory = app_and_session
+    settings = Settings(_env_file=None, data_dir="/tmp/zhijian-video-test")
+    with factory() as db:
+        _, job = create_capture_job(
+            db,
+            settings,
+            locator="https://www.youtube.com/watch?v=fixture",
+            source_type="URL",
+        )
+
+    assert job.job_type == JobType.TRAVEL.value
+    assert job.payload_json["video_platform"] == "YOUTUBE"
 
 
 def test_timestamped_transcript_reuses_same_fingerprint(app_and_session) -> None:
@@ -381,6 +481,7 @@ def test_video_note_api_returns_versioned_sections(client, app_and_session) -> N
     response = client.get(f"/api/video-notes/{note_id}")
     assert response.status_code == 200
     assert response.json()["sections"][0]["heading"] == "开场"
+    assert response.json()["render_profile_id"] == "CURRENT_DEFAULT"
     legacy = client.get(f"/api/video-notes/{version.id}")
     assert legacy.status_code == 200
     assert legacy.json()["id"] == note_id
@@ -1141,6 +1242,16 @@ def test_note_map_reduce_persists_compact_facts(app_and_session, monkeypatch) ->
         )
         assert version.map_facts_json and version.map_facts_json[0]["supporting_quotes"]
         assert version.map_facts_json[0]["places"] == []
+        assert version.render_profile_id == "CURRENT_DEFAULT"
+
+
+def test_note_render_profiles_are_explicit_and_versioned() -> None:
+    profile_id, profile = note_render_profile("COMPACT")
+
+    assert profile_id == "COMPACT"
+    assert profile["version"] == "1"
+    with pytest.raises(ValueError, match="不支持的笔记渲染 Profile"):
+        note_render_profile("UNKNOWN")
 
 
 def test_transcript_correction_stops_before_next_batch_when_cancelled(monkeypatch) -> None:

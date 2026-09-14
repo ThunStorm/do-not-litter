@@ -154,7 +154,7 @@ def ensure_missing_screenshot_plans(db: Session) -> int:
 
 
 def download_screenshot_video(
-    settings: Settings, url: str, cookie_path: Path | None
+    settings: Settings, url: str, cookie_path: Path | None, *, platform: str = "BILIBILI"
 ) -> Path:
     """Fetch a bounded cache copy only; callers decide whether enhancement failure is partial."""
     media = YtDlpMediaProvider(
@@ -162,6 +162,7 @@ def download_screenshot_video(
         max_bytes=settings.video_max_media_mb * 1024 * 1024,
         timeout=settings.video_network_timeout_seconds,
         proxy_url=settings.video_proxy_url,
+        referer="https://www.bilibili.com" if platform == "BILIBILI" else None,
     )
     return media.download_video(url, cookie_path)
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from zhijian.ai.resource_manager import local_ai_resource_manager
 from zhijian.core.config import Settings, get_settings
 from zhijian.core.secret_store import build_secret_store
-from zhijian.core.time import utc_now
+from zhijian.core.time import as_utc, utc_now
 from zhijian.db.models import (
     AINote,
     AINoteVersion,
@@ -31,9 +31,9 @@ from zhijian.db.models import (
     VideoScreenshot,
 )
 from zhijian.domain.enums import ContentType, JobStatus
-from zhijian.providers.asr import WhisperCppProvider
+from zhijian.providers.asr import ASRProviderRegistry
 from zhijian.providers.media import MediaDownloadError, YtDlpMediaProvider
-from zhijian.resolvers.video import BilibiliResolver
+from zhijian.resolvers.video import video_adapter_for_platform
 from zhijian.resolvers.video.bilibili import (
     SubtitleTrack,
     VideoResolveError,
@@ -95,6 +95,12 @@ def _hash(value: Any) -> str:
     ).hexdigest()
 
 
+def _attempts_since(
+    rows: list[ExternalCallAudit], started_at: datetime
+) -> list[ExternalCallAudit]:
+    return [row for row in rows if as_utc(row.created_at) >= as_utc(started_at)]
+
+
 def _subtitle_decision(
     asset: VideoAsset, track: SubtitleTrack, raw_segments: list[dict[str, Any]]
 ) -> dict[str, Any]:
@@ -120,6 +126,48 @@ def _subtitle_decision(
         "metrics": metrics,
         "timeline_ratio": metrics["timeline_ratio"],
     }
+
+
+def _bind_job_to_asset_source(
+    db: Session, job: Job, requested_source: Source, asset: VideoAsset
+) -> Source:
+    """Keep one canonical Source identity when a repeated capture reuses an asset."""
+    if asset.source_id == requested_source.id:
+        return requested_source
+    canonical_source = db.get(Source, asset.source_id)
+    if canonical_source is None:
+        raise RuntimeError("视频资产绑定的来源不存在")
+    requested_source_id = requested_source.id
+    job.payload_json = {**job.payload_json, "source_id": canonical_source.id}
+    has_durable_refs = any(
+        (
+            db.scalar(select(Snapshot.id).where(Snapshot.source_id == requested_source_id).limit(1)),
+            db.scalar(
+                select(ContentItem.id).where(ContentItem.source_id == requested_source_id).limit(1)
+            ),
+            db.scalar(
+                select(VideoAsset.id).where(VideoAsset.source_id == requested_source_id).limit(1)
+            ),
+        )
+    )
+    if not has_durable_refs:
+        db.delete(requested_source)
+    record_event(
+        db,
+        "video.source.reused",
+        "重复投递已复用视频资产的原始 Source 身份",
+        component="video-pipeline",
+        entity_type="job",
+        entity_id=job.id,
+        detail={
+            "video_asset_id": asset.id,
+            "requested_source_id": requested_source_id,
+            "canonical_source_id": canonical_source.id,
+            "orphan_removed": not has_durable_refs,
+        },
+        commit=False,
+    )
+    return canonical_source
 
 
 def _trusted_transcript_or_raise(
@@ -276,6 +324,8 @@ def _download_and_transcribe_audio(
     bvid: str,
     cookie_path: Path | None,
     validation_reasons: list[str] | None = None,
+    source_media_path: Path | None = None,
+    platform: str = "BILIBILI",
 ) -> tuple[Path, Transcript, list[Segment]]:
     download = _step(
         db,
@@ -291,24 +341,28 @@ def _download_and_transcribe_audio(
         "未找到平台字幕，正在下载音频用于转写",
         bvid=bvid,
     )
-    media = YtDlpMediaProvider(
-        settings.cache_dir / "audio",
-        max_bytes=settings.video_max_media_mb * 1024 * 1024,
-        timeout=settings.video_network_timeout_seconds,
-        proxy_url=settings.video_proxy_url,
-    )
-    try:
-        audio_path = audited_call(
-            db,
-            job_id=job.id,
-            capability="VIDEO_MEDIA",
-            provider="yt-dlp",
-            operation="audio-only",
-            request_meta={"bvid": bvid},
-            call=lambda: media.download_audio(canonical_url, cookie_path),
+    if source_media_path and source_media_path.is_file():
+        audio_path = source_media_path
+    else:
+        media = YtDlpMediaProvider(
+            settings.cache_dir / "audio",
+            max_bytes=settings.video_max_media_mb * 1024 * 1024,
+            timeout=settings.video_network_timeout_seconds,
+            proxy_url=settings.video_proxy_url,
+            referer="https://www.bilibili.com" if platform == "BILIBILI" else None,
         )
-    except MediaDownloadError as exc:
-        raise NeedsUser(exc.code, str(exc)) from exc
+        try:
+            audio_path = audited_call(
+                db,
+                job_id=job.id,
+                capability="VIDEO_MEDIA",
+                provider="yt-dlp",
+                operation="audio-only",
+                request_meta={"bvid": bvid},
+                call=lambda: media.download_audio(canonical_url, cookie_path),
+            )
+        except MediaDownloadError as exc:
+            raise NeedsUser(exc.code, str(exc)) from exc
     _stage_event(
         db,
         job,
@@ -321,23 +375,37 @@ def _download_and_transcribe_audio(
         job,
         download,
         45,
-        {"audio_cached": True, "bytes": audio_path.stat().st_size, "cache_path": str(audio_path)},
+        {
+            "audio_cached": not bool(source_media_path),
+            "bytes": audio_path.stat().st_size,
+            "cache_path": str(audio_path),
+        },
     )
-    asr_step = _step(db, job, "ASR", 48, {"audio": audio_path.name, "model": str(settings.whisper_model)})
-    _stage_event(db, job, "asr.requested", "正在调用本机 Whisper.cpp 转写")
+    registry = ASRProviderRegistry(settings.whisper_binary, settings.whisper_model)
+    requested_provider = str((job.payload_json.get("ai_overrides") or {}).get("asr_provider") or "")
+    try:
+        provider = registry.get(requested_provider or registry.default_provider_id)
+    except ValueError as exc:
+        raise NeedsUser("ASR_UNAVAILABLE", str(exc)) from exc
+    asr_step = _step(
+        db,
+        job,
+        "ASR",
+        48,
+        {"audio": audio_path.name, "model": str(settings.whisper_model), "provider": provider.provider_id},
+    )
+    _stage_event(db, job, "asr.requested", f"正在调用本机 {provider.provider_id} 转写")
     try:
         text, raw_segments = audited_call(
             db,
             job_id=job.id,
             capability="ASR",
-            provider="whisper.cpp",
+            provider=provider.provider_id,
             operation="transcribe",
-            request_meta={"audio": audio_path.name},
+            request_meta={"audio": audio_path.name, "asr_provider": provider.provider_id},
             call=lambda: local_ai_resource_manager.run(
                 "ASR",
-                lambda: WhisperCppProvider(settings.whisper_binary, settings.whisper_model).transcribe(
-                    audio_path
-                ),
+                lambda: provider.transcribe(audio_path),
             ),
         )
     except RuntimeError as exc:
@@ -345,14 +413,16 @@ def _download_and_transcribe_audio(
     if not text or not raw_segments:
         raise NeedsUser("ASR_EMPTY", "本地转写没有产生带时间码的结果")
     last_ms = max(int(item.get("end_ms") or item.get("start_ms") or 0) for item in raw_segments)
-    _stage_event(db, job, "asr.completed", "本机转写已完成", segments=len(raw_segments))
-    _done(db, job, asr_step, 62, {"segments": len(raw_segments)})
+    _stage_event(
+        db, job, "asr.completed", "本机转写已完成", provider=provider.provider_id, segments=len(raw_segments)
+    )
+    _done(db, job, asr_step, 62, {"segments": len(raw_segments), "provider": provider.provider_id})
     transcript, segments = materialize_transcript(
         db,
         source,
         asset,
         raw_segments,
-        source_kind="WHISPER_CPP_ASR",
+        source_kind=f"{provider.provider_id}_ASR",
         metadata={
             "requested_bvid": bvid,
             "requested_cid": asset.cid or "",
@@ -436,23 +506,26 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
         source = db.get(Source, str(job.payload_json["source_id"]))
         if source is None:
             raise RuntimeError("视频来源不存在")
-        source_id = source.id
+        requested_source_id = source.id
         raw_url = str(job.payload_json.get("locator") or "")
+        platform = str(job.payload_json.get("video_platform") or "BILIBILI")
+        local_media_path = Path(raw_url) if platform == "LOCAL" else None
         validate = _step(db, job, "VALIDATE_LINK", 5, {"url": raw_url})
         _stage_event(
             db,
             job,
             "metadata.requested",
-            "正在请求 Bilibili 视频元数据",
-            url_host="bilibili",
+            "正在请求视频元数据",
+            platform=platform,
         )
-        resolver = BilibiliResolver(
+        resolver = video_adapter_for_platform(
+            platform,
             timeout=settings.video_network_timeout_seconds,
             max_redirects=settings.video_max_redirects,
             proxy_url=settings.video_proxy_url,
         )
         store = build_secret_store(settings.secret_store, settings.data_dir)
-        cookie = store.get(settings.video_cookie_secret_key)
+        cookie = store.get(settings.video_cookie_secret_key) if platform == "BILIBILI" else None
         if cookie:
             cookie_path = _temporary_cookie_file(settings, job.id, cookie)
         try:
@@ -460,9 +533,9 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
                 db,
                 job_id=job.id,
                 capability="VIDEO_RESOLVE",
-                provider="bilibili",
+                provider=platform.lower(),
                 operation="metadata",
-                request_meta={"url_host": "bilibili"},
+                request_meta={"platform": platform},
                 call=lambda: resolver.resolve(raw_url, cookie),
                 response_meta=lambda item: {
                     "bvid": item.bvid,
@@ -503,6 +576,7 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
         if asset is None:
             asset = VideoAsset(
                 source_id=source.id,
+                platform=platform,
                 canonical_url=resolved.canonical_url,
                 bvid=resolved.bvid,
                 aid=resolved.aid,
@@ -517,7 +591,8 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
             db.add(asset)
             asset_action = "created"
         else:
-            asset.canonical_url, asset.bvid, asset.aid, asset.cid = (
+            asset.platform, asset.canonical_url, asset.bvid, asset.aid, asset.cid = (
+                platform,
                 resolved.canonical_url,
                 resolved.bvid,
                 resolved.aid,
@@ -531,18 +606,20 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
                 resolved.metadata,
             )
             asset_action = "reused"
+            source = _bind_job_to_asset_source(db, job, source, asset)
         source.title = resolved.title
-        source.authority = "PLATFORM"
+        source.authority = "USER" if platform == "LOCAL" else "PLATFORM"
         try:
             db.commit()
         except IntegrityError:
             db.rollback()
-            source = db.get(Source, source_id)
+            source = db.get(Source, requested_source_id)
             asset = db.scalar(select(VideoAsset).where(VideoAsset.canonical_url == resolved.canonical_url))
             if source is None or asset is None:
                 raise
+            source = _bind_job_to_asset_source(db, job, source, asset)
             source.title = resolved.title
-            source.authority = "PLATFORM"
+            source.authority = "USER" if platform == "LOCAL" else "PLATFORM"
             asset_action = "reused_after_conflict"
             db.commit()
         _stage_event(
@@ -699,9 +776,11 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
                 source,
                 asset,
                 resolved.canonical_url,
-                resolved.bvid,
+                resolved.bvid or "",
                 cookie_path,
                 reasons,
+                local_media_path,
+                platform,
             )
 
         normalize = _step(
@@ -835,7 +914,13 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
         else:
             _stage_event(db, job, "screenshot.download", "正在下载受限清晰度视频用于抽帧", planned=len(plans))
             try:
-                video_for_frames = download_screenshot_video(settings, resolved.canonical_url, cookie_path)
+                video_for_frames = (
+                    local_media_path
+                    if local_media_path and local_media_path.is_file()
+                    else download_screenshot_video(
+                        settings, resolved.canonical_url, cookie_path, platform=platform
+                    )
+                )
                 _done(
                     db,
                     job,
@@ -1035,7 +1120,7 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
             .order_by(ExternalCallAudit.created_at)
         ).all()
         if current_step and current_step.started_at:
-            attempt_rows = [row for row in attempt_rows if row.created_at >= current_step.started_at]
+            attempt_rows = _attempts_since(attempt_rows, current_step.started_at)
         failed_attempts = [row for row in attempt_rows if row.status == "FAILED"]
         summary_attempts = attempt_rows[-8:]
         attempt_detail: list[dict[str, Any]] = []
@@ -1115,6 +1200,8 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
         "source_id": source.id,
         "video_asset_id": asset.id,
         "title": asset.title,
+        "video_platform": asset.platform,
+        "locator": str(asset.metadata_json.get("local_path") or asset.canonical_url),
     }
     transcript = db.scalar(
         select(Transcript).where(Transcript.video_asset_id == asset.id).order_by(Transcript.version.desc())
@@ -1131,7 +1218,7 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
     job.started_at = utc_now()
     db.commit()
     store = build_secret_store(settings.secret_store, settings.data_dir)
-    cookie = store.get(settings.video_cookie_secret_key)
+    cookie = store.get(settings.video_cookie_secret_key) if asset.platform == "BILIBILI" else None
     cookie_path = _temporary_cookie_file(settings, job.id, cookie) if cookie else None
     screenshot_error: str | None = None
     screenshot_count = (
@@ -1153,6 +1240,12 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                 asset.canonical_url,
                 asset.bvid or "",
                 cookie_path,
+                source_media_path=(
+                    Path(str(asset.metadata_json["local_path"]))
+                    if asset.platform == "LOCAL" and asset.metadata_json.get("local_path")
+                    else None
+                ),
+                platform=asset.platform,
             )
             step = _step(
                 db,
@@ -1262,7 +1355,13 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                 _skip_step(db, job, step, 95, "用户选择跳过登录受限截图")
             elif plans:
                 try:
-                    video_path = download_screenshot_video(settings, asset.canonical_url, cookie_path)
+                    video_path = (
+                        Path(str(asset.metadata_json["local_path"]))
+                        if asset.platform == "LOCAL" and asset.metadata_json.get("local_path")
+                        else download_screenshot_video(
+                            settings, asset.canonical_url, cookie_path, platform=asset.platform
+                        )
+                    )
                 except MediaDownloadError as exc:
                     if exc.code == "VIDEO_LOGIN_REQUIRED":
                         raise NeedsUser(

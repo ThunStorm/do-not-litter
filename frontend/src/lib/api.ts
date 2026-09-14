@@ -45,10 +45,13 @@ export type PlaceReview = {
   suggested_name: string
   place_type: string
   reason: string
+  reason_codes: string[]
+  source_reason: string
   confidence: number
   resolution_status: 'REVIEW' | 'UNRESOLVED'
   revision: number
   candidates: Array<{ provider_id: string; name: string; address: string; city: string; district: string; typecode: string; score: number; match_reasons: string[]; match_explanation?: { nearby_context?: string[]; cross_place_context?: string[] } }>
+  review_context: { geo_session_id: string; geo_city: string; anchor_count: number }
   source_context: { video_note_id: string | null; video_title: string; canonical_url: string; quote: string; segment_ids: string[]; start_ms: number | null; end_ms: number | null; section: { id: string; heading: string; summary: string } | null; transcript_context: Array<{ id: string; text: string; start_ms: number | null; end_ms: number | null; is_evidence: boolean }>; transcript_expired: boolean; screenshot: { id: string; caption: string; image_url: string } | null }
 }
 
@@ -241,6 +244,6 @@ export const api = {
   videoTranscriptExportUrl: (id: string, version: 'raw' | 'corrected' = 'corrected') => `/api/video-notes/${id}/transcript/export?version=${version}`,
   videoScreenshots: (id: string) => request<VideoScreenshotView[]>(`/api/video-notes/${id}/screenshots`),
   videoPlaces: (id: string) => request<VideoPlace[]>(`/api/video-notes/${id}/places`),
-  regenerateVideoNote: (id: string) => request<{ job_id: string }>(`/api/video-notes/${id}/regenerate`, { method: 'POST' }),
+  regenerateVideoNote: (id: string, profileId = 'CURRENT_DEFAULT') => request<{ job_id: string }>(`/api/video-notes/${id}/regenerate?profile_id=${encodeURIComponent(profileId)}`, { method: 'POST' }),
   deleteVideoNote: (id: string) => request<{ status: string }>(`/api/video-notes/${id}`, { method: 'DELETE' }),
 }

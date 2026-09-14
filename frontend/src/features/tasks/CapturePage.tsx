@@ -3,6 +3,7 @@ import { ArrowUp, Clipboard, FileText, Link2, ScanLine } from 'lucide-react'
 import { FormEvent, useRef, useState } from 'react'
 
 import { PageHeader } from '../../components/AppShell'
+import { IconButton } from '../../components/ui/IconButton'
 import { api } from '../../lib/api'
 
 export function CapturePage() {
@@ -54,11 +55,11 @@ export function CapturePage() {
       <PageHeader title="投递" />
       <p className="page-lead">链接、文档或图片，都交给至简</p>
       <form className="capture-bar capture-bar--large" onSubmit={submit}>
-        <Link2 /><input placeholder="粘贴链接或正文" value={value} onChange={(event) => setValue(event.target.value)} />
-        <button className="capture-bar__submit" aria-label="提交" disabled={capture.isPending}><ArrowUp /></button>
+        <Link2 /><input placeholder="粘贴 Bilibili/YouTube 链接、本地视频或正文" value={value} onChange={(event) => setValue(event.target.value)} />
+        <IconButton className="capture-bar__submit" label="提交" disabled={capture.isPending}><ArrowUp /></IconButton>
       </form>
       {message && <p className="capture-message">{message}</p>}
-      <input ref={fileInput} className="visually-hidden" type="file" accept=".docx,.pdf,.xlsx,.xlsm,.txt,.md,.png,.jpg,.jpeg,.mp3,.m4a,.wav,.aac,.mp4,.mov,.webm" onChange={(event) => chooseFile(event.target.files?.[0])} />
+      <input ref={fileInput} className="visually-hidden" type="file" accept=".docx,.pdf,.xlsx,.xlsm,.txt,.md,.png,.jpg,.jpeg,.mp3,.m4a,.wav,.aac,.mp4,.m4v,.mov,.webm" onChange={(event) => chooseFile(event.target.files?.[0])} />
       <input ref={imageInput} className="visually-hidden" type="file" accept="image/png,image/jpeg" capture="environment" onChange={(event) => chooseFile(event.target.files?.[0])} />
       <div className="capture-options">
         <button onClick={() => fileInput.current?.click()} disabled={upload.isPending}><FileText /><strong>上传文件</strong><span>DOCX / PDF / 图片 / 音视频</span></button>

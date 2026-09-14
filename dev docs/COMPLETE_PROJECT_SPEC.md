@@ -50,7 +50,7 @@
 | ai-gateway/ | Gateway 分篇、模型与 Prompt、运行配置、AI 验收 |
 | operations/ | 部署、日志、运维交互、运行监控 |
 | testing/、benchmark/ | 测试策略与样本说明；机器可读验收样本 |
-| planning/ | 待办池、未来路线、视频 Benchmark/验收候选；不自动授权实施 |
+| planning/ | 待办池、未来路线、视频 Benchmark/验收候选、[字幕一致性优化方案](planning/VIDEO_TRANSCRIPT_ALIGNMENT_OPTIMIZATION_PLAN.md)与[UI/视频/POI V2 实施计划](planning/AGENT_IMPLEMENTATION_PLAN_UI_VIDEO_POI_V2.md)；不自动授权实施 |
 | history/ | 历史实施记录和已覆盖的旧计划；仅追溯时读取 |
 
 | 领域 | 文档与职责 |
@@ -253,7 +253,7 @@
 | 步骤续跑 | ERROR/CRITICAL 事件先查询 Replay Options；Artifact 有效时从失败步骤继续，上游 REUSED、当前/下游顺次执行；过期后只允许完整重跑；日志页不直接改步骤 | `jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md`、`operations/LOGGING.md`、ADR-026 |
 | 内容保留 | 终态任务和内容可删除；删除不破坏共享来源、地点、路线或证据；密钥只进 Keychain/Secret Store | `ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md`、`architecture/SECURITY_PRIVACY.md` |
 | 视频 v0.3 | Bilibili 元数据/字幕优先/受控音频/Whisper 转写；AI 笔记、章节、时间码、地点候选、POI、Place Note 和失败/部分成功均为真实数据 | `video/VIDEO_AI_NOTE_PIPELINE.md` 1–4.11 |
-| Bilibili 登录与字幕 | 登录只走站内二维码与 Keychain；登录失效必须进入 `NEEDS_USER` 并提供可用的续跑/非核心跳过选择；字幕 CDN 使用用途级 HTTPS Host Policy，安全支持官方子域；人工中文、AI 中文、其他语言依次尝试，单轨失败不得击穿整个 Job | `video/VIDEO_AI_NOTE_PIPELINE.md` 4.4–4.5、`core/url_policy.py`、`services/bilibili_auth.py` |
+| Bilibili 登录与字幕 | 登录只走站内二维码与 Keychain；登录失效必须进入 `NEEDS_USER` 并提供可用的续跑/非核心跳过选择；字幕 CDN 使用用途级 HTTPS Host Policy，安全支持官方子域；人工中文、AI 中文、其他语言依次尝试，单轨失败不得击穿整个 Job。AI/自动字幕不可单独成为权威 Transcript，必须保留 BV/CID、轨道与非敏感哈希审计并回退 ASR；生成 Note 前校验来源身份、验证状态与时间轴 | `video/VIDEO_AI_NOTE_PIPELINE.md` 4.4–4.7、`core/url_policy.py`、`services/video_pipeline.py` |
 | 视频 v0.4 截图 | 笔记先综合元数据与 Transcript；`PLAN_SCREENSHOTS → DOWNLOAD_VIDEO_FOR_FRAMES → EXTRACT_SCREENSHOTS → MATERIALIZE` 为显式步骤；3–12 张全文截图、主要地点优先，绑定章节/地点候选/Segment/时间码；过滤黑帧、曝光异常、低清晰度和重复帧 | `video/VIDEO_AI_NOTE_PIPELINE.md` 4.12–4.15、`services/video_screenshots.py` |
 | 视频 v0.4.2 阅读返工 | Hero 有真实封面、缺省为空；摘要/主体目录/正文优先，地点候选与完整转写放底部；默认使用 AI corrected Transcript；截图以侧排缩略图嵌入并支持 contain Lightbox；TXT 按钮使用统一视觉 | `video/VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md` |
 | 视频 v0.4.3 列表封面 | 主按钮为“添加视频链接”并使用统一 40px/14px Token；Card 展示本地持久真实封面、16:9 cover 和时长徽标；封面失败只显示占位，不阻塞 Note | `video/VIDEO_NOTE_LIST_V043_SPEC.md` |
@@ -326,12 +326,12 @@
 
 # 当前实施状态
 
-> 状态记录日期：2026-09-08。本文唯一记录当前源码能力与自动验证；生产状态只见 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
+> 状态记录日期：2026-09-09。本文唯一记录当前源码能力与自动验证；生产状态只见 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
 
 ## Current repository freeze
 
 - 当前工作分支为 `codex/mac-mini-implementation`；提交前仍须用 git 状态核对，保护同批文档拆分与地图改动。
-- 仓库 migration head 为 Alembic 0018；生产版本见 CURRENT_HANDOFF 的实际采样，不由仓库推断。
+- 仓库 migration head 为 Alembic 0020；生产版本见 CURRENT_HANDOFF 的实际采样，不由仓库推断。
 - 唯一支持的后端为 Mac mini；FastAPI、SQLite/WAL、独立 Worker；其他平台不在当前支持范围。
 - 真实验收与自动回归分开记录；规格中的“待实施”、历史 Work Package、未来规划均不得单独认定为当前缺口。
 
@@ -340,7 +340,7 @@
 | 领域 | 已进入源码的能力 | 契约入口 |
 | --- | --- | --- |
 | Capture / 基础 | URL、正文、DOCX、PDF、XLSX、图像 OCR、音视频；局域网配对与 Session；Source/Evidence | product/PRODUCT_REQUIREMENTS.md、architecture/SECURITY_PRIVACY.md |
-| 招聘 / 旅行 | 首批招聘结构化与证据；Place Insight（逐条 Segment 与 source quote）、POI Review、全国交互地图、Marker 生命周期、地点管理/人工路线；地点时间窗口提取并保留原文 Segment 证据，覆盖观赏期、丰枯水、渔业限制、花/红叶/雪/迁徙与季节性开放 | product/RECRUITMENT_PIPELINE.md、product/TRAVEL_FOOD_PIPELINE.md |
+| 招聘 / 旅行 | 首批招聘结构化与证据；Place Insight、POI Review、全国交互地图、Marker 生命周期、地点管理/人工路线；POI Resolver Golden、事实归一化、跨来源共识/冲突、地点知识 API/证据跳转；月份/日期 Visit Window 状态、可重算 Preference Event 与确定性可解释推荐；Visual Fact 实验性截图任务、Vision Profile Skip 与离线 Golden | product/TRAVEL_FOOD_PIPELINE.md、planning/PLAN_B_PLACE_POI_KNOWLEDGE_QUALITY.md、planning/PLAN_C_TRAVEL_RECOMMENDATION_AND_VISION.md |
 | 视频 | 字幕优先、ASR、校对、笔记/章节、地点、截图、列表封面、保留式删除 | video/VIDEO_AI_NOTE_PIPELINE.md（分篇索引） |
 | Bilibili 登录恢复 | 站内扫码、nav 账号验证、Keychain 保存；登录失败进入 NEEDS_USER；核心恢复与非核心截图显式跳过；字幕多轨与官方 CDN Host Policy | video/02-input-transcript.md |
 | Job / Replay | 独立 Worker 心跳、协作取消、租约门禁、终态表达、步骤续跑和完整重跑；后端决定 Replay Options | jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md |
@@ -351,18 +351,31 @@
 
 ## 自动验证记录
 
-2026-09-08：后端 pytest 105 项、目标 Ruff；Node 22.21.0 下前端 ESLint、Vitest 15 项、TypeScript 与 Vite build 通过。隔离 SQLite 已从空库升级至 0018，确认 `place_insight_items.source_quote` 存在；0017 的列存在性保护仍避免 0001 使用当前 ORM 元数据建表时的重复列错误。生产真实视频 Job 已完成字幕、笔记、地点提取与截图，因全部 POI 需要人工确认而为 `PARTIAL_SUCCESS`；真实 Provider/视频结论仅覆盖该样本，不能外推为全部 Provider 验收。
+2026-09-09：后端完整 `pytest backend/tests -q`、POI Resolver Golden、Plan C 目标测试、目标 Ruff 与 `git diff --check` 通过；Node 22.21.0 下前端 ESLint、Vitest 15 项、TypeScript 与 Vite build 通过。Plan C 在空 SQLite 成功升级至 0019：12 个月/日期状态、Preference Event、确定性推荐与 Visual Fact Golden 均为离线验证；无 Vision Profile 时截图 Job 以 `SKIPPED_UNSUPPORTED` 进入 `PARTIAL_SUCCESS`，不调用 Provider。桌面浏览器已检查地图 Toolbar 的月份、适宜度与推荐筛选；当前工具无法设为 390px，移动视觉验收未执行。以上不替代真实高德、Vision 或视频验收；实际生产采样见 CURRENT_HANDOFF。
 
 ## 未闭环与外部条件
 
-- 本轮视频工作包已按用户要求冻结：代码、Fixture 与离线验证保留，未部署、未迁移生产库、未重启服务；后续只在用户重新授权后继续。
+- Plan C C1–C5 已进入源码：时间状态与推荐仅由可追溯事实/行为确定，Visual Fact 保持实验性并且不覆盖 Transcript；未进行真实高德、Vision 或视频验收，也未在本轮验证后重启加载新增源码。390px 视觉验收待具备可设定视口的 Browser/Playwright 时补做。
 - Gateway 真实 Local/Remote Provider、真实视频、fallback、cache/force-regenerate、预算、取消/Replay 与 Benchmark 仍需按 [生产验收门禁](ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md) 取证；本次未执行。
 - 2026-09-08 已对本机 `qwen2.5:7b`、`qwen3:8b`、`qwen3.5:9b` 运行 Capability Probe：分类、结构化抽取、实体抽取与转写校对通过。其他 Stage 的 `FAIL` 只是该基础 Probe 未覆盖，不能视为模型能力否定；未更改默认模型或删除模型。
 - Bilibili 扫码、nav 验证和 Keychain 保存已有真实验收记录；曾暴露 VIDEO_HOST_BLOCKED 的现场 Job 未自动重跑，不把修复等同于该 Job 成功。
 - 高德、远程 Provider 等需要用户合法提供外部配置；不在文档保存 Secret，不通过编造状态代替配置/验收。
-- Vision Profile 绑定边界已实现，不代表已自动运行视觉理解。视频 Fixture Golden（12 个冻结文本/POI 场景）、离线评分器与已有 Job/Replay 的只读采集器已就绪；真实模型比较与可选 Vision 尚未执行。视频 Insight 的更深层呈现/跨视频聚合增强仍须由用户从 planning/video 选择。地图 V2 的核心 Insight、Review、地图 Runtime、点选 POI 和编辑历史已落实；原实施计划已归档，推荐评分、自动行程与其他规划项仍不自动实施。
+- Vision Profile 绑定边界已实现，不代表已自动运行视觉理解。视频 Fixture Golden（18 个冻结文本/POI 场景）现覆盖访期、知识、POI 候选排名、错误 AI 字幕、时间轴异常、快速多地点、长转写尾部地点和非地点事实；Plan C Visual Fact Golden 覆盖菜单、店招、营业时间与路牌，并对严重幻觉设为 0 门禁。Harness 在缺少合法视频、远程 Key 或 Vision Profile 时标记 `BLOCKED_EXTERNAL`；真实模型比较与可选 Vision 尚未执行。已有 Job/Replay 的只读采集器保持可用。自动行程等其他规划项仍不自动实施。
 
 ## 历史与维护
+
+- 2026-09-10：视频字幕 P0 一致性门禁已进入源码。`ai-zh` 等生成字幕只保留非敏感来源哈希并强制走 Whisper ASR；人工中文字幕仍可通过来源/时间轴门禁直通。生成 Note 前验证 Transcript 的 VideoAsset、Source、BV/CID、Snapshot 与状态，长 ASR 校对在 Ollama 下每批最多 32 段。目标 Ruff、视频相关 36 项与后端全量 117 项通过；前端 verify 在可用 Node 24 通过。真实结果和未完成非核心截图不在本页判定，见当前任务证据。
+- 2026-09-10：已保存模型可选保存 `request_interval_seconds`（0–300 秒，留空继承全局设置），并分别作用于主/备用 Profile 的每次调用。该字段不保存 Key、不新增 Schema migration；后端全量与前端 verify 通过，未调用真实 Provider。
+- 2026-09-10：视频质量总计划 WP0–22 的源码实现已完成：统一转写结构/时间轴门禁；所有模式独立分块扫描完整校对稿后再写入逐字 Evidence 地点候选；Pipeline/Replay 改为先地点后 Note；`0020` 保存地点化章节类型、关联 Mention 与引文；Note Map/Reduce 和最终章节只接收服务端 Grounded Evidence；全局和笔记页审核共用 `PlaceReviewCard` 与上下文 API，审核后同步刷新地点、笔记和地图缓存。后端完整 122 项、前端 verify、`git diff --check` 通过；`0020` 已在隔离的 0019 状态成功升级。WP23 仍按性能证据条件性延期；真实 Provider/视频重放、生产迁移/重启和历史截图补全本轮未执行。零库升级仍在既有 0019 历史 migration 重复创建 `preference_events` 处失败，未修改该已发布 migration。
+- 2026-09-11：视频笔记的确认态地点候选以当前绑定 `Place` 为唯一展示来源，显示最新名称/地址并跳转地点详情；不再携带该视频的时间码或 Insight 行注释。未确认的 `REVIEW` 与 `UNRESOLVED` 保留 Evidence，并可进入手动 POI 搜索/确认。前端 verify 与已部署页面验收通过，未自动确认真实 POI。
+- 2026-09-11：未确认地点候选及 Review Evidence 上下文的时间戳均为新窗口 Bilibili 链接，保留原 URL 参数并追加秒级 `t` 定位；纯函数单测覆盖分 P 参数保留，已部署页面核验 `2:32 → t=152`。
+- 2026-09-12：Provider/Job 日志补齐脱敏 HTTP 错误、可行动错误码、实际耗时、输入哈希、分块与主备调用链；Profile 默认 `max_output_tokens` 实际生效；`/api/logs?job_id=` 与日志页展示 LLM 尝试；Worker 每日按 `data_retention_days` 清理系统事件和外部调用审计。后端全量测试、Ruff、前端 verify 通过；未重启生产服务、未调用真实 Provider。
+- 2026-09-12：下一阶段计划 WP1 已完成：Place Type→高德 typecode 的单一映射覆盖街区、步行街、村落、城镇、地标等类型，并区分强匹配、弱兼容、不兼容与未映射；Review API 返回稳定 reason code 与可读原因。POI Golden 从 10 例扩至 17 例，Top-1/Top-3、自动确认精度均为 1.0，错误确认 0，Review 率由 0.30 降至 0.2353；后端全量 126 项、Ruff、Node 24 前端 verify 与 `git diff --check` 通过。未调用真实高德/Provider，WP2–WP15 未实施。
+- 2026-09-13：UI/视频/POI V2 的 WP2–WP15 源码实施完成：POI V2 为 Shadow Mode、Geo Session、上下文候选/负证据、确认来源保护与纠错草稿导出；共享 UI primitives 已迁移设置、审核、视频、投递/任务与地图搜索入口；Bilibili 经 Adapter Registry 保持兼容，本地文件和 YouTube 复用同一 Pipeline；ASR Registry 保持 Whisper.cpp 默认并提供 CPU fallback 与离线 Benchmark；Note Render Profile 生成新 ntv，0021 记录 Profile，0022 建立 SQLite FTS5 正文搜索和幂等回填。后端全量、Ruff、Node 24 前端 verify、`git diff --check` 均通过；隔离 SQLite 已从可信 0020 升至 0022。未调用真实高德/YouTube/Provider/视频，未迁移或重启生产；Browser/390px 视觉验收因现有运行实例不可中断且 Browser/Playwright 不可用而未执行。
+- 2026-09-13：已授权生产迁移 `0020→0022`、受控重启和真实验证；迁移前 active Job/lease=0、`integrity_check=ok`，备份 `app-pre-ui-video-poi-v2-20260913-125600.db` 完整性 ok，API/Worker/心跳 READY。真实 YouTube Job 在元数据/字幕后因媒体不可用进入 `NEEDS_USER`；Bilibili Job 完成下载/Whisper/归一化后远程校对模型空响应，任务级 Local 重试被 Source/VideoAsset 复用导致的 `TRANSCRIPT_SOURCE_MISMATCH` 安全拒绝。不得把本轮描述为成功真实 E2E；修复复用缺陷后才可重试。
+- 2026-09-13：重复 Capture 的 Source/VideoAsset 身份复用已修复，异常审计的 SQLite naive/UTC aware 时间比较已统一；全量回归通过并生产重启。用户样本 `BV19sbV6eExE` 的真实下载、Whisper、归一化与本地校对成功，Source/Asset 绑定一致且空 Source 已清理；地点抽取在多个已存 Profile 上分别遇到 OpenRouter 400、缺 `content`、非法 JSON 和超时，故未生成 Note/POI/截图，仍不能宣称成功 E2E。
+- 2026-09-13：用户切换 Key 后，`BV19sbV6eExE` 从地点抽取步骤 Replay 成功并以 `PARTIAL_SUCCESS` 交付：Note version 2、9 张 READY 截图、FTS 新 Note 命中、45 个 POI 全部 REVIEW/UNRESOLVED、confirmed=0；步骤无失败/跳过。此为真实 Bilibili+ASR+校对+抽取+Note+POI Review+截图验收，不代表 Vision、Profile 切换、fallback、缓存/强制再生或移动浏览器验收。
+- 2026-09-14：Note Evidence Index 按 Mention ID 稳定排序，避免同语义 Replay 因数据库读取顺序漂移 Cache Key。真实 COMPACT Profile 生成 current version 7，所有章节保留 Evidence；同 Profile 二次 Replay 的分块 Cache Hit 为 0ms，force-regenerate 真实调用并建立 Cache result chain。Local Video 文件上传、Adapter 与 ASR 通过，后续本地校对超时。Vision 无 image-capable Profile，备用 ASR 六类 corpus、可控 fallback、POI 人审晋级和 Browser/390px 仍未验证。
 
 [实施历史](history/IMPLEMENTATION_HISTORY.md) 和 [归档实施计划](history/planning/README.md) 保留旧状态与计划追溯，默认不读。当前页只保留最新结论和未闭环项；完成项不持续追加长叙事。生产现场只更新 CURRENT_HANDOFF.md；冻结约束只更新 REGRESSION_AND_CHANGE_GUARD.md。新增证据必须写明日期、对象与验证层级。
 
@@ -3613,6 +3626,8 @@ AI 字幕可能要求有效 `SESSDATA`。用户在设置页或任务恢复卡内
 
 字幕选择按人工中文、AI 中文（包括 `ai-zh` 等平台变体）、其他语言排序。单条字幕发生 CDN、网络、空内容或格式错误时尝试下一轨；全部不可用时进入音频下载与 ASR fallback。只有明确的登录失效继续进入 `NEEDS_USER`，不得把普通单轨失败升级成整个任务失败。
 
+人工中文字幕通过来源和时间轴门禁后可成为权威 Transcript。AI/自动字幕及非中文轨属于不可信输入：记录请求 BV/CID、轨道 ID、实际 endpoint、URL/正文 SHA-256、片段数和时间轴比例，但不得保存 URL 临时参数、Cookie 或正文；随后进入 `DOWNLOAD_AUDIO → ASR`，不得以“字幕非空”为由跳过 ASR。超过 `duration_ms + max(30s, 20%)` 的字幕时间轴同样回退 ASR。
+
 ## 4.5 DOWNLOAD_AUDIO
 
 仅在没有可用字幕时下载音频。使用 `yt-dlp` 取得 best available audio，并由 FFmpeg 转为 ASR 所需格式。约束：
@@ -3674,11 +3689,15 @@ ASR 与本地 LLM 不默认并行争用 GPU。模型未安装、损坏或不就�
 - 原始字幕/ASR 响应以哈希和可选 raw snapshot 保留；
 - 后续事实 Evidence 必须指向 Transcript Segment，而不是只指向 AI 笔记。
 
+权威 Transcript 的 metadata 还必须包含 `validation_status`、`validation_reasons`、`requested_bvid`、`requested_cid`、`snapshot_id` 与时间轴比例。`LOCAL_ASR`、`TRUSTED_PLATFORM` 或后续受验证的生成字幕才可进入笔记阶段；身份、状态、Segment 或时间轴不符合时进入 `NEEDS_USER/TRANSCRIPT_SOURCE_MISMATCH` 或 `TRANSCRIPT_TIMELINE_INVALID`。
+
 ## 4.7.1 CORRECT_TRANSCRIPT
 
 归一化后、生成笔记前必须执行 AI 校对。每个 Segment 保留 `raw_text`，并生成时间码与 ID 不变的 `corrected_text`。校对修正口音/同音字、断句、重复词、标题/作者/地名/菜名和单位，但不得新增事实或改变作者立场。
 
 校对输出必须覆盖全部 Segment，顺序和时间范围与输入一致；缺段、乱序、新增 ID 或空文本均拒绝。无法确认的地名保留待确认标记，再由高德 POI 流程校正。默认 Note、目录、页面预览和 TXT 导出使用 corrected_text；raw_text 只在证据审计中查看。完整阅读与校对规范见 `video/VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md`。
+
+本机 Ollama 对 ASR 全量校对每批最多 32 段；这是既有分块机制的资源上限，不改变模型路由或允许跨 Job 并行。
 
 Whisper.cpp `-oj` JSON 的 `offsets.from/to` 已经是毫秒，适配器必须直接使用，不得再乘以 10。归一化后必须校验 `max(segment.end_ms)` 与 `VideoAsset.duration_ms`：允许片尾静音和平台元数据的小幅误差，但超过视频时长 2 倍必须中止后续 Note/截图物化并记录 `TRANSCRIPT_TIMELINE_INVALID`。已受影响的历史 Transcript 不原地篡改；当末段时间与视频时长比值约为 10 时，从现有 Segment 生成修正后的新 Transcript Version，再基于新版本重建 Note Version 与截图。
 
@@ -3704,6 +3723,8 @@ AI 视频笔记是一级业务产物，不再只是地点抽取的中间文本�
 - 带时间码 Transcript Segment；
 - 笔记模板和 Prompt Version；
 - 用户选择的语言/详细程度（未来 UI 可配置，MVP 使用系统默认）。
+
+调用前服务端必须确认 Transcript 为可信版本：`validation_status` 合法、VideoAsset/Source/Snapshot 与请求 BV/CID 一致、Segment 非空且时间轴正常。否则不得调用总结、地点或截图阶段，任务进入可行动的转写来源错误状态。
 
 默认输出 Markdown，并同时保存可解析结构：
 
@@ -5261,7 +5282,7 @@ GET 返回三个补充文本、只读核心规则摘要、最大长度和每个�
 
 ## 1. 自定义模型库与路由
 
-模型设置不再固定展示 DeepSeek、MiMo、Ollama 等预置槽位。用户可新增、编辑、真实测试并保存任意 OpenAI 兼容或 Ollama 模型配置；每条配置至少包括显示名称、Provider 标识、Base URL、模型名、超时和 API Key。API Key 只进入 macOS Keychain，接口和 SQLite 仅返回“已保存/未保存”状态。
+模型设置不再固定展示 DeepSeek、MiMo、Ollama 等预置槽位。用户可新增、编辑、真实测试并保存任意 OpenAI 兼容或 Ollama 模型配置；每条配置至少包括显示名称、Provider 标识、Base URL、模型名、超时、可选调用间隔和 API Key。调用间隔以秒为单位，留空继承通用设置；主模型与备用模型按各自 Profile 的值等待。API Key 只进入 macOS Keychain，接口和 SQLite 仅返回“已保存/未保存”状态。
 
 “推理路由”独立于模型编辑：主模型与备用模型均从已保存的模型库中选择。转写校对另有可选的主/备用模型，两项均优先于推理路由，对应项留空时分别继承推理主/备用模型。主模型是唯一默认调用目标；仅在网络、HTTP、超时或 Provider 不可用等可恢复调用错误发生时才尝试备用模型。备用模型可留空；所有有效路由都未选择主模型时，依赖模型的任务必须进入 `NEEDS_USER`，不得回退到硬编码模型。
 
@@ -5839,7 +5860,7 @@ CMS 可配置。
 - checkpoint 状态；
 - 外部调用审计引用。
 
-长 Transcript 使用 Provider 能力预算进行分块、局部总结和层级合并。所有 Pipeline AI 请求统一读取 `app:general` 调用策略：默认请求前等待 3 秒；429、408、409、425、超时、连接失败、可恢复 5xx 与空响应默认重试 1 次，每次至少等待 5 秒；429 优先采用 `Retry-After`。主模型耗尽重试后才切换不同故障域的备用模型。401/403、余额不足和模型不存在不做无效重试。
+长 Transcript 使用 Provider 能力预算进行分块、局部总结和层级合并。所有 Pipeline AI 请求默认读取 `app:general` 调用策略：默认请求前等待 3 秒；Profile 若设置调用间隔则分别覆盖主/备用模型的等待值。429、408、409、425、超时、连接失败、可恢复 5xx 与空响应默认重试 1 次，每次至少等待 5 秒；429 优先采用 `Retry-After`。主模型耗尽重试后才切换不同故障域的备用模型。401/403、余额不足和模型不存在不做无效重试。
 
 `SCREENSHOT_PLANNING` 只根据视频元数据、Note Section、PlaceMention 和 Transcript 时间范围提出候选时间码；最终抽帧、清晰度、黑帧与感知重复检测由确定性代码完成。MVP 不要求把所有视频帧发送给多模态模型。
 
@@ -10135,9 +10156,9 @@ CMS 显示诊断结果。
 | --- | --- | --- |
 | API / Worker 运行日志 | data/logs/api.jsonl、worker.jsonl | 每行 JSON；单文件 10 MiB，5 个轮换；页面不直接暴露原文件 |
 | 审计事件 | SQLite system_events；GET /api/logs | 局域网 Session 保护；本机豁免取决于部署设置 |
-| 兜底日志 | data/logs/ 下 API/Worker 的 stdout.log、stderr.log | 日志子系统失效时排查，不作为业务状态证明 |
+| 兜底日志 | macOS LaunchAgent 的 `~/Library/Logs/Zhijian/api.stdout.log`、`api.stderr.log`、`worker.stdout.log`、`worker.stderr.log` | 日志子系统失效时排查，不作为业务状态证明；结构化 JSONL 已关闭 Uvicorn 重复 access log |
 
-JSONL 包含 timestamp、level、component、message，可选 request_id、event_type、duration_ms、status_code、path、job_id、脱敏异常。审计事件包含 ID、时间、级别、组件、类型、消息、Actor、实体类型/ID、Request ID 与非敏感 detail。data/ 不进入 Git。
+JSONL 包含 timestamp、level、component、message，可选 request_id、event_type、duration_ms、status_code、error_code、path、job_id、脱敏异常。审计事件包含 ID、时间、级别、组件、类型、消息、Actor、实体类型/ID、Request ID 与非敏感 detail。data/ 不进入 Git。
 
 ## 2. 事件与事务
 
@@ -10155,14 +10176,14 @@ API 生成或接受 X-Request-ID 并在响应头返回；业务动作关联 syst
 
 - 不记录配对码、Session Cookie、API Key、正文、文件内容、完整个人档案；Secret 仅进 Keychain/Secret Store。URL 保留在 Source 域，HTTP 日志只记路径，不记查询串/请求体。
 - Provider 日志只含 Provider、模型及脱敏摘要；页面与导出共用脱敏层。
-- JSONL 按大小轮换；审计保留期产品默认设计为 90 天，不能据此假定定时清理已上线，核对 app:general.data_retention_days 与实现。
-- 备份 SQLite 要有 WAL/SHM 的一致性快照及永久文件；可再生 JSONL 无强制备份要求。不得为日志升级直接执行删除审计表的历史 downgrade。
+- JSONL 按大小轮换；审计保留期由 `app:general.data_retention_days` 控制，默认 90 天，由 Worker 每日维护任务执行清理。
+- 备份 SQLite 要有 WAL/SHM 的一致性快照及永久文件；可再生 JSONL 无强制备份要求。Worker 每日按 `app:general.data_retention_days` 清理过期 `system_events` 与 `external_call_audits`，并记录清理摘要；不得为日志升级直接执行删除审计表的历史 downgrade。
 
 ## 4. 查询与工作台
 
 既有实施记录包含健康摘要、组合筛选、Job/Request 深链、游标分页、实时跟随暂停、结构化详情与单条脱敏导出。时间范围支持快捷项和自定义，服务端支持 from/to、cursor、asc/desc。UI 契约按需读 [operations/OPERATIONS_UI_SPEC.md](operations/OPERATIONS_UI_SPEC.md) 第 5 节，精确参数以 API schema 为准。
 
-只读示例：GET /api/logs?level=ERROR&component=worker&query=Whisper&limit=20。先限定 Job、时间和数量，不导出全部日志。批量 CSV/JSONL、筛选链接复制、低水位告警和完整性哈希不因本次合并而列为已实现。
+只读示例：GET /api/logs?level=ERROR&component=worker&query=Whisper&limit=20。带 `job_id` 时响应还包含该任务脱敏的 LLM 尝试、耗时、路由、模型、分块和 Provider 错误摘要。先限定 Job、时间和数量，不导出全部日志。批量 CSV/JSONL、筛选链接复制、低水位告警和完整性哈希不因本次合并而列为已实现。
 
 ## 5. 错误事件与 Replay
 

@@ -4,13 +4,24 @@ import json
 import shutil
 import subprocess
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Protocol
+
+
+class ASRProvider(Protocol):
+    provider_id: str
+
+    def transcribe(self, media: Path) -> tuple[str, list[dict]]: ...
 
 
 class WhisperCppProvider:
-    def __init__(self, binary: str, model: Path) -> None:
+    provider_id = "WHISPER_CPP"
+
+    def __init__(self, binary: str, model: Path, *, no_gpu: bool = False) -> None:
         self.binary = shutil.which(binary) or binary
         self.model = model
+        self.no_gpu = no_gpu
 
     def transcribe(self, media: Path) -> tuple[str, list[dict]]:
         ffmpeg = shutil.which("ffmpeg")
@@ -46,6 +57,8 @@ class WhisperCppProvider:
                 "-of",
                 str(output),
             ]
+            if self.no_gpu:
+                arguments.append("-ng")
             result = subprocess.run(
                 arguments,
                 capture_output=True,
@@ -53,7 +66,11 @@ class WhisperCppProvider:
                 timeout=3600,
                 check=False,
             )
-            if result.returncode != 0 and "failed to allocate buffer" in (result.stderr or ""):
+            if (
+                not self.no_gpu
+                and result.returncode != 0
+                and "failed to allocate buffer" in (result.stderr or "")
+            ):
                 result = subprocess.run(
                     [*arguments, "-ng"],
                     capture_output=True,
@@ -91,3 +108,31 @@ class WhisperCppProvider:
             if not text:
                 raise RuntimeError("Whisper 未产生带时间码的转写结果")
             return text, segments
+
+
+class WhisperCppCpuProvider(WhisperCppProvider):
+    """A conservative local fallback when the Metal path is unavailable or unstable."""
+
+    provider_id = "WHISPER_CPP_CPU"
+
+    def __init__(self, binary: str, model: Path) -> None:
+        super().__init__(binary, model, no_gpu=True)
+
+
+@dataclass(frozen=True, slots=True)
+class ASRProviderRegistry:
+    """Registry keeps provider selection out of the Video Pipeline."""
+
+    binary: str
+    model: Path
+
+    def get(self, provider_id: str) -> ASRProvider:
+        if provider_id == "WHISPER_CPP":
+            return WhisperCppProvider(self.binary, self.model)
+        if provider_id == "WHISPER_CPP_CPU":
+            return WhisperCppCpuProvider(self.binary, self.model)
+        raise ValueError(f"不支持的本地 ASR Provider：{provider_id}")
+
+    @property
+    def default_provider_id(self) -> str:
+        return "WHISPER_CPP"

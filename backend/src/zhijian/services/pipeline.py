@@ -106,7 +106,7 @@ def process_job(db: Session, job: Job) -> None:
 
         process_visual_fact_job(db, job, get_settings())
         return
-    if job.payload_json.get("video_platform") == "BILIBILI":
+    if job.payload_json.get("video_platform") in {"BILIBILI", "LOCAL", "YOUTUBE"}:
         from zhijian.services.video_pipeline import process_video_job
 
         process_video_job(db, job)
