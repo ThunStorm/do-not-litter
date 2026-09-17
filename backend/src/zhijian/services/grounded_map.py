@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from zhijian.ai.capabilities import AICapability
 from zhijian.ai.domain_context import domain_context_hash, domain_context_messages
+from zhijian.ai.reliability import AIProviderError
 from zhijian.ai.stage_decision import decide_stage, record_stage_decision
 from zhijian.core.config import Settings
 from zhijian.db.models import GroundedMapArtifact, Job, Segment, Transcript, VideoAsset
@@ -20,10 +21,7 @@ MAP_PROMPT_VERSION = "grounded-map-v1"
 
 
 def _content_hash(segments: list[Segment]) -> str:
-    payload = [
-        {"id": segment.id, "text": segment.corrected_text or segment.text}
-        for segment in segments
-    ]
+    payload = [{"id": segment.id, "text": segment.corrected_text or segment.text} for segment in segments]
     return sha256(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
 
 
@@ -67,9 +65,7 @@ def _canonical_payload(
     return facts, places, warnings
 
 
-def artifact_for_transcript(
-    db: Session, transcript: Transcript
-) -> GroundedMapArtifact | None:
+def artifact_for_transcript(db: Session, transcript: Transcript) -> GroundedMapArtifact | None:
     return db.scalar(
         select(GroundedMapArtifact)
         .where(
@@ -150,44 +146,71 @@ def get_or_create_grounded_map(
         db.commit()
         return existing
 
-    prompt = (Path(__file__).resolve().parents[1] / "prompts" / "grounded_map.md").read_text(
-        encoding="utf-8"
-    )
+    prompt = (Path(__file__).resolve().parents[1] / "prompts" / "grounded_map.md").read_text(encoding="utf-8")
     facts: list[dict] = []
     places: list[dict] = []
     warnings: list[str] = []
     chunks = _transcript_chunks(segments, int(policy.chunk_size or settings.video_note_chunk_chars))
-    for index, chunk in enumerate(chunks or [segments], start=1):
+
+    def request_chunk(
+        chunk: list[Segment], *, chunk_index: int, chunk_count: int, split_path: str = "root"
+    ) -> None:
         text = "\n".join(
             f"[segment:{segment.id} {segment.locator_json.get('start_ms', 0)}-"
             f"{segment.locator_json.get('end_ms', 0)}ms] "
             f"{segment.corrected_text or segment.text}"
             for segment in chunk
         )
-        response = _cached_stage_json(
-            db,
-            job=job,
-            stage="GROUND_MAP",
-            capability="STRUCTURED_EXTRACTION",
-            provider=provider,
-            provider_name=provider_name,
-            model=model,
-            messages=[
-                {"role": "system", "content": prompt},
-                *prompt_supplement_messages(db, "travel_place_extraction"),
-                {
-                    "role": "user",
-                    "content": f"视频标题：{asset.title}\n分块：{index}/{max(1, len(chunks))}\n{text}",
+        try:
+            response = _cached_stage_json(
+                db,
+                job=job,
+                stage="GROUND_MAP",
+                capability="STRUCTURED_EXTRACTION",
+                provider=provider,
+                provider_name=provider_name,
+                model=model,
+                messages=[
+                    {"role": "system", "content": prompt},
+                    *prompt_supplement_messages(db, "travel_place_extraction"),
+                    {
+                        "role": "user",
+                        "content": f"视频标题：{asset.title}\n分块：{chunk_index}/{chunk_count}\n{text}",
+                    },
+                ],
+                attempt_metadata={
+                    "chunk_index": chunk_index,
+                    "chunk_count": chunk_count,
+                    "split_path": split_path,
+                    "segment_count": len(chunk),
                 },
-            ],
-            attempt_metadata={"chunk_index": index, "chunk_count": len(chunks)},
-        )
+            )
+        except AIProviderError as exc:
+            if exc.code != "AI_PROVIDER_OUTPUT_TRUNCATED" or len(chunk) <= 1:
+                raise
+            midpoint = len(chunk) // 2
+            request_chunk(
+                chunk[:midpoint],
+                chunk_index=chunk_index,
+                chunk_count=chunk_count,
+                split_path=f"{split_path}.L",
+            )
+            request_chunk(
+                chunk[midpoint:],
+                chunk_index=chunk_index,
+                chunk_count=chunk_count,
+                split_path=f"{split_path}.R",
+            )
+            return
         chunk_facts, chunk_places, chunk_warnings = _canonical_payload(
             parse_model_json(response.content), chunk
         )
         facts.extend(chunk_facts)
         places.extend(chunk_places)
         warnings.extend(chunk_warnings)
+
+    for index, chunk in enumerate(chunks or [segments], start=1):
+        request_chunk(chunk, chunk_index=index, chunk_count=max(1, len(chunks)))
 
     artifact = GroundedMapArtifact(
         video_asset_id=asset.id,

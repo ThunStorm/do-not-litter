@@ -6,6 +6,7 @@ import pytest
 from zhijian.ai.budget import AIBudgetExceeded, soft_budget_state
 from zhijian.ai.capabilities import AICapability
 from zhijian.ai.cost_router import choose_auto_route
+from zhijian.ai.reliability import AIProviderError, ModelReliabilityPolicy
 from zhijian.ai.transcript_quality import correction_candidates
 from zhijian.db.models import ExternalCallAudit, Job, Setting
 from zhijian.providers.llm import FallbackLLMProvider
@@ -13,14 +14,17 @@ from zhijian.services.video_support import parse_model_json, provider_for_role
 
 
 def test_whisper_correction_uses_semantic_candidates_and_neighbors() -> None:
-    segments = [SimpleNamespace(raw_text=text, text=text, confidence=0.99) for text in (
-        "开场白没有需要校对的信息",
-        "普通介绍内容",
-        "午饭后继续出发",
-        "十月去国家森林公园看红叶",
-        "普通结尾内容",
-        "最后一句无关内容",
-    )]
+    segments = [
+        SimpleNamespace(raw_text=text, text=text, confidence=0.99)
+        for text in (
+            "开场白没有需要校对的信息",
+            "普通介绍内容",
+            "午饭后继续出发",
+            "十月去国家森林公园看红叶",
+            "普通结尾内容",
+            "最后一句无关内容",
+        )
+    ]
 
     candidates = correction_candidates(segments, source_kind="WHISPER_CPP_ASR", neighbor_segments=1)
 
@@ -29,24 +33,29 @@ def test_whisper_correction_uses_semantic_candidates_and_neighbors() -> None:
     assert correction_candidates(segments[:2], source_kind="ASR") == segments[:2]
 
 
-def test_long_prompts_and_invalid_responses_do_not_retry() -> None:
+def test_long_prompts_follow_profile_retry_policy() -> None:
     attempts = 0
 
     class Provider:
         def generate_json(self, _messages, *, model):
             nonlocal attempts
             attempts += 1
-            raise ValueError("malformed response")
+            raise httpx.ConnectError("temporary network failure")
 
     provider = FallbackLLMProvider(
-        Provider(), "fixture", None, None, retry_count=3, request_interval_seconds=0
+        Provider(),
+        "fixture",
+        None,
+        None,
+        sleeper=lambda _seconds: None,
+        primary_reliability=ModelReliabilityPolicy("GUARDED", retry_count=1),
     )
-    with pytest.raises(ValueError):
+    with pytest.raises(AIProviderError):
         provider.generate_json([{"role": "user", "content": "x" * 8_000}], model="fixture")
-    assert attempts == 1
+    assert attempts == 2
 
 
-def test_retry_requires_retry_after_for_rate_limits() -> None:
+def test_rate_limits_retry_without_retry_after() -> None:
     attempts = 0
 
     class Provider:
@@ -58,11 +67,16 @@ def test_retry_requires_retry_after_for_rate_limits() -> None:
             raise httpx.HTTPStatusError("rate limited", request=request, response=response)
 
     provider = FallbackLLMProvider(
-        Provider(), "fixture", None, None, retry_count=2, request_interval_seconds=0
+        Provider(),
+        "fixture",
+        None,
+        None,
+        sleeper=lambda _seconds: None,
+        primary_reliability=ModelReliabilityPolicy("FREE_TIER", retry_count=2),
     )
-    with pytest.raises(httpx.HTTPStatusError):
+    with pytest.raises(AIProviderError):
         provider.generate_json([], model="fixture")
-    assert attempts == 1
+    assert attempts == 3
 
 
 def test_tolerant_json_parser_repairs_wrapping_and_trailing_commas() -> None:

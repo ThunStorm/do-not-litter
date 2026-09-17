@@ -129,6 +129,50 @@ def test_grounded_map_is_reused_and_place_materialization_is_llm_free(app_and_se
         assert all("Render Profile" not in call[-1]["content"] for call in provider.calls[:1])
 
 
+def test_grounded_map_splits_truncated_chunks(app_and_session, monkeypatch) -> None:
+    _, factory = app_and_session
+    batch_sizes: list[int] = []
+
+    class Provider:
+        def generate_json(self, messages, *, model):
+            batch_size = messages[-1]["content"].count("[segment:")
+            batch_sizes.append(batch_size)
+            if batch_size > 2:
+                return LLMResult("", "fixture", model, {}, {"finish_reason": "length"})
+            return LLMResult(
+                '{"section_facts":[],"places":[],"warnings":[]}',
+                "fixture",
+                model,
+                {},
+            )
+
+    monkeypatch.setattr(
+        "zhijian.services.video_support.provider_for_role",
+        lambda *_args: (Provider(), "fixture", "fixture-model"),
+    )
+    with factory() as db:
+        source = Source(source_type="URL", locator="https://example.test/split-map", title="fixture")
+        db.add(source)
+        db.flush()
+        asset = VideoAsset(source_id=source.id, canonical_url=source.locator, title="拆分地图")
+        db.add(asset)
+        db.flush()
+        transcript, segments = materialize_transcript(
+            db,
+            source,
+            asset,
+            [
+                {"text": f"第{index}段旅行信息", "start_ms": index * 1000, "end_ms": (index + 1) * 1000}
+                for index in range(4)
+            ],
+            source_kind="ASR",
+        )
+        artifact = get_or_create_grounded_map(db, Settings(_env_file=None), asset, transcript, segments)
+
+    assert batch_sizes == [4, 2, 2]
+    assert artifact.facts_json == []
+
+
 def test_note_profile_regeneration_starts_at_reduce(client, app_and_session) -> None:
     _, factory = app_and_session
     with factory() as db:

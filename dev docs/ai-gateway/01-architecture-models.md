@@ -304,6 +304,8 @@ REMOTE_STRONG = 用户配置的 OpenAI-compatible 模型
 
 任何本地模型进入 Router 前必须通过 Capability Probe。
 
+Capability Probe 只对实际执行的项目给出 `PASS` 或 `FAIL`，未覆盖能力保持 `NOT_TESTED`。Provider 返回 429、配额不足、网络错误或熔断冷却时属于“本次无法判定”，不得写成能力失败或覆盖上一次成功结果。设置页真实测试与能力探测必须按同一 Provider 凭据共享节流，远程探测串行执行并限制输出长度。
+
 最低要求：
 
 ### 9.1 API

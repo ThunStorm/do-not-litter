@@ -17,6 +17,7 @@ from zhijian.db.session import SessionLocal, init_database
 from zhijian.domain.enums import JobStatus
 from zhijian.providers.llm import provider_error_details
 from zhijian.services.audit import record_event
+from zhijian.services.job_replay import resume_deferred_full_replays
 from zhijian.services.jobs import (
     lease_next_job,
     purge_expired_step_artifacts,
@@ -127,6 +128,7 @@ def worker_loop(once: bool = False) -> None:
         while True:
             with SessionLocal() as db:
                 release_expired_cancelled_jobs(db)
+                resume_deferred_full_replays(db)
                 recover_stale_jobs(db, settings.job_attempt_timeout_seconds)
                 if utc_now() - last_transcript_cleanup >= timedelta(days=1):
                     purge_expired_transcripts(db)

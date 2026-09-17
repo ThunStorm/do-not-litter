@@ -4,11 +4,13 @@ import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import { EmptyState, PageHeader } from '../../components/AppShell'
+import { BulkSelectionToolbar } from '../../components/ui/BulkSelection'
 import { MarkdownContent } from '../../components/MarkdownContent'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { SearchField } from '../../components/ui/SearchField'
 import { SelectMenu } from '../../components/ui/SelectMenu'
 import { api, type PlaceReview, type VideoPlace } from '../../lib/api'
+import { useBulkSelection } from '../../lib/useBulkSelection'
 import { PlaceReviewCard } from '../places/PlaceReviewCard'
 import { videoTimestampUrl } from './videoTime'
 
@@ -45,19 +47,17 @@ function VideoPlaceCandidate({ place, review, canonicalUrl, platform, jump, jump
 
 export function VideoNotesPage() {
   const [searchQuery, setSearchQuery] = useState('')
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const deferredSearch = useDeferredValue(searchQuery.trim())
   const notes = useQuery({ queryKey: ['video-notes', deferredSearch], queryFn: () => api.videoNotes(deferredSearch || undefined) })
   const client = useQueryClient()
-  const remove = useMutation({ mutationFn: (id: string) => api.deleteVideoNote(id), onSuccess: () => { setDeleteTarget(null); void client.invalidateQueries({ queryKey: ['video-notes'] }); void client.invalidateQueries({ queryKey: ['content'] }); void client.invalidateQueries({ queryKey: ['dashboard'] }); void client.invalidateQueries({ queryKey: ['sources'] }) } })
-  function requestDelete(note: { id: string; title: string }) {
-    setDeleteTarget(note)
-  }
+  const selection = useBulkSelection((notes.data ?? []).map((note) => note.id))
+  const remove = useMutation({ mutationFn: () => api.deleteVideoNotes(selection.selectedIds), onSuccess: () => { selection.clear(); setDeleteOpen(false); void client.invalidateQueries({ queryKey: ['video-notes'] }); void client.invalidateQueries({ queryKey: ['content'] }); void client.invalidateQueries({ queryKey: ['dashboard'] }); void client.invalidateQueries({ queryKey: ['sources'] }) } })
   return <div className="page-frame video-notes-page"><PageHeader title="视频笔记" />
     <section className="video-notes-intro"><Clapperboard /><div><strong>把视频整理成可回看、可落点的笔记</strong><span>读取字幕或语音识别，AI 校对后生成主旨、地点与关键截图。</span></div><Link className="button button--primary" to="/capture">添加视频链接</Link></section>
     <SearchField className="search-field" label="搜索视频笔记" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="搜索标题、正文、章节或地点" />
-    <section className="video-note-list">{notes.data?.length ? notes.data.map((note) => <div key={note.id} className="video-note-row-wrap"><Link to={`/video-notes/${note.id}`} className="video-note-row"><div className="video-note-row__cover"><VideoCover url={note.cover_image_url ?? null} alt={note.title} /><span><Play size={14} />{duration(note.duration_ms)}</span></div><div><p>{note.status === 'COMPLETED' ? '笔记已完成' : note.status === 'PARTIAL_SUCCESS' ? '笔记已完成 · 地点待补全' : '处理中'}</p><h2>{note.title}</h2><small>{note.uploader || 'Bilibili'} · 已确认 {note.place_summary.confirmed}/{note.place_summary.total} 个地点</small>{note.search_match && <small>{note.search_match} · {note.search_snippet}</small>}<p className="video-note-row__overview">{note.overview || '正在生成结构化视频笔记…'}</p></div></Link><DeleteMenu label={note.title} disabled={remove.isPending} onDelete={() => requestDelete(note)} /></div>) : <EmptyState title={deferredSearch ? '没有匹配的笔记' : '还没有视频笔记'} detail={deferredSearch ? '可尝试标题、正文、章节或地点名称。' : '在投递页粘贴 Bilibili、YouTube 链接或上传本地视频，即可开始处理。'} />}</section>
-  {deleteTarget && <ConfirmDialog title="删除视频笔记" description={`删除《${deleteTarget.title}》及其内容投影；地点和路线会保留。`} confirmLabel="删除视频笔记" danger pending={remove.isPending} onCancel={() => setDeleteTarget(null)} onConfirm={() => remove.mutate(deleteTarget.id)} />}</div>
+    <section className="video-note-list"><div className="section-title"><div className="bulk-heading-title"><h2>全部笔记</h2><span>{notes.data?.length ?? 0}</span></div><BulkSelectionToolbar label="视频笔记" visibleCount={notes.data?.length ?? 0} selectedCount={selection.selectedIds.length} allSelected={selection.allSelected} pending={remove.isPending} onToggleAll={selection.toggleAll} onClear={selection.clear} onDelete={() => setDeleteOpen(true)} /></div>{notes.data?.length ? notes.data.map((note) => <div key={note.id} className="video-note-row-wrap selectable-row"><label className="bulk-row-checkbox"><input type="checkbox" checked={selection.isSelected(note.id)} onChange={() => selection.toggle(note.id)} aria-label={`选择视频笔记 ${note.title}`} /></label><Link to={`/video-notes/${note.id}`} className="video-note-row video-note-row--selectable"><div className="video-note-row__cover"><VideoCover url={note.cover_image_url ?? null} alt={note.title} /><span><Play size={14} />{duration(note.duration_ms)}</span></div><div><p>{note.status === 'COMPLETED' ? '笔记已完成' : note.status === 'PARTIAL_SUCCESS' ? '笔记已完成 · 地点待补全' : '处理中'}</p><h2>{note.title}</h2><small>{note.uploader || 'Bilibili'} · 已确认 {note.place_summary.confirmed}/{note.place_summary.total} 个地点</small>{note.search_match && <small>{note.search_match} · {note.search_snippet}</small>}<p className="video-note-row__overview">{note.overview || '正在生成结构化视频笔记…'}</p></div></Link></div>) : <EmptyState title={deferredSearch ? '没有匹配的笔记' : '还没有视频笔记'} detail={deferredSearch ? '可尝试标题、正文、章节或地点名称。' : '在投递页粘贴 Bilibili、YouTube 链接或上传本地视频，即可开始处理。'} />}</section>
+  {deleteOpen && <ConfirmDialog title="删除视频笔记" description={`删除 ${selection.selectedIds.length} 条笔记及其内容投影；地点和路线保留。`} confirmLabel={`删除 ${selection.selectedIds.length} 条笔记`} danger pending={remove.isPending} error={remove.error instanceof Error ? remove.error.message : ''} onCancel={() => setDeleteOpen(false)} onConfirm={() => remove.mutate()} />}</div>
 }
 
 export function VideoNoteDetailPage() {

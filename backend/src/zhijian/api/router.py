@@ -27,8 +27,13 @@ from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from zhijian.ai.domain_context import DOMAIN_PACK_PREFIX, DomainPack
-from zhijian.ai.model_registry import model_profile_from_value, probe_model_profile
+from zhijian.ai.model_registry import (
+    invoke_profile_model,
+    model_profile_from_value,
+    probe_model_profile,
+)
 from zhijian.ai.policies import resolve_stage_policy, validate_stage_policy
+from zhijian.ai.reliability import AIProviderError
 from zhijian.ai.resource_manager import local_ai_resource_manager
 from zhijian.ai.schemas import AIStagePolicy
 from zhijian.ai.stages import STAGE_SPECS, stage_spec
@@ -73,6 +78,7 @@ from zhijian.db.session import get_db
 from zhijian.domain.enums import JobStatus, ResolutionStatus
 from zhijian.domain.schemas import (
     AMapConfig,
+    BulkDeleteRequest,
     BulkPlaceUpdate,
     CaptureRequest,
     CaptureResponse,
@@ -107,6 +113,7 @@ from zhijian.domain.schemas import (
     RouteDraftUpdate,
     RouteDraftView,
     SessionRequest,
+    SourceEvidenceChainDelete,
     StepReplayRequest,
     TranscriptProcessingConfig,
 )
@@ -115,7 +122,6 @@ from zhijian.providers.llm import (
     LLMProvider,
     OllamaProvider,
     OpenAICompatibleProvider,
-    ProviderRequestOptions,
 )
 from zhijian.providers.runtime import hardware_report, runtime_report
 from zhijian.services.audit import record_event
@@ -138,7 +144,12 @@ from zhijian.services.bilibili_auth import (
 )
 from zhijian.services.capture import create_capture_job, safe_upload_path
 from zhijian.services.input_normalizer import normalize_capture_input
-from zhijian.services.job_replay import queue_login_step_skip, queue_step_replay, replay_options
+from zhijian.services.job_replay import (
+    queue_full_replay,
+    queue_login_step_skip,
+    queue_step_replay,
+    replay_options,
+)
 from zhijian.services.place_knowledge import aggregate_place_knowledge, normalize_insight
 from zhijian.services.runtime_monitor import read_runtime_metrics_sample
 from zhijian.services.source_retention import prune_source_if_orphan, source_deletion_state
@@ -147,6 +158,7 @@ from zhijian.services.travel_recommendations import (
     recommendation_for_place,
     visit_window_summary,
 )
+from zhijian.services.video_note_search import remove_video_note_search_index
 from zhijian.services.video_support import (
     PROMPT_CORE_CONTRACTS,
     PROMPT_SUPPLEMENT_SETTING_KEY,
@@ -718,9 +730,7 @@ def job_ai_usage(job_id: str, _: Protected, db: Session = Depends(get_db)) -> di
         "ratios": {
             "cache_hit_ratio": cache_hits / max(1, len(rows)),
             "retry_token_ratio": (retry["input_tokens"] + retry["output_tokens"]) / max(1, total_tokens),
-            "fallback_token_ratio": (
-                fallback["input_tokens"] + fallback["output_tokens"]
-            )
+            "fallback_token_ratio": (fallback["input_tokens"] + fallback["output_tokens"])
             / max(1, total_tokens),
             "repeated_input_ratio": repeated_input_tokens / max(1, total["input_tokens"]),
         },
@@ -873,51 +883,7 @@ def retry_full(job_id: str, _: Protected, db: Session = Depends(get_db)) -> dict
     job = db.get(Job, job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="任务不存在")
-    now = utc_now()
-    active = job.status in {JobStatus.QUEUED.value, JobStatus.RUNNING.value} or bool(job.lease_owner)
-    if active:
-        job.status = JobStatus.CANCELLED.value
-        job.finished_at = now
-        job.heartbeat_at = now
-        if job.lease_owner:
-            job.lease_expire_at = now + timedelta(seconds=60)
-        current_step = _job_step(db, job.id, job.current_step)
-        if current_step and current_step.status in {"PENDING", "RUNNING"}:
-            current_step.status = "CANCELLED"
-            current_step.finished_at = now
-            current_step.error = None
-    payload = {
-        key: value
-        for key, value in job.payload_json.items()
-        if key not in {"replay_from_step", "source_event_id"}
-    }
-    replacement = Job(
-        job_type=job.job_type,
-        status=JobStatus.QUEUED.value,
-        priority=job.priority,
-        payload_json=payload,
-        created_at=now,
-    )
-    db.add(replacement)
-    db.flush()
-    record_event(
-        db,
-        "job.full_replay.queued",
-        "已创建新的完整任务；原运行流程已请求停止" if active else "已创建新的完整任务",
-        component="api",
-        actor="user",
-        entity_type="job",
-        entity_id=job.id,
-        detail={"replacement_job_id": replacement.id, "stopped_active_job": active},
-        commit=False,
-    )
-    db.commit()
-    return {
-        "status": replacement.status,
-        "job_id": replacement.id,
-        "replaced_job_id": job.id,
-        "stopped_active_job": active,
-    }
+    return queue_full_replay(db, job)
 
 
 @router.post("/api/jobs/{job_id}/cancel")
@@ -957,6 +923,32 @@ def cancel_job(job_id: str, _: Protected, db: Session = Depends(get_db)) -> dict
     return {"status": job.status, "stopping": bool(job.lease_owner)}
 
 
+def _delete_job_record(db: Session, job: Job) -> None:
+    db.execute(delete(SystemEvent).where(SystemEvent.entity_type == "job", SystemEvent.entity_id == job.id))
+    db.delete(job)
+
+
+@router.delete("/api/jobs/bulk")
+def bulk_delete_jobs(payload: BulkDeleteRequest, _: Protected, db: Session = Depends(get_db)) -> dict:
+    jobs = [db.get(Job, job_id) for job_id in dict.fromkeys(payload.ids)]
+    if any(job is None for job in jobs):
+        raise HTTPException(status_code=404, detail="任务不存在")
+    if any(job.status in {JobStatus.QUEUED.value, JobStatus.RUNNING.value} for job in jobs if job):
+        raise HTTPException(status_code=409, detail="请先取消或等待任务结束后再删除")
+    for job in jobs:
+        _delete_job_record(db, job)
+    record_event(
+        db,
+        "job.bulk_deleted",
+        f"已删除 {len(jobs)} 条任务历史",
+        actor="user",
+        detail={"ids": payload.ids},
+        commit=False,
+    )
+    db.commit()
+    return {"requested": len(payload.ids), "deleted": len(jobs)}
+
+
 @router.delete("/api/jobs/{job_id}")
 def delete_job(job_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
     job = db.get(Job, job_id)
@@ -965,8 +957,7 @@ def delete_job(job_id: str, _: Protected, db: Session = Depends(get_db)) -> dict
     if job.status in {JobStatus.QUEUED.value, JobStatus.RUNNING.value}:
         raise HTTPException(status_code=409, detail="请先取消或等待任务结束后再删除")
     title = str(job.payload_json.get("title") or job.payload_json.get("locator") or job.id)
-    db.execute(delete(SystemEvent).where(SystemEvent.entity_type == "job", SystemEvent.entity_id == job_id))
-    db.delete(job)
+    _delete_job_record(db, job)
     record_event(
         db,
         "job.deleted",
@@ -1016,20 +1007,46 @@ def get_content(content_id: str, _: Protected, db: Session = Depends(get_db)) ->
     }
 
 
-@router.delete("/api/content/{content_id}")
-def delete_content(content_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
-    item = db.get(ContentItem, content_id)
-    if item is None:
-        raise HTTPException(status_code=404, detail="内容不存在")
+def _delete_content_item(db: Session, item: ContentItem) -> None:
     claims = db.scalars(
-        select(Claim).where(Claim.subject_type == "CONTENT", Claim.subject_id == content_id)
+        select(Claim).where(Claim.subject_type == "CONTENT", Claim.subject_id == item.id)
     ).all()
     claim_ids = [claim.id for claim in claims]
     if claim_ids:
         db.execute(delete(Evidence).where(Evidence.claim_id.in_(claim_ids)))
         db.execute(delete(Claim).where(Claim.id.in_(claim_ids)))
-    title, source_id = item.title, item.source_id
     db.delete(item)
+
+
+@router.delete("/api/content/bulk")
+def bulk_delete_content(payload: BulkDeleteRequest, _: Protected, db: Session = Depends(get_db)) -> dict:
+    items = [db.get(ContentItem, content_id) for content_id in dict.fromkeys(payload.ids)]
+    if any(item is None for item in items):
+        raise HTTPException(status_code=404, detail="内容不存在")
+    source_ids = list(dict.fromkeys(item.source_id for item in items if item and item.source_id))
+    for item in items:
+        _delete_content_item(db, item)
+    db.flush()
+    source_deleted = [source_id for source_id in source_ids if prune_source_if_orphan(db, source_id)]
+    record_event(
+        db,
+        "content.bulk_deleted",
+        f"已删除 {len(items)} 条内容历史",
+        actor="user",
+        detail={"ids": payload.ids, "source_deleted_ids": source_deleted},
+        commit=False,
+    )
+    db.commit()
+    return {"requested": len(payload.ids), "deleted": len(items), "source_deleted_ids": source_deleted}
+
+
+@router.delete("/api/content/{content_id}")
+def delete_content(content_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
+    item = db.get(ContentItem, content_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="内容不存在")
+    title, source_id = item.title, item.source_id
+    _delete_content_item(db, item)
     db.flush()
     source_deleted = prune_source_if_orphan(db, source_id)
     record_event(
@@ -1118,6 +1135,83 @@ def source_detail(source_id: str, _: Protected, db: Session = Depends(get_db)) -
     }
 
 
+def _delete_source_record(db: Session, source: Source, state: dict[str, int | bool]) -> None:
+    record_event(
+        db,
+        "source.deleted",
+        f"已删除来源审计记录：{(source.title or source.locator)[:120]}",
+        actor="user",
+        entity_type="deleted_source",
+        entity_id=source.id,
+        detail=state,
+        commit=False,
+    )
+    db.delete(source)
+
+
+@router.delete("/api/sources/bulk")
+def bulk_delete_sources(payload: BulkDeleteRequest, _: Protected, db: Session = Depends(get_db)) -> dict:
+    sources = [db.get(Source, source_id) for source_id in dict.fromkeys(payload.ids)]
+    if any(source is None for source in sources):
+        raise HTTPException(status_code=404, detail="来源不存在")
+    deleted_ids: list[str] = []
+    skipped = []
+    for source in sources:
+        state = source_deletion_state(db, source.id)
+        if not state["allowed"]:
+            skipped.append({"id": source.id, **state})
+            continue
+        _delete_source_record(db, source, state)
+        deleted_ids.append(source.id)
+    db.commit()
+    return {"requested": len(payload.ids), "deleted_ids": deleted_ids, "skipped": skipped}
+
+
+@router.delete("/api/sources/{source_id}/evidence-chain")
+def delete_source_evidence_chain(
+    source_id: str,
+    payload: SourceEvidenceChainDelete,
+    _: Protected,
+    db: Session = Depends(get_db),
+) -> dict:
+    source = db.get(Source, source_id)
+    if source is None:
+        raise HTTPException(status_code=404, detail="来源不存在")
+    state = source_deletion_state(db, source_id)
+    if state["active_job_count"]:
+        raise HTTPException(status_code=409, detail="请先取消或等待关联活跃任务结束")
+    contents = db.scalars(select(ContentItem).where(ContentItem.source_id == source_id)).all()
+    notes = db.scalars(
+        select(AINote)
+        .join(VideoAsset, VideoAsset.id == AINote.video_asset_id)
+        .where(VideoAsset.source_id == source_id)
+    ).all()
+    for item in contents:
+        _delete_content_item(db, item)
+    for note in notes:
+        remove_video_note_search_index(db, note.id)
+        db.delete(note)
+    db.flush()
+    _delete_source_record(db, source, state)
+    record_event(
+        db,
+        "source.evidence_chain_deleted",
+        "已按确认删除来源证据链及关联内容",
+        actor="user",
+        entity_type="deleted_source",
+        entity_id=source_id,
+        detail={"content_count": len(contents), "video_note_count": len(notes)},
+        commit=False,
+    )
+    db.commit()
+    return {
+        "status": "DELETED",
+        "id": source_id,
+        "content_deleted": len(contents),
+        "video_notes_deleted": len(notes),
+    }
+
+
 @router.delete("/api/sources/{source_id}")
 def delete_source(source_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
     source = db.get(Source, source_id)
@@ -1126,18 +1220,7 @@ def delete_source(source_id: str, _: Protected, db: Session = Depends(get_db)) -
     state = source_deletion_state(db, source_id)
     if not state["allowed"]:
         raise HTTPException(status_code=409, detail="请先删除关联内容、视频笔记并结束活跃任务")
-    title = source.title or source.locator
-    db.delete(source)
-    record_event(
-        db,
-        "source.deleted",
-        f"已删除来源审计记录：{title[:120]}",
-        actor="user",
-        entity_type="deleted_source",
-        entity_id=source_id,
-        detail=state,
-        commit=False,
-    )
+    _delete_source_record(db, source, state)
     db.commit()
     return {"status": "DELETED", "id": source_id}
 
@@ -3268,7 +3351,15 @@ def _model_profile_view(setting: Setting) -> dict:
         "base_url": str(value.get("base_url") or ""),
         "model": str(value.get("model") or ""),
         "timeout_seconds": int(value.get("timeout_seconds") or 60),
+        "reliability_mode": profile.reliability_mode,
         "request_interval_seconds": value.get("request_interval_seconds"),
+        "max_concurrency": profile.max_concurrency,
+        "retry_count": profile.retry_count,
+        "json_retry_count": profile.json_retry_count,
+        "rate_limit_rpm": profile.rate_limit_rpm,
+        "circuit_breaker_enabled": profile.circuit_breaker_enabled,
+        "circuit_breaker_threshold": profile.circuit_breaker_threshold,
+        "circuit_breaker_cooldown_seconds": profile.circuit_breaker_cooldown_seconds,
         "api_key_saved": setting.is_secret_ref,
         "location": profile.location,
         "modalities": sorted(profile.modalities),
@@ -3319,23 +3410,36 @@ def _routing_profile_summary(db: Session, profile_id: str | None) -> dict[str, s
 
 def _test_model_connection(value: dict, api_key: str | None) -> object:
     provider = _model_profile_provider(value, api_key)
+    profile = model_profile_from_value("test", value)
 
     def call() -> object:
-        return provider.generate(
+        return invoke_profile_model(
+            provider,
+            profile,
+            "generate",
             [{"role": "user", "content": '仅返回 JSON：{"ok":true}'}],
-            model=str(value.get("model") or ""),
-            options=(
-                ProviderRequestOptions(thinking=False)
-                if str(value.get("provider") or "").lower() == "ollama"
-                else None
-            ),
         )
 
     return (
         local_ai_resource_manager.run("MODEL_TEST", call)
-        if model_profile_from_value("test", value).location == "LOCAL"
+        if profile.location == "LOCAL"
         else call()
     )
+
+
+def _model_test_http_error(label: str, exc: AIProviderError) -> HTTPException:
+    status = (
+        429
+        if exc.code
+        in {
+            "AI_PROVIDER_RATE_LIMITED",
+            "AI_PROVIDER_THROTTLED",
+            "AI_PROVIDER_QUOTA_EXHAUSTED",
+            "AI_PROVIDER_CIRCUIT_OPEN",
+        }
+        else 502
+    )
+    return HTTPException(status_code=status, detail=f"{label}：{exc.code}：{str(exc)[:200]}")
 
 
 def _model_profile_provider(value: dict, api_key: str | None) -> LLMProvider:
@@ -3346,7 +3450,11 @@ def _model_profile_provider(value: dict, api_key: str | None) -> LLMProvider:
     if not api_key:
         raise HTTPException(status_code=422, detail="请填写 API Key 后再进行真实测试")
     return OpenAICompatibleProvider(
-        provider_name or "openai-compatible", str(value.get("base_url") or ""), api_key, timeout
+        provider_name or "openai-compatible",
+        str(value.get("base_url") or ""),
+        api_key,
+        timeout,
+        supports_json_mode=bool(value.get("supports_json_mode")),
     )
 
 
@@ -3713,6 +3821,8 @@ def test_model_profile(
         result = _test_model_connection(value, store.get(f"model-profile:{profile_id}:api-key"))
     except HTTPException:
         raise
+    except AIProviderError as exc:
+        raise _model_test_http_error("模型连通测试失败", exc) from exc
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"模型连通测试失败：{str(exc)[:240]}") from exc
     record_event(db, "model_profile.tested", f"真实测试成功：{value.get('name', profile_id)}", actor="user")
@@ -3732,6 +3842,8 @@ def test_model_profile_draft(payload: ModelProfileConfig, _: Protected) -> dict:
         result = _test_model_connection(value, payload.api_key)
     except HTTPException:
         raise
+    except AIProviderError as exc:
+        raise _model_test_http_error("模型连通测试失败", exc) from exc
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"模型连通测试失败：{str(exc)[:240]}") from exc
     return {
@@ -3762,6 +3874,8 @@ def probe_saved_model_profile(
         results = local_ai_resource_manager.run("MODEL_TEST", call) if profile.location == "LOCAL" else call()
     except HTTPException:
         raise
+    except AIProviderError as exc:
+        raise _model_test_http_error("模型能力探测未完成，原能力结果保持不变", exc) from exc
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"模型能力探测失败：{str(exc)[:240]}") from exc
     value["probe_results"] = results
@@ -3796,6 +3910,8 @@ def probe_model_profile_draft(payload: ModelProfileConfig, _: Protected) -> dict
             results = probe()
     except HTTPException:
         raise
+    except AIProviderError as exc:
+        raise _model_test_http_error("草稿能力探测未完成", exc) from exc
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"草稿能力探测失败：{str(exc)[:240]}") from exc
     capabilities = [key for key, status in results.items() if status == "PASS"]

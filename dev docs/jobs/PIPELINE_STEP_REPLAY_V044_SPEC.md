@@ -126,7 +126,7 @@ Artifact 状态：`AVAILABLE / EXPIRED / INVALIDATED / MISSING`。
 
 完整重跑是不同动作：从 Pipeline 首个步骤开始，可按缓存策略复用，但不保证跳过任何步骤。
 
-取消不是失败步骤。步骤续跑仍只在有明确失败步骤与有效 Artifact 时可用。完整重跑是独立动作：任何状态下均可从右上角提交；若原 Job 正在排队或运行，服务端先将其标记为协作式取消，再创建新的 `QUEUED` Job。单 Worker 会在旧流程到达安全边界并释放 lease 后领取新任务，避免两个流程并发写同一结果。
+取消不是失败步骤。步骤续跑仍只在有明确失败步骤与有效 Artifact 时可用。完整重跑是独立动作：任何状态下均复用原 Job ID；终态 Job 立即清除步骤执行态并重新 `QUEUED`，运行中的 Job 先协作式取消，Worker 在安全边界释放 lease 后将同一 Job 从首步重新入队。保留 Job ID 与 SystemEvent/ExternalCallAudit，重置 Step 执行态和中间 Artifact，避免生成同标题替代 Job 或两个流程并发写同一结果。
 
 ---
 
@@ -143,7 +143,7 @@ POST /api/jobs/{job_id}/retry-full
 ```json
 {
   "full_replay_available": true,
-  "full_replay_reason": "将停止当前流程并创建新的完整任务"
+  "full_replay_reason": "将停止当前流程，并在安全边界后从头重新运行原任务"
 }
 ```
 
@@ -209,5 +209,5 @@ Replay Options：
 8. 日志按钮语义为“从错误步骤继续”，不再误导为整任务重跑；
 9. 重复点击、活跃 lease、错误事件不匹配均被拒绝；
 10. 审计可追踪旧 Attempt、来源 ERROR、复用 Artifact 和新 Attempt。
-11. 运行中点击右上角完整重跑会取消旧 Job、创建新 Job，并导航到新任务；旧 Worker 在安全边界停止后再领取新 Job。
+11. 运行中点击右上角完整重跑会取消当前 Attempt，并在安全边界后以同一 Job ID 从首步重新入队；旧 Worker 停止后才领取该 Job 的新 Attempt。
 12. 复用 canonical VideoAsset 时，步骤续跑以 `FETCH_METADATA` Artifact 的 `video_asset_id` 定位资产，不假设当前 Capture Source 与资产原 Source 相同。

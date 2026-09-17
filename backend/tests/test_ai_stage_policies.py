@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 
+import httpx
 from sqlalchemy import select
 
 from zhijian.db.models import ExternalCallAudit, Job, Setting
@@ -149,6 +150,41 @@ def test_draft_model_probe_returns_results_without_persisting_key(
     assert "STRUCTURED_EXTRACTION" in response.json()["capabilities"]
     with app_and_session[1]() as db:
         assert "draft-key-must-not-persist" not in str(db.query(Setting).all())
+
+
+def test_rate_limited_probe_preserves_previous_capabilities(
+    client, app_and_session, monkeypatch
+) -> None:
+    _, factory = app_and_session
+    created = client.post("/api/settings/model-profiles", json=_profile("远程探测", "REMOTE", "free"))
+    profile_id = created.json()["id"]
+    with factory() as db:
+        setting = db.get(Setting, f"model-profile:{profile_id}")
+        setting.value_json = {
+            **setting.value_json,
+            "probe_results": {"CLASSIFICATION": "PASS"},
+            "capabilities": ["CLASSIFICATION"],
+        }
+        db.commit()
+
+    class Provider:
+        name = "fixture"
+        base_url = "https://rate-limit-probe.test/v1"
+        api_key = "fixture-key"
+
+        def generate_text(self, *_args, **_kwargs):
+            request = httpx.Request("POST", f"{self.base_url}/chat/completions")
+            response = httpx.Response(429, request=request)
+            raise httpx.HTTPStatusError("rate limited", request=request, response=response)
+
+    monkeypatch.setattr("zhijian.api.router._model_profile_provider", lambda *_args: Provider())
+    response = client.post(f"/api/settings/model-profiles/{profile_id}/probe")
+    assert response.status_code == 429
+    assert "AI_PROVIDER_RATE_LIMITED" in response.json()["detail"]
+    with factory() as db:
+        setting = db.get(Setting, f"model-profile:{profile_id}")
+        assert setting.value_json["probe_results"] == {"CLASSIFICATION": "PASS"}
+        assert setting.value_json["capabilities"] == ["CLASSIFICATION"]
 
 
 def test_job_ai_usage_groups_stage_model_and_location(client, app_and_session) -> None:

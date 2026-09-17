@@ -1670,7 +1670,7 @@ Pipeline
 严格遵守仓库根 AGENTS.md。
 
 本任务只执行：
-planning/video/VIDEO_WORKFLOW_BENCHMARK_AND_ACCEPTANCE_PLAN.md 中当前指定的一个 Work Package。
+history/planning/VIDEO_WORKFLOW_BENCHMARK_AND_ACCEPTANCE_PLAN.md 中原先指定的一个 Work Package。
 
 接手顺序：
 1. 读 dev docs/CODEX_CONTEXT.md；

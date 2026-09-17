@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { applyProviderPreset } from './providerPresets'
+import { applyProviderPreset, recommendedReliabilityMode } from './providerPresets'
 
 const moonshot = {
   name: '草稿',
@@ -27,5 +27,10 @@ describe('applyProviderPreset', () => {
       base_url: 'https://open.bigmodel.cn/api/paas/v4',
       model: '我的模型',
     })
+  })
+
+  it('recommends but does not force free-tier reliability for free model names', () => {
+    expect(recommendedReliabilityMode('OpenRouter', 'model:free')).toBe('FREE_TIER')
+    expect(recommendedReliabilityMode('Ollama', 'qwen3:8b')).toBe('DIRECT')
   })
 })

@@ -31,6 +31,14 @@ class StepReplayRequest(BaseModel):
     source_event_id: str | None = Field(default=None, max_length=64)
 
 
+class BulkDeleteRequest(BaseModel):
+    ids: list[str] = Field(min_length=1, max_length=200)
+
+
+class SourceEvidenceChainDelete(BaseModel):
+    confirm: Literal[True]
+
+
 class JobView(BaseModel):
     id: str
     job_type: str
@@ -286,7 +294,15 @@ class ProviderConfig(BaseModel):
 
 class ModelProfileConfig(ProviderConfig):
     name: str = Field(min_length=1, max_length=80)
+    reliability_mode: Literal["DIRECT", "STANDARD", "GUARDED", "FREE_TIER"] = "STANDARD"
     request_interval_seconds: float | None = Field(default=None, ge=0, le=300)
+    max_concurrency: int | None = Field(default=None, ge=1, le=16)
+    retry_count: int | None = Field(default=None, ge=0, le=5)
+    json_retry_count: int | None = Field(default=None, ge=0, le=3)
+    rate_limit_rpm: int | None = Field(default=None, ge=1, le=10_000)
+    circuit_breaker_enabled: bool | None = None
+    circuit_breaker_threshold: int | None = Field(default=None, ge=1, le=20)
+    circuit_breaker_cooldown_seconds: float | None = Field(default=None, ge=1, le=3600)
     location: Literal["LOCAL", "REMOTE"] | None = None
     modalities: set[str] = Field(default_factory=lambda: {"text"})
     capabilities: set[str] = Field(default_factory=set)

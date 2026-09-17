@@ -28,6 +28,7 @@ from zhijian.db.models import (
 )
 from zhijian.db.session import get_db
 from zhijian.domain.enums import JobStatus, JobType
+from zhijian.domain.schemas import BulkDeleteRequest
 from zhijian.services.audit import record_event
 from zhijian.services.auth import require_session
 from zhijian.services.source_retention import prune_source_if_orphan
@@ -482,6 +483,48 @@ def regenerate_video_note(
     db.add(job)
     db.commit()
     return {"job_id": job.id, "status": job.status}
+
+
+@router.delete("/api/video-notes/bulk")
+def bulk_delete_video_notes(
+    payload: BulkDeleteRequest, _: Protected, db: Session = Depends(get_db)
+) -> dict:
+    notes_assets = [_asset_for_note(db, note_id) for note_id in dict.fromkeys(payload.ids)]
+    source_ids = {asset.source_id for _, asset in notes_assets}
+    active = db.scalar(
+        select(Job).where(
+            Job.payload_json["source_id"].as_string().in_(source_ids),
+            Job.status.in_(["QUEUED", "RUNNING"]),
+        )
+    )
+    if active:
+        raise HTTPException(status_code=409, detail="请先取消或等待关联活跃任务结束")
+    for note, asset in notes_assets:
+        for content in db.scalars(
+            select(ContentItem).where(
+                ContentItem.source_id == asset.source_id,
+                ContentItem.content_type == "VIDEO_NOTE",
+            )
+        ).all():
+            db.delete(content)
+        remove_video_note_search_index(db, note.id)
+        db.delete(note)
+    db.flush()
+    source_deleted_ids = [source_id for source_id in source_ids if prune_source_if_orphan(db, source_id)]
+    record_event(
+        db,
+        "video.note.bulk_deleted",
+        f"已删除 {len(notes_assets)} 条视频笔记",
+        actor="user",
+        detail={"ids": payload.ids, "source_deleted_ids": source_deleted_ids},
+        commit=False,
+    )
+    db.commit()
+    return {
+        "requested": len(payload.ids),
+        "deleted": len(notes_assets),
+        "source_deleted_ids": source_deleted_ids,
+    }
 
 
 @router.delete("/api/video-notes/{note_id}")

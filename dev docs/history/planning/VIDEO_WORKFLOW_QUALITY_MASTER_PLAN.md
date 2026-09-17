@@ -1556,7 +1556,7 @@ frontend/src/styles.css
 ```text
 dev docs/benchmark/video-workflow-golden-v1.json
 scripts/run_video_benchmark.py
-dev docs/planning/video/VIDEO_WORKFLOW_BENCHMARK_AND_ACCEPTANCE_PLAN.md
+dev docs/history/planning/VIDEO_WORKFLOW_BENCHMARK_AND_ACCEPTANCE_PLAN.md
 dev docs/IMPLEMENTATION_STATUS.md
 ```
 

@@ -62,7 +62,14 @@ def _expected_budget(db: Session, job: Job, input_chars: int) -> dict[str, int]:
 
 
 def soft_budget_state(
-    db: Session, job: Job | None, *, location: str, input_chars: int = 0
+    db: Session,
+    job: Job | None,
+    *,
+    location: str,
+    input_chars: int = 0,
+    provider: str | None = None,
+    model: str | None = None,
+    profile_id: str | None = None,
 ) -> SoftBudgetState | None:
     if job is None:
         return None
@@ -70,13 +77,25 @@ def soft_budget_state(
     location = location.upper()
     previous = (job.payload_json.get("ai_soft_budget") or {}).get("status")
     expected = _expected_budget(db, job, input_chars)
-    rows = db.scalars(
-        select(ExternalCallAudit).where(
-            ExternalCallAudit.job_id == job.id,
-            ExternalCallAudit.capability == "LLM",
-        )
-    ).all()
+    filters = [
+        ExternalCallAudit.job_id == job.id,
+        ExternalCallAudit.capability == "LLM",
+    ]
+    if job.started_at:
+        filters.append(ExternalCallAudit.created_at >= job.started_at)
+    rows = db.scalars(select(ExternalCallAudit).where(*filters)).all()
     actual = [row for row in rows if not (row.request_meta_json or {}).get("cache_hit")]
+    if location == "REMOTE" and (provider or model or profile_id):
+        actual = [
+            row
+            for row in actual
+            if _same_remote_target(
+                row,
+                provider=provider,
+                model=model,
+                profile_id=profile_id,
+            )
+        ]
     prompt_tokens = sum(
         int((row.response_meta_json or {}).get("prompt_tokens") or 0)
         for row in actual
@@ -122,23 +141,62 @@ def soft_budget_state(
 
 
 def ensure_ai_budget(
-    db: Session, job: Job | None, *, location: str, input_chars: int
+    db: Session,
+    job: Job | None,
+    *,
+    location: str,
+    input_chars: int,
+    provider: str | None = None,
+    model: str | None = None,
+    profile_id: str | None = None,
 ) -> SoftBudgetState | None:
     if job is None:
         return None
     config = _config(db)
     elapsed = (utc_now() - as_utc(job.started_at)).total_seconds() if job.started_at else 0
     if elapsed >= config.ai_max_wall_time_seconds_per_job:
-        raise AIBudgetExceeded("本任务已达到 AI 处理时长上限")
+        raise AIBudgetExceeded("本轮任务已达到 AI 处理时长上限")
     location = location.upper()
     if location not in {"LOCAL", "REMOTE"}:
         raise ValueError(f"未知 AI 执行位置：{location}")
-    soft_state = soft_budget_state(db, job, location=location, input_chars=input_chars)
-    rows = db.scalars(select(ExternalCallAudit).where(ExternalCallAudit.job_id == job.id)).all()
+    soft_state = soft_budget_state(
+        db,
+        job,
+        location=location,
+        input_chars=input_chars,
+        provider=provider,
+        model=model,
+        profile_id=profile_id,
+    )
+    filters = [
+        ExternalCallAudit.job_id == job.id,
+        ExternalCallAudit.capability == "LLM",
+    ]
+    if job.started_at:
+        filters.append(ExternalCallAudit.created_at >= job.started_at)
+    rows = db.scalars(select(ExternalCallAudit).where(*filters)).all()
     actual = [row for row in rows if not (row.request_meta_json or {}).get("cache_hit")]
-    if len(actual) >= config.ai_max_model_attempts_per_job:
-        raise AIBudgetExceeded("本任务已达到 AI 模型调用次数上限")
-    location_rows = [row for row in actual if _audit_location(row) == location]
+    target_rows = (
+        [
+            row
+            for row in actual
+            if _same_remote_target(
+                row,
+                provider=provider,
+                model=model,
+                profile_id=profile_id,
+            )
+        ]
+        if provider or model or profile_id
+        else [row for row in actual if _audit_location(row) == "REMOTE"]
+    )
+    if location == "REMOTE" and len(target_rows) >= config.ai_max_model_attempts_per_job:
+        raise AIBudgetExceeded("本轮该远程模型已达到调用次数上限")
+    location_rows = (
+        target_rows
+        if location == "REMOTE"
+        else [row for row in actual if _audit_location(row) == "LOCAL"]
+    )
     prompt_tokens = sum(
         int((row.response_meta_json or {}).get("prompt_tokens") or 0) for row in location_rows
     )
@@ -156,7 +214,8 @@ def ensure_ai_budget(
         else config.ai_max_local_completion_tokens_per_job
     )
     if prompt_tokens + estimate > prompt_limit or completion_tokens >= completion_limit:
-        raise AIBudgetExceeded("本任务已达到 AI Token 预算上限")
+        target = "该远程模型" if remote else "本地模型"
+        raise AIBudgetExceeded(f"本轮{target}已达到 AI Token 预算上限")
     return soft_state
 
 
@@ -166,3 +225,21 @@ def _audit_location(row: ExternalCallAudit) -> str:
     if value in {"LOCAL", "REMOTE"}:
         return value
     return "LOCAL" if row.provider.lower() == "ollama" else "REMOTE"
+
+
+def _same_remote_target(
+    row: ExternalCallAudit,
+    *,
+    provider: str | None,
+    model: str | None,
+    profile_id: str | None,
+) -> bool:
+    if _audit_location(row) != "REMOTE":
+        return False
+    metadata = row.request_meta_json or {}
+    saved_profile_id = str(metadata.get("profile_id") or "")
+    if profile_id and saved_profile_id:
+        return saved_profile_id == profile_id
+    return row.provider.lower() == str(provider or "").lower() and str(metadata.get("model") or "") == str(
+        model or ""
+    )

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from difflib import SequenceMatcher
 from hashlib import sha256
 from pathlib import Path
@@ -18,6 +18,7 @@ from zhijian.ai.cost_router import RouteDecision, choose_auto_route
 from zhijian.ai.domain_context import domain_context_hash, domain_context_messages
 from zhijian.ai.gateway import AIWorkloadGateway
 from zhijian.ai.policies import resolve_stage_policy
+from zhijian.ai.reliability import AIProviderError, ModelReliabilityPolicy, resolve_reliability_policy
 from zhijian.ai.stage_decision import decide_stage, record_stage_decision
 from zhijian.ai.transcript_quality import correction_candidates
 from zhijian.core.config import Settings
@@ -137,6 +138,7 @@ def note_render_profile(profile_id: str) -> tuple[str, dict[str, object]]:
         raise ValueError(f"不支持的笔记渲染 Profile：{profile_id}")
     return profile_id, profile
 
+
 VISIT_PERIOD_TYPES = {
     "BEST_VISIT",
     "BEST_VIEWING",
@@ -221,6 +223,8 @@ class ResolutionFeatureVector:
     chain_risk: bool
     distance_to_cluster_m: float | None
     prior_confirmation_match: bool
+
+
 TEMPORAL_CUE = re.compile(
     r"最佳(?:观赏|游览|旅行|到访|拍摄)?(?:期|时间|季节)?|最好|最美|最漂亮|最适合|最合适|"
     r"适合.{0,8}(?:去|前往|游览|观赏|拍摄)|建议.{0,8}(?:去|前往|游览|观赏)|"
@@ -454,23 +458,9 @@ def prompt_supplement_messages(db: Session, role: str) -> list[dict[str, str]]:
 
 
 def parse_model_json(content: str) -> dict[str, Any]:
-    candidate = content.strip()
-    if candidate.startswith("```"):
-        candidate = re.sub(r"^```(?:json)?\s*|\s*```$", "", candidate, flags=re.I)
-    candidates = [candidate]
-    if "{" in candidate and "}" in candidate:
-        candidates.append(candidate[candidate.find("{") : candidate.rfind("}") + 1])
-    for item in candidates:
-        try:
-            value = json.loads(item)
-        except json.JSONDecodeError:
-            try:
-                value = json.loads(re.sub(r",\s*([}\]])", r"\1", item))
-            except json.JSONDecodeError:
-                continue
-        if isinstance(value, dict):
-            return value
-    raise ValueError("模型没有返回 JSON 对象")
+    from zhijian.ai.structured_output import parse_json_object
+
+    return parse_json_object(content)
 
 
 def _cached_stage_json(
@@ -540,23 +530,23 @@ def normalized_confidence(value: object) -> float:
         return 0.0
 
 
-def _profile_config(db: Session, profile_id: str | None) -> dict[str, str] | None:
+def _profile_config(db: Session, profile_id: str | None) -> dict[str, Any] | None:
     if not profile_id:
         return None
     saved = db.get(Setting, f"model-profile:{profile_id}")
     if saved is None or not isinstance(saved.value_json, dict):
         return None
-    return {key: str(value) if value is not None else "" for key, value in saved.value_json.items()}
+    return dict(saved.value_json)
 
 
-def _profile_location(config: dict[str, str] | None) -> str:
+def _profile_location(config: dict[str, Any] | None) -> str:
     if not config:
         return ""
     return config.get("location") or ("LOCAL" if config.get("provider", "").lower() == "ollama" else "REMOTE")
 
 
-def _profile_request_interval(config: dict[str, str] | None, default: float) -> float:
-    value = (config or {}).get("request_interval_seconds", "")
+def _profile_request_interval(config: dict[str, Any] | None, default: float) -> float:
+    value = (config or {}).get("request_interval_seconds")
     return default if not value else float(value)
 
 
@@ -585,7 +575,7 @@ def _resolved_stage_policy(db: Session, stage: str, job: Job | None):
 
 
 def _provider_from_config(
-    config: dict[str, str], settings: Settings, profile_id: str, timeout_cap: float | None = None
+    config: dict[str, Any], settings: Settings, profile_id: str, timeout_cap: float | None = None
 ) -> tuple[LLMProvider, str, str]:
     name = config.get("provider", "").lower()
     base_url = config.get("base_url", "")
@@ -598,16 +588,22 @@ def _provider_from_config(
     if timeout_cap is not None:
         timeout = min(timeout, timeout_cap)
     if name == "ollama":
-        return OllamaProvider(base_url, timeout), "ollama", model
+        provider = OllamaProvider(base_url, timeout)
+        provider.profile_id = profile_id
+        return provider, "ollama", model
     store = build_secret_store(settings.secret_store, settings.data_dir)
     api_key = store.get(f"model-profile:{profile_id}:api-key")
     if not api_key:
         raise ProviderUnavailable("尚未保存模型的 API Key")
-    return (
-        OpenAICompatibleProvider(name or "openai-compatible", base_url, api_key, timeout),
+    provider = OpenAICompatibleProvider(
         name or "openai-compatible",
-        model,
+        base_url,
+        api_key,
+        timeout,
+        supports_json_mode=bool(config.get("supports_json_mode")),
     )
+    provider.profile_id = profile_id
+    return provider, name or "openai-compatible", model
 
 
 def provider_for_role(
@@ -690,10 +686,12 @@ def provider_for_role(
 
     def on_retry(attempt: int, exc: Exception) -> None:
         error = provider_error_details(exc)
+        reliability = error.get("reliability") if isinstance(error.get("reliability"), dict) else {}
+        wait_seconds = float(reliability.get("wait_seconds") or policy.ai_retry_wait_seconds)
         record_event(
             db,
             "model.call.retrying",
-            f"AI 接口异常，{policy.ai_retry_wait_seconds:g} 秒后执行第 {attempt} 次重试",
+            f"AI 接口异常，{wait_seconds:g} 秒后执行第 {attempt} 次重试",
             component="video-pipeline",
             level="WARNING",
             entity_type="job" if job else None,
@@ -720,7 +718,8 @@ def provider_for_role(
                 ),
                 "retry_attempt": attempt,
                 "retry_limit": policy.ai_retry_count,
-                "wait_seconds": policy.ai_retry_wait_seconds,
+                "wait_seconds": wait_seconds,
+                "reliability": reliability or None,
                 "error_code": error.get("code"),
                 "reason": error.get("message", "")[:240],
             },
@@ -749,14 +748,14 @@ def provider_for_role(
                 capability="LLM",
                 provider=provider,
                 operation=role,
-                status="COMPLETED" if result else "FAILED",
+                status="FAILED" if exc else "COMPLETED",
                 request_meta_json={
                     "step": {
-                    "transcript_correction": "CORRECT_TRANSCRIPT",
-                    "video_note_summary": "GENERATE_AI_NOTE",
-                    "note_reduce": "NOTE_REDUCE",
-                    "grounded_map": "GROUND_MAP",
-                    "travel_place_extraction": "EXTRACT_TRAVEL_FACTS",
+                        "transcript_correction": "CORRECT_TRANSCRIPT",
+                        "video_note_summary": "GENERATE_AI_NOTE",
+                        "note_reduce": "NOTE_REDUCE",
+                        "grounded_map": "GROUND_MAP",
+                        "travel_place_extraction": "EXTRACT_TRAVEL_FACTS",
                     }.get(role, role),
                     "model": model,
                     "location": "LOCAL" if provider == "ollama" else "REMOTE",
@@ -774,6 +773,9 @@ def provider_for_role(
                     "usage": usage,
                     "status_code": status_code,
                     "provider_error": error or None,
+                    "finish_reason": (result.metadata if result else {}).get("finish_reason"),
+                    "response_id": (result.metadata if result else {}).get("response_id"),
+                    "content_length": (result.metadata if result else {}).get("content_length"),
                 },
                 duration_ms=duration_ms,
                 error_code=(error.get("code") or getattr(exc, "code", None)) if exc else None,
@@ -790,7 +792,15 @@ def provider_for_role(
         primary_interval: float | None = None,
         fallback_interval: float | None = None,
     ) -> FallbackLLMProvider:
-        def options_for(config: dict[str, str] | None) -> ProviderRequestOptions | None:
+        def reliability_for(config: dict[str, Any] | None) -> ModelReliabilityPolicy:
+            resolved = resolve_reliability_policy(config)
+            if resolved_policy and resolved_policy.retry_count is not None:
+                resolved = replace(resolved, retry_count=resolved_policy.retry_count)
+            if budget_pressure:
+                resolved = replace(resolved, retry_count=0, json_retry_count=0)
+            return resolved
+
+        def options_for(config: dict[str, Any] | None) -> ProviderRequestOptions | None:
             profile_max_output_tokens = int((config or {}).get("max_output_tokens") or 0) or None
             max_output_tokens = (
                 resolved_policy.max_output_tokens
@@ -803,6 +813,7 @@ def provider_for_role(
                 temperature=resolved_policy.temperature if resolved_policy else None,
                 max_output_tokens=max_output_tokens,
                 thinking=resolved_policy.thinking if resolved_policy else None,
+                context_window=int((config or {}).get("context_window") or 0) or None,
             )
 
         request_options = options_for(primary_config)
@@ -811,13 +822,7 @@ def provider_for_role(
             primary_model,
             fallback,
             fallback_model,
-            retry_count=(
-                0
-                if budget_pressure
-                else resolved_policy.retry_count
-                if resolved_policy and resolved_policy.retry_count is not None
-                else policy.ai_retry_count
-            ),
+            retry_count=policy.ai_retry_count,
             retry_wait_seconds=policy.ai_retry_wait_seconds,
             request_interval_seconds=(
                 policy.ai_request_interval_seconds if primary_interval is None else primary_interval
@@ -827,6 +832,8 @@ def provider_for_role(
             on_attempt=on_attempt,
             request_options=request_options,
             fallback_request_options=options_for(fallback_config),
+            primary_reliability=reliability_for(primary_config),
+            fallback_reliability=reliability_for(fallback_config),
         )
 
     if primary_config is None:
@@ -1310,7 +1317,7 @@ def correct_transcript(
 ) -> list[Segment]:
     if job:
         ensure_job_active(db, job)
-    pending = [segment for segment in segments if segment.correction_status != "CORRECTED"]
+    pending = [segment for segment in segments if segment.correction_status not in {"CORRECTED", "UNCHANGED"}]
     if not pending:
         return segments
     correction_policy = _resolved_stage_policy(db, "TRANSCRIPT_CORRECTION", job)
@@ -1326,9 +1333,7 @@ def correct_transcript(
             segment.correction_status = "UNCHANGED"
             segment.correction_reason = "平台字幕通过质量门禁，未发送模型校对"
     if not candidates:
-        record_stage_decision(
-            db, job, decide_stage("TRANSCRIPT_CORRECTION", has_relevant_segments=False)
-        )
+        record_stage_decision(db, job, decide_stage("TRANSCRIPT_CORRECTION", has_relevant_segments=False))
         transcript.text = "\n".join(segment.corrected_text or segment.text for segment in segments)
         transcript.metadata_json = {
             **transcript.metadata_json,
@@ -1352,13 +1357,57 @@ def correct_transcript(
         encoding="utf-8"
     )
     processing = transcript_processing_config(db)
+    configured_batch_size = _correction_batch_size(provider_name, processing.batch_size)
+    runtime_hints = (job.payload_json.get("ai_runtime_hints") or {}) if job else {}
+    correction_hints = (
+        runtime_hints.get("transcript_correction")
+        if isinstance(runtime_hints.get("transcript_correction"), dict)
+        else {}
+    )
+    saved_batch_size = int((correction_hints.get(model) or {}).get("max_batch_size") or 0)
+    adaptive_batch_size = (
+        min(configured_batch_size, saved_batch_size) if saved_batch_size > 0 else configured_batch_size
+    )
     chunks = _transcript_chunks(
         candidates,
         processing.chunk_chars,
-        _correction_batch_size(provider_name, processing.batch_size),
+        adaptive_batch_size,
     )
 
-    def request_batch(batch: list[Segment]) -> list[tuple[list[Segment], LLMResult, list]]:
+    corrected_count = 0
+
+    def apply_batch_result(batch: list[Segment], response: LLMResult, values: list) -> None:
+        nonlocal corrected_count
+        by_id = {
+            str(item.get("segment_id") or item.get("id")): item
+            for item in values
+            if isinstance(item, dict) and (item.get("segment_id") or item.get("id"))
+        }
+        for segment in batch:
+            item = by_id.get(segment.id)
+            text = str(item.get("corrected_text") or "").strip() if item else ""
+            segment.correction_provider = response.provider
+            segment.correction_model = response.model
+            if not text:
+                segment.corrected_text = segment.raw_text or segment.text
+                segment.correction_status = "UNCHANGED"
+                segment.correction_reason = "模型确认无需修改，保留原始转写"
+                continue
+            segment.corrected_text = text
+            segment.text = text
+            segment.correction_status = "CORRECTED"
+            segment.correction_confidence = normalized_confidence(item.get("confidence"))
+            segment.correction_reason = str(item.get("reason") or "语音转写校对")[:500]
+            corrected_count += 1
+        if job:
+            ensure_job_active(db, job)
+            job.heartbeat_at = utc_now()
+        db.commit()
+
+    def request_batch(
+        batch: list[Segment], *, batch_index: int, batch_total: int, split_path: str = "root"
+    ) -> None:
+        nonlocal adaptive_batch_size
         if job:
             ensure_job_active(db, job)
         payload = {
@@ -1388,7 +1437,57 @@ def correct_transcript(
                 provider_name=provider_name,
                 model=model,
                 messages=messages,
+                attempt_metadata={
+                    "chunk_index": batch_index,
+                    "chunk_count": batch_total,
+                    "split_path": split_path,
+                    "segment_count": len(batch),
+                },
             )
+        except AIProviderError as exc:
+            if exc.code != "AI_PROVIDER_OUTPUT_TRUNCATED" or len(batch) <= 1:
+                raise
+            midpoint = len(batch) // 2
+            adaptive_batch_size = min(adaptive_batch_size, midpoint)
+            if job:
+                hints = dict(job.payload_json.get("ai_runtime_hints") or {})
+                model_hints = dict(hints.get("transcript_correction") or {})
+                model_hints[model] = {
+                    "max_batch_size": adaptive_batch_size,
+                    "reason": exc.code,
+                }
+                hints["transcript_correction"] = model_hints
+                job.payload_json = {**job.payload_json, "ai_runtime_hints": hints}
+                record_event(
+                    db,
+                    "transcript.correction.batch.split",
+                    f"校对输出截断，已将 {len(batch)} 个 Segment 拆为更小批次",
+                    component="video-pipeline",
+                    level="WARNING",
+                    entity_type="job",
+                    entity_id=job.id,
+                    detail={
+                        "step": "CORRECT_TRANSCRIPT",
+                        "error_code": exc.code,
+                        "segments": len(batch),
+                        "split_sizes": [midpoint, len(batch) - midpoint],
+                        "split_path": split_path,
+                        "adaptive_batch_size": adaptive_batch_size,
+                    },
+                )
+            request_batch(
+                batch[:midpoint],
+                batch_index=batch_index,
+                batch_total=batch_total,
+                split_path=f"{split_path}.L",
+            )
+            request_batch(
+                batch[midpoint:],
+                batch_index=batch_index,
+                batch_total=batch_total,
+                split_path=f"{split_path}.R",
+            )
+            return
         except (httpx.HTTPError, TimeoutError, ConnectionError):
             if job:
                 ensure_job_active(db, job)
@@ -1401,11 +1500,21 @@ def correct_transcript(
         except (json.JSONDecodeError, ValueError):
             if job:
                 ensure_job_active(db, job)
-            return [(batch, response, [])]
-        return [(batch, response, values if isinstance(values, list) else [])]
+            values = []
+        apply_batch_result(batch, response, values if isinstance(values, list) else [])
 
-    corrected_count = 0
-    for batch_index, chunk in enumerate(chunks, start=1):
+    pending_chunks = list(chunks)
+    completed_batches = 0
+    while pending_chunks:
+        chunk = pending_chunks.pop(0)
+        if len(chunk) > adaptive_batch_size:
+            pending_chunks = [
+                chunk[index : index + adaptive_batch_size]
+                for index in range(0, len(chunk), adaptive_batch_size)
+            ] + pending_chunks
+            continue
+        batch_index = completed_batches + 1
+        batch_total = completed_batches + 1 + len(pending_chunks)
         started = perf_counter()
         if job:
             ensure_job_active(db, job)
@@ -1413,14 +1522,14 @@ def correct_transcript(
             record_event(
                 db,
                 "transcript.correction.batch.started",
-                f"AI 校对 {batch_index}/{len(chunks)}",
+                f"AI 校对 {batch_index}/{batch_total}",
                 component="video-pipeline",
                 entity_type="job",
                 entity_id=job.id,
                 detail={
                     "step": "CORRECT_TRANSCRIPT",
                     "batch_index": batch_index,
-                    "batch_total": len(chunks),
+                    "batch_total": batch_total,
                     "segments": len(chunk),
                     "provider": provider_name,
                     "model": model,
@@ -1428,46 +1537,22 @@ def correct_transcript(
                 commit=False,
             )
             db.commit()
-        for effective_chunk, response, values in request_batch(chunk):
-            by_id = {
-                str(item.get("segment_id") or item.get("id")): item
-                for item in values
-                if isinstance(item, dict) and (item.get("segment_id") or item.get("id"))
-            }
-            for segment in effective_chunk:
-                item = by_id.get(segment.id)
-                text = str(item.get("corrected_text") or "").strip() if item else ""
-                if not text:
-                    segment.corrected_text = segment.raw_text or segment.text
-                    segment.correction_status = "REVIEW"
-                    segment.correction_reason = "模型未返回有效校对，保留原始转写"
-                    continue
-                segment.corrected_text = text
-                segment.text = text
-                segment.correction_status = "CORRECTED"
-                segment.correction_confidence = normalized_confidence(item.get("confidence"))
-                segment.correction_reason = str(item.get("reason") or "语音转写校对")[:500]
-                segment.correction_provider = response.provider
-                segment.correction_model = response.model
-                corrected_count += 1
-            if job:
-                ensure_job_active(db, job)
-                job.heartbeat_at = utc_now()
-            db.commit()
+        request_batch(chunk, batch_index=batch_index, batch_total=batch_total)
+        completed_batches += 1
         if job:
             ensure_job_active(db, job)
             job.heartbeat_at = utc_now()
             record_event(
                 db,
                 "transcript.correction.batch.completed",
-                f"AI 校对 {batch_index}/{len(chunks)} 已完成",
+                f"AI 校对 {batch_index}/{batch_total} 已完成",
                 component="video-pipeline",
                 entity_type="job",
                 entity_id=job.id,
                 detail={
                     "step": "CORRECT_TRANSCRIPT",
                     "batch_index": batch_index,
-                    "batch_total": len(chunks),
+                    "batch_total": batch_total,
                     "duration_ms": round((perf_counter() - started) * 1000),
                 },
                 commit=False,
@@ -2256,10 +2341,7 @@ def _assign_geo_sessions(db: Session, mentions: list[PlaceMention]) -> None:
         for segment in db.scalars(select(Segment).where(Segment.id.in_(segment_ids))).all()
     }
     place_ids = {mention.place_id for mention in mentions if mention.place_id}
-    places = {
-        place.id: place
-        for place in db.scalars(select(Place).where(Place.id.in_(place_ids))).all()
-    }
+    places = {place.id: place for place in db.scalars(select(Place).where(Place.id.in_(place_ids))).all()}
     by_asset: dict[str, list[PlaceMention]] = {}
     for mention in mentions:
         by_asset.setdefault(mention.video_asset_id, []).append(mention)
@@ -2366,9 +2448,7 @@ def _rank_poi_candidates(
                 "query_provenance": hits,
                 "query_consensus_count": len(hits),
                 "query_diversity": len({item["city"] for item in hits}),
-                "negative_evidence": _negative_evidence(
-                    mention, candidate, len(queries), len(hits)
-                ),
+                "negative_evidence": _negative_evidence(mention, candidate, len(queries), len(hits)),
             }
         )
     return sorted(deduped.values(), key=lambda item: (-item.score, item.name))
@@ -2412,9 +2492,7 @@ def _poi_queries(mention: PlaceMention) -> list[tuple[str, str]]:
     aliases = context.get("aliases", []) if isinstance(context, dict) else []
     names = [mention.suggested_name, mention.name, mention.raw_name, *aliases]
     session_city = str(context.get("geo_session_city") or "") if isinstance(context, dict) else ""
-    session_province = (
-        str(context.get("geo_session_province") or "") if isinstance(context, dict) else ""
-    )
+    session_province = str(context.get("geo_session_province") or "") if isinstance(context, dict) else ""
     city = mention.city_hint or session_city
     province = mention.province_hint or session_province
     locations = [city, province, "", *([city] * len(aliases))]
@@ -2602,9 +2680,7 @@ def _resolver_v2_shadow(mention: PlaceMention, candidates: list[POICandidate]) -
     }
 
 
-def _auto_strong_allowed(
-    selected: POICandidate, shadow: dict[str, Any], review_reasons: list[str]
-) -> bool:
+def _auto_strong_allowed(selected: POICandidate, shadow: dict[str, Any], review_reasons: list[str]) -> bool:
     """Only strict, evidence-clean candidates can create a confirmed Place."""
     negative = set(selected.match_explanation.get("negative_evidence") or [])
     return not review_reasons and shadow.get("decision") == "AUTO_STRONG" and not negative

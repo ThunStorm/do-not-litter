@@ -169,15 +169,8 @@ Marker 是 Place 的地图投影，不维护第二套地点详情数据。`marke
 
 ---
 
-# 12. 实施顺序
+# 12. 当前实现与剩余验收
 
-v0.4/v0.4.1 基础链路、v0.4.2 第一阶段与 v0.4.3 列表封面已完成。v0.4.4 后续按以下顺序实施：
+v0.4 质量链路已进入源码：全量校对稿独立分块抽取地点、服务端 Grounded Evidence 驱动 Note、章节地点化、Review Context 与 `PlaceReviewCard` 统一、视频时间码保留原 URL 参数并精确定位。字幕来源/时间轴门禁、截图物化、Replay/Artifact、列表/详情删除和相关缓存同步均已覆盖自动回归。
 
-1. 模型级全 Segment `CORRECT_TRANSCRIPT`、覆盖验证和 fallback；
-2. Hero 缺封面空状态、正文优先、底部地点候选/完整转写；
-3. 主体设计语言目录、稳定锚点和页面内时间码跳转；
-4. 220–280px 侧排关键缩略图、语义重选与 contain Lightbox；
-5. Step Artifact Manifest、24h Replay Cache 与 Replay Options；
-6. 从错误步骤执行当前/下游，上游 REUSED，过期后完整重跑；
-7. 视频笔记列表/详情统一删除和共享数据保留；
-8. PC/Mobile 标注设计、键盘、安全和真实样本回归。
+仍需单独授权并取证的只有真实 Provider/视频、Vision、备用 ASR corpus 与 390px 浏览器验收；性能证据不足时不实施 AI 字幕抽样优化，历史污染数据只对用户指定对象生成新版本，不修改旧 Transcript、Evidence 或 Note。

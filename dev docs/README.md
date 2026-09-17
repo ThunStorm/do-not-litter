@@ -23,7 +23,7 @@
 | 不可回退约束 | [REGRESSION_AND_CHANGE_GUARD](REGRESSION_AND_CHANGE_GUARD.md) | 大段复制到各交接页 |
 | 设计契约 | 下表专项正文 | 实施状态的长篇叙述 |
 | 逐版本过程 / 旧计划 | history/，仅按需追溯 | 默认接手正文 |
-| 未来候选范围 | [待办池](planning/POST_FREEZE_TODO_BACKLOG.md)、[路线图](planning/FUTURE_ROADMAP.md)、[视频 Benchmark 与验收](planning/video/VIDEO_WORKFLOW_BENCHMARK_AND_ACCEPTANCE_PLAN.md) | 当前完成度或自动授权 |
+| 未来候选范围 | [待办池](planning/POST_FREEZE_TODO_BACKLOG.md)、[路线图](planning/FUTURE_ROADMAP.md) | 当前完成度或自动授权 |
 
 源码/测试证明实际行为，冻结契约表达必须保持的要求，两者冲突应报告差异，不能用一方静默覆盖另一方。新草案也不因日期更新就自动生效。
 
@@ -40,7 +40,7 @@
 | ai-gateway/ | Gateway 分篇、模型与 Prompt、运行配置、AI 验收 |
 | operations/ | 部署、日志、运维交互、运行监控 |
 | testing/、benchmark/ | 测试策略与样本说明；机器可读验收样本 |
-| planning/ | 待办池、未来路线、视频 Benchmark/验收候选、[字幕一致性优化方案](planning/VIDEO_TRANSCRIPT_ALIGNMENT_OPTIMIZATION_PLAN.md)与[UI/视频/POI V2 实施计划](planning/AGENT_IMPLEMENTATION_PLAN_UI_VIDEO_POI_V2.md)；不自动授权实施 |
+| planning/ | 待办池、未来路线与[字幕一致性优化方案](planning/VIDEO_TRANSCRIPT_ALIGNMENT_OPTIMIZATION_PLAN.md)；不自动授权实施 |
 | history/ | 历史实施记录和已覆盖的旧计划；仅追溯时读取 |
 
 | 领域 | 文档与职责 |

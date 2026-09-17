@@ -518,18 +518,16 @@ force_regenerate=true
 
 统一叫 `AI Budget`，因为本地也有资源成本。
 
-建议：
+当前预算边界：
 
 ```text
-max_model_attempts_per_job
-max_remote_prompt_tokens_per_job
-max_remote_completion_tokens_per_job
-max_local_prompt_tokens_per_job
-max_local_completion_tokens_per_job
-max_ai_wall_time_seconds_per_job
+远程模型：每轮、每个 Provider Profile 独立统计调用次数与 Token
+本地模型：不设固定调用次数上限，仍统计本轮 Token
+所有模型：保留每轮总运行时长限制
+Replay：重置本轮预算状态，历史审计只作证据，不消耗新一轮预算
 ```
 
-不得无限 retry。
+只有 `capability=LLM` 且非 Cache Hit 的真实模型尝试进入调用次数；视频解析、字幕、下载、ASR 等外部调用不得混入。预算在 Provider 请求前拒绝时，不记录成 Provider 调用失败，也不得切换备用模型。不得无限 retry。
 
 ---
 

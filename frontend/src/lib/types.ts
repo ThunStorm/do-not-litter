@@ -182,7 +182,15 @@ export interface ModelProfileView {
   base_url: string
   model: string
   timeout_seconds: number
+  reliability_mode: 'DIRECT' | 'STANDARD' | 'GUARDED' | 'FREE_TIER'
   request_interval_seconds: number | null
+  max_concurrency: number | null
+  retry_count: number | null
+  json_retry_count: number | null
+  rate_limit_rpm: number | null
+  circuit_breaker_enabled: boolean | null
+  circuit_breaker_threshold: number | null
+  circuit_breaker_cooldown_seconds: number | null
   api_key_saved: boolean
   location: 'LOCAL' | 'REMOTE'
   modalities: string[]

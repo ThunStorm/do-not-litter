@@ -10,14 +10,21 @@ export const providerPresets = [
 
 export type ModelFormValues = {
   name: string; provider: string; base_url: string; model: string; timeout_seconds: number; request_interval_seconds: number | null; api_key: string
+  reliability_mode?: 'DIRECT' | 'STANDARD' | 'GUARDED' | 'FREE_TIER'; max_concurrency?: number | null; retry_count?: number | null; json_retry_count?: number | null; rate_limit_rpm?: number | null; circuit_breaker_enabled?: boolean | null; circuit_breaker_threshold?: number | null; circuit_breaker_cooldown_seconds?: number | null
   location?: 'LOCAL' | 'REMOTE'; modalities?: string[]; capabilities?: string[]; supports_json_mode?: boolean; supports_thinking?: boolean; quality_tier?: 'FAST' | 'MAIN' | 'STRONG' | 'SPECIALIST'
 }
 export type ManualModelFields = { model: boolean; baseUrl: boolean }
 
 export function providerPreset(provider: string) { return providerPresets.find((item) => item.provider.toLowerCase() === provider.trim().toLowerCase()) }
 
+export function recommendedReliabilityMode(provider: string, model: string): NonNullable<ModelFormValues['reliability_mode']> {
+  if (model.trim().toLowerCase().endsWith(':free')) return 'FREE_TIER'
+  return provider.trim().toLowerCase() === 'ollama' ? 'DIRECT' : 'STANDARD'
+}
+
 export function applyProviderPreset(values: ModelFormValues, presetId: string, manual: ManualModelFields): ModelFormValues {
   const preset = providerPresets.find((item) => item.id === presetId)
   if (!preset) return values
-  return { ...values, provider: preset.provider, base_url: manual.baseUrl ? values.base_url : preset.baseUrl, model: manual.model ? values.model : preset.models[0] }
+  const model = manual.model ? values.model : preset.models[0]
+  return { ...values, provider: preset.provider, base_url: manual.baseUrl ? values.base_url : preset.baseUrl, model, reliability_mode: recommendedReliabilityMode(preset.provider, model) }
 }

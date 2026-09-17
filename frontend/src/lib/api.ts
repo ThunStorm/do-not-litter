@@ -88,6 +88,7 @@ export const api = {
   retryJobFull: (id: string) => request<{ status: string; job_id: string; replaced_job_id: string; stopped_active_job: boolean }>(`/api/jobs/${id}/retry-full`, { method: 'POST' }),
   cancelJob: (id: string) => request(`/api/jobs/${id}/cancel`, { method: 'POST' }),
   deleteJob: (id: string) => request<{ status: string; id: string }>(`/api/jobs/${id}`, { method: 'DELETE' }),
+  deleteJobs: (ids: string[]) => request<{ requested: number; deleted: number }>('/api/jobs/bulk', { method: 'DELETE', headers: jsonHeaders, body: JSON.stringify({ ids }) }),
   content: (type?: string, query?: string) => {
     const params = new URLSearchParams()
     if (type) params.set('content_type', type)
@@ -97,6 +98,7 @@ export const api = {
   },
   contentDetail: (id: string) => request<ContentView & Record<string, unknown>>(`/api/content/${id}`),
   deleteContent: (id: string) => request<{ status: string; id: string }>(`/api/content/${id}`, { method: 'DELETE' }),
+  deleteContents: (ids: string[]) => request<{ requested: number; deleted: number; source_deleted_ids: string[] }>('/api/content/bulk', { method: 'DELETE', headers: jsonHeaders, body: JSON.stringify({ ids }) }),
   capture: (value: string) => {
     const payload = { text: value }
     return request<{ job_id: string }>('/api/capture', {
@@ -213,6 +215,8 @@ export const api = {
   sources: (query?: string) => request<SourceView[]>(`/api/sources${query ? `?query=${encodeURIComponent(query)}` : ''}`),
   source: (id: string) => request<SourceDetailView>(`/api/sources/${id}`),
   deleteSource: (id: string) => request<{ status: string; id: string }>(`/api/sources/${id}`, { method: 'DELETE' }),
+  deleteSources: (ids: string[]) => request<{ requested: number; deleted_ids: string[]; skipped: Array<{ id: string; content_count: number; video_note_count: number; active_job_count: number }> }>('/api/sources/bulk', { method: 'DELETE', headers: jsonHeaders, body: JSON.stringify({ ids }) }),
+  deleteSourceEvidenceChain: (id: string) => request<{ status: string; id: string; content_deleted: number; video_notes_deleted: number }>(`/api/sources/${id}/evidence-chain`, { method: 'DELETE', headers: jsonHeaders, body: JSON.stringify({ confirm: true }) }),
   todos: () => request<TodoView[]>('/api/todos'),
   profile: () => request<ProfileView>('/api/profile'),
   saveProfile: (payload: ProfileView) => request<ProfileView>('/api/profile', { method: 'PUT', headers: jsonHeaders, body: JSON.stringify(payload) }),
@@ -246,4 +250,5 @@ export const api = {
   videoPlaces: (id: string) => request<VideoPlace[]>(`/api/video-notes/${id}/places`),
   regenerateVideoNote: (id: string, profileId = 'CURRENT_DEFAULT') => request<{ job_id: string }>(`/api/video-notes/${id}/regenerate?profile_id=${encodeURIComponent(profileId)}`, { method: 'POST' }),
   deleteVideoNote: (id: string) => request<{ status: string }>(`/api/video-notes/${id}`, { method: 'DELETE' }),
+  deleteVideoNotes: (ids: string[]) => request<{ requested: number; deleted: number; source_deleted_ids: string[] }>('/api/video-notes/bulk', { method: 'DELETE', headers: jsonHeaders, body: JSON.stringify({ ids }) }),
 }

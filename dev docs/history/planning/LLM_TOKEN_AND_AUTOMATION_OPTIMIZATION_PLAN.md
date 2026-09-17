@@ -1521,7 +1521,7 @@ Token 明显下降
 可直接交给 Codex：
 
 ```text
-按 AGENTS.md 接手项目，并实施 dev docs/planning/LLM_TOKEN_AND_AUTOMATION_OPTIMIZATION_PLAN.md。
+按 AGENTS.md 接手项目，并按需追溯 dev docs/history/planning/LLM_TOKEN_AND_AUTOMATION_OPTIMIZATION_PLAN.md。
 
 严格按 Work Package 顺序执行，不一次性实施全部 WP。
 

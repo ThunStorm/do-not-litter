@@ -9,7 +9,9 @@ import httpx
 import pytest
 from sqlalchemy import select
 
+import zhijian.services.video_pipeline as video_pipeline
 import zhijian.services.video_support as video_support
+from zhijian.ai.reliability import AIProviderError
 from zhijian.ai.transcript_quality import correction_candidates
 from zhijian.core.config import Settings
 from zhijian.db.models import (
@@ -18,6 +20,7 @@ from zhijian.db.models import (
     AINoteVersion,
     ContentItem,
     Job,
+    JobStep,
     Place,
     PlaceInsightItem,
     PlaceMention,
@@ -25,6 +28,7 @@ from zhijian.db.models import (
     PlaceVisitWindow,
     Setting,
     Source,
+    SystemEvent,
     Transcript,
     VideoAsset,
 )
@@ -433,6 +437,84 @@ def test_ai_correction_is_persisted_before_note_generation(monkeypatch, app_and_
         assert transcript.text == "西安蓝田水陆庵\n国家森林公园\n窗口期很短"
 
 
+def test_transcript_correction_splits_truncated_batches(monkeypatch, app_and_session) -> None:
+    _, factory = app_and_session
+    batch_sizes: list[int] = []
+
+    class Provider:
+        def generate_json(self, messages, *, model):
+            values = json.loads(messages[-1]["content"])["segments"]
+            batch_sizes.append(len(values))
+            if len(values) > 2:
+                return LLMResult(
+                    '{"segments":[',
+                    "fixture",
+                    model,
+                    {},
+                    {"finish_reason": "length"},
+                )
+            return LLMResult(
+                json.dumps(
+                    {
+                        "segments": [
+                            {
+                                "id": item["id"],
+                                "corrected_text": f"{item['raw_text']}（已校对）",
+                                "confidence": 0.9,
+                                "reason": "fixture",
+                            }
+                            for item in values[:1]
+                        ]
+                    },
+                    ensure_ascii=False,
+                ),
+                "fixture",
+                model,
+                {},
+            )
+
+    with factory() as db:
+        source = Source(source_type="URL", locator="https://example.test/split", title="fixture")
+        db.add(source)
+        db.flush()
+        asset = VideoAsset(source_id=source.id, canonical_url=source.locator, title="拆分校对")
+        db.add(asset)
+        db.flush()
+        transcript, segments = materialize_transcript(
+            db,
+            source,
+            asset,
+            [
+                {"text": f"需要校对的第{index}段", "start_ms": index * 1000, "end_ms": (index + 1) * 1000}
+                for index in range(4)
+            ],
+            source_kind="ASR",
+        )
+        job = Job(job_type="VIDEO", status="RUNNING", payload_json={})
+        db.add(job)
+        db.commit()
+        monkeypatch.setattr(
+            "zhijian.services.video_support.provider_for_role",
+            lambda *_args: (Provider(), "fixture", "fixture-model"),
+        )
+
+        correct_transcript(db, Settings(_env_file=None), asset, transcript, segments, job)
+
+        assert batch_sizes == [4, 2, 2]
+        assert [segment.correction_status for segment in segments] == [
+            "CORRECTED",
+            "UNCHANGED",
+            "CORRECTED",
+            "UNCHANGED",
+        ]
+        assert job.payload_json["ai_runtime_hints"]["transcript_correction"]["fixture-model"] == {
+            "max_batch_size": 2,
+            "reason": "AI_PROVIDER_OUTPUT_TRUNCATED",
+        }
+        correct_transcript(db, Settings(_env_file=None), asset, transcript, segments, job)
+        assert batch_sizes == [4, 2, 2]
+
+
 def test_video_note_api_returns_versioned_sections(client, app_and_session) -> None:
     _, factory = app_and_session
     with factory() as db:
@@ -500,9 +582,15 @@ def test_ollama_requests_release_model_immediately(monkeypatch) -> None:
         )
 
     monkeypatch.setattr(httpx, "post", post)
-    OllamaProvider("http://ollama.test").generate_json([{"role": "user", "content": "ping"}], model="qwen")
+    OllamaProvider("http://ollama.test").generate_json(
+        [{"role": "user", "content": "ping"}],
+        model="qwen",
+        options=ProviderRequestOptions(context_window=32_768, thinking=False),
+    )
     assert captured["keep_alive"] == 0
     assert captured["format"] == "json"
+    assert captured["options"]["num_ctx"] == 32_768
+    assert captured["think"] is False
 
 
 def test_openai_compatible_provider_preserves_bounded_error_details(monkeypatch) -> None:
@@ -536,6 +624,47 @@ def test_openai_compatible_provider_preserves_bounded_error_details(monkeypatch)
     assert details["provider_message"] == "unsupported response format api_key=[REDACTED]"
     assert details["request_id"] == "req-123"
     assert "secret" not in json.dumps(details)
+
+
+def test_deepseek_official_provider_disables_thinking(monkeypatch) -> None:
+    captured: dict = {}
+
+    def post(*_args, **kwargs):
+        captured.update(kwargs["json"])
+        return httpx.Response(
+            200,
+            json={
+                "choices": [{"message": {"content": '{"ok":true}'}, "finish_reason": "stop"}],
+                "usage": {},
+            },
+            request=httpx.Request("POST", "https://api.deepseek.com/chat/completions"),
+        )
+
+    monkeypatch.setattr(httpx, "post", post)
+    OpenAICompatibleProvider("deepseek", "https://api.deepseek.com", "secret").generate_json(
+        [{"role": "user", "content": "ping"}],
+        model="deepseek-v4-flash",
+        options=ProviderRequestOptions(thinking=False),
+    )
+    assert captured["thinking"] == {"type": "disabled"}
+
+
+def test_empty_length_response_is_reported_as_truncated() -> None:
+    class Provider:
+        def generate_json(self, _messages, *, model):
+            return LLMResult("", "provider", model, {}, {"finish_reason": "length"})
+
+    provider = FallbackLLMProvider(
+        Provider(),
+        "model",
+        None,
+        None,
+        retry_count=0,
+        request_interval_seconds=0,
+    )
+    with pytest.raises(AIProviderError) as raised:
+        provider.generate_json([], model="ignored")
+    assert raised.value.code == "AI_PROVIDER_OUTPUT_TRUNCATED"
 
 
 def test_blank_primary_response_uses_fallback_model() -> None:
@@ -588,6 +717,55 @@ def test_cancellation_is_checked_before_fallback_model() -> None:
     with pytest.raises(JobCancelled):
         provider.generate_json([], model="ignored")
     assert fallback_calls == 0
+
+
+def test_replay_provider_throttle_becomes_needs_user(monkeypatch, app_and_session) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        job = Job(
+            job_type="TRAVEL",
+            status="RUNNING",
+            current_step="CORRECT_TRANSCRIPT",
+            payload_json={"replay_from_step": "CORRECT_TRANSCRIPT"},
+        )
+        db.add(job)
+        db.flush()
+        db.add(
+            JobStep(
+                job_id=job.id,
+                step_name="CORRECT_TRANSCRIPT",
+                status="RUNNING",
+                progress=0,
+            )
+        )
+        db.commit()
+        monkeypatch.setattr(
+            video_pipeline,
+            "_process_video_replay",
+            lambda *_args: (_ for _ in ()).throw(
+                AIProviderError("AI_PROVIDER_THROTTLED", "TPM/RPM 暂时受限")
+            ),
+        )
+
+        video_pipeline.process_video_job(db, job, Settings(_env_file=None))
+
+        db.refresh(job)
+        assert job.status == "NEEDS_USER"
+        assert job.error_code == "AI_PROVIDER_THROTTLED"
+        step = db.scalar(
+            select(JobStep).where(
+                JobStep.job_id == job.id,
+                JobStep.step_name == "CORRECT_TRANSCRIPT",
+            )
+        )
+        assert step and step.status == "FAILED"
+        event = db.scalar(
+            select(SystemEvent).where(
+                SystemEvent.entity_id == job.id,
+                SystemEvent.event_type == "job.step_replay.needs_user",
+            )
+        )
+        assert event and event.detail_json["code"] == "AI_PROVIDER_THROTTLED"
 
 
 def test_llm_retry_policy_waits_before_calls_and_between_retries() -> None:
@@ -1213,6 +1391,7 @@ def test_note_map_reduce_persists_compact_facts(app_and_session, monkeypatch) ->
                     content=json.dumps(
                         {
                             "overview": "紧凑总览",
+                            "warnings": [],
                             "sections": [{"heading": "市场", "summary": "总结", "segment_ids": ids}],
                             "section_facts": [
                                 {
@@ -1402,3 +1581,25 @@ def test_delete_last_video_note_prunes_orphan_source_asset_and_transcript(client
         assert db.get(Source, source_id) is None
         assert db.get(VideoAsset, asset_id) is None
         assert db.get(Transcript, transcript_id) is None
+
+
+def test_bulk_delete_video_notes_prunes_their_orphan_sources(client, app_and_session) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        source = Source(source_type="URL", locator="https://example.test/bulk-delete", title="fixture")
+        db.add(source)
+        db.flush()
+        asset = VideoAsset(source_id=source.id, canonical_url=source.locator, title="批量删除测试")
+        db.add(asset)
+        db.flush()
+        note = AINote(video_asset_id=asset.id, status="COMPLETED")
+        content = ContentItem(content_type="VIDEO_NOTE", title=asset.title, source_id=source.id)
+        db.add_all([note, content])
+        db.commit()
+        note_id, source_id = note.id, source.id
+
+    response = client.request("DELETE", "/api/video-notes/bulk", json={"ids": [note_id]})
+
+    assert response.status_code == 200 and response.json()["deleted"] == 1
+    assert client.get(f"/api/video-notes/{note_id}").status_code == 404
+    assert client.get(f"/api/sources/{source_id}").status_code == 404

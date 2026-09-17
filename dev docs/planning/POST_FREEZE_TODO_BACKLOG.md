@@ -24,11 +24,11 @@
 
 ## P3 — Contextual Vision
 
-只对由 Transcript、Section 或 PlaceMention 定位的候选帧做店招、菜单、价格、路牌或景点理解。VisualEvidence 与 TranscriptEvidence 并存，视觉结果不得覆盖确定性来源；进入条件是 P0 生产验收完成。视频样本与质量门见 [视频 Benchmark 与验收计划](video/VIDEO_WORKFLOW_BENCHMARK_AND_ACCEPTANCE_PLAN.md)。
+只对由 Transcript、Section 或 PlaceMention 定位的候选帧做店招、菜单、价格、路牌或景点理解。VisualEvidence 与 TranscriptEvidence 并存，视觉结果不得覆盖确定性来源；进入条件是 P0 生产验收完成。真实样本与质量门以 [AI Gateway 生产验收](../ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md) 为准。
 
 ## P3 — Golden Benchmark / Release Gate
 
-建立有标注的视频 Golden Dataset，覆盖干净字幕、ASR、长视频、歧义 POI、Local/Remote、fallback 与 cache；模型、Prompt、chunk 与路由变更使用同一组样本。已有 Gateway Golden 骨架和离线 runner，尚缺业务标注与真实运行结果；详见 [视频 Benchmark 与验收计划](video/VIDEO_WORKFLOW_BENCHMARK_AND_ACCEPTANCE_PLAN.md)。
+建立有标注的视频 Golden Dataset，覆盖干净字幕、ASR、长视频、歧义 POI、Local/Remote、fallback 与 cache；模型、Prompt、chunk 与路由变更使用同一组样本。已有 Gateway Golden 骨架和离线 runner，尚缺业务标注与真实运行结果；真实发布门禁以 [AI Gateway 生产验收](../ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md) 为准。
 
 ## HOLD
 

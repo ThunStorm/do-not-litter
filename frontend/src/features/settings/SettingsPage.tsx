@@ -1,177 +1,2092 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, Copy, Cpu, Database, ExternalLink, FileSearch, KeyRound, LoaderCircle, LockKeyhole, Plus, RefreshCw, Server, Trash2 } from 'lucide-react'
-import { Children, FormEvent, isValidElement, type ReactNode, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  CheckCircle2,
+  Copy,
+  Cpu,
+  Database,
+  ExternalLink,
+  FileSearch,
+  KeyRound,
+  LoaderCircle,
+  LockKeyhole,
+  Plus,
+  RefreshCw,
+  Server,
+  Trash2,
+} from "lucide-react";
+import {
+  Children,
+  FormEvent,
+  isValidElement,
+  type ReactNode,
+  useEffect,
+  useState,
+} from "react";
+import { Link } from "react-router-dom";
 
-import { PageHeader } from '../../components/AppShell'
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
-import { SelectMenu } from '../../components/ui/SelectMenu'
-import { api } from '../../lib/api'
-import type { AIStagePolicy, DomainPackView, ModelProfileView, ModelRoutingView, PromptSupplementsView, TranscriptProcessingView } from '../../lib/types'
-import { BilibiliLoginPanel } from './BilibiliLoginPanel'
-import { applyProviderPreset, providerPreset, providerPresets, type ManualModelFields, type ModelFormValues } from './providerPresets'
+import { PageHeader } from "../../components/AppShell";
+import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
+import { SelectMenu } from "../../components/ui/SelectMenu";
+import { api } from "../../lib/api";
+import type {
+  AIStagePolicy,
+  DomainPackView,
+  ModelProfileView,
+  ModelRoutingView,
+  PromptSupplementsView,
+  TranscriptProcessingView,
+} from "../../lib/types";
+import { BilibiliLoginPanel } from "./BilibiliLoginPanel";
+import {
+  applyProviderPreset,
+  providerPreset,
+  providerPresets,
+  type ManualModelFields,
+  type ModelFormValues,
+} from "./providerPresets";
 
-type Tab = 'general' | 'lan' | 'models' | 'runtime' | 'browser' | 'map'
-const tabs: Array<{ id: Tab; label: string }> = [{ id: 'general', label: '通用' }, { id: 'lan', label: '局域网访问' }, { id: 'models', label: 'AI 模型' }, { id: 'runtime', label: '语音与 OCR' }, { id: 'browser', label: '网页解析' }, { id: 'map', label: '地图与地点' }]
-
+type Tab = "general" | "lan" | "models" | "runtime" | "browser" | "map";
+const tabs: Array<{ id: Tab; label: string }> = [
+  { id: "general", label: "通用" },
+  { id: "lan", label: "局域网访问" },
+  { id: "models", label: "AI 模型" },
+  { id: "runtime", label: "语音与 OCR" },
+  { id: "browser", label: "网页解析" },
+  { id: "map", label: "地图与地点" },
+];
 
 export function SettingsPage() {
-  const [tab, setTab] = useState<Tab>('general')
-  const status = useQuery({ queryKey: ['status'], queryFn: api.status, refetchInterval: 15000 })
-  return <div className="settings-page page-frame"><PageHeader title="设置" /><div className="settings-layout"><nav className="settings-nav" aria-label="设置分类">{tabs.map((item) => <button key={item.id} className={tab === item.id ? 'is-active' : ''} onClick={() => setTab(item.id)}>{item.label}</button>)}</nav><div className="settings-main">
-    {tab === 'general' && <GeneralPanel />}{tab === 'lan' && <LanPanel />}{tab === 'models' && <ModelsPanel />}{tab === 'runtime' && <RuntimePanel />}{tab === 'browser' && <BrowserPanel />}{tab === 'map' && <MapPanel />}
-  </div></div><section className="node-footer"><strong>当前节点</strong><span>{status.data ? `${status.data.hardware.machine_name} · ${status.data.hardware.chip} · ${status.data.hardware.memory}` : '正在读取真实设备信息'}</span></section></div>
+  const [tab, setTab] = useState<Tab>("general");
+  const status = useQuery({
+    queryKey: ["status"],
+    queryFn: api.status,
+    refetchInterval: 15000,
+  });
+  return (
+    <div className="settings-page page-frame">
+      <PageHeader title="设置" />
+      <div className="settings-layout">
+        <nav className="settings-nav" aria-label="设置分类">
+          {tabs.map((item) => (
+            <button
+              key={item.id}
+              className={tab === item.id ? "is-active" : ""}
+              onClick={() => setTab(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+        <div className="settings-main">
+          {tab === "general" && <GeneralPanel />}
+          {tab === "lan" && <LanPanel />}
+          {tab === "models" && <ModelsPanel />}
+          {tab === "runtime" && <RuntimePanel />}
+          {tab === "browser" && <BrowserPanel />}
+          {tab === "map" && <MapPanel />}
+        </div>
+      </div>
+      <section className="node-footer">
+        <strong>当前节点</strong>
+        <span>
+          {status.data
+            ? `${status.data.hardware.machine_name} · ${status.data.hardware.chip} · ${status.data.hardware.memory}`
+            : "正在读取真实设备信息"}
+        </span>
+      </section>
+    </div>
+  );
 }
 
 function GeneralPanel() {
-  const general = useQuery({ queryKey: ['general-settings'], queryFn: api.generalSettings })
-  const [values, setValues] = useState<Record<string, string | number>>({ app_name: '至简', default_city: '', data_retention_days: 90, ai_retry_count: 1, ai_retry_wait_seconds: 5, ai_request_interval_seconds: 3 })
-  const [message, setMessage] = useState('')
-  useEffect(() => { if (general.data) setValues(general.data) }, [general.data])
-  const save = useMutation({ mutationFn: () => api.saveGeneralSettings(values), onSuccess: () => setMessage('设置已保存'), onError: (error) => setMessage(error.message) })
-  const budget = (key: string, fallback: number) => Number(values[key] ?? fallback)
-  const setBudget = (key: string, value: number) => setValues((item) => ({ ...item, [key]: value }))
-  return <><PanelTitle title="通用设置" detail="管理基础偏好、数据保留和 AI 接口访问节奏。偏好城市不影响全国地图初始视野。" /><form className="provider-form" onSubmit={(event: FormEvent) => { event.preventDefault(); save.mutate() }}><div className="field-grid"><label>产品名称<input value={String(values.app_name)} onChange={(event) => setValues((item) => ({ ...item, app_name: event.target.value }))} /></label><label>旅行偏好城市（可选）<input value={String(values.default_city)} onChange={(event) => setValues((item) => ({ ...item, default_city: event.target.value }))} /></label><label>日志保留天数<input type="number" min="7" max="3650" value={Number(values.data_retention_days)} onChange={(event) => setValues((item) => ({ ...item, data_retention_days: Number(event.target.value) }))} /></label><label>AI 异常重试次数<input type="number" min="0" max="3" value={Number(values.ai_retry_count ?? 1)} onChange={(event) => setValues((item) => ({ ...item, ai_retry_count: Number(event.target.value) }))} /></label><label>重试等待时间（秒）<input type="number" min="0" max="300" step="0.5" value={Number(values.ai_retry_wait_seconds ?? 5)} onChange={(event) => setValues((item) => ({ ...item, ai_retry_wait_seconds: Number(event.target.value) }))} /></label><label>每次 AI 调用前间隔（秒）<input type="number" min="0" max="60" step="0.1" value={Number(values.ai_request_interval_seconds ?? 3)} onChange={(event) => setValues((item) => ({ ...item, ai_request_interval_seconds: Number(event.target.value) }))} /></label><label>每任务模型调用上限<input type="number" min="1" max="500" value={budget('ai_max_model_attempts_per_job', 48)} onChange={(event) => setBudget('ai_max_model_attempts_per_job', Number(event.target.value))} /></label><label>远程输入 Token 上限<input type="number" min="1000" max="10000000" value={budget('ai_max_remote_prompt_tokens_per_job', 300000)} onChange={(event) => setBudget('ai_max_remote_prompt_tokens_per_job', Number(event.target.value))} /></label><label>远程输出 Token 上限<input type="number" min="1000" max="10000000" value={budget('ai_max_remote_completion_tokens_per_job', 100000)} onChange={(event) => setBudget('ai_max_remote_completion_tokens_per_job', Number(event.target.value))} /></label><label>本地输入 Token 上限<input type="number" min="1000" max="10000000" value={budget('ai_max_local_prompt_tokens_per_job', 600000)} onChange={(event) => setBudget('ai_max_local_prompt_tokens_per_job', Number(event.target.value))} /></label><label>本地输出 Token 上限<input type="number" min="1000" max="10000000" value={budget('ai_max_local_completion_tokens_per_job', 200000)} onChange={(event) => setBudget('ai_max_local_completion_tokens_per_job', Number(event.target.value))} /></label><label>AI 最大处理时长（秒）<input type="number" min="60" max="86400" value={budget('ai_max_wall_time_seconds_per_job', 1800)} onChange={(event) => setBudget('ai_max_wall_time_seconds_per_job', Number(event.target.value))} /></label></div><p className="settings-note settings-note--inset">预算在每次真实模型调用前检查；缓存命中不消耗模型次数或 Token。达到上限后，任务会停止新增模型调用并保留已有结果。</p><FormActions message={message} pending={save.isPending} /></form></>
+  const general = useQuery({
+    queryKey: ["general-settings"],
+    queryFn: api.generalSettings,
+  });
+  const [values, setValues] = useState<Record<string, string | number>>({
+    app_name: "至简",
+    default_city: "",
+    data_retention_days: 90,
+    ai_retry_count: 1,
+    ai_retry_wait_seconds: 5,
+    ai_request_interval_seconds: 3,
+  });
+  const [message, setMessage] = useState("");
+  useEffect(() => {
+    if (general.data) setValues(general.data);
+  }, [general.data]);
+  const save = useMutation({
+    mutationFn: () => api.saveGeneralSettings(values),
+    onSuccess: () => setMessage("设置已保存"),
+    onError: (error) => setMessage(error.message),
+  });
+  const budget = (key: string, fallback: number) =>
+    Number(values[key] ?? fallback);
+  const setBudget = (key: string, value: number) =>
+    setValues((item) => ({ ...item, [key]: value }));
+  return (
+    <>
+      <PanelTitle
+        title="通用设置"
+        detail="管理基础偏好、数据保留和 AI 接口访问节奏。偏好城市不影响全国地图初始视野。"
+      />
+      <form
+        className="provider-form"
+        onSubmit={(event: FormEvent) => {
+          event.preventDefault();
+          save.mutate();
+        }}
+      >
+        <div className="field-grid">
+          <label>
+            产品名称
+            <input
+              value={String(values.app_name)}
+              onChange={(event) =>
+                setValues((item) => ({ ...item, app_name: event.target.value }))
+              }
+            />
+          </label>
+          <label>
+            旅行偏好城市（可选）
+            <input
+              value={String(values.default_city)}
+              onChange={(event) =>
+                setValues((item) => ({
+                  ...item,
+                  default_city: event.target.value,
+                }))
+              }
+            />
+          </label>
+          <label>
+            日志保留天数
+            <input
+              type="number"
+              min="7"
+              max="3650"
+              value={Number(values.data_retention_days)}
+              onChange={(event) =>
+                setValues((item) => ({
+                  ...item,
+                  data_retention_days: Number(event.target.value),
+                }))
+              }
+            />
+          </label>
+          <label>
+            AI 异常重试次数
+            <input
+              type="number"
+              min="0"
+              max="3"
+              value={Number(values.ai_retry_count ?? 1)}
+              onChange={(event) =>
+                setValues((item) => ({
+                  ...item,
+                  ai_retry_count: Number(event.target.value),
+                }))
+              }
+            />
+          </label>
+          <label>
+            重试等待时间（秒）
+            <input
+              type="number"
+              min="0"
+              max="300"
+              step="0.5"
+              value={Number(values.ai_retry_wait_seconds ?? 5)}
+              onChange={(event) =>
+                setValues((item) => ({
+                  ...item,
+                  ai_retry_wait_seconds: Number(event.target.value),
+                }))
+              }
+            />
+          </label>
+          <label>
+            每次 AI 调用前间隔（秒）
+            <input
+              type="number"
+              min="0"
+              max="60"
+              step="0.1"
+              value={Number(values.ai_request_interval_seconds ?? 3)}
+              onChange={(event) =>
+                setValues((item) => ({
+                  ...item,
+                  ai_request_interval_seconds: Number(event.target.value),
+                }))
+              }
+            />
+          </label>
+          <label>
+            每轮单个远程配置调用上限
+            <input
+              type="number"
+              min="1"
+              max="500"
+              value={budget("ai_max_model_attempts_per_job", 48)}
+              onChange={(event) =>
+                setBudget(
+                  "ai_max_model_attempts_per_job",
+                  Number(event.target.value),
+                )
+              }
+            />
+          </label>
+          <label>
+            每轮单个远程配置输入 Token 上限
+            <input
+              type="number"
+              min="1000"
+              max="10000000"
+              value={budget("ai_max_remote_prompt_tokens_per_job", 300000)}
+              onChange={(event) =>
+                setBudget(
+                  "ai_max_remote_prompt_tokens_per_job",
+                  Number(event.target.value),
+                )
+              }
+            />
+          </label>
+          <label>
+            每轮单个远程配置输出 Token 上限
+            <input
+              type="number"
+              min="1000"
+              max="10000000"
+              value={budget("ai_max_remote_completion_tokens_per_job", 100000)}
+              onChange={(event) =>
+                setBudget(
+                  "ai_max_remote_completion_tokens_per_job",
+                  Number(event.target.value),
+                )
+              }
+            />
+          </label>
+          <label>
+            每轮本地输入 Token 上限
+            <input
+              type="number"
+              min="1000"
+              max="10000000"
+              value={budget("ai_max_local_prompt_tokens_per_job", 600000)}
+              onChange={(event) =>
+                setBudget(
+                  "ai_max_local_prompt_tokens_per_job",
+                  Number(event.target.value),
+                )
+              }
+            />
+          </label>
+          <label>
+            每轮本地输出 Token 上限
+            <input
+              type="number"
+              min="1000"
+              max="10000000"
+              value={budget("ai_max_local_completion_tokens_per_job", 200000)}
+              onChange={(event) =>
+                setBudget(
+                  "ai_max_local_completion_tokens_per_job",
+                  Number(event.target.value),
+                )
+              }
+            />
+          </label>
+          <label>
+            AI 最大处理时长（秒）
+            <input
+              type="number"
+              min="60"
+              max="86400"
+              value={budget("ai_max_wall_time_seconds_per_job", 1800)}
+              onChange={(event) =>
+                setBudget(
+                  "ai_max_wall_time_seconds_per_job",
+                  Number(event.target.value),
+                )
+              }
+            />
+          </label>
+        </div>
+        <p className="settings-note settings-note--inset">
+          预算在每次真实模型调用前检查；缓存命中不消耗模型次数或
+          Token。达到上限后，任务会停止新增模型调用并保留已有结果。
+        </p>
+        <FormActions message={message} pending={save.isPending} />
+      </form>
+    </>
+  );
 }
 
 function LanPanel() {
-  const client = useQueryClient()
-  const token = useQuery({ queryKey: ['lan-token'], queryFn: api.lanToken })
-  const status = useQuery({ queryKey: ['status'], queryFn: api.status })
-  const [copied, setCopied] = useState('')
-  const rotate = useMutation({ mutationFn: api.rotateLanToken, onSuccess: () => void client.invalidateQueries({ queryKey: ['lan-token'] }) })
-  const copy = async (value: string, label: string) => { await navigator.clipboard.writeText(value); setCopied(label); window.setTimeout(() => setCopied(''), 1400) }
-  return <><PanelTitle title="局域网访问" detail="手机与 Mac mini 连接同一 Wi-Fi 后，用 4 位码建立可信会话。" /><section className="lan-settings-card"><span>当前配对码</span><output>{token.data?.display ?? '••••'}</output><p>4 位码只用于可信局域网首次配对，连续失败会被限流锁定。</p><div><button className="button button--outline" onClick={() => token.data && void copy(token.data.token, 'token')}><Copy />{copied === 'token' ? '已复制' : '复制配对码'}</button><button className="button button--primary" onClick={() => rotate.mutate()} disabled={rotate.isPending}><RefreshCw className={rotate.isPending ? 'spin' : ''} />轮换并撤销会话</button></div></section><section className="settings-facts"><div><span>手机访问地址</span><strong>{status.data?.lan_url ?? '检测中'}</strong><button onClick={() => status.data && void copy(status.data.lan_url, 'url')}>{copied === 'url' ? '已复制' : '复制'}</button></div><div><span>会话有效期</span><strong>7 天</strong><small>轮换配对码会立即撤销已有会话</small></div><div><span>网络边界</span><strong>仅局域网</strong><small>未配置公网端口与自动转发</small></div></section></>
+  const client = useQueryClient();
+  const token = useQuery({ queryKey: ["lan-token"], queryFn: api.lanToken });
+  const status = useQuery({ queryKey: ["status"], queryFn: api.status });
+  const [copied, setCopied] = useState("");
+  const rotate = useMutation({
+    mutationFn: api.rotateLanToken,
+    onSuccess: () => void client.invalidateQueries({ queryKey: ["lan-token"] }),
+  });
+  const copy = async (value: string, label: string) => {
+    await navigator.clipboard.writeText(value);
+    setCopied(label);
+    window.setTimeout(() => setCopied(""), 1400);
+  };
+  return (
+    <>
+      <PanelTitle
+        title="局域网访问"
+        detail="手机与 Mac mini 连接同一 Wi-Fi 后，用 4 位码建立可信会话。"
+      />
+      <section className="lan-settings-card">
+        <span>当前配对码</span>
+        <output>{token.data?.display ?? "••••"}</output>
+        <p>4 位码只用于可信局域网首次配对，连续失败会被限流锁定。</p>
+        <div>
+          <button
+            className="button button--outline"
+            onClick={() => token.data && void copy(token.data.token, "token")}
+          >
+            <Copy />
+            {copied === "token" ? "已复制" : "复制配对码"}
+          </button>
+          <button
+            className="button button--primary"
+            onClick={() => rotate.mutate()}
+            disabled={rotate.isPending}
+          >
+            <RefreshCw className={rotate.isPending ? "spin" : ""} />
+            轮换并撤销会话
+          </button>
+        </div>
+      </section>
+      <section className="settings-facts">
+        <div>
+          <span>手机访问地址</span>
+          <strong>{status.data?.lan_url ?? "检测中"}</strong>
+          <button
+            onClick={() => status.data && void copy(status.data.lan_url, "url")}
+          >
+            {copied === "url" ? "已复制" : "复制"}
+          </button>
+        </div>
+        <div>
+          <span>会话有效期</span>
+          <strong>7 天</strong>
+          <small>轮换配对码会立即撤销已有会话</small>
+        </div>
+        <div>
+          <span>网络边界</span>
+          <strong>仅局域网</strong>
+          <small>未配置公网端口与自动转发</small>
+        </div>
+      </section>
+    </>
+  );
 }
 
 function ModelsPanel() {
-  const queryClient = useQueryClient()
-  const profiles = useQuery({ queryKey: ['model-profiles'], queryFn: api.modelProfiles })
-  const routing = useQuery({ queryKey: ['model-routing'], queryFn: api.modelRouting })
-  const [route, setRoute] = useState<Record<keyof ModelRoutingView, string>>({ primary_id: '', fallback_id: '' })
-  const [adding, setAdding] = useState(false)
-  useEffect(() => { if (routing.data) setRoute({ primary_id: routing.data.primary_id ?? '', fallback_id: routing.data.fallback_id ?? '' }) }, [routing.data])
-  const saveRoute = useMutation({ mutationFn: () => api.saveModelRouting({ primary_id: route.primary_id || null, fallback_id: route.fallback_id || null }), onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['model-routing'] }) })
-  const selectedName = (id: string | null | undefined) => profiles.data?.find((item) => item.id === id)?.name ?? '未选择'
-  const assignedIds = new Set(Object.values(routing.data ?? {}).filter(Boolean))
-  return <><PanelTitle title="AI 模型与 Provider" detail="通用主/备用模型作为默认候选池；各工作负载阶段在下方单独配置。" /><div className="provider-summary"><ProviderSummary icon={Cpu} label="推理主模型" value={selectedName(routing.data?.primary_id)} /><ProviderSummary icon={Server} label="阶段策略" value="各阶段单独配置" /><ProviderSummary icon={Database} label="已保存模型" value={`${profiles.data?.length ?? 0} 个`} /></div><section className="provider-form"><div className="provider-form__title"><h3>模型路由</h3><button className="button button--primary" onClick={() => saveRoute.mutate()} disabled={saveRoute.isPending}>保存通用路由</button></div><div className="provider-form__body"><p className="settings-note settings-note--inset">主模型耗尽有限重试后才调用备用模型。转写校对及其他工作负载阶段请在下方阶段策略中单独配置。</p><div className="field-grid route-field-grid"><SelectField label="推理主模型" value={route.primary_id} onChange={(value) => setRoute((current) => ({ ...current, primary_id: value, fallback_id: value === current.fallback_id ? '' : current.fallback_id }))}><option value="">请选择已保存模型</option>{profiles.data?.map((item) => <option value={item.id} key={item.id}>{item.name} · {item.model}</option>)}</SelectField><SelectField label="推理备用模型（可选）" value={route.fallback_id} onChange={(value) => setRoute((current) => ({ ...current, fallback_id: value }))}><option value="">不使用备用模型</option>{profiles.data?.filter((item) => item.id !== route.primary_id).map((item) => <option value={item.id} key={item.id}>{item.name} · {item.model}</option>)}</SelectField></div></div></section><StagePoliciesPanel profiles={profiles.data ?? []} /><TranscriptProcessingPanel /><PromptSupplementsPanel /><div className="provider-form__title model-library-title"><h3>已保存模型</h3><button className="button button--outline" onClick={() => setAdding(true)}><Plus />新增自定义模型</button></div>{adding && <ModelProfileEditor onClose={() => setAdding(false)} />}{profiles.data?.map((profile) => <ModelProfileEditor key={profile.id} profile={profile} assigned={assignedIds.has(profile.id)} />)}{profiles.data?.length === 0 && !adding && <p className="settings-note">尚未保存模型。新增后才能选择主模型或备用模型。</p>}</>
+  const queryClient = useQueryClient();
+  const profiles = useQuery({
+    queryKey: ["model-profiles"],
+    queryFn: api.modelProfiles,
+  });
+  const routing = useQuery({
+    queryKey: ["model-routing"],
+    queryFn: api.modelRouting,
+  });
+  const [route, setRoute] = useState<Record<keyof ModelRoutingView, string>>({
+    primary_id: "",
+    fallback_id: "",
+  });
+  const [adding, setAdding] = useState(false);
+  useEffect(() => {
+    if (routing.data)
+      setRoute({
+        primary_id: routing.data.primary_id ?? "",
+        fallback_id: routing.data.fallback_id ?? "",
+      });
+  }, [routing.data]);
+  const saveRoute = useMutation({
+    mutationFn: () =>
+      api.saveModelRouting({
+        primary_id: route.primary_id || null,
+        fallback_id: route.fallback_id || null,
+      }),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({ queryKey: ["model-routing"] }),
+  });
+  const selectedName = (id: string | null | undefined) =>
+    profiles.data?.find((item) => item.id === id)?.name ?? "未选择";
+  const assignedIds = new Set(
+    Object.values(routing.data ?? {}).filter(Boolean),
+  );
+  return (
+    <>
+      <PanelTitle
+        title="AI 模型与 Provider"
+        detail="通用主/备用模型作为默认候选池；各工作负载阶段在下方单独配置。"
+      />
+      <div className="provider-summary">
+        <ProviderSummary
+          icon={Cpu}
+          label="推理主模型"
+          value={selectedName(routing.data?.primary_id)}
+        />
+        <ProviderSummary
+          icon={Server}
+          label="阶段策略"
+          value="各阶段单独配置"
+        />
+        <ProviderSummary
+          icon={Database}
+          label="已保存模型"
+          value={`${profiles.data?.length ?? 0} 个`}
+        />
+      </div>
+      <section className="provider-form">
+        <div className="provider-form__title">
+          <h3>模型路由</h3>
+          <button
+            className="button button--primary"
+            onClick={() => saveRoute.mutate()}
+            disabled={saveRoute.isPending}
+          >
+            保存通用路由
+          </button>
+        </div>
+        <div className="provider-form__body">
+          <p className="settings-note settings-note--inset">
+            主模型耗尽有限重试后才调用备用模型。转写校对及其他工作负载阶段请在下方阶段策略中单独配置。
+          </p>
+          <div className="field-grid route-field-grid">
+            <SelectField
+              label="推理主模型"
+              value={route.primary_id}
+              onChange={(value) =>
+                setRoute((current) => ({
+                  ...current,
+                  primary_id: value,
+                  fallback_id:
+                    value === current.fallback_id ? "" : current.fallback_id,
+                }))
+              }
+            >
+              <option value="">请选择已保存模型</option>
+              {profiles.data?.map((item) => (
+                <option value={item.id} key={item.id}>
+                  {item.name} · {item.model}
+                </option>
+              ))}
+            </SelectField>
+            <SelectField
+              label="推理备用模型（可选）"
+              value={route.fallback_id}
+              onChange={(value) =>
+                setRoute((current) => ({ ...current, fallback_id: value }))
+              }
+            >
+              <option value="">不使用备用模型</option>
+              {profiles.data
+                ?.filter((item) => item.id !== route.primary_id)
+                .map((item) => (
+                  <option value={item.id} key={item.id}>
+                    {item.name} · {item.model}
+                  </option>
+                ))}
+            </SelectField>
+          </div>
+        </div>
+      </section>
+      <StagePoliciesPanel profiles={profiles.data ?? []} />
+      <TranscriptProcessingPanel />
+      <PromptSupplementsPanel />
+      <div className="provider-form__title model-library-title">
+        <h3>已保存模型</h3>
+        <button
+          className="button button--outline"
+          onClick={() => setAdding(true)}
+        >
+          <Plus />
+          新增自定义模型
+        </button>
+      </div>
+      {adding && <ModelProfileEditor onClose={() => setAdding(false)} />}
+      {profiles.data?.map((profile) => (
+        <ModelProfileEditor
+          key={profile.id}
+          profile={profile}
+          assigned={assignedIds.has(profile.id)}
+        />
+      ))}
+      {profiles.data?.length === 0 && !adding && (
+        <p className="settings-note">
+          尚未保存模型。新增后才能选择主模型或备用模型。
+        </p>
+      )}
+    </>
+  );
 }
 
 function TranscriptProcessingPanel() {
-  const processing = useQuery({ queryKey: ['transcript-processing'], queryFn: api.transcriptProcessing })
-  const [values, setValues] = useState<TranscriptProcessingView>({ chunk_chars: 12_000, batch_size: 128, timeout_seconds: 180 })
-  const [message, setMessage] = useState('')
-  useEffect(() => { if (processing.data) setValues(processing.data) }, [processing.data])
-  const save = useMutation({ mutationFn: () => api.saveTranscriptProcessing(values), onSuccess: (data) => { setValues(data); setMessage('转写参数已保存') }, onError: (error) => setMessage(error.message) })
-  const update = (key: keyof TranscriptProcessingView, value: number) => setValues((current) => ({ ...current, [key]: value }))
-  return <form className="provider-form transcript-processing" onSubmit={(event: FormEvent) => { event.preventDefault(); save.mutate() }}><div className="provider-form__title"><div><h3>转写分段参数</h3><small>缺省值已经过当前样本的稳定性与额度平衡验证</small></div></div><div className="field-grid field-grid--three"><label>每批字符预算<input type="number" min="2000" max="24000" step="500" value={values.chunk_chars} onChange={(event) => update('chunk_chars', Number(event.target.value))} /><small>2,000–24,000，默认 12,000</small></label><label>每批最多 Segment<input type="number" min="16" max="256" step="8" value={values.batch_size} onChange={(event) => update('batch_size', Number(event.target.value))} /><small>16–256，默认 128</small></label><label>单次超时（秒）<input type="number" min="30" max="300" step="10" value={values.timeout_seconds} onChange={(event) => update('timeout_seconds', Number(event.target.value))} /><small>30–300，默认 180</small></label></div><p className="settings-note settings-note--inset">增大批次可减少固定 Prompt 与 Schema 的重复开销；过大可能增加响应截断风险。建议优先保留默认值。</p><FormActions message={message} pending={save.isPending} /></form>
+  const processing = useQuery({
+    queryKey: ["transcript-processing"],
+    queryFn: api.transcriptProcessing,
+  });
+  const [values, setValues] = useState<TranscriptProcessingView>({
+    chunk_chars: 12_000,
+    batch_size: 128,
+    timeout_seconds: 180,
+  });
+  const [message, setMessage] = useState("");
+  useEffect(() => {
+    if (processing.data) setValues(processing.data);
+  }, [processing.data]);
+  const save = useMutation({
+    mutationFn: () => api.saveTranscriptProcessing(values),
+    onSuccess: (data) => {
+      setValues(data);
+      setMessage("转写参数已保存");
+    },
+    onError: (error) => setMessage(error.message),
+  });
+  const update = (key: keyof TranscriptProcessingView, value: number) =>
+    setValues((current) => ({ ...current, [key]: value }));
+  return (
+    <form
+      className="provider-form transcript-processing"
+      onSubmit={(event: FormEvent) => {
+        event.preventDefault();
+        save.mutate();
+      }}
+    >
+      <div className="provider-form__title">
+        <div>
+          <h3>转写分段参数</h3>
+          <small>缺省值已经过当前样本的稳定性与额度平衡验证</small>
+        </div>
+      </div>
+      <div className="field-grid field-grid--three">
+        <label>
+          每批字符预算
+          <input
+            type="number"
+            min="2000"
+            max="24000"
+            step="500"
+            value={values.chunk_chars}
+            onChange={(event) =>
+              update("chunk_chars", Number(event.target.value))
+            }
+          />
+          <small>2,000–24,000，默认 12,000</small>
+        </label>
+        <label>
+          每批最多 Segment
+          <input
+            type="number"
+            min="16"
+            max="256"
+            step="8"
+            value={values.batch_size}
+            onChange={(event) =>
+              update("batch_size", Number(event.target.value))
+            }
+          />
+          <small>16–256，默认 128</small>
+        </label>
+        <label>
+          单次超时（秒）
+          <input
+            type="number"
+            min="30"
+            max="300"
+            step="10"
+            value={values.timeout_seconds}
+            onChange={(event) =>
+              update("timeout_seconds", Number(event.target.value))
+            }
+          />
+          <small>30–300，默认 180</small>
+        </label>
+      </div>
+      <p className="settings-note settings-note--inset">
+        增大批次可减少固定 Prompt 与 Schema
+        的重复开销；过大可能增加响应截断风险。建议优先保留默认值。
+      </p>
+      <FormActions message={message} pending={save.isPending} />
+    </form>
+  );
 }
 
-const promptRoles: Array<{ key: keyof Pick<PromptSupplementsView, 'transcript_correction' | 'video_note_summary' | 'travel_place_extraction'>; label: string; placeholder: string }> = [
-  { key: 'transcript_correction', label: '转写校对', placeholder: '例如：优先使用自然、简洁的中文；保留作者口语风格。' },
-  { key: 'video_note_summary', label: '视频笔记', placeholder: '例如：面向首次到访者；摘要更精炼，突出行程建议与风险。' },
-  { key: 'travel_place_extraction', label: '地点提取', placeholder: '例如：优先关注餐馆、街区和可实际导航的细粒度地点。' },
-]
+const promptRoles: Array<{
+  key: keyof Pick<
+    PromptSupplementsView,
+    "transcript_correction" | "video_note_summary" | "travel_place_extraction"
+  >;
+  label: string;
+  placeholder: string;
+}> = [
+  {
+    key: "transcript_correction",
+    label: "转写校对",
+    placeholder: "例如：优先使用自然、简洁的中文；保留作者口语风格。",
+  },
+  {
+    key: "video_note_summary",
+    label: "视频笔记",
+    placeholder: "例如：面向首次到访者；摘要更精炼，突出行程建议与风险。",
+  },
+  {
+    key: "travel_place_extraction",
+    label: "地点提取",
+    placeholder: "例如：优先关注餐馆、街区和可实际导航的细粒度地点。",
+  },
+];
 
 function PromptSupplementsPanel() {
-  const queryClient = useQueryClient()
-  const supplements = useQuery({ queryKey: ['prompt-supplements'], queryFn: api.promptSupplements })
-  const [values, setValues] = useState({ transcript_correction: '', video_note_summary: '', travel_place_extraction: '' })
-  const [message, setMessage] = useState('')
-  useEffect(() => { if (supplements.data) setValues({ transcript_correction: supplements.data.transcript_correction, video_note_summary: supplements.data.video_note_summary, travel_place_extraction: supplements.data.travel_place_extraction }) }, [supplements.data])
-  const save = useMutation({ mutationFn: () => api.savePromptSupplements(values), onSuccess: () => { setMessage('补充提示词已保存'); void queryClient.invalidateQueries({ queryKey: ['prompt-supplements'] }) }, onError: (error) => setMessage(error.message) })
-  const maxLength = supplements.data?.max_length ?? 1000
-  return <section className="provider-form prompt-supplements"><div className="provider-form__title"><div><h3>提示词补充</h3><small>仅影响后续新的 AI 调用</small></div><div className="provider-form__actions">{message && <span className="provider-message"><CheckCircle2 />{message}</span>}<button className="button button--primary" onClick={() => save.mutate()} disabled={save.isPending}>{save.isPending && <LoaderCircle className="spin" />}保存补充提示词</button></div></div><div className="provider-form__body"><p className="settings-note settings-note--inset">核心 JSON、字段、ID、顺序与 Schema 契约由系统锁定；这里只补充语气、篇幅、受众和关注重点。越权内容会被服务端拒绝。</p><div className="prompt-supplement-list">{promptRoles.map((role) => <section className="prompt-supplement-card" key={role.key}><div className="prompt-supplement-card__meta"><div><h4>{role.label}</h4><span><LockKeyhole />核心契约已锁定</span></div><ol>{(supplements.data?.core_contracts[role.key] ?? ['核心输出契约由系统维护，不可编辑。']).map((item) => <li key={item}>{item}</li>)}</ol></div><label>可编辑补充提示词<textarea maxLength={maxLength} value={values[role.key]} onChange={(event) => setValues((current) => ({ ...current, [role.key]: event.target.value }))} placeholder={role.placeholder} /><span className="prompt-character-count">{values[role.key].length} / {maxLength}</span></label><button className="button button--outline prompt-clear" type="button" onClick={() => setValues((current) => ({ ...current, [role.key]: '' }))}>清空补充</button></section>)}</div></div></section>
+  const queryClient = useQueryClient();
+  const supplements = useQuery({
+    queryKey: ["prompt-supplements"],
+    queryFn: api.promptSupplements,
+  });
+  const [values, setValues] = useState({
+    transcript_correction: "",
+    video_note_summary: "",
+    travel_place_extraction: "",
+  });
+  const [message, setMessage] = useState("");
+  useEffect(() => {
+    if (supplements.data)
+      setValues({
+        transcript_correction: supplements.data.transcript_correction,
+        video_note_summary: supplements.data.video_note_summary,
+        travel_place_extraction: supplements.data.travel_place_extraction,
+      });
+  }, [supplements.data]);
+  const save = useMutation({
+    mutationFn: () => api.savePromptSupplements(values),
+    onSuccess: () => {
+      setMessage("补充提示词已保存");
+      void queryClient.invalidateQueries({ queryKey: ["prompt-supplements"] });
+    },
+    onError: (error) => setMessage(error.message),
+  });
+  const maxLength = supplements.data?.max_length ?? 1000;
+  return (
+    <section className="provider-form prompt-supplements">
+      <div className="provider-form__title">
+        <div>
+          <h3>提示词补充</h3>
+          <small>仅影响后续新的 AI 调用</small>
+        </div>
+        <div className="provider-form__actions">
+          {message && (
+            <span className="provider-message">
+              <CheckCircle2 />
+              {message}
+            </span>
+          )}
+          <button
+            className="button button--primary"
+            onClick={() => save.mutate()}
+            disabled={save.isPending}
+          >
+            {save.isPending && <LoaderCircle className="spin" />}保存补充提示词
+          </button>
+        </div>
+      </div>
+      <div className="provider-form__body">
+        <p className="settings-note settings-note--inset">
+          核心 JSON、字段、ID、顺序与 Schema
+          契约由系统锁定；这里只补充语气、篇幅、受众和关注重点。越权内容会被服务端拒绝。
+        </p>
+        <div className="prompt-supplement-list">
+          {promptRoles.map((role) => (
+            <section className="prompt-supplement-card" key={role.key}>
+              <div className="prompt-supplement-card__meta">
+                <div>
+                  <h4>{role.label}</h4>
+                  <span>
+                    <LockKeyhole />
+                    核心契约已锁定
+                  </span>
+                </div>
+                <ol>
+                  {(
+                    supplements.data?.core_contracts[role.key] ?? [
+                      "核心输出契约由系统维护，不可编辑。",
+                    ]
+                  ).map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ol>
+              </div>
+              <label>
+                可编辑补充提示词
+                <textarea
+                  maxLength={maxLength}
+                  value={values[role.key]}
+                  onChange={(event) =>
+                    setValues((current) => ({
+                      ...current,
+                      [role.key]: event.target.value,
+                    }))
+                  }
+                  placeholder={role.placeholder}
+                />
+                <span className="prompt-character-count">
+                  {values[role.key].length} / {maxLength}
+                </span>
+              </label>
+              <button
+                className="button button--outline prompt-clear"
+                type="button"
+                onClick={() =>
+                  setValues((current) => ({ ...current, [role.key]: "" }))
+                }
+              >
+                清空补充
+              </button>
+            </section>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function RuntimePanel() {
-  const status = useQuery({ queryKey: ['status'], queryFn: api.status, refetchInterval: 10000 })
-  return <><PanelTitle title="语音、视频与 OCR" detail="以下状态来自当前 Mac mini 的真实二进制、模型文件和服务连通检测。" /><section className="runtime-list">{status.data?.runtime_checks.map((check) => <div className="runtime-row" key={check.name}><span className={`runtime-dot runtime-dot--${check.status.toLowerCase()}`} /><div><strong>{check.name}</strong><small>{check.detail}</small>{check.path && <code>{check.path}</code>}</div><em>{runtimeLabel(check.status)}</em></div>)}</section><p className="settings-note">音视频上传会先由 FFmpeg 提取 16 kHz 单声道音频，再交给本机 Whisper.cpp；图片由 macOS Vision OCR 处理。</p></>
+  const status = useQuery({
+    queryKey: ["status"],
+    queryFn: api.status,
+    refetchInterval: 10000,
+  });
+  return (
+    <>
+      <PanelTitle
+        title="语音、视频与 OCR"
+        detail="以下状态来自当前 Mac mini 的真实二进制、模型文件和服务连通检测。"
+      />
+      <section className="runtime-list">
+        {status.data?.runtime_checks.map((check) => (
+          <div className="runtime-row" key={check.name}>
+            <span
+              className={`runtime-dot runtime-dot--${check.status.toLowerCase()}`}
+            />
+            <div>
+              <strong>{check.name}</strong>
+              <small>{check.detail}</small>
+              {check.path && <code>{check.path}</code>}
+            </div>
+            <em>{runtimeLabel(check.status)}</em>
+          </div>
+        ))}
+      </section>
+      <p className="settings-note">
+        音视频上传会先由 FFmpeg 提取 16 kHz 单声道音频，再交给本机
+        Whisper.cpp；图片由 macOS Vision OCR 处理。
+      </p>
+    </>
+  );
 }
 
 export function BrowserPanel() {
-  const settings = useQuery({ queryKey: ['bilibili-settings'], queryFn: api.bilibiliSettings })
-  return <><PanelTitle title="网页解析" detail="链接解析器保留原始来源，访问受限时会暂停任务并提供登录恢复入口。" /><section className="settings-facts"><div><span>普通网页</span><strong>HTTP 抓取</strong><small>保留 URL、响应内容与哈希</small></div><div><span>微信文章</span><strong>按页面可访问性处理</strong><small>支持正文与文内链接继续投递</small></div><div><span>Bilibili</span><strong>{settings.data?.cookie_saved ? settings.data.account_name ? `已连接 ${settings.data.account_name}` : '登录凭证已保存' : '扫码登录后处理受限媒体'}</strong><small>字幕、音频和截图链路共用本机 Keychain 凭证</small></div></section><BilibiliLoginPanel /><Link className="settings-link" to="/sources"><FileSearch />查看真实来源与快照 <ExternalLink /></Link></>
+  const settings = useQuery({
+    queryKey: ["bilibili-settings"],
+    queryFn: api.bilibiliSettings,
+  });
+  return (
+    <>
+      <PanelTitle
+        title="网页解析"
+        detail="链接解析器保留原始来源，访问受限时会暂停任务并提供登录恢复入口。"
+      />
+      <section className="settings-facts">
+        <div>
+          <span>普通网页</span>
+          <strong>HTTP 抓取</strong>
+          <small>保留 URL、响应内容与哈希</small>
+        </div>
+        <div>
+          <span>微信文章</span>
+          <strong>按页面可访问性处理</strong>
+          <small>支持正文与文内链接继续投递</small>
+        </div>
+        <div>
+          <span>Bilibili</span>
+          <strong>
+            {settings.data?.cookie_saved
+              ? settings.data.account_name
+                ? `已连接 ${settings.data.account_name}`
+                : "登录凭证已保存"
+              : "扫码登录后处理受限媒体"}
+          </strong>
+          <small>字幕、音频和截图链路共用本机 Keychain 凭证</small>
+        </div>
+      </section>
+      <BilibiliLoginPanel />
+      <Link className="settings-link" to="/sources">
+        <FileSearch />
+        查看真实来源与快照 <ExternalLink />
+      </Link>
+    </>
+  );
 }
 function MapPanel() {
-  const client = useQueryClient()
-  const settings = useQuery({ queryKey: ['amap-settings'], queryFn: api.amapSettings })
-  const [values, setValues] = useState({ js_key: '', security_code: '', web_service_key: '' })
-  const [message, setMessage] = useState('')
-  useEffect(() => { if (settings.data) setValues((current) => ({ ...current, js_key: settings.data.js_key })) }, [settings.data])
-  const save = useMutation({ mutationFn: () => api.saveAmapSettings(values), onSuccess: () => { setMessage('高德配置已保存'); setValues((current) => ({ ...current, security_code: '', web_service_key: '' })); void client.invalidateQueries({ queryKey: ['amap-settings'] }) }, onError: (error) => setMessage(error.message) })
-  const test = useMutation({ mutationFn: api.testAmapSettings, onSuccess: (result) => setMessage(result.message), onError: (error) => setMessage(error.message) })
-  return <><PanelTitle title="地图与地点" detail="首次显示中国大陆全境；随后恢复你的上次视野。高德 Web 服务用于地点校名，坐标统一 GCJ-02。" /><section className="provider-form"><div className="provider-form__title"><h3>高德地图运行配置</h3><div className="provider-form__actions">{message && <span className="provider-message"><CheckCircle2 />{message}</span>}<button className="button button--outline" onClick={() => test.mutate()} disabled={test.isPending}>真实测试</button><button className="button button--primary" onClick={() => save.mutate()} disabled={save.isPending}>保存</button></div></div><div className="field-grid"><label className="field-grid__wide">JS API Key<input value={values.js_key} onChange={(event) => setValues((current) => ({ ...current, js_key: event.target.value }))} placeholder="浏览器地图加载使用" /></label><label>Security Code<div className="masked-key"><KeyRound /><input type="password" value={values.security_code} onChange={(event) => setValues((current) => ({ ...current, security_code: event.target.value }))} placeholder={settings.data?.security_code_saved ? '已保存，留空不修改' : '保存至 Keychain'} /></div></label><label>Web 服务 Key<div className="masked-key"><KeyRound /><input type="password" value={values.web_service_key} onChange={(event) => setValues((current) => ({ ...current, web_service_key: event.target.value }))} placeholder={settings.data?.web_service_key_saved ? '已保存，留空不修改' : '用于 POI 搜索与校名'} /></div></label></div><p className="settings-note settings-note--inset">请在高德控制台为局域网访问配置域名/IP 白名单。JS Key 可提供给已认证地图页；Security Code 与 Web 服务 Key 不会返回前端。</p></section><Link className="button button--primary settings-map-link" to="/map">打开中国大陆地图</Link></> }
-
-function PanelTitle({ title, detail }: { title: string; detail: string }) { return <section className="settings-title"><div><h2>{title}</h2><p>{detail}</p></div></section> }
-function FormActions({ message, pending }: { message: string; pending: boolean }) { return <div className="settings-form-actions">{message && <span><CheckCircle2 />{message}</span>}<button className="button button--primary" disabled={pending}>{pending && <LoaderCircle className="spin" />}保存</button></div> }
-
-function StagePoliciesPanel({ profiles }: { profiles: ModelProfileView[] }) {
-  const policies = useQuery({ queryKey: ['ai-stage-policies'], queryFn: api.aiStagePolicies })
-  const packs = useQuery({ queryKey: ['ai-domain-packs'], queryFn: api.domainPacks })
-  return <><section className="provider-form"><div className="provider-form__title"><div><h3>AI 工作负载阶段</h3><p className="settings-note">每个阶段可独立指定本地或远程模型；高级参数默认折叠，未保存时使用系统默认。</p></div></div>{policies.data?.map((policy) => <StagePolicyEditor key={policy.stage} policy={policy} profiles={profiles} packs={packs.data ?? []} />)}</section><DomainPacksPanel packs={packs.data ?? []} /></>
+  const client = useQueryClient();
+  const settings = useQuery({
+    queryKey: ["amap-settings"],
+    queryFn: api.amapSettings,
+  });
+  const [values, setValues] = useState({
+    js_key: "",
+    security_code: "",
+    web_service_key: "",
+  });
+  const [message, setMessage] = useState("");
+  useEffect(() => {
+    if (settings.data)
+      setValues((current) => ({ ...current, js_key: settings.data.js_key }));
+  }, [settings.data]);
+  const save = useMutation({
+    mutationFn: () => api.saveAmapSettings(values),
+    onSuccess: () => {
+      setMessage("高德配置已保存");
+      setValues((current) => ({
+        ...current,
+        security_code: "",
+        web_service_key: "",
+      }));
+      void client.invalidateQueries({ queryKey: ["amap-settings"] });
+    },
+    onError: (error) => setMessage(error.message),
+  });
+  const test = useMutation({
+    mutationFn: api.testAmapSettings,
+    onSuccess: (result) => setMessage(result.message),
+    onError: (error) => setMessage(error.message),
+  });
+  return (
+    <>
+      <PanelTitle
+        title="地图与地点"
+        detail="首次显示中国大陆全境；随后恢复你的上次视野。高德 Web 服务用于地点校名，坐标统一 GCJ-02。"
+      />
+      <section className="provider-form">
+        <div className="provider-form__title">
+          <h3>高德地图运行配置</h3>
+          <div className="provider-form__actions">
+            {message && (
+              <span className="provider-message">
+                <CheckCircle2 />
+                {message}
+              </span>
+            )}
+            <button
+              className="button button--outline"
+              onClick={() => test.mutate()}
+              disabled={test.isPending}
+            >
+              真实测试
+            </button>
+            <button
+              className="button button--primary"
+              onClick={() => save.mutate()}
+              disabled={save.isPending}
+            >
+              保存
+            </button>
+          </div>
+        </div>
+        <div className="field-grid">
+          <label className="field-grid__wide">
+            JS API Key
+            <input
+              value={values.js_key}
+              onChange={(event) =>
+                setValues((current) => ({
+                  ...current,
+                  js_key: event.target.value,
+                }))
+              }
+              placeholder="浏览器地图加载使用"
+            />
+          </label>
+          <label>
+            Security Code
+            <div className="masked-key">
+              <KeyRound />
+              <input
+                type="password"
+                value={values.security_code}
+                onChange={(event) =>
+                  setValues((current) => ({
+                    ...current,
+                    security_code: event.target.value,
+                  }))
+                }
+                placeholder={
+                  settings.data?.security_code_saved
+                    ? "已保存，留空不修改"
+                    : "保存至 Keychain"
+                }
+              />
+            </div>
+          </label>
+          <label>
+            Web 服务 Key
+            <div className="masked-key">
+              <KeyRound />
+              <input
+                type="password"
+                value={values.web_service_key}
+                onChange={(event) =>
+                  setValues((current) => ({
+                    ...current,
+                    web_service_key: event.target.value,
+                  }))
+                }
+                placeholder={
+                  settings.data?.web_service_key_saved
+                    ? "已保存，留空不修改"
+                    : "用于 POI 搜索与校名"
+                }
+              />
+            </div>
+          </label>
+        </div>
+        <p className="settings-note settings-note--inset">
+          请在高德控制台为局域网访问配置域名/IP 白名单。JS Key
+          可提供给已认证地图页；Security Code 与 Web 服务 Key 不会返回前端。
+        </p>
+      </section>
+      <Link className="button button--primary settings-map-link" to="/map">
+        打开中国大陆地图
+      </Link>
+    </>
+  );
 }
 
-function StagePolicyEditor({ policy, profiles, packs }: { policy: AIStagePolicy; profiles: ModelProfileView[]; packs: DomainPackView[] }) {
-  const queryClient = useQueryClient()
-  const [values, setValues] = useState<AIStagePolicy>(() => editablePolicy(policy))
-  const [advanced, setAdvanced] = useState(false)
-  const [message, setMessage] = useState('')
-  useEffect(() => setValues(editablePolicy(policy)), [policy])
-  const saved = () => { void queryClient.invalidateQueries({ queryKey: ['ai-stage-policies'] }); setMessage('阶段策略已保存') }
-  const save = useMutation({ mutationFn: () => api.saveAiStagePolicy(policy.stage, values), onSuccess: saved, onError: (error) => setMessage(error.message) })
-  const reset = useMutation({ mutationFn: () => api.resetAiStagePolicy(policy.stage), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['ai-stage-policies'] }); setMessage('已恢复系统默认') }, onError: (error) => setMessage(error.message) })
-  const update = <K extends keyof AIStagePolicy>(key: K, value: AIStagePolicy[K]) => setValues((current) => ({ ...current, [key]: value }))
-  const label = ({ TRANSCRIPT_CORRECTION: '转写校对', GROUND_MAP: 'Grounded Map', EXTRACT_TRAVEL_FACTS: '地点物化', NOTE_REDUCE: '笔记归纳', GENERATE_AI_NOTE: '视频笔记', SCREENSHOT_UNDERSTANDING: '截图理解', VISION_FACT: '视觉事实' } as Record<string, string>)[policy.stage] ?? policy.stage
-  const local = profiles.filter((item) => item.location === 'LOCAL' && item.enabled)
-  const remote = profiles.filter((item) => item.location === 'REMOTE' && item.enabled)
-  const busy = save.isPending || reset.isPending
-  return <section className="provider-form__body"><div className="provider-form__title"><h4>{label}<small>{policy.capability}</small></h4><div className="provider-form__actions"><button className="button button--outline" onClick={() => setAdvanced((value) => !value)}>{advanced ? '收起高级' : '高级参数'}</button><button className="button button--outline" onClick={() => reset.mutate()} disabled={busy}>恢复默认</button><button className="button button--primary" onClick={() => save.mutate()} disabled={busy}>保存阶段</button></div></div><div className="field-grid route-field-grid"><SelectField label="执行模式" value={values.execution_mode ?? 'AUTO'} onChange={(value) => update('execution_mode', value as AIStagePolicy['execution_mode'])}>{['AUTO', 'LOCAL_ONLY', 'LOCAL_FIRST', 'REMOTE_FIRST', 'REMOTE_ONLY'].map((item) => <option key={item} value={item}>{item}</option>)}</SelectField><SelectField label="本地模型" value={values.local_profile_id ?? ''} onChange={(value) => update('local_profile_id', value || null)}><option value="">自动选择</option>{local.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.model}</option>)}</SelectField><SelectField label="远程模型" value={values.remote_profile_id ?? ''} onChange={(value) => update('remote_profile_id', value || null)}><option value="">自动选择</option>{remote.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.model}</option>)}</SelectField><SelectField label="缓存" value={values.cache_enabled === false ? 'OFF' : 'ON'} onChange={(value) => update('cache_enabled', value === 'ON')}><option value="ON">开启</option><option value="OFF">关闭</option></SelectField></div>{advanced && <div className="field-grid route-field-grid"><NumberPolicyField label="Temperature" value={values.temperature} min="0" max="2" step="0.1" onChange={(value) => update('temperature', value)} /><NumberPolicyField label="最大输出 Token" value={values.max_output_tokens} min="1" max="32768" onChange={(value) => update('max_output_tokens', value)} /><SelectField label="Thinking" value={values.thinking === null ? '' : values.thinking ? 'ON' : 'OFF'} onChange={(value) => update('thinking', value === '' ? null : value === 'ON')}><option value="">自动</option><option value="OFF">关闭</option><option value="ON">开启</option></SelectField><NumberPolicyField label="超时（秒）" value={values.timeout_seconds} min="5" max="900" onChange={(value) => update('timeout_seconds', value)} /><NumberPolicyField label="重试次数" value={values.retry_count} min="0" max="3" onChange={(value) => update('retry_count', value)} /><NumberPolicyField label="置信度阈值" value={values.confidence_threshold} min="0" max="1" step="0.05" onChange={(value) => update('confidence_threshold', value)} /><NumberPolicyField label="升级阈值" value={values.escalation_threshold} min="0" max="1" step="0.05" onChange={(value) => update('escalation_threshold', value)} /><NumberPolicyField label="分块大小" value={values.chunk_size} min="1" max="100000" onChange={(value) => update('chunk_size', value)} /><NumberPolicyField label="相邻片段" value={values.neighbor_segments} min="0" max="10" onChange={(value) => update('neighbor_segments', value)} /><label>领域<input value={values.domain ?? ''} onChange={(event) => update('domain', event.target.value || null)} placeholder="例如：travel" /></label><label>领域包（逗号分隔）<input list="domain-pack-options" value={values.domain_pack_ids.join(',')} onChange={(event) => update('domain_pack_ids', event.target.value.split(',').map((item) => item.trim()).filter(Boolean))} /><datalist id="domain-pack-options">{packs.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</datalist></label></div>}{message && <p className="settings-note settings-note--inset">{message}</p>}</section>
+function PanelTitle({ title, detail }: { title: string; detail: string }) {
+  return (
+    <section className="settings-title">
+      <div>
+        <h2>{title}</h2>
+        <p>{detail}</p>
+      </div>
+    </section>
+  );
+}
+function FormActions({
+  message,
+  pending,
+}: {
+  message: string;
+  pending: boolean;
+}) {
+  return (
+    <div className="settings-form-actions">
+      {message && (
+        <span>
+          <CheckCircle2 />
+          {message}
+        </span>
+      )}
+      <button className="button button--primary" disabled={pending}>
+        {pending && <LoaderCircle className="spin" />}保存
+      </button>
+    </div>
+  );
+}
+
+function StagePoliciesPanel({ profiles }: { profiles: ModelProfileView[] }) {
+  const policies = useQuery({
+    queryKey: ["ai-stage-policies"],
+    queryFn: api.aiStagePolicies,
+  });
+  const packs = useQuery({
+    queryKey: ["ai-domain-packs"],
+    queryFn: api.domainPacks,
+  });
+  return (
+    <>
+      <section className="provider-form">
+        <div className="provider-form__title">
+          <div>
+            <h3>AI 工作负载阶段</h3>
+            <p className="settings-note">
+              每个阶段可独立指定本地或远程模型；高级参数默认折叠，未保存时使用系统默认。
+            </p>
+          </div>
+        </div>
+        {policies.data?.map((policy) => (
+          <StagePolicyEditor
+            key={policy.stage}
+            policy={policy}
+            profiles={profiles}
+            packs={packs.data ?? []}
+          />
+        ))}
+      </section>
+      <DomainPacksPanel packs={packs.data ?? []} />
+    </>
+  );
+}
+
+function StagePolicyEditor({
+  policy,
+  profiles,
+  packs,
+}: {
+  policy: AIStagePolicy;
+  profiles: ModelProfileView[];
+  packs: DomainPackView[];
+}) {
+  const queryClient = useQueryClient();
+  const [values, setValues] = useState<AIStagePolicy>(() =>
+    editablePolicy(policy),
+  );
+  const [advanced, setAdvanced] = useState(false);
+  const [message, setMessage] = useState("");
+  useEffect(() => setValues(editablePolicy(policy)), [policy]);
+  const saved = () => {
+    void queryClient.invalidateQueries({ queryKey: ["ai-stage-policies"] });
+    setMessage("阶段策略已保存");
+  };
+  const save = useMutation({
+    mutationFn: () => api.saveAiStagePolicy(policy.stage, values),
+    onSuccess: saved,
+    onError: (error) => setMessage(error.message),
+  });
+  const reset = useMutation({
+    mutationFn: () => api.resetAiStagePolicy(policy.stage),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["ai-stage-policies"] });
+      setMessage("已恢复系统默认");
+    },
+    onError: (error) => setMessage(error.message),
+  });
+  const update = <K extends keyof AIStagePolicy>(
+    key: K,
+    value: AIStagePolicy[K],
+  ) => setValues((current) => ({ ...current, [key]: value }));
+  const label =
+    (
+      {
+        TRANSCRIPT_CORRECTION: "转写校对",
+        GROUND_MAP: "证据地图",
+        EXTRACT_TRAVEL_FACTS: "地点物化",
+        NOTE_REDUCE: "笔记归纳",
+        GENERATE_AI_NOTE: "视频笔记",
+        SCREENSHOT_UNDERSTANDING: "截图理解",
+        VISION_FACT: "视觉事实",
+      } as Record<string, string>
+    )[policy.stage] ?? "未命名阶段";
+  const local = profiles.filter(
+    (item) => item.location === "LOCAL" && item.enabled,
+  );
+  const remote = profiles.filter(
+    (item) => item.location === "REMOTE" && item.enabled,
+  );
+  const busy = save.isPending || reset.isPending;
+  return (
+    <section className="provider-form__body">
+      <div className="provider-form__title">
+        <h4>{label}</h4>
+        <div className="provider-form__actions">
+          <button
+            className="button button--outline"
+            onClick={() => setAdvanced((value) => !value)}
+          >
+            {advanced ? "收起高级" : "高级参数"}
+          </button>
+          <button
+            className="button button--outline"
+            onClick={() => reset.mutate()}
+            disabled={busy}
+          >
+            恢复默认
+          </button>
+          <button
+            className="button button--primary"
+            onClick={() => save.mutate()}
+            disabled={busy}
+          >
+            保存阶段
+          </button>
+        </div>
+      </div>
+      <div className="field-grid route-field-grid">
+        <SelectField
+          label="执行模式"
+          value={values.execution_mode ?? "AUTO"}
+          onChange={(value) =>
+            update("execution_mode", value as AIStagePolicy["execution_mode"])
+          }
+        >
+          {[
+            "AUTO",
+            "LOCAL_ONLY",
+            "LOCAL_FIRST",
+            "REMOTE_FIRST",
+            "REMOTE_ONLY",
+          ].map((item) => (
+            <option key={item} value={item}>
+              {item}
+            </option>
+          ))}
+        </SelectField>
+        <SelectField
+          label="本地模型"
+          value={values.local_profile_id ?? ""}
+          onChange={(value) => update("local_profile_id", value || null)}
+        >
+          <option value="">自动选择</option>
+          {local.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name} · {item.model}
+            </option>
+          ))}
+        </SelectField>
+        <SelectField
+          label="远程模型"
+          value={values.remote_profile_id ?? ""}
+          onChange={(value) => update("remote_profile_id", value || null)}
+        >
+          <option value="">自动选择</option>
+          {remote.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name} · {item.model}
+            </option>
+          ))}
+        </SelectField>
+        <SelectField
+          label="缓存"
+          value={values.cache_enabled === false ? "OFF" : "ON"}
+          onChange={(value) => update("cache_enabled", value === "ON")}
+        >
+          <option value="ON">开启</option>
+          <option value="OFF">关闭</option>
+        </SelectField>
+      </div>
+      {advanced && (
+        <div className="field-grid route-field-grid">
+          <NumberPolicyField
+            label="Temperature"
+            value={values.temperature}
+            min="0"
+            max="2"
+            step="0.1"
+            onChange={(value) => update("temperature", value)}
+          />
+          <NumberPolicyField
+            label="最大输出 Token"
+            value={values.max_output_tokens}
+            min="1"
+            max="32768"
+            onChange={(value) => update("max_output_tokens", value)}
+          />
+          <SelectField
+            label="Thinking"
+            value={
+              values.thinking === null ? "" : values.thinking ? "ON" : "OFF"
+            }
+            onChange={(value) =>
+              update("thinking", value === "" ? null : value === "ON")
+            }
+          >
+            <option value="">自动</option>
+            <option value="OFF">关闭</option>
+            <option value="ON">开启</option>
+          </SelectField>
+          <NumberPolicyField
+            label="超时（秒）"
+            value={values.timeout_seconds}
+            min="5"
+            max="900"
+            onChange={(value) => update("timeout_seconds", value)}
+          />
+          <NumberPolicyField
+            label="重试次数"
+            value={values.retry_count}
+            min="0"
+            max="3"
+            onChange={(value) => update("retry_count", value)}
+          />
+          <NumberPolicyField
+            label="置信度阈值"
+            value={values.confidence_threshold}
+            min="0"
+            max="1"
+            step="0.05"
+            onChange={(value) => update("confidence_threshold", value)}
+          />
+          <NumberPolicyField
+            label="升级阈值"
+            value={values.escalation_threshold}
+            min="0"
+            max="1"
+            step="0.05"
+            onChange={(value) => update("escalation_threshold", value)}
+          />
+          <NumberPolicyField
+            label="分块大小"
+            value={values.chunk_size}
+            min="1"
+            max="100000"
+            onChange={(value) => update("chunk_size", value)}
+          />
+          <NumberPolicyField
+            label="相邻片段"
+            value={values.neighbor_segments}
+            min="0"
+            max="10"
+            onChange={(value) => update("neighbor_segments", value)}
+          />
+          <label>
+            领域
+            <input
+              value={values.domain ?? ""}
+              onChange={(event) => update("domain", event.target.value || null)}
+              placeholder="例如：travel"
+            />
+          </label>
+          <label>
+            领域包（逗号分隔）
+            <input
+              list="domain-pack-options"
+              value={values.domain_pack_ids.join(",")}
+              onChange={(event) =>
+                update(
+                  "domain_pack_ids",
+                  event.target.value
+                    .split(",")
+                    .map((item) => item.trim())
+                    .filter(Boolean),
+                )
+              }
+            />
+            <datalist id="domain-pack-options">
+              {packs.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </datalist>
+          </label>
+        </div>
+      )}
+      {message && (
+        <p className="settings-note settings-note--inset">{message}</p>
+      )}
+    </section>
+  );
 }
 
 function DomainPacksPanel({ packs }: { packs: DomainPackView[] }) {
-  const queryClient = useQueryClient()
-  const [values, setValues] = useState({ id: '', name: '', glossary: '', rules: '', prompt: '' })
-  const [message, setMessage] = useState('')
-  const create = useMutation({ mutationFn: () => api.createDomainPack({ id: values.id, name: values.name, version: 'v1', glossary: Object.fromEntries(values.glossary.split('\n').map((line) => line.split(':')).filter(([term, meaning]) => term?.trim() && meaning?.trim()).map(([term, meaning]) => [term.trim(), meaning.trim()])), aliases: {}, rules: values.rules.split('\n').map((item) => item.trim()).filter(Boolean), examples: [], prompt_supplement: values.prompt, allowed_capabilities: [] }), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['ai-domain-packs'] }); setValues({ id: '', name: '', glossary: '', rules: '', prompt: '' }); setMessage('领域包已保存') }, onError: (error) => setMessage(error.message) })
-  const remove = useMutation({ mutationFn: (id: string) => api.deleteDomainPack(id), onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['ai-domain-packs'] }) })
-  return <section className="provider-form"><div className="provider-form__title"><div><h3>领域上下文</h3><p className="settings-note">术语、别名和规则会按阶段引用注入模型上下文，并参与缓存键。</p></div></div><div className="field-grid"><label>包 ID<input value={values.id} onChange={(event) => setValues((item) => ({ ...item, id: event.target.value }))} placeholder="例如：travel-cn" /></label><label>名称<input value={values.name} onChange={(event) => setValues((item) => ({ ...item, name: event.target.value }))} placeholder="例如：中国旅行" /></label><label className="field-grid__wide">术语（每行“术语: 解释”）<textarea value={values.glossary} onChange={(event) => setValues((item) => ({ ...item, glossary: event.target.value }))} placeholder={'例如：早市：清晨营业的本地市场\n例如：洱海生态廊道：洱海沿岸慢行路线'} /></label><label className="field-grid__wide">规则（每行一条）<textarea value={values.rules} onChange={(event) => setValues((item) => ({ ...item, rules: event.target.value }))} placeholder="例如：地点有歧义时保留候选，不猜测坐标" /></label><label className="field-grid__wide">补充说明<textarea value={values.prompt} onChange={(event) => setValues((item) => ({ ...item, prompt: event.target.value }))} placeholder="例如：优先保留当地地名、菜名和口语称呼" /></label></div><div className="settings-form-actions">{message && <span><CheckCircle2 />{message}</span>}<button className="button button--primary" onClick={() => create.mutate()} disabled={create.isPending}>保存领域包</button></div>{packs.map((pack) => <div className="route-row" key={pack.id}><strong>{pack.name}</strong><span>{pack.id} · {Object.keys(pack.glossary).length} 个术语 · {pack.rules.length} 条规则</span><button className="button button--outline" onClick={() => remove.mutate(pack.id)} disabled={remove.isPending}>删除</button></div>)}</section>
+  const queryClient = useQueryClient();
+  const [values, setValues] = useState({
+    id: "",
+    name: "",
+    glossary: "",
+    rules: "",
+    prompt: "",
+  });
+  const [message, setMessage] = useState("");
+  const create = useMutation({
+    mutationFn: () =>
+      api.createDomainPack({
+        id: values.id,
+        name: values.name,
+        version: "v1",
+        glossary: Object.fromEntries(
+          values.glossary
+            .split("\n")
+            .map((line) => line.split(":"))
+            .filter(([term, meaning]) => term?.trim() && meaning?.trim())
+            .map(([term, meaning]) => [term.trim(), meaning.trim()]),
+        ),
+        aliases: {},
+        rules: values.rules
+          .split("\n")
+          .map((item) => item.trim())
+          .filter(Boolean),
+        examples: [],
+        prompt_supplement: values.prompt,
+        allowed_capabilities: [],
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["ai-domain-packs"] });
+      setValues({ id: "", name: "", glossary: "", rules: "", prompt: "" });
+      setMessage("领域包已保存");
+    },
+    onError: (error) => setMessage(error.message),
+  });
+  const remove = useMutation({
+    mutationFn: (id: string) => api.deleteDomainPack(id),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({ queryKey: ["ai-domain-packs"] }),
+  });
+  return (
+    <section className="provider-form">
+      <div className="provider-form__title">
+        <div>
+          <h3>领域上下文</h3>
+          <p className="settings-note">
+            术语、别名和规则会按阶段引用注入模型上下文，并参与缓存键。
+          </p>
+        </div>
+      </div>
+      <div className="field-grid">
+        <label>
+          包 ID
+          <input
+            value={values.id}
+            onChange={(event) =>
+              setValues((item) => ({ ...item, id: event.target.value }))
+            }
+            placeholder="例如：travel-cn"
+          />
+        </label>
+        <label>
+          名称
+          <input
+            value={values.name}
+            onChange={(event) =>
+              setValues((item) => ({ ...item, name: event.target.value }))
+            }
+            placeholder="例如：中国旅行"
+          />
+        </label>
+        <label className="field-grid__wide">
+          术语（每行“术语: 解释”）
+          <textarea
+            value={values.glossary}
+            onChange={(event) =>
+              setValues((item) => ({ ...item, glossary: event.target.value }))
+            }
+            placeholder={
+              "例如：早市：清晨营业的本地市场\n例如：洱海生态廊道：洱海沿岸慢行路线"
+            }
+          />
+        </label>
+        <label className="field-grid__wide">
+          规则（每行一条）
+          <textarea
+            value={values.rules}
+            onChange={(event) =>
+              setValues((item) => ({ ...item, rules: event.target.value }))
+            }
+            placeholder="例如：地点有歧义时保留候选，不猜测坐标"
+          />
+        </label>
+        <label className="field-grid__wide">
+          补充说明
+          <textarea
+            value={values.prompt}
+            onChange={(event) =>
+              setValues((item) => ({ ...item, prompt: event.target.value }))
+            }
+            placeholder="例如：优先保留当地地名、菜名和口语称呼"
+          />
+        </label>
+      </div>
+      <div className="settings-form-actions">
+        {message && (
+          <span>
+            <CheckCircle2 />
+            {message}
+          </span>
+        )}
+        <button
+          className="button button--primary"
+          onClick={() => create.mutate()}
+          disabled={create.isPending}
+        >
+          保存领域包
+        </button>
+      </div>
+      {packs.map((pack) => (
+        <div className="route-row" key={pack.id}>
+          <strong>{pack.name}</strong>
+          <span>
+            {pack.id} · {Object.keys(pack.glossary).length} 个术语 ·{" "}
+            {pack.rules.length} 条规则
+          </span>
+          <button
+            className="button button--outline"
+            onClick={() => remove.mutate(pack.id)}
+            disabled={remove.isPending}
+          >
+            删除
+          </button>
+        </div>
+      ))}
+    </section>
+  );
 }
 
-function NumberPolicyField({ label, value, min, max, step, onChange }: { label: string; value: number | null; min: string; max: string; step?: string; onChange: (value: number | null) => void }) { return <label>{label}<input type="number" min={min} max={max} step={step} value={value ?? ''} onChange={(event) => onChange(event.target.value === '' ? null : Number(event.target.value))} /></label> }
-function editablePolicy(policy: AIStagePolicy): AIStagePolicy { const values = { ...policy }; delete values.sources; return values }
+function NumberPolicyField({
+  label,
+  value,
+  min,
+  max,
+  step,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value: number | null;
+  min: string;
+  max: string;
+  step?: string;
+  placeholder?: string;
+  onChange: (value: number | null) => void;
+}) {
+  return (
+    <label>
+      {label}
+      <input
+        type="number"
+        min={min}
+        max={max}
+        step={step}
+        value={value ?? ""}
+        placeholder={placeholder}
+        onChange={(event) =>
+          onChange(
+            event.target.value === "" ? null : Number(event.target.value),
+          )
+        }
+      />
+    </label>
+  );
+}
+function editablePolicy(policy: AIStagePolicy): AIStagePolicy {
+  const values = { ...policy };
+  delete values.sources;
+  return values;
+}
 
-function ModelProfileEditor({ profile, assigned = false, onClose }: { profile?: ModelProfileView; assigned?: boolean; onClose?: () => void }) {
-  const queryClient = useQueryClient()
-  const [values, setValues] = useState<ModelFormValues>({ name: profile?.name ?? '', provider: profile?.provider ?? '', base_url: profile?.base_url ?? '', model: profile?.model ?? '', timeout_seconds: profile?.timeout_seconds ?? 300, request_interval_seconds: profile?.request_interval_seconds ?? null, api_key: '', location: profile?.location ?? (profile?.provider.toLowerCase() === 'ollama' ? 'LOCAL' : 'REMOTE'), modalities: profile?.modalities ?? ['text'], capabilities: profile?.capabilities ?? [], supports_json_mode: profile?.supports_json_mode ?? false, supports_thinking: profile?.supports_thinking ?? false, quality_tier: profile?.quality_tier ?? 'MAIN' })
-  const [presetId, setPresetId] = useState(providerPreset(profile?.provider ?? '')?.id ?? 'CUSTOM')
-  const [message, setMessage] = useState('')
-  const [removeOpen, setRemoveOpen] = useState(false)
-  const [draftProbeResults, setDraftProbeResults] = useState<Record<string, string>>({})
-  const [manual, setManual] = useState<ManualModelFields>(() => ({ model: Boolean(profile && !providerPreset(profile.provider)?.models.some((model) => model === profile.model)), baseUrl: Boolean(profile && providerPreset(profile.provider)?.baseUrl !== profile.base_url) }))
-  useEffect(() => { if (profile) { const preset = providerPreset(profile.provider); setValues({ name: profile.name, provider: profile.provider, base_url: profile.base_url, model: profile.model, timeout_seconds: profile.timeout_seconds, request_interval_seconds: profile.request_interval_seconds, api_key: '', location: profile.location, modalities: profile.modalities, capabilities: profile.capabilities, supports_json_mode: profile.supports_json_mode, supports_thinking: profile.supports_thinking, quality_tier: profile.quality_tier }); setPresetId(preset?.id ?? 'CUSTOM'); setManual({ model: !preset?.models.some((model) => model === profile.model), baseUrl: preset?.baseUrl !== profile.base_url }) } }, [profile])
-  const saved = () => { void queryClient.invalidateQueries({ queryKey: ['model-profiles'] }); void queryClient.invalidateQueries({ queryKey: ['model-routing'] }); void queryClient.invalidateQueries({ queryKey: ['ai-stage-policies'] }); setMessage('配置已保存'); setValues((value) => ({ ...value, api_key: '' })); onClose?.() }
-  const save = useMutation({ mutationFn: () => profile ? api.updateModelProfile(profile.id, values) : api.createModelProfile(values), onSuccess: saved, onError: (error) => setMessage(error.message) })
-  const test = useMutation({ mutationFn: () => profile ? api.testModelProfile(profile.id) : api.testModelProfileDraft(values), onSuccess: (result) => setMessage(result.message), onError: (error) => setMessage(error.message) })
-  const draftProbe = useMutation({ mutationFn: () => api.probeModelProfileDraft(values), onSuccess: (result) => { setDraftProbeResults(result.probe_results); setValues((current) => ({ ...current, capabilities: result.capabilities, supports_json_mode: result.supports_json_mode })); setMessage(result.message) }, onError: (error) => setMessage(error.message) })
-  const probe = useMutation({ mutationFn: () => api.probeModelProfile(profile!.id), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['model-profiles'] }); setMessage('能力探测已完成') }, onError: (error) => setMessage(error.message) })
-  const remove = useMutation({ mutationFn: () => api.deleteModelProfile(profile!.id), onSuccess: () => { setRemoveOpen(false); void queryClient.invalidateQueries({ queryKey: ['model-profiles'] }); setMessage('已删除') }, onError: (error) => setMessage(error.message) })
-  const update = (key: keyof typeof values, value: ModelFormValues[keyof ModelFormValues]) => setValues((current) => ({ ...current, [key]: value }))
+function ModelProfileEditor({
+  profile,
+  assigned = false,
+  onClose,
+}: {
+  profile?: ModelProfileView;
+  assigned?: boolean;
+  onClose?: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [values, setValues] = useState<ModelFormValues>({
+    name: profile?.name ?? "",
+    provider: profile?.provider ?? "",
+    base_url: profile?.base_url ?? "",
+    model: profile?.model ?? "",
+    timeout_seconds: profile?.timeout_seconds ?? 300,
+    reliability_mode: profile?.reliability_mode ?? "STANDARD",
+    request_interval_seconds: profile?.request_interval_seconds ?? null,
+    max_concurrency: profile?.max_concurrency ?? null,
+    retry_count: profile?.retry_count ?? null,
+    json_retry_count: profile?.json_retry_count ?? null,
+    rate_limit_rpm: profile?.rate_limit_rpm ?? null,
+    circuit_breaker_enabled: profile?.circuit_breaker_enabled ?? null,
+    circuit_breaker_threshold: profile?.circuit_breaker_threshold ?? null,
+    circuit_breaker_cooldown_seconds:
+      profile?.circuit_breaker_cooldown_seconds ?? null,
+    api_key: "",
+    location:
+      profile?.location ??
+      (profile?.provider.toLowerCase() === "ollama" ? "LOCAL" : "REMOTE"),
+    modalities: profile?.modalities ?? ["text"],
+    capabilities: profile?.capabilities ?? [],
+    supports_json_mode: profile?.supports_json_mode ?? false,
+    supports_thinking: profile?.supports_thinking ?? false,
+    quality_tier: profile?.quality_tier ?? "MAIN",
+  });
+  const [presetId, setPresetId] = useState(
+    providerPreset(profile?.provider ?? "")?.id ?? "CUSTOM",
+  );
+  const [message, setMessage] = useState("");
+  const [removeOpen, setRemoveOpen] = useState(false);
+  const [reliabilityAdvanced, setReliabilityAdvanced] = useState(false);
+  const [draftProbeResults, setDraftProbeResults] = useState<
+    Record<string, string>
+  >({});
+  const [manual, setManual] = useState<ManualModelFields>(() => ({
+    model: Boolean(
+      profile &&
+        !providerPreset(profile.provider)?.models.some(
+          (model) => model === profile.model,
+        ),
+    ),
+    baseUrl: Boolean(
+      profile && providerPreset(profile.provider)?.baseUrl !== profile.base_url,
+    ),
+  }));
+  useEffect(() => {
+    if (profile) {
+      const preset = providerPreset(profile.provider);
+      setValues({
+        name: profile.name,
+        provider: profile.provider,
+        base_url: profile.base_url,
+        model: profile.model,
+        timeout_seconds: profile.timeout_seconds,
+        reliability_mode: profile.reliability_mode,
+        request_interval_seconds: profile.request_interval_seconds,
+        max_concurrency: profile.max_concurrency,
+        retry_count: profile.retry_count,
+        json_retry_count: profile.json_retry_count,
+        rate_limit_rpm: profile.rate_limit_rpm,
+        circuit_breaker_enabled: profile.circuit_breaker_enabled,
+        circuit_breaker_threshold: profile.circuit_breaker_threshold,
+        circuit_breaker_cooldown_seconds:
+          profile.circuit_breaker_cooldown_seconds,
+        api_key: "",
+        location: profile.location,
+        modalities: profile.modalities,
+        capabilities: profile.capabilities,
+        supports_json_mode: profile.supports_json_mode,
+        supports_thinking: profile.supports_thinking,
+        quality_tier: profile.quality_tier,
+      });
+      setPresetId(preset?.id ?? "CUSTOM");
+      setManual({
+        model: !preset?.models.some((model) => model === profile.model),
+        baseUrl: preset?.baseUrl !== profile.base_url,
+      });
+    }
+  }, [profile]);
+  const saved = () => {
+    void queryClient.invalidateQueries({ queryKey: ["model-profiles"] });
+    void queryClient.invalidateQueries({ queryKey: ["model-routing"] });
+    void queryClient.invalidateQueries({ queryKey: ["ai-stage-policies"] });
+    setMessage("配置已保存");
+    setValues((value) => ({ ...value, api_key: "" }));
+    onClose?.();
+  };
+  const save = useMutation({
+    mutationFn: () =>
+      profile
+        ? api.updateModelProfile(profile.id, values)
+        : api.createModelProfile(values),
+    onSuccess: saved,
+    onError: (error) => setMessage(error.message),
+  });
+  const test = useMutation({
+    mutationFn: () =>
+      profile
+        ? api.testModelProfile(profile.id)
+        : api.testModelProfileDraft(values),
+    onSuccess: (result) => setMessage(result.message),
+    onError: (error) => setMessage(error.message),
+  });
+  const draftProbe = useMutation({
+    mutationFn: () => api.probeModelProfileDraft(values),
+    onSuccess: (result) => {
+      setDraftProbeResults(result.probe_results);
+      setValues((current) => ({
+        ...current,
+        capabilities: result.capabilities,
+        supports_json_mode: result.supports_json_mode,
+      }));
+      setMessage(result.message);
+    },
+    onError: (error) => setMessage(error.message),
+  });
+  const probe = useMutation({
+    mutationFn: () => api.probeModelProfile(profile!.id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["model-profiles"] });
+      setMessage("能力探测已完成");
+    },
+    onError: (error) => setMessage(error.message),
+  });
+  const remove = useMutation({
+    mutationFn: () => api.deleteModelProfile(profile!.id),
+    onSuccess: () => {
+      setRemoveOpen(false);
+      void queryClient.invalidateQueries({ queryKey: ["model-profiles"] });
+      setMessage("已删除");
+    },
+    onError: (error) => setMessage(error.message),
+  });
+  const update = (
+    key: keyof typeof values,
+    value: ModelFormValues[keyof ModelFormValues],
+  ) => setValues((current) => ({ ...current, [key]: value }));
   const choosePreset = (id: string) => {
-    setPresetId(id)
-    setValues((current) => ({ ...applyProviderPreset(current, id, manual), location: id === 'OLLAMA' ? 'LOCAL' : current.location }))
-  }
-  const activePreset = providerPreset(values.provider)
-  const isLocal = values.location === 'LOCAL'
-  const busy = save.isPending || test.isPending || draftProbe.isPending || probe.isPending || remove.isPending
-  const modelOptionsId = `model-options-${profile?.id ?? 'draft'}`
-  const capabilities = profile ? Object.entries(profile.probe_results).filter(([, value]) => value === 'PASS').map(([key]) => key) : Object.entries(draftProbeResults).filter(([, value]) => value === 'PASS').map(([key]) => key)
-  return <><section className="provider-form"><div className="provider-form__title"><h3>{profile ? profile.name : '新增自定义模型'}{assigned && <small>当前路由使用中</small>}</h3><div className="provider-form__actions">{message && <span className="provider-message"><CheckCircle2 />{message}</span>}<button className="button button--outline" onClick={() => test.mutate()} disabled={busy}>真实测试</button><button className="button button--outline" onClick={() => profile ? probe.mutate() : draftProbe.mutate()} disabled={busy}>{profile ? '能力探测' : '草稿能力探测'}</button>{profile && <button className="button button--outline" onClick={() => setRemoveOpen(true)} disabled={busy || assigned}><Trash2 />删除</button>}<button className="button button--primary" onClick={() => save.mutate()} disabled={busy}>{busy && <LoaderCircle className="spin" />}保存</button></div></div><div className="field-grid"><label>显示名称<input value={values.name} onChange={(event) => update('name', event.target.value)} placeholder="例如：我的 DeepSeek" /></label><SelectField label="Provider" value={presetId} onChange={choosePreset}>{providerPresets.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}<option value="CUSTOM">自定义</option></SelectField>{presetId === 'CUSTOM' && <label>自定义 Provider<input value={values.provider} onChange={(event) => update('provider', event.target.value)} placeholder="例如：任意 OpenAI 兼容服务" /></label>}<SelectField label="部署位置" value={values.location ?? 'REMOTE'} onChange={(value) => update('location', value as ModelFormValues['location'])}><option value="LOCAL">本机</option><option value="REMOTE">远程</option></SelectField><SelectField label="模态" value={(values.modalities ?? ['text']).includes('image') ? 'TEXT_IMAGE' : 'TEXT'} onChange={(value) => update('modalities', value === 'TEXT_IMAGE' ? ['text', 'image'] : ['text'])}><option value="TEXT">文本</option><option value="TEXT_IMAGE">文本与图像</option></SelectField><label>模型名<input list={modelOptionsId} value={values.model} onChange={(event) => { setManual((current) => ({ ...current, model: true })); update('model', event.target.value) }} placeholder="可输入或选择模型名" /><datalist id={modelOptionsId}>{activePreset?.models.map((model) => <option key={model} value={model} />)}</datalist></label><SelectField label="质量档" value={values.quality_tier ?? 'MAIN'} onChange={(value) => update('quality_tier', value as ModelFormValues['quality_tier'])}>{['FAST', 'MAIN', 'STRONG', 'SPECIALIST'].map((item) => <option value={item} key={item}>{item}</option>)}</SelectField><label>超时（秒）<input type="number" min="5" max="900" value={values.timeout_seconds} onChange={(event) => update('timeout_seconds', Number(event.target.value))} /></label><label>调用间隔（秒，留空使用全局）<input type="number" min="0" max="300" step="0.1" value={values.request_interval_seconds ?? ''} onChange={(event) => update('request_interval_seconds', event.target.value === '' ? null : Number(event.target.value))} /></label><label className="toggle-field"><input type="checkbox" checked={Boolean(values.supports_thinking)} onChange={(event) => update('supports_thinking', event.target.checked)} /><span>支持 Thinking</span></label>{!isLocal && <label className="field-grid__wide">Base URL<input value={values.base_url} onChange={(event) => { setManual((current) => ({ ...current, baseUrl: true })); update('base_url', event.target.value) }} placeholder="https://api.example.com/v1" /></label>}{isLocal ? <p className="provider-local-note">本机运行，不需要 API Key；默认连接本机 Ollama。</p> : <label className="field-grid__wide">API Key（留空沿用 Keychain）<div className="masked-key"><KeyRound /><input type="password" value={values.api_key} onChange={(event) => update('api_key', event.target.value)} placeholder={profile?.api_key_saved ? '已保存，留空不修改' : '真实测试前需要填写'} /></div></label>}</div><div className="provider-capabilities" aria-label="已探测能力"><span className="provider-capabilities__label">{profile ? '已探测能力' : '草稿探测结果'}</span>{capabilities.length > 0 ? <div className="provider-capabilities__list">{capabilities.map((capability) => <span key={capability}>{capability}</span>)}</div> : <span className="provider-capabilities__empty">{profile ? '尚未完成探测' : '真实测试或草稿探测均不会保存 API Key'}</span>}</div></section>{profile && removeOpen && <ConfirmDialog title="删除模型配置" description={`删除“${profile.name}”吗？不会删除 Keychain 之外的其他模型。`} confirmLabel="删除模型配置" danger pending={remove.isPending} onCancel={() => setRemoveOpen(false)} onConfirm={() => remove.mutate()} />}</>
+    setPresetId(id);
+    setValues((current) => ({
+      ...applyProviderPreset(current, id, manual),
+      location: id === "OLLAMA" ? "LOCAL" : current.location,
+    }));
+  };
+  const activePreset = providerPreset(values.provider);
+  const isLocal = values.location === "LOCAL";
+  const busy =
+    save.isPending ||
+    test.isPending ||
+    draftProbe.isPending ||
+    probe.isPending ||
+    remove.isPending;
+  const modelOptionsId = `model-options-${profile?.id ?? "draft"}`;
+  const capabilities = profile
+    ? Object.entries(profile.probe_results)
+        .filter(([, value]) => value === "PASS")
+        .map(([key]) => key)
+    : Object.entries(draftProbeResults)
+        .filter(([, value]) => value === "PASS")
+        .map(([key]) => key);
+  const reliabilityExamples = RELIABILITY_EXAMPLES[values.reliability_mode ?? "STANDARD"];
+  return (
+    <>
+      <section className="provider-form">
+        <div className="provider-form__title">
+          <h3>
+            {profile ? profile.name : "新增自定义模型"}
+            {assigned && <small>当前路由使用中</small>}
+          </h3>
+          <div className="provider-form__actions">
+            {message && (
+              <span className="provider-message">
+                <CheckCircle2 />
+                {message}
+              </span>
+            )}
+            <button
+              className="button button--outline"
+              onClick={() => test.mutate()}
+              disabled={busy}
+            >
+              真实测试
+            </button>
+            <button
+              className="button button--outline"
+              onClick={() => (profile ? probe.mutate() : draftProbe.mutate())}
+              disabled={busy}
+            >
+              {profile ? "能力探测" : "草稿能力探测"}
+            </button>
+            {profile && (
+              <button
+                className="button button--outline"
+                onClick={() => setRemoveOpen(true)}
+                disabled={busy || assigned}
+              >
+                <Trash2 />
+                删除
+              </button>
+            )}
+            <button
+              className="button button--primary"
+              onClick={() => save.mutate()}
+              disabled={busy}
+            >
+              {busy && <LoaderCircle className="spin" />}保存
+            </button>
+          </div>
+        </div>
+        <div className="field-grid">
+          <label>
+            显示名称
+            <input
+              value={values.name}
+              onChange={(event) => update("name", event.target.value)}
+              placeholder="例如：我的 DeepSeek"
+            />
+          </label>
+          <SelectField
+            label="Provider"
+            value={presetId}
+            onChange={choosePreset}
+          >
+            {providerPresets.map((item) => (
+              <option value={item.id} key={item.id}>
+                {item.label}
+              </option>
+            ))}
+            <option value="CUSTOM">自定义</option>
+          </SelectField>
+          {presetId === "CUSTOM" && (
+            <label>
+              自定义 Provider
+              <input
+                value={values.provider}
+                onChange={(event) => update("provider", event.target.value)}
+                placeholder="例如：任意 OpenAI 兼容服务"
+              />
+            </label>
+          )}
+          <SelectField
+            label="部署位置"
+            value={values.location ?? "REMOTE"}
+            onChange={(value) =>
+              update("location", value as ModelFormValues["location"])
+            }
+          >
+            <option value="LOCAL">本机</option>
+            <option value="REMOTE">远程</option>
+          </SelectField>
+          <SelectField
+            label="模态"
+            value={
+              (values.modalities ?? ["text"]).includes("image")
+                ? "TEXT_IMAGE"
+                : "TEXT"
+            }
+            onChange={(value) =>
+              update(
+                "modalities",
+                value === "TEXT_IMAGE" ? ["text", "image"] : ["text"],
+              )
+            }
+          >
+            <option value="TEXT">文本</option>
+            <option value="TEXT_IMAGE">文本与图像</option>
+          </SelectField>
+          <label>
+            模型名
+            <input
+              list={modelOptionsId}
+              value={values.model}
+              onChange={(event) => {
+                setManual((current) => ({ ...current, model: true }));
+                update("model", event.target.value);
+              }}
+              placeholder="可输入或选择模型名"
+            />
+            <datalist id={modelOptionsId}>
+              {activePreset?.models.map((model) => (
+                <option key={model} value={model} />
+              ))}
+            </datalist>
+          </label>
+          <SelectField
+            label="质量档"
+            value={values.quality_tier ?? "MAIN"}
+            onChange={(value) =>
+              update("quality_tier", value as ModelFormValues["quality_tier"])
+            }
+          >
+            {["FAST", "MAIN", "STRONG", "SPECIALIST"].map((item) => (
+              <option value={item} key={item}>
+                {item}
+              </option>
+            ))}
+          </SelectField>
+          <label>
+            超时（秒）
+            <input
+              type="number"
+              min="5"
+              max="900"
+              value={values.timeout_seconds}
+              onChange={(event) =>
+                update("timeout_seconds", Number(event.target.value))
+              }
+            />
+          </label>
+          <label>
+            调用间隔（秒，留空使用模式默认）
+            <input
+              type="number"
+              min="0"
+              max="300"
+              step="0.1"
+              value={values.request_interval_seconds ?? ""}
+              onChange={(event) =>
+                update(
+                  "request_interval_seconds",
+                  event.target.value === "" ? null : Number(event.target.value),
+                )
+              }
+            />
+          </label>
+          <SelectField
+            label="调用稳定性"
+            value={values.reliability_mode ?? "STANDARD"}
+            onChange={(value) =>
+              update(
+                "reliability_mode",
+                value as ModelFormValues["reliability_mode"],
+              )
+            }
+          >
+            <option value="DIRECT">直连</option>
+            <option value="STANDARD">标准</option>
+            <option value="GUARDED">受保护</option>
+            <option value="FREE_TIER">免费模型</option>
+          </SelectField>
+          <label className="toggle-field">
+            <input
+              type="checkbox"
+              checked={Boolean(values.supports_thinking)}
+              onChange={(event) =>
+                update("supports_thinking", event.target.checked)
+              }
+            />
+            <span>支持 Thinking</span>
+          </label>
+          {!isLocal && (
+            <label className="field-grid__wide">
+              Base URL
+              <input
+                value={values.base_url}
+                onChange={(event) => {
+                  setManual((current) => ({ ...current, baseUrl: true }));
+                  update("base_url", event.target.value);
+                }}
+                placeholder="https://api.example.com/v1"
+              />
+            </label>
+          )}
+          {isLocal ? (
+            <p className="provider-local-note">
+              本机运行，不需要 API Key；默认连接本机 Ollama。
+            </p>
+          ) : (
+            <label className="field-grid__wide">
+              API Key（留空沿用 Keychain）
+              <div className="masked-key">
+                <KeyRound />
+                <input
+                  type="password"
+                  value={values.api_key}
+                  onChange={(event) => update("api_key", event.target.value)}
+                  placeholder={
+                    profile?.api_key_saved
+                      ? "已保存，留空不修改"
+                      : "真实测试前需要填写"
+                  }
+                />
+              </div>
+            </label>
+          )}
+        </div>
+        <section className="provider-reliability">
+          <div>
+            <strong>{reliabilitySummary(values.reliability_mode ?? "STANDARD")}</strong>
+            <small>
+              {values.model.trim().toLowerCase().endsWith(":free")
+                ? "检测到免费模型；建议使用“免费模型”，但不会自动覆盖你的选择。"
+                : "策略只影响此模型；备用模型始终使用自己的调用策略。"}
+            </small>
+          </div>
+          <button
+            type="button"
+            className="button button--outline"
+            onClick={() => setReliabilityAdvanced((current) => !current)}
+          >
+            {reliabilityAdvanced ? "收起高级调用参数" : "高级调用参数"}
+          </button>
+        </section>
+        {reliabilityAdvanced && (
+          <div className="field-grid provider-reliability__advanced">
+            <NumberPolicyField
+              label="最大并发"
+              value={values.max_concurrency ?? null}
+              min="1"
+              max="16"
+              placeholder={reliabilityExamples.maxConcurrency}
+              onChange={(value) => update("max_concurrency", value)}
+            />
+            <NumberPolicyField
+              label="HTTP 重试次数"
+              value={values.retry_count ?? null}
+              min="0"
+              max="5"
+              placeholder={reliabilityExamples.retryCount}
+              onChange={(value) => update("retry_count", value)}
+            />
+            <NumberPolicyField
+              label="JSON 重试次数"
+              value={values.json_retry_count ?? null}
+              min="0"
+              max="3"
+              placeholder={reliabilityExamples.jsonRetryCount}
+              onChange={(value) => update("json_retry_count", value)}
+            />
+            <NumberPolicyField
+              label="RPM 上限"
+              value={values.rate_limit_rpm ?? null}
+              min="1"
+              max="10000"
+              placeholder={reliabilityExamples.rateLimitRpm}
+              onChange={(value) => update("rate_limit_rpm", value)}
+            />
+            <NumberPolicyField
+              label="连续失败阈值"
+              value={values.circuit_breaker_threshold ?? null}
+              min="1"
+              max="20"
+              placeholder={reliabilityExamples.circuitThreshold}
+              onChange={(value) => update("circuit_breaker_threshold", value)}
+            />
+            <NumberPolicyField
+              label="熔断冷却时间（秒）"
+              value={values.circuit_breaker_cooldown_seconds ?? null}
+              min="1"
+              max="3600"
+              placeholder={reliabilityExamples.circuitCooldown}
+              onChange={(value) =>
+                update("circuit_breaker_cooldown_seconds", value)
+              }
+            />
+            <label className="toggle-field">
+              <input
+                type="checkbox"
+                checked={Boolean(values.circuit_breaker_enabled)}
+                onChange={(event) =>
+                  update("circuit_breaker_enabled", event.target.checked)
+                }
+              />
+              <span>启用熔断保护</span>
+            </label>
+          </div>
+        )}
+        <div className="provider-capabilities" aria-label="已探测能力">
+          <span className="provider-capabilities__label">
+            {profile ? "已探测能力" : "草稿探测结果"}
+          </span>
+          {capabilities.length > 0 ? (
+            <div className="provider-capabilities__list">
+              {capabilities.map((capability) => (
+                <span key={capability}>{capability}</span>
+              ))}
+            </div>
+          ) : (
+            <span className="provider-capabilities__empty">
+              {profile
+                ? "尚未完成探测"
+                : "真实测试或草稿探测均不会保存 API Key"}
+            </span>
+          )}
+        </div>
+      </section>
+      {profile && removeOpen && (
+        <ConfirmDialog
+          title="删除模型配置"
+          description={`删除“${profile.name}”吗？不会删除 Keychain 之外的其他模型。`}
+          confirmLabel="删除模型配置"
+          danger
+          pending={remove.isPending}
+          onCancel={() => setRemoveOpen(false)}
+          onConfirm={() => remove.mutate()}
+        />
+      )}
+    </>
+  );
 }
 
-function SelectField({ label, value, onChange, children }: { label: string; value: string; onChange: (value: string) => void; children: ReactNode }) {
-  const options = Children.toArray(children).flatMap((child) => isValidElement<{ value?: string; children?: ReactNode }>(child) && typeof child.props.value === 'string' ? [{ value: child.props.value, label: String(child.props.children) }] : [])
-  return <SelectMenu label={label} value={value} onChange={onChange} options={options} />
+function reliabilitySummary(mode: NonNullable<ModelFormValues["reliability_mode"]>) {
+  return {
+    DIRECT: "直连：不主动排队或延迟，失败后立即交给备用模型。",
+    STANDARD: "标准：对临时错误和结构化输出进行一次轻量恢复。",
+    GUARDED: "受保护：启用请求间隔、退避和熔断保护。",
+    FREE_TIER: "免费模型：单并发限速，并对 429 退避。",
+  }[mode];
 }
-function ProviderSummary({ icon: Icon, label, value }: { icon: typeof Cpu; label: string; value: string }) { return <div><Icon /><span>{label}</span><strong>{value}</strong><small>按真实接口测试</small></div> }
-function runtimeLabel(status: string) { return ({ READY: '已就绪', MISSING: '未安装', DEGRADED: '缺少组件', UNAVAILABLE: '服务离线' } as Record<string, string>)[status] ?? status }
+
+const RELIABILITY_EXAMPLES = {
+  DIRECT: {
+    maxConcurrency: "示例 4",
+    retryCount: "默认 0",
+    jsonRetryCount: "默认 0",
+    rateLimitRpm: "示例 60",
+    circuitThreshold: "示例 3",
+    circuitCooldown: "示例 60",
+  },
+  STANDARD: {
+    maxConcurrency: "示例 4",
+    retryCount: "默认 1",
+    jsonRetryCount: "默认 1",
+    rateLimitRpm: "示例 60",
+    circuitThreshold: "示例 3",
+    circuitCooldown: "示例 60",
+  },
+  GUARDED: {
+    maxConcurrency: "默认 1",
+    retryCount: "默认 2",
+    jsonRetryCount: "默认 1",
+    rateLimitRpm: "示例 30",
+    circuitThreshold: "默认 3",
+    circuitCooldown: "默认 60",
+  },
+  FREE_TIER: {
+    maxConcurrency: "默认 1",
+    retryCount: "默认 2",
+    jsonRetryCount: "默认 1",
+    rateLimitRpm: "示例 15",
+    circuitThreshold: "默认 3",
+    circuitCooldown: "默认 120",
+  },
+} as const;
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  children,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  children: ReactNode;
+}) {
+  const options = Children.toArray(children).flatMap((child) =>
+    isValidElement<{ value?: string; children?: ReactNode }>(child) &&
+    typeof child.props.value === "string"
+      ? [
+          {
+            value: child.props.value,
+            label: Children.toArray(child.props.children).join(""),
+          },
+        ]
+      : [],
+  );
+  return (
+    <SelectMenu
+      label={label}
+      value={value}
+      onChange={onChange}
+      options={options}
+    />
+  );
+}
+function ProviderSummary({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof Cpu;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div>
+      <Icon />
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>按真实接口测试</small>
+    </div>
+  );
+}
+function runtimeLabel(status: string) {
+  return (
+    (
+      {
+        READY: "已就绪",
+        MISSING: "未安装",
+        DEGRADED: "缺少组件",
+        UNAVAILABLE: "服务离线",
+      } as Record<string, string>
+    )[status] ?? status
+  );
+}

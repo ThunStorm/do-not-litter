@@ -7,7 +7,6 @@ from zhijian.ai.capabilities import (
     AIQualityTarget,
 )
 from zhijian.ai.domain_context import DomainPack
-from zhijian.ai.gateway import AIWorkloadGateway
 from zhijian.ai.schemas import (
     AIEvidenceSegment,
     AIRequest,
@@ -33,3 +32,11 @@ __all__ = [
     "ModelProfile",
     "ResolvedAIStagePolicy",
 ]
+
+
+def __getattr__(name: str):
+    if name == "AIWorkloadGateway":
+        from zhijian.ai.gateway import AIWorkloadGateway
+
+        return AIWorkloadGateway
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

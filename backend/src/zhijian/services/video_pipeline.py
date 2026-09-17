@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from zhijian.ai.reliability import AIProviderError
 from zhijian.ai.resource_manager import local_ai_resource_manager
 from zhijian.ai.stage_decision import decide_stage, record_stage_decision
 from zhijian.ai.token_monitor import record_token_anomalies
@@ -98,9 +99,7 @@ def _hash(value: Any) -> str:
     ).hexdigest()
 
 
-def _attempts_since(
-    rows: list[ExternalCallAudit], started_at: datetime
-) -> list[ExternalCallAudit]:
+def _attempts_since(rows: list[ExternalCallAudit], started_at: datetime) -> list[ExternalCallAudit]:
     return [row for row in rows if as_utc(row.created_at) >= as_utc(started_at)]
 
 
@@ -131,9 +130,7 @@ def _subtitle_decision(
     }
 
 
-def _bind_job_to_asset_source(
-    db: Session, job: Job, requested_source: Source, asset: VideoAsset
-) -> Source:
+def _bind_job_to_asset_source(db: Session, job: Job, requested_source: Source, asset: VideoAsset) -> Source:
     """Keep one canonical Source identity when a repeated capture reuses an asset."""
     if asset.source_id == requested_source.id:
         return requested_source
@@ -145,12 +142,8 @@ def _bind_job_to_asset_source(
     has_durable_refs = any(
         (
             db.scalar(select(Snapshot.id).where(Snapshot.source_id == requested_source_id).limit(1)),
-            db.scalar(
-                select(ContentItem.id).where(ContentItem.source_id == requested_source_id).limit(1)
-            ),
-            db.scalar(
-                select(VideoAsset.id).where(VideoAsset.source_id == requested_source_id).limit(1)
-            ),
+            db.scalar(select(ContentItem.id).where(ContentItem.source_id == requested_source_id).limit(1)),
+            db.scalar(select(VideoAsset.id).where(VideoAsset.source_id == requested_source_id).limit(1)),
         )
     )
     if not has_durable_refs:
@@ -463,10 +456,22 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
                 replay_job.error = str(exc)[:4000]
                 replay_job.finished_at = utc_now()
                 replay_job.lease_owner = replay_job.lease_expire_at = None
+                record_event(
+                    db,
+                    "job.step_replay.needs_user",
+                    str(exc),
+                    component="video-pipeline",
+                    level="WARNING",
+                    entity_type="job",
+                    entity_id=replay_job.id,
+                    detail={"step": replay_job.current_step, "code": exc.code},
+                    commit=False,
+                )
                 db.commit()
         except Exception as exc:
             db.rollback()
             replay_job = db.get(Job, job_id)
+            provider_blocked = isinstance(exc, AIProviderError)
             if replay_job:
                 replay_step = db.scalar(
                     select(JobStep).where(
@@ -478,22 +483,28 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
                     replay_step.status = "FAILED"
                     replay_step.error = str(exc)[:4000]
                     replay_step.finished_at = utc_now()
-                replay_job.status = JobStatus.FAILED.value
+                replay_job.status = JobStatus.NEEDS_USER.value if provider_blocked else JobStatus.FAILED.value
+                replay_job.error_code = exc.code if provider_blocked else replay_job.error_code
                 replay_job.error = str(exc)[:4000]
                 replay_job.finished_at = utc_now()
                 replay_job.lease_owner = replay_job.lease_expire_at = None
                 record_event(
                     db,
-                    "job.step_replay.failed",
+                    "job.step_replay.needs_user" if provider_blocked else "job.step_replay.failed",
                     str(exc),
                     component="video-pipeline",
-                    level="ERROR",
+                    level="WARNING" if provider_blocked else "ERROR",
                     entity_type="job",
                     entity_id=replay_job.id,
-                    detail={"step": replay_job.current_step},
+                    detail={
+                        "step": replay_job.current_step,
+                        "code": exc.code if provider_blocked else None,
+                    },
                     commit=False,
                 )
                 db.commit()
+            if provider_blocked and replay_job:
+                return
             raise
         return
     job_id = job.id
@@ -819,6 +830,10 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
         _stage_event(db, job, "transcript.correction.requested", "正在使用 AI 校对完整转写")
         try:
             segments = correct_transcript(db, settings, asset, transcript, segments, job)
+        except JobCancelled:
+            raise
+        except AIProviderError as exc:
+            raise NeedsUser(exc.code, f"转写校对暂停：{str(exc)[:240]}") from exc
         except Exception as exc:
             raise NeedsUser("TRANSCRIPT_CORRECTION_FAILED", f"转写校对失败：{str(exc)[:240]}") from exc
         corrected_count = sum(item.correction_status == "CORRECTED" for item in segments)
@@ -1286,7 +1301,10 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                     "prompt_supplement_hash": prompt_supplement_hash(db, "transcript_correction"),
                 },
             )
-            segments = correct_transcript(db, settings, asset, transcript, segments, job)
+            try:
+                segments = correct_transcript(db, settings, asset, transcript, segments, job)
+            except AIProviderError as exc:
+                raise NeedsUser(exc.code, f"转写校对暂停：{str(exc)[:300]}") from exc
             _done(db, job, step, 70, {"corrected": len(segments)})
 
         note = db.scalar(select(AINote).where(AINote.video_asset_id == asset.id))

@@ -1,3 +1,5 @@
+import pytest
+
 from zhijian.ai import (
     AICapability,
     AIEvidenceSegment,
@@ -5,6 +7,7 @@ from zhijian.ai import (
     AIRequest,
     AIWorkloadGateway,
 )
+from zhijian.ai.reliability import AIProviderError, ModelReliabilityPolicy
 from zhijian.db.models import Job
 from zhijian.providers.llm import FallbackLLMProvider, LLMResult
 
@@ -82,14 +85,21 @@ def test_gateway_runs_budgeted_attempts_against_actual_fallback_provider(
 
         def generate_json(self, _messages, *, model):
             self.models.append(model)
-            return LLMResult('{"ok":true}', self.name, model, {})
+            return LLMResult(
+                '{"overview":"","warnings":[],"sections":[],"section_facts":[]}',
+                self.name,
+                model,
+                {},
+            )
 
     _, factory = app_and_session
     remote = Remote()
     locations: list[str] = []
     monkeypatch.setattr(
         "zhijian.ai.gateway.ensure_ai_budget",
-        lambda _db, _job, *, location, input_chars: locations.append(f"{location}:{input_chars}"),
+        lambda _db, _job, *, location, input_chars, **_target: locations.append(
+            f"{location}:{input_chars}"
+        ),
     )
     with factory() as db:
         job = Job(job_type="TRAVEL", status="RUNNING", payload_json={})
@@ -119,3 +129,43 @@ def test_gateway_runs_budgeted_attempts_against_actual_fallback_provider(
     assert result.provider == "remote"
     assert remote.models == ["remote-model"]
     assert locations == ["LOCAL:8", "REMOTE:8"]
+
+
+def test_invalid_structured_output_is_not_cached(app_and_session) -> None:
+    class InvalidProvider:
+        name = "remote"
+        base_url = "https://remote.test"
+
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def generate_json(self, _messages, *, model):
+            self.calls += 1
+            return LLMResult('{"places":[', self.name, model, {})
+
+    _, factory = app_and_session
+    raw = InvalidProvider()
+    provider = FallbackLLMProvider(
+        raw,
+        "model",
+        None,
+        None,
+        primary_reliability=ModelReliabilityPolicy("STANDARD", retry_count=0, json_retry_count=0),
+    )
+    with factory() as db:
+        for _ in range(2):
+            with pytest.raises(AIProviderError, match="截断"):
+                AIWorkloadGateway().execute_cached_json(
+                    db,
+                    job=None,
+                    stage="EXTRACT_TRAVEL_FACTS",
+                    capability="ENTITY_EXTRACTION",
+                    provider=provider,
+                    provider_name="remote",
+                    model="model",
+                    messages=[{"role": "user", "content": "evidence"}],
+                    semantic_options={},
+                    cache_enabled=True,
+                    force_regenerate=False,
+                )
+    assert raw.calls == 2

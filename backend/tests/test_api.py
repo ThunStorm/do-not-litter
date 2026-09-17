@@ -29,7 +29,7 @@ from zhijian.db.models import (
 from zhijian.main import SPAStaticFiles
 from zhijian.providers.runtime import _macos_memory_metrics
 from zhijian.services.auth import create_session
-from zhijian.services.job_replay import VIDEO_STEP_ORDER
+from zhijian.services.job_replay import VIDEO_STEP_ORDER, resume_deferred_full_replays
 from zhijian.services.jobs import recover_stale_jobs, release_expired_cancelled_jobs
 from zhijian.services.pipeline import process_job
 from zhijian.services.place_knowledge import normalize_insight
@@ -387,7 +387,7 @@ def test_failed_video_step_replays_only_current_and_downstream(client, app_and_s
             job_type="TRAVEL",
             status="FAILED",
             current_step="CORRECT_TRANSCRIPT",
-            payload_json={"title": "续跑测试"},
+            payload_json={"title": "续跑测试", "ai_soft_budget": {"status": "HARD_LIMIT"}},
             error="模型暂时不可用",
         )
         db.add(job)
@@ -426,6 +426,7 @@ def test_failed_video_step_replays_only_current_and_downstream(client, app_and_s
         job = db.get(Job, job_id)
         assert job and job.status == "QUEUED"
         assert job.payload_json["replay_from_step"] == "CORRECT_TRANSCRIPT"
+        assert "ai_soft_budget" not in job.payload_json
         steps = {
             step.step_name: step.status
             for step in db.scalars(select(JobStep).where(JobStep.job_id == job_id))
@@ -434,7 +435,7 @@ def test_failed_video_step_replays_only_current_and_downstream(client, app_and_s
         assert steps["CORRECT_TRANSCRIPT"] == "PENDING"
 
 
-def test_full_replay_stops_active_job_and_creates_replacement(client, app_and_session) -> None:
+def test_full_replay_stops_active_job_and_requeues_same_job(client, app_and_session) -> None:
     _, factory = app_and_session
     with factory() as db:
         job = Job(
@@ -467,21 +468,65 @@ def test_full_replay_stops_active_job_and_creates_replacement(client, app_and_se
     assert "停止当前流程" in options["full_replay_reason"]
     queued = client.post(f"/api/jobs/{job_id}/retry-full")
     assert queued.status_code == 200
-    assert queued.json()["status"] == "QUEUED"
+    assert queued.json()["job_id"] == job_id
+    assert queued.json()["status"] == "CANCELLED"
     assert queued.json()["stopped_active_job"] is True
     with factory() as db:
         old = db.get(Job, job_id)
-        replacement = db.get(Job, queued.json()["job_id"])
         assert old and old.status == "CANCELLED"
-        assert replacement and replacement.status == "QUEUED"
-        assert "replay_from_step" not in replacement.payload_json
+        old.lease_owner = old.lease_expire_at = None
+        db.commit()
+        assert resume_deferred_full_replays(db) == 1
+        db.refresh(old)
+        assert old.status == "QUEUED"
+        assert old.current_step == "RECEIVED"
+        assert old.retry_count == 1
+        assert "replay_from_step" not in old.payload_json
         step = db.scalar(
             select(JobStep).where(
                 JobStep.job_id == job_id,
                 JobStep.step_name == "CORRECT_TRANSCRIPT",
             )
         )
-        assert step and step.status == "CANCELLED"
+        assert step and step.status == "PENDING"
+
+
+def test_full_replay_reuses_terminal_job_id(client, app_and_session) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        job = Job(
+            job_type="TRAVEL",
+            status="NEEDS_USER",
+            current_step="CORRECT_TRANSCRIPT",
+            progress=69,
+            retry_count=2,
+            payload_json={
+                "title": "终态完整重跑",
+                "replay_from_step": "CORRECT_TRANSCRIPT",
+                "ai_soft_budget": {"status": "HARD_LIMIT"},
+            },
+        )
+        db.add(job)
+        db.flush()
+        db.add(JobStep(job_id=job.id, step_name="CORRECT_TRANSCRIPT", status="FAILED", progress=0))
+        db.commit()
+        job_id = job.id
+
+    response = client.post(f"/api/jobs/{job_id}/retry-full")
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "QUEUED",
+        "job_id": job_id,
+        "stopped_active_job": False,
+        "deferred": False,
+    }
+    with factory() as db:
+        job = db.get(Job, job_id)
+        assert job and job.status == "QUEUED"
+        assert job.current_step == "RECEIVED"
+        assert job.retry_count == 3
+        assert "replay_from_step" not in job.payload_json
+        assert "ai_soft_budget" not in job.payload_json
 
 
 def test_general_settings_include_ai_retry_defaults(client) -> None:
@@ -890,6 +935,69 @@ def test_source_delete_requires_orphan_and_content_delete_prunes_it(client, app_
         db.commit()
         orphan_id = orphan.id
     assert client.delete(f"/api/sources/{orphan_id}").status_code == 200
+
+
+def test_bulk_delete_content_prunes_orphan_sources(client, app_and_session) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        sources = [
+            Source(source_type="TEXT", locator="bulk-content-one", title="批量内容一"),
+            Source(source_type="TEXT", locator="bulk-content-two", title="批量内容二"),
+        ]
+        db.add_all(sources)
+        db.flush()
+        contents = [
+            ContentItem(content_type="GENERAL_NOTE", title=source.title, source_id=source.id)
+            for source in sources
+        ]
+        db.add_all(contents)
+        db.commit()
+        source_ids = [source.id for source in sources]
+        content_ids = [content.id for content in contents]
+
+    deleted = client.request("DELETE", "/api/content/bulk", json={"ids": content_ids})
+    assert deleted.status_code == 200
+    assert deleted.json() == {
+        "requested": 2,
+        "deleted": 2,
+        "source_deleted_ids": source_ids,
+    }
+    assert all(client.get(f"/api/content/{content_id}").status_code == 404 for content_id in content_ids)
+    assert all(client.get(f"/api/sources/{source_id}").status_code == 404 for source_id in source_ids)
+
+
+def test_bulk_delete_keeps_source_dependencies_unless_evidence_chain_is_confirmed(
+    client, app_and_session
+) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        linked = Source(source_type="TEXT", locator="linked-bulk", title="有关联来源")
+        orphan = Source(source_type="TEXT", locator="orphan-bulk", title="孤立来源")
+        db.add_all([linked, orphan])
+        db.flush()
+        content = ContentItem(content_type="GENERAL_NOTE", title="关联内容", source_id=linked.id)
+        terminal = Job(job_type="UNKNOWN", status="COMPLETED", payload_json={"title": "可删除任务"})
+        active = Job(job_type="UNKNOWN", status="RUNNING", payload_json={"title": "运行任务"})
+        db.add_all([content, terminal, active])
+        db.commit()
+        linked_id, orphan_id, content_id = linked.id, orphan.id, content.id
+        terminal_id, active_id = terminal.id, active.id
+
+    sources = client.request("DELETE", "/api/sources/bulk", json={"ids": [linked_id, orphan_id]})
+    assert sources.status_code == 200
+    assert sources.json()["deleted_ids"] == [orphan_id]
+    assert sources.json()["skipped"][0]["id"] == linked_id
+    assert client.get(f"/api/content/{content_id}").status_code == 200
+
+    cascade = client.request("DELETE", f"/api/sources/{linked_id}/evidence-chain", json={"confirm": True})
+    assert cascade.status_code == 200 and cascade.json()["content_deleted"] == 1
+    assert client.get(f"/api/sources/{linked_id}").status_code == 404
+    assert client.get(f"/api/content/{content_id}").status_code == 404
+
+    deleted_jobs = client.request("DELETE", "/api/jobs/bulk", json={"ids": [terminal_id]})
+    assert deleted_jobs.status_code == 200 and deleted_jobs.json()["deleted"] == 1
+    rejected_jobs = client.request("DELETE", "/api/jobs/bulk", json={"ids": [active_id]})
+    assert rejected_jobs.status_code == 409
 
 
 def test_map_overview_switches_selected_preview(client) -> None:
@@ -1372,6 +1480,43 @@ def test_model_profile_request_interval_is_optional_and_persisted(client, app_an
     with factory() as db:
         saved = db.get(Setting, f"model-profile:{profile_id}")
         assert saved and saved.value_json["request_interval_seconds"] == 0
+
+
+def test_model_profile_reliability_fields_round_trip_and_legacy_default(client) -> None:
+    legacy = client.post(
+        "/api/settings/model-profiles",
+        json={
+            "name": "兼容模型",
+            "provider": "OpenAI Compatible",
+            "base_url": "https://example.test/v1",
+            "model": "fixture",
+        },
+    )
+    assert legacy.status_code == 200
+    assert legacy.json()["reliability_mode"] == "STANDARD"
+
+    configured = client.post(
+        "/api/settings/model-profiles",
+        json={
+            "name": "免费模型",
+            "provider": "OpenRouter",
+            "base_url": "https://openrouter.ai/api/v1",
+            "model": "fixture:free",
+            "reliability_mode": "FREE_TIER",
+            "max_concurrency": 1,
+            "retry_count": 2,
+            "json_retry_count": 1,
+            "rate_limit_rpm": 12,
+            "circuit_breaker_enabled": True,
+            "circuit_breaker_threshold": 3,
+            "circuit_breaker_cooldown_seconds": 120,
+        },
+    )
+    assert configured.status_code == 200
+    profile = configured.json()
+    assert profile["reliability_mode"] == "FREE_TIER"
+    assert profile["max_concurrency"] == 1
+    assert profile["circuit_breaker_cooldown_seconds"] == 120
 
 
 def test_docx_upload_enters_the_same_durable_pipeline(client, app_and_session) -> None:

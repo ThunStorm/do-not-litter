@@ -33,7 +33,7 @@
 | 不可回退约束 | [REGRESSION_AND_CHANGE_GUARD](REGRESSION_AND_CHANGE_GUARD.md) | 大段复制到各交接页 |
 | 设计契约 | 下表专项正文 | 实施状态的长篇叙述 |
 | 逐版本过程 / 旧计划 | history/，仅按需追溯 | 默认接手正文 |
-| 未来候选范围 | [待办池](planning/POST_FREEZE_TODO_BACKLOG.md)、[路线图](planning/FUTURE_ROADMAP.md)、[视频 Benchmark 与验收](planning/video/VIDEO_WORKFLOW_BENCHMARK_AND_ACCEPTANCE_PLAN.md) | 当前完成度或自动授权 |
+| 未来候选范围 | [待办池](planning/POST_FREEZE_TODO_BACKLOG.md)、[路线图](planning/FUTURE_ROADMAP.md) | 当前完成度或自动授权 |
 
 源码/测试证明实际行为，冻结契约表达必须保持的要求，两者冲突应报告差异，不能用一方静默覆盖另一方。新草案也不因日期更新就自动生效。
 
@@ -50,7 +50,7 @@
 | ai-gateway/ | Gateway 分篇、模型与 Prompt、运行配置、AI 验收 |
 | operations/ | 部署、日志、运维交互、运行监控 |
 | testing/、benchmark/ | 测试策略与样本说明；机器可读验收样本 |
-| planning/ | 待办池、未来路线、视频 Benchmark/验收候选、[字幕一致性优化方案](planning/VIDEO_TRANSCRIPT_ALIGNMENT_OPTIMIZATION_PLAN.md)与[UI/视频/POI V2 实施计划](planning/AGENT_IMPLEMENTATION_PLAN_UI_VIDEO_POI_V2.md)；不自动授权实施 |
+| planning/ | 待办池、未来路线与[字幕一致性优化方案](planning/VIDEO_TRANSCRIPT_ALIGNMENT_OPTIMIZATION_PLAN.md)；不自动授权实施 |
 | history/ | 历史实施记录和已覆盖的旧计划；仅追溯时读取 |
 
 | 领域 | 文档与职责 |
@@ -326,7 +326,7 @@
 
 # 当前实施状态
 
-> 状态记录日期：2026-09-09。本文唯一记录当前源码能力与自动验证；生产状态只见 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
+> 状态记录日期：2026-09-17。本文唯一记录当前源码能力与自动验证；生产状态只见 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
 
 ## Current repository freeze
 
@@ -340,7 +340,7 @@
 | 领域 | 已进入源码的能力 | 契约入口 |
 | --- | --- | --- |
 | Capture / 基础 | URL、正文、DOCX、PDF、XLSX、图像 OCR、音视频；局域网配对与 Session；Source/Evidence | product/PRODUCT_REQUIREMENTS.md、architecture/SECURITY_PRIVACY.md |
-| 招聘 / 旅行 | 首批招聘结构化与证据；Place Insight、POI Review、全国交互地图、Marker 生命周期、地点管理/人工路线；POI Resolver Golden、事实归一化、跨来源共识/冲突、地点知识 API/证据跳转；月份/日期 Visit Window 状态、可重算 Preference Event 与确定性可解释推荐；Visual Fact 实验性截图任务、Vision Profile Skip 与离线 Golden | product/TRAVEL_FOOD_PIPELINE.md、planning/PLAN_B_PLACE_POI_KNOWLEDGE_QUALITY.md、planning/PLAN_C_TRAVEL_RECOMMENDATION_AND_VISION.md |
+| 招聘 / 旅行 | 首批招聘结构化与证据；Place Insight、POI Review、全国交互地图、Marker 生命周期、地点管理/人工路线；POI Resolver Golden、事实归一化、跨来源共识/冲突、地点知识 API/证据跳转；月份/日期 Visit Window 状态、可重算 Preference Event 与确定性可解释推荐；Visual Fact 实验性截图任务、Vision Profile Skip 与离线 Golden | product/TRAVEL_FOOD_PIPELINE.md、ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md |
 | 视频 | 字幕优先、ASR、校对、笔记/章节、地点、截图、列表封面、保留式删除 | video/VIDEO_AI_NOTE_PIPELINE.md（分篇索引） |
 | Bilibili 登录恢复 | 站内扫码、nav 账号验证、Keychain 保存；登录失败进入 NEEDS_USER；核心恢复与非核心截图显式跳过；字幕多轨与官方 CDN Host Policy | video/02-input-transcript.md |
 | Job / Replay | 独立 Worker 心跳、协作取消、租约门禁、终态表达、步骤续跑和完整重跑；后端决定 Replay Options | jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md |
@@ -376,6 +376,24 @@
 - 2026-09-13：重复 Capture 的 Source/VideoAsset 身份复用已修复，异常审计的 SQLite naive/UTC aware 时间比较已统一；全量回归通过并生产重启。用户样本 `BV19sbV6eExE` 的真实下载、Whisper、归一化与本地校对成功，Source/Asset 绑定一致且空 Source 已清理；地点抽取在多个已存 Profile 上分别遇到 OpenRouter 400、缺 `content`、非法 JSON 和超时，故未生成 Note/POI/截图，仍不能宣称成功 E2E。
 - 2026-09-13：用户切换 Key 后，`BV19sbV6eExE` 从地点抽取步骤 Replay 成功并以 `PARTIAL_SUCCESS` 交付：Note version 2、9 张 READY 截图、FTS 新 Note 命中、45 个 POI 全部 REVIEW/UNRESOLVED、confirmed=0；步骤无失败/跳过。此为真实 Bilibili+ASR+校对+抽取+Note+POI Review+截图验收，不代表 Vision、Profile 切换、fallback、缓存/强制再生或移动浏览器验收。
 - 2026-09-14：Note Evidence Index 按 Mention ID 稳定排序，避免同语义 Replay 因数据库读取顺序漂移 Cache Key。真实 COMPACT Profile 生成 current version 7，所有章节保留 Evidence；同 Profile 二次 Replay 的分块 Cache Hit 为 0ms，force-regenerate 真实调用并建立 Cache result chain。Local Video 文件上传、Adapter 与 ASR 通过，后续本地校对超时。Vision 无 image-capable Profile，备用 ASR 六类 corpus、可控 fallback、POI 人审晋级和 Browser/390px 仍未验证。
+- 2026-09-14：LLM Token 与自动化计划第一阶段（WP0–WP5、WP8、WP11）已进入源码：`0023` 持久化 Profile 无关的 Grounded Map，默认链路只进行一次主语义扫描；`EXTRACT_TRAVEL_FACTS` 只从该 Artifact 确定性物化并记录 0 LLM Prompt Token；Profile 重生成从 `NOTE_REDUCE` 开始，复用 Transcript、Grounded Map 和 PlaceMention。`/api/jobs/{id}/ai-usage` 现按 Stage/模型/位置提供 Token、缓存、重试/fallback/重复输入浪费及自动化决策；每次 Map 记录 RUN/REUSE/SKIP 原因。完整后端回归、完整 Ruff、Node 24 前端 verify、`diff --check` 通过；均为离线验证，未调用真实 Provider/视频或做 Browser/390px 验收。第二、三阶段未实施。
+- 2026-09-14：LLM Token 与自动化计划第二阶段（WP6、WP7、WP9、WP10）已进入源码。Whisper 只发送确定性语义候选及有界邻段；人工字幕直接 PASS，来源不明的旧 ASR 保持保守全量校对。长 Prompt 与 Map/Reduce 默认不 Retry；仅带 `Retry-After` 的 429、超时/连接或临时 4xx/5xx 重试，JSON 包裹/尾逗号先本地修复。标记为 `ai_automation_version=v2` 的新任务在 AUTO 下按 Stage capability、Profile location/tier、Quality preset 与软预算压力决定 LOCAL/REMOTE；软预算会在 Job payload 和 AI Usage API 记录 EXPECTED/WARNING/HARD_LIMIT，WARNING 时优先 Local、取消 fallback 与 Retry。完整后端回归、完整 Ruff、Node 24 前端 verify、`diff --check` 通过；未调用真实 Provider/视频。历史性能、价格和 Benchmark 数据未编造，仍待第三阶段取证。
+- 2026-09-14：第三阶段离线能力已进入源码：POI V2 只允许满足全部 Evidence、类型、地域、候选差距、坐标、负证据与 chain-risk 门禁的 `AUTO_STRONG` 创建 Confirmed Place；`AUTO_CONTEXTUAL` 自动完成详情二次核验后仍进 Review，人工确认/拒绝写入可供离线 Golden 使用的 feedback，未在线调阈值。`AI_TOKEN_ANOMALY` 检测重复输入、连续 fallback、异常 Chunk 尝试和超预算 Prompt，默认只记录不重跑。Benchmark 现包含 Token 增长超过 15% 且无质量收益的回归 Gate；毕业检查脚本要求 Fixture、10/30/60 分钟真实视频、Replay 及 Provider 全部证据才会 PASS。离线 Golden 将有 chain risk 的“角楼咖啡”从 Confirmed 收紧为 Review；完整后端回归、Ruff、Node 24 前端 verify、`diff --check` 通过。未调用真实高德/Provider/视频，故未达到生产毕业。
+- 2026-09-14：已受控部署 `09e4c6a` 与启动环境修复 `4226541`。部署前 revision `0023`、`integrity_check=ok`、active Job/lease=0；已备份 `data/backups/app-pre-llm-token-automation-20260914-143324.db`（完整性 ok），不重复迁移。API/Worker/首页/心跳 READY，`grounded_map_artifacts` 表和新 API 路由可读。LaunchAgent 改传配置别名 `ENV=production`，清理了此前错误 development 启动生成的 2 条无来源演示 Job；修复后未再生成。真实本地 `qwen3.5:9b` 最小 JSON 连通测试通过；当前主远程 Profile 返回 HTTP 429，未重试。没有合规 10/30/60 分钟样本，未重跑既有媒体/ASR/校对，故仍不宣称真实 Pipeline/Provider/fallback/毕业通过。
+- 2026-09-14：内容、视频笔记、任务和来源列表均加入统一的当前列表全选、逐项选择、数量确认与批量删除工具条。后端批删先验证全部目标：任务仅终态可删；内容删除专属 Claim/Evidence 后才孤立来源清理；视频笔记批删保留地点/路线。来源批删只删除孤立来源并逐项返回关联内容/笔记/活跃任务跳过原因，不触碰关联内容；来源证据链删除必须 `confirm=true`，确认后同步删除关联内容、视频笔记、快照和分段，保留地点/路线。选择工具已移入各列表标题栏；复选框与类型图标分离，长标题/路径单行省略。内容批删路由的回归覆盖成功删除与孤立来源清理，响应中的来源 ID 顺序稳定。后端 162 项、Ruff、Node 24 前端 verify、`diff --check` 通过；Browser 在 1047×886 验收来源与任务标题栏、逐项选择和删除确认弹窗，在 390×844 验收来源列表，控制台无 warning/error，未执行真实删除。
+- 2026-09-15：设置页 `SelectField` 将 option 的多段 React 子节点按空字符串合并，不再使用数组默认的逗号连接；模型选择器正确显示“名称 · 模型名”。Node 24 前端 lint、17 项 Vitest、TypeScript、Vite build 与 `diff --check` 通过。
+- 2026-09-15：设置页 AI 阶段标题仅显示中文业务名，`GROUND_MAP` 显示“证据地图”，不再展示英文名称或技术 capability 枚举。Node 24 前端 lint、17 项 Vitest、TypeScript、Vite build 与 `diff --check` 通过。
+- 2026-09-16：模型可靠调用计划已进入源码。Profile JSON Setting 以兼容字段保存 DIRECT/STANDARD/GUARDED/FREE_TIER 及限速、并发、重试、熔断参数，无新 migration；可靠层按 provider/credential/model 维护单进程 limiter 与 circuit，429 无 `Retry-After` 也按指数退避，quota 不重试，主备各自执行 Policy，OpenRouter 同 endpoint 不同 model 可切换。结构化输出仅在安全恢复及 Stage 最小契约通过后写 Cache，Audit 保留 attempt/error/recovery 的脱敏 metadata。后端完整 `pytest backend/tests -q`、完整 Ruff、Node 24 `pnpm verify`、`diff --check` 通过；设置页在本地桌面与 390×844 预览通过且控制台无 warning/error。未调用真实 Provider/视频，未迁移或重启服务。
+- 2026-09-16：历史坏 Cache 循环失败已修复。现场 Job 的 `GROUND_MAP` 两次均以 0ms 命中同一条截断 v1 Cache，故 Replay 没有新 LLM Attempt 并重复报“模型没有返回 JSON 对象”。Gateway 现在对新结果和 Cache Hit 使用同一 JSON/Stage 契约；非法旧项记录 `SKIPPED / AI_CACHE_INVALID` 与 `cache_entry_id` 后绕过，合法 v1 Cache 继续复用，新写入使用 v2 Key 并保留替代链。完整后端回归、Ruff、`diff --check` 通过；未删除历史记录、未调用 Provider、未部署或 Replay。
+- 2026-09-16：部署复核发现 Worker 启动时 `providers.llm` 导入 `ai.reliability` 会触发 `ai.__init__` 预加载 Gateway/Cache，反向导入部分初始化的 Provider。`AIWorkloadGateway` 改为惰性包导出，新增 Worker import 回归；生产解释器 import、完整后端回归与 Ruff 通过。第二次受控重启后 API/Worker 均 RUNNING、内容/心跳 READY；无 migration、Provider 调用或视频 Replay。
+- 2026-09-16：转写校对对 `AI_PROVIDER_OUTPUT_TRUNCATED` 增加批次二分恢复：不原样重试被截断的大批次，而是递归拆分后串行校对，并记录 `transcript.correction.batch.split`。目标视频表明 32 Segment/4047 字符仍可能令 GLM 达到输出长度上限，生产默认已收紧至 4000 字符/16 Segment；目标与完整后端回归、Ruff、`diff --check` 通过。修复已受控部署，未自动 Replay。
+- 2026-09-16：模型不稳定流程与付费 API 已进一步隔离。结构化错误只占 JSON retry；转写拆分子批完成即持久化，未变更段记为 `UNCHANGED`，后续 Replay 跳过完成段；截断学习到的 model 级安全批量保存在 Job runtime hint。TPM/RPM 临时上限使用 `AI_PROVIDER_THROTTLED`，仅打开对应 provider/credential/model circuit，DIRECT 付费 Profile 不等待、不加锁、不重试且不受该 circuit 影响；Replay 遇到 Provider 阻塞进入 `NEEDS_USER`。完整后端 180 项与 Ruff 通过；已无 migration 受控重启，未调用真实 Provider 或自动 Replay。
+- 2026-09-16：OpenRouter `openrouter/free` 在账户/Guardrail ZDR 策略排除全部端点时现分类为 `AI_PROVIDER_POLICY_BLOCKED`，不再把首个 404 当网络错误重试成泛化 400；转写 Job 保留具体 Provider 错误码，取消仍保持取消语义。日志事件抽屉新增“复制日志”，复制当前脱敏事件 JSON 并显示成功反馈。后端 181 项、Ruff、前端 18 项测试/TypeScript/Vite build、`diff --check` 通过；桌面及 390×844 Browser 交互与控制台通过。已无 migration 受控重启，未重跑 Job 或调用真实 Provider；账户级 ZDR 仍需用户在 OpenRouter Privacy/Guardrail 调整，或改用支持 ZDR 的模型。
+- 2026-09-16：完整重跑改为复用原 Job ID，终态任务直接重置并从首步入队；运行中任务先协作式取消，再由 Worker 在释放 lease 后以同一 Job 入队，保留 Job ID 与审计记录、重置 Step 执行态/中间 Artifact，且不会创建替代任务。任务列表运行态右侧显示“正在〈实际阶段〉”，不再以泛化“处理中”掩盖当前 Step。失败卡长 Provider URL 在 390px 下改为可换行单列，无横向溢出。后端 182 项、Ruff、前端 verify 与 `diff --check` 通过；已无 migration 受控重启，桌面/390×844 Browser 与控制台通过；未自动重跑或调用 Provider。
+- 2026-09-16：任务列表改为真实的固定选择列，不再以条件 class 和行 margin 模拟占位；可删除任务显示复选框，运行中任务保留同宽空槽，标题、阶段、进度与状态列在桌面和 390×844 下对齐。列表改为复用任务详情的统一阶段词典，`CORRECT_TRANSCRIPT` 显示“AI 校对转写”，状态小字增加越界省略保护。Node 24 前端 verify（10 个文件、18 项）、`diff --check` 通过；本机生产页面 970×886/390×844 Browser 无横向溢出、控制台无 warning/error，勾选后工具条正确显示 `已选 1/1`。仅更新同源前端静态产物，无 migration、无服务重启、未触发真实任务或 Provider。
+- 2026-09-17：AI 预算与模型探测边界已修正。远程调用次数/Token 按本轮及 Provider Profile 分账，本地不受固定调用次数限制；非 LLM 审计与 Cache Hit 不计次数，Replay 清理旧预算状态，预算前置拒绝不再形成 Provider 失败审计或触发 fallback。设置页测试/探测按凭据共享节流，远程请求至少间隔 4 秒、单并发、输出最多 64 Token；429/配额进入冷却并返回明确错误，不覆盖已有能力，未覆盖项记录 `NOT_TESTED`。完整后端 186 项、完整 Ruff、Node 24 前端 verify、文档生成一致性和 `diff --check` 通过；应用内浏览器状态读取连续两次超时，故本轮新增设置标签未完成 Browser 视觉验收。未调用真实 Provider、未 Replay、未重启服务。
+- 2026-09-17：模型截断链路已修复并部署。生产审计确认截断只发生在转写校对与 Grounded Map：Ollama Profile 的上下文窗口现传入 `num_ctx`；DeepSeek 官方接口按 Stage Policy 发送 thinking 开关；空正文且 `finish_reason=length/max_tokens` 统一分类为 `AI_PROVIDER_OUTPUT_TRUNCATED`，使转写既有二分恢复生效；Grounded Map 也会按 Segment 递归二分，不再因单个长块阻塞整条视频任务。Note Chunk/Reduce 保持已有确定性兜底，默认地点物化不调用模型。后端 189 项、完整 Ruff、Node 24 前端 verify 与 `diff --check` 通过；部署前 active Job/lease=0、`integrity_check=ok`、revision=`0023`，备份 `data/backups/app-pre-truncation-chain-fix-20260917-235300.db` 完整性 ok。无 migration 重启后 API/Worker/内容/心跳 READY。现场 `job_8711f9326c474cae87a3d3c083401c55` 的 24 小时步骤续跑 Artifact 已过期，因此未绕过门禁调用真实 Provider；仍需新任务或用户明确授权完整重跑做生产 E2E。
+- 2026-09-16：ASR Benchmark 第一阶段的可执行框架已进入源码：`run_asr_benchmark.py` 强制人工核对 manifest、六类场景、两条完整视频回放证据，并隔离运行 Whisper Base/Turbo 与显式本地 SenseVoice/Qwen Adapter；Qwen 自动生成无/有 Context 对照，统一评分输出 CER、coverage、时间码、RTF、内存、alignment 与候选建议。`benchmark_asr_providers.py` 仅做离线评分，始终 `production_eligible=false`，未改 `WHISPER_CPP` 默认值、Video Pipeline 或 Settings。当前没有合规语料、人工 Ground Truth、SenseVoice/Qwen Runtime 或真实回放证据，故未实际运行四引擎、未生成真实报告，不能宣称 Benchmark/生产接入完成。
 
 [实施历史](history/IMPLEMENTATION_HISTORY.md) 和 [归档实施计划](history/planning/README.md) 保留旧状态与计划追溯，默认不读。当前页只保留最新结论和未闭环项；完成项不持续追加长叙事。生产现场只更新 CURRENT_HANDOFF.md；冻结约束只更新 REGRESSION_AND_CHANGE_GUARD.md。新增证据必须写明日期、对象与验证层级。
 
@@ -4249,18 +4267,11 @@ Marker 是 Place 的地图投影，不维护第二套地点详情数据。`marke
 
 ---
 
-# 12. 实施顺序
+# 12. 当前实现与剩余验收
 
-v0.4/v0.4.1 基础链路、v0.4.2 第一阶段与 v0.4.3 列表封面已完成。v0.4.4 后续按以下顺序实施：
+v0.4 质量链路已进入源码：全量校对稿独立分块抽取地点、服务端 Grounded Evidence 驱动 Note、章节地点化、Review Context 与 `PlaceReviewCard` 统一、视频时间码保留原 URL 参数并精确定位。字幕来源/时间轴门禁、截图物化、Replay/Artifact、列表/详情删除和相关缓存同步均已覆盖自动回归。
 
-1. 模型级全 Segment `CORRECT_TRANSCRIPT`、覆盖验证和 fallback；
-2. Hero 缺封面空状态、正文优先、底部地点候选/完整转写；
-3. 主体设计语言目录、稳定锚点和页面内时间码跳转；
-4. 220–280px 侧排关键缩略图、语义重选与 contain Lightbox；
-5. Step Artifact Manifest、24h Replay Cache 与 Replay Options；
-6. 从错误步骤执行当前/下游，上游 REUSED，过期后完整重跑；
-7. 视频笔记列表/详情统一删除和共享数据保留；
-8. PC/Mobile 标注设计、键盘、安全和真实样本回归。
+仍需单独授权并取证的只有真实 Provider/视频、Vision、备用 ASR corpus 与 390px 浏览器验收；性能证据不足时不实施 AI 字幕抽样优化，历史污染数据只对用户指定对象生成新版本，不修改旧 Transcript、Evidence 或 Note。
 
 
 ---
@@ -5018,7 +5029,7 @@ Artifact 状态：`AVAILABLE / EXPIRED / INVALIDATED / MISSING`。
 
 完整重跑是不同动作：从 Pipeline 首个步骤开始，可按缓存策略复用，但不保证跳过任何步骤。
 
-取消不是失败步骤。步骤续跑仍只在有明确失败步骤与有效 Artifact 时可用。完整重跑是独立动作：任何状态下均可从右上角提交；若原 Job 正在排队或运行，服务端先将其标记为协作式取消，再创建新的 `QUEUED` Job。单 Worker 会在旧流程到达安全边界并释放 lease 后领取新任务，避免两个流程并发写同一结果。
+取消不是失败步骤。步骤续跑仍只在有明确失败步骤与有效 Artifact 时可用。完整重跑是独立动作：任何状态下均复用原 Job ID；终态 Job 立即清除步骤执行态并重新 `QUEUED`，运行中的 Job 先协作式取消，Worker 在安全边界释放 lease 后将同一 Job 从首步重新入队。保留 Job ID 与 SystemEvent/ExternalCallAudit，重置 Step 执行态和中间 Artifact，避免生成同标题替代 Job 或两个流程并发写同一结果。
 
 ---
 
@@ -5035,7 +5046,7 @@ POST /api/jobs/{job_id}/retry-full
 ```json
 {
   "full_replay_available": true,
-  "full_replay_reason": "将停止当前流程并创建新的完整任务"
+  "full_replay_reason": "将停止当前流程，并在安全边界后从头重新运行原任务"
 }
 ```
 
@@ -5101,7 +5112,7 @@ Replay Options：
 8. 日志按钮语义为“从错误步骤继续”，不再误导为整任务重跑；
 9. 重复点击、活跃 lease、错误事件不匹配均被拒绝；
 10. 审计可追踪旧 Attempt、来源 ERROR、复用 Artifact 和新 Attempt。
-11. 运行中点击右上角完整重跑会取消旧 Job、创建新 Job，并导航到新任务；旧 Worker 在安全边界停止后再领取新 Job。
+11. 运行中点击右上角完整重跑会取消当前 Attempt，并在安全边界后以同一 Job ID 从首步重新入队；旧 Worker 停止后才领取该 Job 的新 Attempt。
 12. 复用 canonical VideoAsset 时，步骤续跑以 `FETCH_METADATA` Artifact 的 `video_asset_id` 定位资产，不假设当前 Capture Source 与资产原 Source 相同。
 
 
@@ -5549,14 +5560,17 @@ API 每 30 秒写入 SQLite 的同一快照仍是局域网与本机的唯一数�
 
 # AI Gateway 生产验收与发布门禁
 
-更新日期：2026-09-08。本文件取代已删除的阶段执行计划，保留尚未完成的生产验收边界，不把源码实现误写为生产已验证。
+更新日期：2026-09-15。本文件承接已归档的执行计划，只保留尚未完成的生产验收边界，不把源码实现误写为生产已验证。
 
 ## 已在源码验证
 
 - `LocalAIResourceManager` 使用共享 `data/runtime/local-ai.lock` 的 `flock` 串行化 API 与 Worker 的本地 ASR、文本、视觉及模型测试；进程退出由操作系统释放锁。
-- AI Budget 按审计中的 `location` 分别累计 LOCAL/REMOTE Token；缓存命中不计模型调用或 Token 预算，且保留位置与缓存节省用量。
+- AI Budget 只统计 `capability=LLM` 的真实尝试；远程调用次数和 Token 按本轮执行及 Provider Profile 分账，本地不设固定次数上限但保留 Token/总时长保护；Replay 不继承上一轮预算消耗，缓存命中不计调用或 Token。
+- 设置页真实测试与能力探测使用 Provider 凭据级节流；远程探测串行且限制输出。429/配额/网络阻塞不写成能力 `FAIL`，也不覆盖此前 `PASS`。
 - Cache key 绑定请求路由的 Provider/Model，结果及命中审计保存实际返回的 Provider/Model；这定义了当前的 route-result 行为，但尚未用真实 fallback 验收其用户可见语义。
 - `scripts/run_ai_benchmark.py` 评估受控真实 E2E 采集的结果；Golden 样本定义在 `benchmark/golden-ai-gateway-samples.json`。它不调用 Provider、不下载视频。
+- `0023` 已持久化可复用的 Grounded Map；地点物化和不同 Note Render Profile 复用同一事实输入，Stage 记录 RUN/REUSE/SKIP 原因并在 AI Usage API 返回 Token、缓存、重试/fallback 与预算决策。
+- 长 Prompt 与 Map/Reduce 默认不重试；仅临时传输/限流条件可重试，软预算在 WARNING 时优先本地并停止 retry/fallback。POI 自动确认、Token anomaly 和 Benchmark 回归 Gate 都保持离线/证据门禁，不替代真实验收。
 
 执行已采集数据的发布门禁：
 
@@ -5569,7 +5583,7 @@ API 每 30 秒写入 SQLite 的同一快照仍是局域网与本机的唯一数�
 
 ## 生产门禁（尚未由本文件宣称完成）
 
-生产迁移前确认无 `QUEUED/RUNNING` Job 或 lease，备份 SQLite，并执行 `PRAGMA integrity_check`。仓库 migration head 为 `0017`；生产实际版本须在操作时读取，不由本文推断。迁移或重启只通过 `deploy/macos/manage.py`，不得以临时开发服务替代 LaunchAgent。
+生产迁移前确认无 `QUEUED/RUNNING` Job 或 lease，备份 SQLite，并执行 `PRAGMA integrity_check`。仓库 migration head 为 `0023`；生产实际版本须在操作时读取，不由本文推断。迁移或重启只通过 `deploy/macos/manage.py`，不得以临时开发服务替代 LaunchAgent。
 
 已有一条真实视频样本完成字幕、笔记、地点提取和截图，并因 POI 待人工确认以 `PARTIAL_SUCCESS` 结束；该样本不覆盖本门禁。真实 E2E 仍须分别留存：本地 Ollama text/JSON/structured output、一个已配置远程 Provider、LOCAL_ONLY/REMOTE_ONLY/LOCAL_FIRST/REMOTE_FIRST/AUTO 路由、跨进程 ASR 与模型测试等待、缓存与 force-regenerate（含 fallback 后再命中）、低预算拦截、AI 阶段取消与 Replay、一个平台字幕视频及一个 ASR 视频。未配置的 Key、Cookie、模型或可访问样本是明确的外部条件，不能以 Mock 或空记录替代。
 
@@ -6246,6 +6260,8 @@ REMOTE_STRONG = 用户配置的 OpenAI-compatible 模型
 # 9. 本地模型最低要求
 
 任何本地模型进入 Router 前必须通过 Capability Probe。
+
+Capability Probe 只对实际执行的项目给出 `PASS` 或 `FAIL`，未覆盖能力保持 `NOT_TESTED`。Provider 返回 429、配额不足、网络错误或熔断冷却时属于“本次无法判定”，不得写成能力失败或覆盖上一次成功结果。设置页真实测试与能力探测必须按同一 Provider 凭据共享节流，远程探测串行执行并限制输出长度。
 
 最低要求：
 
@@ -6940,18 +6956,16 @@ force_regenerate=true
 
 统一叫 `AI Budget`，因为本地也有资源成本。
 
-建议：
+当前预算边界：
 
 ```text
-max_model_attempts_per_job
-max_remote_prompt_tokens_per_job
-max_remote_completion_tokens_per_job
-max_local_prompt_tokens_per_job
-max_local_completion_tokens_per_job
-max_ai_wall_time_seconds_per_job
+远程模型：每轮、每个 Provider Profile 独立统计调用次数与 Token
+本地模型：不设固定调用次数上限，仍统计本轮 Token
+所有模型：保留每轮总运行时长限制
+Replay：重置本轮预算状态，历史审计只作证据，不消耗新一轮预算
 ```
 
-不得无限 retry。
+只有 `capability=LLM` 且非 Cache Hit 的真实模型尝试进入调用次数；视频解析、字幕、下载、ASR 等外部调用不得混入。预算在 Provider 请求前拒绝时，不记录成 Provider 调用失败，也不得切换备用模型。不得无限 retry。
 
 ---
 

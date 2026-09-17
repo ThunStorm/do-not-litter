@@ -10,6 +10,7 @@ from zhijian.ai.cache import cached_json_result
 from zhijian.ai.capabilities import AIModelLocation
 from zhijian.ai.resource_manager import local_ai_resource_manager
 from zhijian.ai.schemas import AIRequest, AIResult
+from zhijian.ai.structured_output import validate_structured_output
 from zhijian.db.models import Job
 from zhijian.providers.llm import FallbackLLMProvider, LLMProvider, LLMResult, ProviderRequestOptions
 
@@ -35,6 +36,9 @@ class AIWorkloadGateway:
     ) -> LLMResult:
         """Cache one route result while enforcing budget and local serialization per actual attempt."""
 
+        def validate_result(result: LLMResult) -> None:
+            validate_structured_output(result.content, stage, getattr(result, "metadata", {}))
+
         def call() -> LLMResult:
             if isinstance(provider, FallbackLLMProvider):
                 provider.attempt_metadata = {
@@ -47,7 +51,7 @@ class AIWorkloadGateway:
                     **{
                         key: value
                         for key, value in (attempt_metadata or {}).items()
-                        if key in {"chunk_index", "chunk_count"}
+                        if key in {"chunk_index", "chunk_count", "split_path", "segment_count"}
                     },
                 }
 
@@ -63,6 +67,7 @@ class AIWorkloadGateway:
                     )
 
                 provider.attempt_runner = run_attempt
+                provider.result_validator = validate_result if not provider._legacy_reliability else None
                 return provider.generate_json(messages, model=model)
             return self._execute_attempt(db, job, provider, "generate_json", messages, model, None)
 
@@ -79,6 +84,7 @@ class AIWorkloadGateway:
             cache_enabled=cache_enabled,
             force_regenerate=force_regenerate,
             call=call,
+            validate=validate_result,
         )
 
     @staticmethod
@@ -98,6 +104,9 @@ class AIWorkloadGateway:
             job,
             location=location,
             input_chars=sum(len(message.get("content") or "") for message in messages),
+            provider=provider_name,
+            model=model,
+            profile_id=getattr(provider, "profile_id", None),
         )
 
         def invoke() -> LLMResult:
