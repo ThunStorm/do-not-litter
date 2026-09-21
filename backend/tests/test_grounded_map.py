@@ -173,6 +173,50 @@ def test_grounded_map_splits_truncated_chunks(app_and_session, monkeypatch) -> N
     assert artifact.facts_json == []
 
 
+def test_grounded_map_prechunks_for_local_models(app_and_session, monkeypatch) -> None:
+    _, factory = app_and_session
+    batch_sizes: list[int] = []
+    monkeypatch.setattr(
+        "zhijian.ai.gateway.local_ai_resource_manager.run", lambda _kind, call: call()
+    )
+
+    class Provider:
+        def generate_json(self, messages, *, model):
+            batch_sizes.append(messages[-1]["content"].count("[segment:"))
+            assert "禁止输出空字符串、空数组" in messages[0]["content"]
+            return LLMResult(
+                '{"section_facts":[],"places":[],"warnings":[]}',
+                "ollama",
+                model,
+                {},
+            )
+
+    monkeypatch.setattr(
+        "zhijian.services.video_support.provider_for_role",
+        lambda *_args: (Provider(), "ollama", "local-model"),
+    )
+    with factory() as db:
+        source = Source(source_type="URL", locator="https://example.test/local-map", title="fixture")
+        db.add(source)
+        db.flush()
+        asset = VideoAsset(source_id=source.id, canonical_url=source.locator, title="本地模型分块")
+        db.add(asset)
+        db.flush()
+        transcript, segments = materialize_transcript(
+            db,
+            source,
+            asset,
+            [
+                {"text": f"第{index}段", "start_ms": index * 1000, "end_ms": (index + 1) * 1000}
+                for index in range(130)
+            ],
+            source_kind="ASR",
+        )
+        get_or_create_grounded_map(db, Settings(_env_file=None), asset, transcript, segments)
+
+    assert batch_sizes == [64, 64, 2]
+
+
 def test_note_profile_regeneration_starts_at_reduce(client, app_and_session) -> None:
     _, factory = app_and_session
     with factory() as db:

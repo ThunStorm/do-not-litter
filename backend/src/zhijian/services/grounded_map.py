@@ -17,7 +17,9 @@ from zhijian.ai.stage_decision import decide_stage, record_stage_decision
 from zhijian.core.config import Settings
 from zhijian.db.models import GroundedMapArtifact, Job, Segment, Transcript, VideoAsset
 
-MAP_PROMPT_VERSION = "grounded-map-v1"
+MAP_PROMPT_VERSION = "grounded-map-v2"
+LOCAL_MAP_CHUNK_CHARS = 6_000
+LOCAL_MAP_CHUNK_SEGMENTS = 64
 
 
 def _content_hash(segments: list[Segment]) -> str:
@@ -150,7 +152,12 @@ def get_or_create_grounded_map(
     facts: list[dict] = []
     places: list[dict] = []
     warnings: list[str] = []
-    chunks = _transcript_chunks(segments, int(policy.chunk_size or settings.video_note_chunk_chars))
+    chunk_chars = int(policy.chunk_size or settings.video_note_chunk_chars)
+    max_segments = None
+    if provider_name.lower() == "ollama" and policy.chunk_size is None:
+        chunk_chars = min(chunk_chars, LOCAL_MAP_CHUNK_CHARS)
+        max_segments = LOCAL_MAP_CHUNK_SEGMENTS
+    chunks = _transcript_chunks(segments, chunk_chars, max_segments=max_segments)
 
     def request_chunk(
         chunk: list[Segment], *, chunk_index: int, chunk_count: int, split_path: str = "root"
