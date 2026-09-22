@@ -66,6 +66,7 @@ class JobView(BaseModel):
     model_step: str | None = None
     provider: str | None = None
     model: str | None = None
+    active_attempt: dict[str, Any] | None = None
 
 
 class ContentView(BaseModel):

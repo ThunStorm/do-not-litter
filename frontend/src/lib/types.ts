@@ -28,6 +28,25 @@ export interface JobView {
   model_step: string | null
   provider: string | null
   model: string | null
+  active_attempt: ActiveAttemptView | null
+}
+
+export interface ActiveAttemptView {
+  id: string
+  stage: string | null
+  step: string | null
+  provider: string
+  model: string
+  route: string | null
+  chunk_index: number | null
+  chunk_count: number | null
+  split_path: string | null
+  started_at: string
+  updated_at: string
+  deadline_at: string | null
+  elapsed_seconds: number
+  timeout_seconds: number | null
+  status: string
 }
 
 export interface ContentView {
@@ -157,6 +176,7 @@ export interface LogsView {
 export interface LogAttemptView {
   id: string
   created_at: string
+  updated_at: string
   capability: string
   operation: string
   provider: string
@@ -164,8 +184,14 @@ export interface LogAttemptView {
   route: string | null
   attempt: number | null
   timeout_seconds: number | null
+  deadline_at: string | null
+  stage: string | null
+  step: string | null
+  split_path: string | null
+  recovery: string | null
   status: string
   duration_ms: number | null
+  elapsed_seconds: number
   input_chars: number | null
   chunk_index: number | null
   chunk_count: number | null
@@ -219,6 +245,8 @@ export interface AIStagePolicy {
   max_output_tokens: number | null
   thinking: boolean | null
   timeout_seconds: number | null
+  wall_time_seconds: number | null
+  max_attempts: number | null
   retry_count: number | null
   confidence_threshold: number | null
   escalation_threshold: number | null
@@ -229,6 +257,7 @@ export interface AIStagePolicy {
   domain_pack_ids: string[]
   cache_enabled: boolean | null
   force_regenerate: boolean
+  allow_unverified_model: boolean
   version: number
   sources?: Record<string, string>
 }

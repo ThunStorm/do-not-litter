@@ -6,6 +6,7 @@ import json
 import sys
 from collections import defaultdict
 from datetime import datetime
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
@@ -15,13 +16,14 @@ from sqlalchemy.orm import Session
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend" / "src"))
 
-from zhijian.core.time import as_utc
+from zhijian.core.time import as_utc, utc_now
 from zhijian.db.models import (
     ExternalCallAudit,
     Job,
     JobStep,
     JobStepArtifact,
     Setting,
+    SystemEvent,
 )
 
 
@@ -133,6 +135,9 @@ def capture(db: Session, *, sample_id: str, profile_id: str, job_id: str) -> dic
         .where(ExternalCallAudit.job_id == job_id)
         .order_by(ExternalCallAudit.created_at)
     ).all()
+    events = db.scalars(
+        select(SystemEvent).where(SystemEvent.entity_type == "job", SystemEvent.entity_id == job_id)
+    ).all()
     stage_metrics: dict[str, dict[str, int]] = defaultdict(
         lambda: {
             "input_tokens": 0,
@@ -159,6 +164,16 @@ def capture(db: Session, *, sample_id: str, profile_id: str, job_id: str) -> dic
         values["cached_tokens"] += int(response.get("cached_tokens") or 0)
         values["wall_time_ms"] += int(audit.duration_ms or 0)
     metrics = dict(stage_metrics)
+    full_input_fallback_after_truncation = 0
+    for previous, current in pairwise(audits):
+        previous_request = previous.request_meta_json or {}
+        current_request = current.request_meta_json or {}
+        if (
+            previous.error_code == "AI_PROVIDER_OUTPUT_TRUNCATED"
+            and current_request.get("route") == "fallback"
+            and previous_request.get("input_hash") == current_request.get("input_hash")
+        ):
+            full_input_fallback_after_truncation += 1
     return {
         "sample_id": sample_id,
         "profile": profile_id,
@@ -171,6 +186,20 @@ def capture(db: Session, *, sample_id: str, profile_id: str, job_id: str) -> dic
         },
         "stage_metrics": metrics,
         "baseline_metrics": _baseline_metrics(job, steps, audits, metrics),
+        "runtime_resilience": {
+            "running_attempts": sum(item.status == "RUNNING" for item in audits),
+            "timed_out_attempts": sum(item.status == "TIMED_OUT" for item in audits),
+            "discarded_attempts": sum(item.status == "DISCARDED" for item in audits),
+            "late_result_discarded": sum(
+                item.event_type == "job.run.late_result_discarded" for item in events
+            ),
+            "full_input_fallback_after_truncation": full_input_fallback_after_truncation,
+            "active_expired_lease": int(
+                job.status == "RUNNING"
+                and job.lease_expire_at is not None
+                and as_utc(job.lease_expire_at) < utc_now()
+            ),
+        },
         "stage_outputs": {step.step_name: _redact(step.output_json) for step in steps},
         "replay_artifacts": [
             {

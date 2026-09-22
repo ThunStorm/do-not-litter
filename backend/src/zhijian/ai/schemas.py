@@ -101,6 +101,8 @@ class AIStagePolicy(BaseModel):
     max_output_tokens: int | None = Field(default=None, ge=1, le=32_768)
     thinking: bool | None = None
     timeout_seconds: int | None = Field(default=None, ge=5, le=900)
+    wall_time_seconds: int | None = Field(default=None, ge=5, le=3600)
+    max_attempts: int | None = Field(default=None, ge=1, le=20)
     retry_count: int | None = Field(default=None, ge=0, le=3)
     confidence_threshold: float | None = Field(default=None, ge=0, le=1)
     escalation_threshold: float | None = Field(default=None, ge=0, le=1)
@@ -112,6 +114,7 @@ class AIStagePolicy(BaseModel):
     cache_enabled: bool | None = None
     force_regenerate: bool = False
     force_full_correction: bool | None = None
+    allow_unverified_model: bool = False
     version: int = Field(default=1, ge=1)
 
 

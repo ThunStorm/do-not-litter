@@ -7,10 +7,27 @@ from zhijian.db.models import AINote, ExternalCallAudit, Job, Source, VideoAsset
 from zhijian.providers.llm import LLMResult
 from zhijian.services.grounded_map import get_or_create_grounded_map
 from zhijian.services.video_support import (
+    _compact_note_facts,
+    _note_evidence_packs,
     extract_place_mentions,
     generate_note,
     materialize_transcript,
 )
+
+
+def test_note_evidence_pack_is_deduplicated_and_bounded() -> None:
+    duplicate = {
+        "summary": "同一事实",
+        "key_points": ["要点", "要点"],
+        "supporting_quotes": ["逐字证据", "逐字证据"],
+        "segment_ids": ["seg-1"],
+        "place_mention_ids": ["pm-1"],
+    }
+    compact = _compact_note_facts([duplicate, duplicate, {**duplicate, "segment_ids": ["seg-2"]}])
+    packs = _note_evidence_packs(compact, max_chars=10_000, max_facts=1)
+    assert len(compact) == 2
+    assert compact[0]["supporting_quotes"] == ["逐字证据"]
+    assert [len(pack) for pack in packs] == [1, 1]
 
 
 class FixtureProvider:

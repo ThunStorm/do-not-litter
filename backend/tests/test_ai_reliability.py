@@ -37,6 +37,63 @@ def test_direct_success_has_no_wait_or_retry() -> None:
     assert sleeps == []
 
 
+def test_stage_recoverable_truncation_returns_before_fallback() -> None:
+    class Primary:
+        calls = 0
+
+        def generate_json(self, _messages, *, model):
+            self.calls += 1
+            return LLMResult("{}", "primary", model, {}, {"finish_reason": "length"})
+
+    class Fallback:
+        calls = 0
+
+        def generate_json(self, _messages, *, model):
+            self.calls += 1
+            return LLMResult('{"places":[]}', "fallback", model, {})
+
+    primary = Primary()
+    fallback = Fallback()
+    provider = FallbackLLMProvider(
+        primary,
+        "primary",
+        fallback,
+        "fallback",
+        fallback_decider=lambda error: error.code != "AI_PROVIDER_OUTPUT_TRUNCATED",
+        primary_reliability=ModelReliabilityPolicy("DIRECT"),
+        fallback_reliability=ModelReliabilityPolicy("DIRECT"),
+    )
+    with pytest.raises(AIProviderError) as raised:
+        provider.generate_json([], model="ignored")
+    assert raised.value.code == "AI_PROVIDER_OUTPUT_TRUNCATED"
+    assert primary.calls == 1
+    assert fallback.calls == 0
+    assert provider.generate_fallback_json([]).provider == "fallback"
+    assert fallback.calls == 1
+
+
+def test_attempt_start_runs_after_budget_preflight() -> None:
+    order: list[str] = []
+
+    class Provider:
+        def generate_json(self, _messages, *, model):
+            order.append("provider")
+            return LLMResult('{"places":[]}', "provider", model, {})
+
+    provider = FallbackLLMProvider(
+        Provider(),
+        "model",
+        None,
+        None,
+        before_attempt=lambda *_args: order.append("budget"),
+        on_attempt_start=lambda *_args: order.append("started") or "attempt-id",
+        on_attempt=lambda *_args: order.append("finished"),
+        primary_reliability=ModelReliabilityPolicy("DIRECT"),
+    )
+    provider.generate_json([], model="ignored")
+    assert order == ["budget", "started", "provider", "finished"]
+
+
 def test_standard_retries_invalid_json_once(monkeypatch) -> None:
     monkeypatch.setattr("zhijian.providers.llm.retry_wait_seconds", lambda *_args: 0)
 

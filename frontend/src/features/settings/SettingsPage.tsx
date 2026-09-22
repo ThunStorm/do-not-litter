@@ -1185,6 +1185,13 @@ function StagePolicyEditor({
             onChange={(value) => update("temperature", value)}
           />
           <NumberPolicyField
+            label="最大输入 Token"
+            value={values.max_input_tokens}
+            min="1"
+            max="131072"
+            onChange={(value) => update("max_input_tokens", value)}
+          />
+          <NumberPolicyField
             label="最大输出 Token"
             value={values.max_output_tokens}
             min="1"
@@ -1210,6 +1217,20 @@ function StagePolicyEditor({
             min="5"
             max="900"
             onChange={(value) => update("timeout_seconds", value)}
+          />
+          <NumberPolicyField
+            label="阶段总时限（秒）"
+            value={values.wall_time_seconds}
+            min="5"
+            max="3600"
+            onChange={(value) => update("wall_time_seconds", value)}
+          />
+          <NumberPolicyField
+            label="最多模型尝试"
+            value={values.max_attempts}
+            min="1"
+            max="20"
+            onChange={(value) => update("max_attempts", value)}
           />
           <NumberPolicyField
             label="重试次数"
@@ -1248,6 +1269,14 @@ function StagePolicyEditor({
             max="10"
             onChange={(value) => update("neighbor_segments", value)}
           />
+          <SelectField
+            label="未验证模型"
+            value={values.allow_unverified_model ? "ALLOW" : "BLOCK"}
+            onChange={(value) => update("allow_unverified_model", value === "ALLOW")}
+          >
+            <option value="BLOCK">阻止已知能力失败模型</option>
+            <option value="ALLOW">允许并记录告警</option>
+          </SelectField>
           <label>
             领域
             <input

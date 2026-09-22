@@ -1,5 +1,7 @@
 # 模型级可靠调用机制实施计划
 
+> 归档状态：已实施；当前能力以 `IMPLEMENTATION_STATUS.md` 与后续运行韧性计划为准。
+
 > 项目：`ThunStorm/do-not-litter`
 > 分支：`codex/mac-mini-implementation`
 > 基线：当前分支已存在 AI Gateway、FallbackLLMProvider、模型 Profile、Stage Policy、AI Cache 与 ExternalCallAudit。

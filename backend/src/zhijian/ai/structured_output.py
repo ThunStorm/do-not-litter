@@ -42,6 +42,13 @@ _REQUIRED_FIELDS = {
     "GROUND_MAP": ("section_facts", "places", "warnings"),
     "EXTRACT_TRAVEL_FACTS": ("places",),
     "GENERATE_AI_NOTE": ("overview", "warnings", "sections", "section_facts"),
+    "NOTE_REDUCE": ("sections",),
+}
+
+_LIST_LIMITS = {
+    "GROUND_MAP": {"section_facts": 200, "places": 100, "warnings": 40},
+    "GENERATE_AI_NOTE": {"sections": 40, "section_facts": 200, "warnings": 40},
+    "NOTE_REDUCE": {"sections": 40, "warnings": 40},
 }
 
 
@@ -64,4 +71,11 @@ def validate_structured_output(content: str, stage: str, metadata: dict[str, Any
         if field in value and not isinstance(value[field], list):
             raise AIProviderError(
                 "AI_PROVIDER_SCHEMA_INVALID", f"模型输出字段 {field} 必须是列表", retryable=True
+            )
+    for field, limit in _LIST_LIMITS.get(stage, {}).items():
+        if isinstance(value.get(field), list) and len(value[field]) > limit:
+            raise AIProviderError(
+                "AI_PROVIDER_SCHEMA_INVALID",
+                f"模型输出字段 {field} 超过上限 {limit}",
+                retryable=True,
             )

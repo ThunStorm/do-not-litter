@@ -21,7 +21,7 @@ from zhijian.ai.domain_context import domain_context_hash, domain_context_messag
 from zhijian.ai.gateway import AIWorkloadGateway
 from zhijian.ai.policies import resolve_stage_policy
 from zhijian.ai.reliability import AIProviderError, ModelReliabilityPolicy, resolve_reliability_policy
-from zhijian.ai.runtime_hints import read_runtime_hint, tighten_runtime_hint
+from zhijian.ai.runtime_hints import read_runtime_hint, tighten_note_reduce_hint, tighten_runtime_hint
 from zhijian.ai.stage_decision import decide_stage, record_stage_decision
 from zhijian.ai.transcript_quality import correction_candidates, transcript_source_class
 from zhijian.core.config import Settings
@@ -32,9 +32,9 @@ from zhijian.db.models import (
     AINote,
     AINoteSection,
     AINoteVersion,
-    ExternalCallAudit,
     GroundedMapArtifact,
     Job,
+    JobStep,
     Place,
     PlaceDeletionTombstone,
     PlaceInsightItem,
@@ -61,7 +61,8 @@ from zhijian.providers.llm import (
     provider_error_details,
 )
 from zhijian.services.audit import record_event
-from zhijian.services.jobs import ensure_job_active
+from zhijian.services.jobs import JobCancelled, ensure_job_active
+from zhijian.services.model_attempts import begin_model_attempt, finish_model_attempt
 from zhijian.services.place_knowledge import aggregate_place_knowledge, normalize_insight
 from zhijian.services.transcript_retention import retention_deadline
 from zhijian.services.video_note_search import sync_video_note_search_index
@@ -550,6 +551,21 @@ def _profile_location(config: dict[str, Any] | None) -> str:
     return config.get("location") or ("LOCAL" if config.get("provider", "").lower() == "ollama" else "REMOTE")
 
 
+def _profile_supports_capability(
+    config: dict[str, Any] | None,
+    capability: AICapability,
+    *,
+    allow_unverified: bool = False,
+) -> bool:
+    if not config or not bool(config.get("enabled", True)):
+        return False
+    capabilities = {str(item) for item in config.get("capabilities") or []}
+    probe = str((config.get("probe_results") or {}).get(capability.value) or "NOT_TESTED").upper()
+    if allow_unverified:
+        return True
+    return probe != "FAIL" and (not capabilities or capability.value in capabilities)
+
+
 def _profile_request_interval(config: dict[str, Any] | None, default: float) -> float:
     value = (config or {}).get("request_interval_seconds")
     return default if not value else float(value)
@@ -644,7 +660,15 @@ def provider_for_role(
     if resolved_policy:
         local_id = resolved_policy.local_profile_id
         remote_id = resolved_policy.remote_profile_id
-        candidates = ((primary_id, primary_config), (fallback_id, fallback_config))
+        candidates = tuple(
+            (item_id, config)
+            for item_id, config in ((primary_id, primary_config), (fallback_id, fallback_config))
+            if _profile_supports_capability(
+                config,
+                resolved_policy.capability,
+                allow_unverified=resolved_policy.allow_unverified_model,
+            )
+        )
         local_id = local_id or next(
             (item_id for item_id, config in candidates if _profile_location(config) == "LOCAL"), ""
         )
@@ -680,6 +704,18 @@ def provider_for_role(
                 primary_id, fallback_id = route_decision.primary_id, route_decision.fallback_id
         primary_config = _profile_config(db, primary_id)
         fallback_config = _profile_config(db, fallback_id)
+        if not _profile_supports_capability(
+            primary_config,
+            resolved_policy.capability,
+            allow_unverified=resolved_policy.allow_unverified_model,
+        ):
+            primary_config = None
+        if not _profile_supports_capability(
+            fallback_config,
+            resolved_policy.capability,
+            allow_unverified=resolved_policy.allow_unverified_model,
+        ):
+            fallback_config = None
     general_setting = db.get(Setting, "app:general")
     policy = GeneralConfig(
         **(
@@ -747,47 +783,72 @@ def provider_for_role(
         cached = usage.get("cached_tokens")
         if cached is None:
             cached = (usage.get("prompt_tokens_details") or {}).get("cached_tokens")
-        db.add(
-            ExternalCallAudit(
-                job_id=job.id if job else None,
-                capability="LLM",
-                provider=provider,
-                operation=role,
-                status="FAILED" if exc else "COMPLETED",
-                request_meta_json={
-                    "step": {
-                        "transcript_correction": "CORRECT_TRANSCRIPT",
-                        "video_note_summary": "GENERATE_AI_NOTE",
-                        "note_reduce": "NOTE_REDUCE",
-                        "grounded_map": "GROUND_MAP",
-                        "travel_place_extraction": "EXTRACT_TRAVEL_FACTS",
-                    }.get(role, role),
-                    "model": model,
-                    "location": "LOCAL" if provider == "ollama" else "REMOTE",
-                    "route": route,
-                    "route_decision": route_decision.route if route_decision else None,
-                    "route_reason": route_decision.reason_code if route_decision else None,
-                    "attempt": attempt,
-                    "input_chars": input_chars,
-                    **attempt_metadata,
-                },
-                response_meta_json={
-                    "prompt_tokens": usage.get("prompt_tokens", usage.get("prompt_eval_count")),
-                    "completion_tokens": usage.get("completion_tokens", usage.get("eval_count")),
-                    "cached_tokens": cached,
-                    "usage": usage,
-                    "status_code": status_code,
-                    "provider_error": error or None,
-                    "finish_reason": (result.metadata if result else {}).get("finish_reason"),
-                    "response_id": (result.metadata if result else {}).get("response_id"),
-                    "content_length": (result.metadata if result else {}).get("content_length"),
-                },
-                duration_ms=duration_ms,
-                error_code=(error.get("code") or getattr(exc, "code", None)) if exc else None,
-                error_message=error.get("message") if exc else None,
-            )
+        attempt_id = str(attempt_metadata.pop("attempt_id", ""))
+        response_meta = {
+            "prompt_tokens": usage.get("prompt_tokens", usage.get("prompt_eval_count")),
+            "completion_tokens": usage.get("completion_tokens", usage.get("eval_count")),
+            "cached_tokens": cached,
+            "usage": usage,
+            "status_code": status_code,
+            "provider_error": error or None,
+            "finish_reason": (result.metadata if result else {}).get("finish_reason"),
+            "response_id": (result.metadata if result else {}).get("response_id"),
+            "content_length": (result.metadata if result else {}).get("content_length"),
+        }
+        if attempt_id and not finish_model_attempt(
+            db,
+            job,
+            attempt_id,
+            status="FAILED" if exc else "COMPLETED",
+            duration_ms=duration_ms,
+            request_meta_updates=attempt_metadata,
+            response_meta=response_meta,
+            error_code=(error.get("code") or getattr(exc, "code", None)) if exc else None,
+            error_message=error.get("message") if exc else None,
+        ):
+            raise JobCancelled("本次模型调用所属的任务执行权已失效")
+
+    def on_attempt_start(
+        provider: str,
+        model: str,
+        route: str,
+        attempt: int,
+        input_chars: int,
+        attempt_metadata: dict[str, Any],
+    ) -> str:
+        recovery = attempt_metadata.get("recovery") or (
+            "fallback_model"
+            if route == "fallback"
+            else "split_same_model"
+            if str(attempt_metadata.get("split_path") or "root") != "root"
+            else None
         )
-        db.commit()
+        return begin_model_attempt(
+            db,
+            settings,
+            job,
+            provider=provider,
+            operation=role,
+            request_meta={
+                "stage": stage,
+                "step": {
+                    "transcript_correction": "CORRECT_TRANSCRIPT",
+                    "video_note_summary": "GENERATE_AI_NOTE",
+                    "note_reduce": "NOTE_REDUCE",
+                    "grounded_map": "EXTRACT_TRAVEL_FACTS",
+                    "travel_place_extraction": "EXTRACT_TRAVEL_FACTS",
+                }.get(role, role),
+                "model": model,
+                "location": "LOCAL" if provider.lower() == "ollama" else "REMOTE",
+                "route": route,
+                "route_decision": route_decision.route if route_decision else None,
+                "route_reason": route_decision.reason_code if route_decision else None,
+                "attempt": attempt,
+                "input_chars": input_chars,
+                **attempt_metadata,
+                "recovery": recovery,
+            },
+        )
 
     def with_policy(
         primary: LLMProvider,
@@ -835,14 +896,35 @@ def provider_for_role(
             fallback_request_interval_seconds=fallback_interval,
             on_retry=on_retry,
             on_attempt=on_attempt,
+            on_attempt_start=on_attempt_start,
             request_options=request_options,
             fallback_request_options=options_for(fallback_config),
             primary_reliability=reliability_for(primary_config),
             fallback_reliability=reliability_for(fallback_config),
+            fallback_decider=(
+                lambda exc: exc.code not in {"AI_PROVIDER_OUTPUT_TRUNCATED", "AI_PROVIDER_CONTEXT_TOO_LARGE"}
+            )
+            if role in {"transcript_correction", "grounded_map", "note_reduce"}
+            else None,
+            max_attempts=resolved_policy.max_attempts if resolved_policy else None,
         )
 
+    if primary_config is None and fallback_config is not None:
+        primary_id, primary_config = fallback_id, fallback_config
+        fallback_id, fallback_config = "", None
     if primary_config is None:
         raise ProviderUnavailable("尚未在设置中选择主模型")
+    if resolved_policy and resolved_policy.allow_unverified_model and job:
+        record_event(
+            db,
+            "ai.route.capability_override",
+            f"{stage} 使用用户明确允许的未验证模型",
+            component="ai-gateway",
+            level="WARNING",
+            entity_type="job",
+            entity_id=job.id,
+            detail={"stage": stage, "primary_profile_id": primary_id, "fallback_profile_id": fallback_id},
+        )
     if route_decision and job:
         record_event(
             db,
@@ -1151,7 +1233,7 @@ def _place_evidence_index(mentions: list[PlaceMention]) -> list[dict[str, object
             "name": mention.name,
             "place_type": mention.place_type,
             "segment_ids": mention.segment_ids_json,
-            "quotes": [mention.quote],
+            "quotes": [mention.quote[:500]],
         }
         for mention in sorted(mentions, key=lambda item: item.id)
         if mention.extraction_status != "USER_REJECTED" and mention.quote
@@ -1240,6 +1322,51 @@ def _ground_map_facts(
             }
         )
     return result
+
+
+def _compact_note_facts(facts: list[dict[str, object]]) -> list[dict[str, object]]:
+    compact: list[dict[str, object]] = []
+    seen: set[str] = set()
+    for fact in facts:
+        value = {
+            "summary": str(fact.get("summary") or "")[:800],
+            "key_points": list(dict.fromkeys(str(item)[:300] for item in fact.get("key_points", []) if item))[
+                :8
+            ],
+            "warnings": list(dict.fromkeys(str(item)[:300] for item in fact.get("warnings", []) if item))[
+                :4
+            ],
+            "segment_ids": list(dict.fromkeys(str(item) for item in fact.get("segment_ids", []) if item)),
+            "supporting_quotes": list(
+                dict.fromkeys(str(item)[:500] for item in fact.get("supporting_quotes", []) if item)
+            )[:2],
+            "place_mention_ids": list(
+                dict.fromkeys(str(item) for item in fact.get("place_mention_ids", []) if item)
+            ),
+        }
+        key = json.dumps(value, ensure_ascii=False, sort_keys=True)
+        if value["segment_ids"] and key not in seen:
+            compact.append(value)
+            seen.add(key)
+    return compact
+
+
+def _note_evidence_packs(
+    facts: list[dict[str, object]], *, max_chars: int, max_facts: int
+) -> list[list[dict[str, object]]]:
+    packs: list[list[dict[str, object]]] = []
+    current: list[dict[str, object]] = []
+    used = 0
+    for fact in facts:
+        size = len(json.dumps(fact, ensure_ascii=False))
+        if current and (used + size > max_chars or len(current) >= max_facts):
+            packs.append(current)
+            current, used = [], 0
+        current.append(fact)
+        used += size
+    if current:
+        packs.append(current)
+    return packs
 
 
 def _fallback_sections(chunks: list[list[Segment]]) -> list[dict[str, object]]:
@@ -1514,8 +1641,14 @@ def correct_transcript(
                 result_validator=lambda result: validated_changes(batch, result),
             )
         except AIProviderError as exc:
-            if exc.code != "AI_PROVIDER_OUTPUT_TRUNCATED" or len(batch) <= 1:
+            if exc.code != "AI_PROVIDER_OUTPUT_TRUNCATED":
                 raise
+            if len(batch) <= 1:
+                if not isinstance(provider, FallbackLLMProvider):
+                    raise
+                response = provider.generate_fallback_json(messages)
+                apply_batch_result(batch, response, validated_changes(batch, response))
+                return
             midpoint = len(batch) // 2
             adaptive_batch_size = min(adaptive_batch_size, midpoint)
             safe_max_chars = max(
@@ -1763,6 +1896,9 @@ def generate_note(
     )
     chunks = _transcript_chunks(segments, settings.video_note_chunk_chars)
     system = Path(__file__).resolve().parents[1] / "prompts" / "video_note.md"
+    system_text = system.read_text(encoding="utf-8")
+    supplement_messages = prompt_supplement_messages(db, "video_note_summary")
+    place_evidence_json = json.dumps(_place_evidence_index(mentions), ensure_ascii=False)
     valid_ids = {segment.id for segment in segments}
     raw_sections: list[dict[str, object]] = []
     map_facts: list[dict[str, object]] = (
@@ -1771,6 +1907,7 @@ def generate_note(
     overview_parts: list[str] = []
     warnings: list[str] = list(grounded_map.warnings_json) if grounded_map else []
     response = LLMResult("", provider_name, model, {})
+    note_generation_mode = "MODEL"
     if grounded_map is not None:
         record_stage_decision(
             db,
@@ -1785,13 +1922,13 @@ def generate_note(
         context = _transcript_context(chunk, settings.video_note_chunk_chars)
         try:
             messages = [
-                {"role": "system", "content": system.read_text(encoding="utf-8")},
-                *prompt_supplement_messages(db, "video_note_summary"),
+                {"role": "system", "content": system_text},
+                *supplement_messages,
                 {
                     "role": "user",
                     "content": (
                         f"视频标题：{asset.title}\n已验证地点 Evidence Index："
-                        f"{json.dumps(_place_evidence_index(mentions), ensure_ascii=False)}\n"
+                        f"{place_evidence_json}\n"
                         f"Render Profile（{profile_id}）：{render_profile['instruction']}\n"
                         f"分块：{chunk_index + 1}/{max(1, len(chunks))}\n{context}"
                     ),
@@ -1820,6 +1957,7 @@ def generate_note(
                 if isinstance(item, dict) and any(value in chunk_ids for value in item.get("segment_ids", []))
             )
         except Exception as exc:
+            note_generation_mode = "HYBRID"
             warnings.append(f"第 {chunk_index + 1} 段模型总结不可用")
             raw_sections.extend(_fallback_sections([chunk]))
             record_event(
@@ -1835,57 +1973,166 @@ def generate_note(
     if not raw_sections:
         raw_sections = _fallback_sections(chunks)
     if map_facts:
-        try:
-            reduce_messages = [
-                {"role": "system", "content": system.read_text(encoding="utf-8")},
-                *prompt_supplement_messages(db, "video_note_summary"),
+        reduce_policy = _resolved_stage_policy(db, "NOTE_REDUCE", job)
+        saved_hint = read_runtime_hint(db, "NOTE_REDUCE", model)
+        max_input_tokens = min(
+            int(reduce_policy.max_input_tokens or 6000),
+            int(saved_hint.get("safe_max_input_tokens") or 6000),
+        )
+        max_facts = int(saved_hint.get("safe_max_facts") or 40)
+        compact_facts = _compact_note_facts(map_facts)
+        fixed_chars = (
+            len(system_text)
+            + sum(len(message.get("content") or "") for message in supplement_messages)
+            + len(place_evidence_json)
+            + len(str(render_profile["instruction"]))
+            + 500
+        )
+        packs = _note_evidence_packs(
+            compact_facts,
+            max_chars=max(1000, max_input_tokens * 4 - fixed_chars),
+            max_facts=max_facts,
+        )
+        reduced_sections: list[dict[str, object]] = []
+        failed_segment_ids: set[str] = set()
+        stage_started = perf_counter()
+        logical_attempts = 0
+        completed_weight = 0
+        total_weight = max(1, sum(len(json.dumps(item, ensure_ascii=False)) for item in compact_facts))
+
+        def request_pack(
+            pack: list[dict[str, object]], *, pack_index: int, pack_count: int, split_path: str = "root"
+        ) -> None:
+            nonlocal completed_weight, logical_attempts, response
+            if (
+                reduce_policy.wall_time_seconds
+                and perf_counter() - stage_started >= reduce_policy.wall_time_seconds
+            ):
+                raise AIProviderError(
+                    "AI_STAGE_WALL_TIME_EXCEEDED", "笔记归纳已达到阶段总时限", switch_model=False
+                )
+            if reduce_policy.max_attempts and logical_attempts >= reduce_policy.max_attempts:
+                raise AIProviderError(
+                    "AI_PROVIDER_ATTEMPT_BUDGET", "笔记归纳已达到尝试上限", switch_model=False
+                )
+            logical_attempts += 1
+            messages = [
+                {"role": "system", "content": system_text},
+                *supplement_messages,
                 {
                     "role": "user",
                     "content": (
                         f"Render Profile（{profile_id}）：{render_profile['instruction']}\n"
                         "已验证地点 Evidence Index："
-                        f"{json.dumps(_place_evidence_index(mentions), ensure_ascii=False)}\n"
+                        f"{place_evidence_json}\n"
+                        f"Evidence 分包：{pack_index}/{pack_count}（{split_path}）\n"
                         "以下是带逐字 Evidence 的 GroundedEvidencePack。仅据此生成全局笔记：\n"
                     )
-                    + json.dumps(map_facts, ensure_ascii=False),
+                    + json.dumps(pack, ensure_ascii=False),
                 },
             ]
-            reduced = _cached_stage_json(
-                db,
-                job=job,
-                stage="NOTE_REDUCE" if grounded_map else "GENERATE_AI_NOTE",
-                capability="GLOBAL_SYNTHESIS",
-                provider=provider,
-                provider_name=provider_name,
-                model=model,
-                messages=reduce_messages,
-            )
-            reduced_payload = parse_model_json(reduced.content)
-            reduced_sections = reduced_payload.get("sections")
-            if isinstance(reduced_sections, list):
-                accepted = [
-                    item
-                    for item in reduced_sections
-                    if isinstance(item, dict)
-                    and any(value in valid_ids for value in item.get("segment_ids", []))
-                ]
-                if accepted:
-                    raw_sections = accepted
-                    response = reduced
-                    if reduced_payload.get("overview"):
-                        overview_parts.append(str(reduced_payload["overview"]).strip())
-        except Exception as exc:
-            warnings.append("全局归纳不可用，已保留分块笔记")
-            record_event(
-                db,
-                "video.note.reduce_fallback",
-                "全局归纳不可用，已保留分块笔记",
-                component="video-pipeline",
-                level="WARNING",
-                entity_type="video_asset",
-                entity_id=asset.id,
-                detail={"reason": str(exc)[:240]},
-            )
+            try:
+                reduced = _cached_stage_json(
+                    db,
+                    job=job,
+                    stage="NOTE_REDUCE",
+                    capability="GLOBAL_SYNTHESIS",
+                    provider=provider,
+                    provider_name=provider_name,
+                    model=model,
+                    messages=messages,
+                    attempt_metadata={
+                        "chunk_index": pack_index,
+                        "chunk_count": pack_count,
+                        "split_path": split_path,
+                        "segment_count": len(pack),
+                    },
+                )
+            except AIProviderError as exc:
+                if exc.code != "AI_PROVIDER_OUTPUT_TRUNCATED":
+                    raise
+                if len(pack) <= 1:
+                    if not isinstance(provider, FallbackLLMProvider):
+                        raise
+                    reduced = provider.generate_fallback_json(messages)
+                else:
+                    midpoint = len(pack) // 2
+                    tighten_note_reduce_hint(
+                        db,
+                        model,
+                        safe_max_input_tokens=max(
+                            1, len(json.dumps(pack[:midpoint], ensure_ascii=False)) // 4
+                        ),
+                        safe_max_facts=midpoint,
+                    )
+                    request_pack(
+                        pack[:midpoint],
+                        pack_index=pack_index,
+                        pack_count=pack_count,
+                        split_path=f"{split_path}.L",
+                    )
+                    request_pack(
+                        pack[midpoint:],
+                        pack_index=pack_index,
+                        pack_count=pack_count,
+                        split_path=f"{split_path}.R",
+                    )
+                    return
+            payload = parse_model_json(reduced.content)
+            sections = payload.get("sections")
+            accepted = [
+                item
+                for item in sections if isinstance(item, dict) and any(
+                    value in valid_ids for value in item.get("segment_ids", [])
+                )
+            ] if isinstance(sections, list) else []
+            reduced_sections.extend(accepted)
+            if payload.get("overview"):
+                overview_parts.append(str(payload["overview"]).strip())
+            response = reduced
+            completed_weight += sum(len(json.dumps(item, ensure_ascii=False)) for item in pack)
+            if job:
+                step = db.scalar(
+                    select(JobStep).where(
+                        JobStep.job_id == job.id,
+                        JobStep.step_name == "GENERATE_AI_NOTE",
+                    )
+                )
+                if step:
+                    step.progress = min(99, round(completed_weight / total_weight * 100))
+                    job.heartbeat_at = utc_now()
+                    db.commit()
+
+        for pack_index, pack in enumerate(packs, start=1):
+            try:
+                request_pack(pack, pack_index=pack_index, pack_count=len(packs))
+            except Exception as exc:
+                failed_segment_ids.update(
+                    str(segment_id)
+                    for fact in pack
+                    for segment_id in fact.get("segment_ids", [])
+                )
+                warnings.append(f"第 {pack_index} 个笔记归纳分包不可用")
+                record_event(
+                    db,
+                    "video.note.reduce_fallback",
+                    "笔记归纳分包不可用，已保留确定性提纲",
+                    component="video-pipeline",
+                    level="WARNING",
+                    entity_type="video_asset",
+                    entity_id=asset.id,
+                    detail={"reason": str(exc)[:240], "pack": pack_index, "pack_count": len(packs)},
+                )
+        if reduced_sections:
+            failed_segments = [segment for segment in segments if segment.id in failed_segment_ids]
+            raw_sections = [
+                *reduced_sections,
+                *_fallback_sections(_transcript_chunks(failed_segments, 12_000)),
+            ]
+            if failed_segment_ids:
+                note_generation_mode = "HYBRID"
+        else:
+            note_generation_mode = "DETERMINISTIC_FALLBACK"
     note = db.scalar(select(AINote).where(AINote.video_asset_id == asset.id))
     if note is None:
         note = AINote(video_asset_id=asset.id)
@@ -1985,6 +2232,13 @@ def generate_note(
     version.markdown = "\n".join(rendered).strip() + "\n"
     note.current_version_id = version.id
     note.status = "COMPLETED"
+    if not response.content:
+        note_generation_mode = "DETERMINISTIC_FALLBACK"
+    if job:
+        job.payload_json = {
+            **job.payload_json,
+            "note_generation_mode": note_generation_mode,
+        }
     sync_video_note_search_index(db, note, version, asset)
     db.commit()
     return version

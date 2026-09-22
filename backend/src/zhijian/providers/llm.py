@@ -22,6 +22,9 @@ from zhijian.ai.reliability import (
 AttemptCallback = Callable[
     [str, str, str, int, int, "LLMResult | None", "Exception | None", int, dict[str, Any]], None
 ]
+AttemptStartCallback = Callable[[str, str, str, int, int, dict[str, Any]], str | None]
+BeforeAttemptCallback = Callable[["LLMProvider", str, list[dict[str, str]]], None]
+FallbackDecider = Callable[[AIProviderError], bool]
 AttemptRunner = Callable[
     ["LLMProvider", str, list[dict[str, str]], str, "ProviderRequestOptions | None"], "LLMResult"
 ]
@@ -258,6 +261,8 @@ class FallbackLLMProvider:
         request_interval_seconds: float = 1,
         on_retry: Callable[[int, Exception], None] | None = None,
         on_attempt: AttemptCallback | None = None,
+        on_attempt_start: AttemptStartCallback | None = None,
+        before_attempt: BeforeAttemptCallback | None = None,
         attempt_runner: AttemptRunner | None = None,
         sleeper: Callable[[float], None] = sleep,
         request_options: ProviderRequestOptions | None = None,
@@ -267,6 +272,8 @@ class FallbackLLMProvider:
         primary_reliability: ModelReliabilityPolicy | None = None,
         fallback_reliability: ModelReliabilityPolicy | None = None,
         result_validator: Callable[[LLMResult], None] | None = None,
+        fallback_decider: FallbackDecider | None = None,
+        max_attempts: int | None = None,
     ) -> None:
         self.primary, self.primary_model = primary, primary_model
         self.fallback, self.fallback_model = fallback, fallback_model
@@ -274,9 +281,13 @@ class FallbackLLMProvider:
         self.before_fallback = before_fallback
         self.retry_count = retry_count
         self.retry_wait_seconds = retry_wait_seconds
-        self.on_retry, self.on_attempt, self.attempt_runner, self.sleeper = (
+        self.on_retry, self.on_attempt, self.on_attempt_start, self.before_attempt = (
             on_retry,
             on_attempt,
+            on_attempt_start,
+            before_attempt,
+        )
+        self.attempt_runner, self.sleeper = (
             attempt_runner,
             sleeper,
         )
@@ -295,6 +306,8 @@ class FallbackLLMProvider:
             retry_count=retry_count,
         )
         self.result_validator = result_validator
+        self.fallback_decider = fallback_decider
+        self.max_attempts = max_attempts
         self._legacy_reliability = primary_reliability is None and fallback_reliability is None
         self._remaining_attempts = 0
         self._attempt_context: dict[str, Any] = {}
@@ -341,6 +354,7 @@ class FallbackLLMProvider:
             circuit_state = "CLOSED"
             started = perf_counter()
             result: LLMResult | None = None
+            attempt_id: str | None = None
             try:
                 if self._legacy_reliability and policy.request_interval_seconds:
                     self.sleeper(policy.request_interval_seconds)
@@ -353,6 +367,18 @@ class FallbackLLMProvider:
                     self.sleeper(wait_before)
                 if route == "fallback" and self.before_fallback:
                     self.before_fallback()
+                if self.before_attempt:
+                    self.before_attempt(provider, model, call_messages)
+                attempt_metadata = self._attempt_metadata(provider, policy)
+                if self.on_attempt_start:
+                    attempt_id = self.on_attempt_start(
+                        str(getattr(provider, "name", "ollama")),
+                        model,
+                        route,
+                        attempt,
+                        input_chars,
+                        attempt_metadata,
+                    )
                 self._remaining_attempts -= 1
                 options = self.fallback_request_options if route == "fallback" else self.request_options
                 if self.attempt_runner:
@@ -369,6 +395,20 @@ class FallbackLLMProvider:
                     self.result_validator(result)
             except Exception as exc:
                 if type(exc).__name__ == "JobCancelled":
+                    if self.on_attempt and attempt_id:
+                        metadata = self._attempt_metadata(provider, policy)
+                        metadata["attempt_id"] = attempt_id
+                        self.on_attempt(
+                            str(getattr(provider, "name", "ollama")),
+                            model,
+                            route,
+                            attempt,
+                            input_chars,
+                            result,
+                            exc,
+                            round((perf_counter() - started) * 1000),
+                            metadata,
+                        )
                     raise
                 error = classify_provider_error(exc)
                 if error.code == "AI_BUDGET_EXCEEDED":
@@ -412,6 +452,9 @@ class FallbackLLMProvider:
                 }
                 self._attempt_context = error.reliability_metadata
                 if self.on_attempt:
+                    metadata = self._attempt_metadata(provider, policy)
+                    if attempt_id:
+                        metadata["attempt_id"] = attempt_id
                     self.on_attempt(
                         str(getattr(provider, "name", "ollama")),
                         model,
@@ -421,7 +464,7 @@ class FallbackLLMProvider:
                         result,
                         error,
                         round((perf_counter() - started) * 1000),
-                        self._attempt_metadata(provider, policy),
+                        metadata,
                     )
                 if not retry:
                     raise error from exc
@@ -438,6 +481,9 @@ class FallbackLLMProvider:
                 }
                 self._attempt_context = result.metadata
                 if self.on_attempt:
+                    metadata = self._attempt_metadata(provider, policy)
+                    if attempt_id:
+                        metadata["attempt_id"] = attempt_id
                     self.on_attempt(
                         result.provider,
                         result.model,
@@ -447,7 +493,7 @@ class FallbackLLMProvider:
                         result,
                         None,
                         round((perf_counter() - started) * 1000),
-                        self._attempt_metadata(provider, policy),
+                        metadata,
                     )
                 return result
             finally:
@@ -466,6 +512,8 @@ class FallbackLLMProvider:
             self._remaining_attempts += (
                 1 + self.fallback_reliability.retry_count + self.fallback_reliability.json_retry_count
             )
+        if self.max_attempts is not None:
+            self._remaining_attempts = min(self._remaining_attempts, self.max_attempts)
         if not self.primary_disabled:
             try:
                 return self._invoke(
@@ -477,6 +525,7 @@ class FallbackLLMProvider:
                     self.fallback is None
                     or not self.fallback_model
                     or not exc.switch_model
+                    or (self.fallback_decider is not None and not self.fallback_decider(exc))
                     or self._same_target(self.primary, self.primary_model, self.fallback, self.fallback_model)
                 ):
                     raise
@@ -499,6 +548,23 @@ class FallbackLLMProvider:
         if options is not None:
             self.request_options = self.fallback_request_options = options
         return self._call("generate_json", messages)
+
+    def generate_fallback_json(self, messages: list[dict[str, str]]) -> LLMResult:
+        if self.fallback is None or not self.fallback_model:
+            raise AIProviderError("AI_PROVIDER_UNAVAILABLE", "当前阶段没有可用备用模型")
+        self._remaining_attempts = (
+            1 + self.fallback_reliability.retry_count + self.fallback_reliability.json_retry_count
+        )
+        if self.max_attempts is not None:
+            self._remaining_attempts = min(self._remaining_attempts, self.max_attempts)
+        return self._invoke(
+            self.fallback,
+            "generate_json",
+            messages,
+            self.fallback_model,
+            "fallback",
+            self.fallback_reliability,
+        )
 
     def generate(
         self, messages: list[dict[str, str]], *, model: str, options: ProviderRequestOptions | None = None

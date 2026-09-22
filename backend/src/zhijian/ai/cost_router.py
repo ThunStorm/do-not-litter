@@ -40,8 +40,8 @@ def choose_auto_route(
     quality = quality_preset.upper() == "QUALITY"
     prefer_local = stage in LOCAL_PREFERRED_STAGES or budget_pressure or not quality
     if prefer_local and local:
-        primary_id, _ = _best(local)
-        fallback_id = "" if budget_pressure else (_best(remote)[0] if remote else "")
+        primary_id, _ = _best(local, capability=capability)
+        fallback_id = "" if budget_pressure else (_best(remote, capability=capability)[0] if remote else "")
         return RouteDecision(
             primary_id,
             fallback_id,
@@ -49,8 +49,8 @@ def choose_auto_route(
             "BUDGET_PRESSURE" if budget_pressure else "LOCAL_SUFFICIENT",
         )
     if remote:
-        primary_id, value = _best(remote, strong=quality)
-        fallback_id = _best(local)[0] if local and not budget_pressure else ""
+        primary_id, value = _best(remote, strong=quality, capability=capability)
+        fallback_id = _best(local, capability=capability)[0] if local and not budget_pressure else ""
         return RouteDecision(
             primary_id,
             fallback_id,
@@ -58,7 +58,7 @@ def choose_auto_route(
             "QUALITY_PRESET" if quality else "LOCAL_UNAVAILABLE",
         )
     if local:
-        primary_id, _ = _best(local)
+        primary_id, _ = _best(local, capability=capability)
         return RouteDecision(primary_id, "", "LOCAL", "REMOTE_UNAVAILABLE")
     return None
 
@@ -74,10 +74,16 @@ def _tier(profile: dict[str, Any]) -> str:
 
 def _supports(profile: dict[str, Any], capability: AICapability) -> bool:
     capabilities = {str(item) for item in profile.get("capabilities") or []}
-    return not capabilities or capability.value in capabilities
+    probe = str((profile.get("probe_results") or {}).get(capability.value) or "NOT_TESTED").upper()
+    return probe != "FAIL" and (not capabilities or capability.value in capabilities)
 
 
-def _best(items: list[tuple[str, dict[str, Any]]], *, strong: bool = False) -> tuple[str, dict[str, Any]]:
+def _best(
+    items: list[tuple[str, dict[str, Any]]],
+    *,
+    strong: bool = False,
+    capability: AICapability,
+) -> tuple[str, dict[str, Any]]:
     tiers = (
         {"STRONG": 0, "SPECIALIST": 1, "MAIN": 2, "FAST": 3}
         if strong
@@ -86,6 +92,10 @@ def _best(items: list[tuple[str, dict[str, Any]]], *, strong: bool = False) -> t
     return min(
         items,
         key=lambda item: (
+            0
+            if str((item[1].get("probe_results") or {}).get(capability.value) or "").upper()
+            == "PASS"
+            else 1,
             tiers.get(_tier(item[1]), 9),
             -int(item[1].get("recommended_working_context") or 0),
             item[0],

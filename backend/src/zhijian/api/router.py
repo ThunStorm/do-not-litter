@@ -189,11 +189,21 @@ def _job_step(db: Session, job_id: str, name: str) -> JobStep | None:
 
 def job_view(job: Job, db: Session | None = None) -> JobView:
     step = _job_step(db, job.id, job.current_step) if db else None
+    active_attempt = (
+        db.scalar(
+            select(ExternalCallAudit)
+            .where(ExternalCallAudit.job_id == job.id, ExternalCallAudit.status == "RUNNING")
+            .order_by(ExternalCallAudit.created_at.desc())
+        )
+        if db and job.status == JobStatus.RUNNING.value
+        else None
+    )
     step_input = _safe_step_input(step)
     last_activity, last_activity_source = next(
         (
             (value, source)
             for value, source in (
+                (active_attempt.updated_at if active_attempt else None, "MODEL_ATTEMPT"),
                 (job.heartbeat_at, "JOB_HEARTBEAT"),
                 (step.finished_at if step else None, "STEP_FINISHED"),
                 (step.started_at if step else None, "STEP_STARTED"),
@@ -213,8 +223,15 @@ def job_view(job: Job, db: Session | None = None) -> JobView:
         )
         model_step = latest_llm_step.step_name if latest_llm_step else None
         step_input = _safe_step_input(latest_llm_step) if latest_llm_step else step_input
-    provider = step_input.get("provider") if model_step else None
-    model = step_input.get("model") if model_step else None
+    active_meta = active_attempt.request_meta_json if active_attempt else {}
+    provider = (
+        active_attempt.provider
+        if active_attempt
+        else step_input.get("provider") if model_step else None
+    )
+    model = active_meta.get("model") if active_attempt else (
+        step_input.get("model") if model_step else None
+    )
     if db and model_step and not (provider and model):
         routing = db.get(Setting, "model-routing")
         route = routing.value_json if routing and isinstance(routing.value_json, dict) else {}
@@ -276,6 +293,7 @@ def job_view(job: Job, db: Session | None = None) -> JobView:
         model_step=model_step,
         provider=str(provider) if provider else None,
         model=str(model) if model else None,
+        active_attempt=attempt_view(active_attempt) if active_attempt else None,
     )
 
 
@@ -389,6 +407,21 @@ def status_view(
         age = (utc_now() - heartbeat_at).total_seconds()
         worker_running = age <= max(30, settings.worker_heartbeat_seconds * 3)
     metrics = read_runtime_metrics_sample(db)
+    active_attempt = db.scalar(
+        select(ExternalCallAudit)
+        .where(ExternalCallAudit.status == "RUNNING")
+        .order_by(ExternalCallAudit.created_at.desc())
+    )
+    executor_state = "IDLE"
+    if active_attempt:
+        deadline_at = (active_attempt.request_meta_json or {}).get("deadline_at")
+        try:
+            deadline = as_utc(datetime.fromisoformat(str(deadline_at))) if deadline_at else None
+        except ValueError:
+            deadline = None
+        executor_state = "DEADLINE_EXCEEDED" if deadline and deadline < utc_now() else "RUNNING"
+    elif db.scalar(select(func.count(Job.id)).where(Job.status == JobStatus.RUNNING.value)):
+        executor_state = "RUNNING"
     return {
         "node_name": hardware["machine_name"],
         "deployment_target": "mac_mini",
@@ -401,6 +434,7 @@ def status_view(
         "services": {
             "api": "RUNNING",
             "worker": "RUNNING" if worker_running else "STALE",
+            "executor": executor_state,
             "sqlite": "RUNNING",
         },
         "runtime": {
@@ -1485,6 +1519,8 @@ def attempt_view(attempt: ExternalCallAudit) -> dict:
     return {
         "id": attempt.id,
         "created_at": as_utc(attempt.created_at),
+        "started_at": as_utc(attempt.created_at),
+        "updated_at": as_utc(attempt.updated_at),
         "capability": attempt.capability,
         "operation": attempt.operation,
         "provider": attempt.provider,
@@ -1492,8 +1528,18 @@ def attempt_view(attempt: ExternalCallAudit) -> dict:
         "route": request_meta.get("route"),
         "attempt": request_meta.get("attempt"),
         "timeout_seconds": request_meta.get("timeout_seconds"),
+        "deadline_at": request_meta.get("deadline_at"),
+        "stage": request_meta.get("stage"),
+        "step": request_meta.get("step"),
+        "split_path": request_meta.get("split_path"),
+        "recovery": request_meta.get("recovery"),
         "status": attempt.status,
         "duration_ms": attempt.duration_ms,
+        "elapsed_seconds": round(
+            attempt.duration_ms / 1000
+            if attempt.duration_ms is not None
+            else max(0, (utc_now() - as_utc(attempt.created_at)).total_seconds())
+        ),
         "input_chars": request_meta.get("input_chars"),
         "chunk_index": request_meta.get("chunk_index"),
         "chunk_count": request_meta.get("chunk_count"),
@@ -1569,15 +1615,13 @@ def list_logs(
     ).all()
     attempts = []
     if job_id:
-        attempts = [
-            attempt_view(item)
-            for item in db.scalars(
-                select(ExternalCallAudit)
-                .where(ExternalCallAudit.job_id == job_id, ExternalCallAudit.capability == "LLM")
-                .order_by(ExternalCallAudit.created_at)
-                .limit(200)
-            ).all()
-        ]
+        rows = db.scalars(
+            select(ExternalCallAudit)
+            .where(ExternalCallAudit.job_id == job_id, ExternalCallAudit.capability == "LLM")
+            .order_by(ExternalCallAudit.created_at.desc())
+            .limit(200)
+        ).all()
+        attempts = [attempt_view(item) for item in sorted(rows, key=lambda item: item.status != "RUNNING")]
     has_more = len(events) > limit
     events = events[:limit]
     return {

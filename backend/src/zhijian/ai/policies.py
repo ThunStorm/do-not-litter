@@ -64,3 +64,6 @@ def validate_stage_policy(
             raise ValueError("所选模型未声明支持 thinking，不能保存 thinking=true")
         if policy.max_output_tokens and policy.max_output_tokens > profile.max_output_tokens:
             raise ValueError("阶段最大输出超过模型 Profile 上限")
+        probe = str((value.get("probe_results") or {}).get(spec.capability.value) or "NOT_TESTED").upper()
+        if probe == "FAIL" and not policy.allow_unverified_model:
+            raise ValueError("所选模型未通过该阶段能力测试；如需继续，请显式允许未验证模型")

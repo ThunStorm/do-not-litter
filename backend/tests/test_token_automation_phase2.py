@@ -108,6 +108,24 @@ def test_auto_router_prefers_local_and_reserves_remote_strong() -> None:
     assert pressured and (pressured.primary_id, pressured.fallback_id) == ("local", "")
 
 
+def test_auto_router_excludes_known_failed_capability_probe() -> None:
+    profiles = {
+        "failed-local": {
+            "provider": "ollama",
+            "location": "LOCAL",
+            "probe_results": {"GLOBAL_SYNTHESIS": "FAIL"},
+        },
+        "passed-remote": {
+            "provider": "remote",
+            "location": "REMOTE",
+            "probe_results": {"GLOBAL_SYNTHESIS": "PASS"},
+        },
+    }
+    decision = choose_auto_route("NOTE_REDUCE", AICapability.GLOBAL_SYNTHESIS, profiles)
+    assert decision and decision.primary_id == "passed-remote"
+    assert decision.fallback_id == ""
+
+
 def test_new_jobs_apply_auto_router_before_provider_calls(app_and_session, monkeypatch) -> None:
     _, factory = app_and_session
     with factory() as db:

@@ -20,6 +20,8 @@ _COMMON = frozenset(
         "max_output_tokens",
         "thinking",
         "timeout_seconds",
+        "wall_time_seconds",
+        "max_attempts",
         "retry_count",
         "confidence_threshold",
         "escalation_threshold",
@@ -27,6 +29,7 @@ _COMMON = frozenset(
         "domain_pack_ids",
         "cache_enabled",
         "force_regenerate",
+        "allow_unverified_model",
     }
 )
 

@@ -67,9 +67,33 @@ class AIWorkloadGateway:
                     options: ProviderRequestOptions | None,
                 ) -> LLMResult:
                     return self._execute_attempt(
-                        db, job, attempt_provider, method, attempt_messages, attempt_model, options
+                        db,
+                        job,
+                        attempt_provider,
+                        method,
+                        attempt_messages,
+                        attempt_model,
+                        options,
+                        ensure_budget=False,
                     )
 
+                def ensure_attempt_budget(
+                    attempt_provider: LLMProvider,
+                    attempt_model: str,
+                    attempt_messages: list[dict[str, str]],
+                ) -> None:
+                    provider_name = str(getattr(attempt_provider, "name", "ollama"))
+                    ensure_ai_budget(
+                        db,
+                        job,
+                        location="LOCAL" if provider_name == "ollama" else "REMOTE",
+                        input_chars=sum(len(message.get("content") or "") for message in attempt_messages),
+                        provider=provider_name,
+                        model=attempt_model,
+                        profile_id=getattr(attempt_provider, "profile_id", None),
+                    )
+
+                provider.before_attempt = ensure_attempt_budget
                 provider.attempt_runner = run_attempt
                 provider.result_validator = validate_result if not provider._legacy_reliability else None
                 return provider.generate_json(messages, model=model)
@@ -100,18 +124,21 @@ class AIWorkloadGateway:
         messages: list[dict[str, str]],
         model: str,
         options: ProviderRequestOptions | None,
+        *,
+        ensure_budget: bool = True,
     ) -> LLMResult:
         provider_name = str(getattr(provider, "name", "ollama"))
         location = "LOCAL" if provider_name == "ollama" else "REMOTE"
-        ensure_ai_budget(
-            db,
-            job,
-            location=location,
-            input_chars=sum(len(message.get("content") or "") for message in messages),
-            provider=provider_name,
-            model=model,
-            profile_id=getattr(provider, "profile_id", None),
-        )
+        if ensure_budget:
+            ensure_ai_budget(
+                db,
+                job,
+                location=location,
+                input_chars=sum(len(message.get("content") or "") for message in messages),
+                provider=provider_name,
+                model=model,
+                profile_id=getattr(provider, "profile_id", None),
+            )
 
         def invoke() -> LLMResult:
             if options is None:

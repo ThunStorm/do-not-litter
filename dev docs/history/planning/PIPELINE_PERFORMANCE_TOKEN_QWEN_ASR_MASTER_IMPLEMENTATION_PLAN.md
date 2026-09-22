@@ -1,5 +1,7 @@
 # PIPELINE_PERFORMANCE_TOKEN_QWEN_ASR_MASTER_IMPLEMENTATION_PLAN.md
 
+> 归档状态：WP0–WP8 已实施并部署；真实 Frozen Benchmark 与默认晋级仍按外部验收门禁执行。
+
 > 项目：`ThunStorm/do-not-litter`
 > 分支：`codex/mac-mini-implementation`
 > 类型：运行时性能 / LLM Token / Qwen3-ASR 合并实施主计划

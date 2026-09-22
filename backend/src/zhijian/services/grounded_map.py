@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from hashlib import sha256
 from pathlib import Path
+from time import perf_counter
 from typing import Any
 
 from sqlalchemy import select
@@ -16,7 +17,9 @@ from zhijian.ai.reliability import AIProviderError
 from zhijian.ai.runtime_hints import read_runtime_hint, tighten_runtime_hint
 from zhijian.ai.stage_decision import decide_stage, record_stage_decision
 from zhijian.core.config import Settings
-from zhijian.db.models import GroundedMapArtifact, Job, Segment, Transcript, VideoAsset
+from zhijian.core.time import utc_now
+from zhijian.db.models import GroundedMapArtifact, Job, JobStep, Segment, Transcript, VideoAsset
+from zhijian.providers.llm import FallbackLLMProvider
 
 MAP_PROMPT_VERSION = "grounded-map-v2"
 MAP_ARTIFACT_SCHEMA_VERSION = "grounded-map-v3"
@@ -164,16 +167,36 @@ def get_or_create_grounded_map(
     if saved_hint.get("safe_max_segments"):
         max_segments = min(max_segments or len(segments), saved_hint["safe_max_segments"])
     chunks = _transcript_chunks(segments, chunk_chars, max_segments=max_segments)
+    stage_started = perf_counter()
+    logical_attempts = 0
+    completed_chars = 0
+    total_chars = max(1, sum(len(segment.corrected_text or segment.text) for segment in segments))
 
     def request_chunk(
         chunk: list[Segment], *, chunk_index: int, chunk_count: int, split_path: str = "root"
     ) -> None:
+        nonlocal completed_chars, logical_attempts
+        if policy.wall_time_seconds and perf_counter() - stage_started >= policy.wall_time_seconds:
+            raise AIProviderError(
+                "AI_STAGE_WALL_TIME_EXCEEDED", "证据地图已达到阶段总时限", switch_model=False
+            )
+        if policy.max_attempts and logical_attempts >= policy.max_attempts:
+            raise AIProviderError("AI_PROVIDER_ATTEMPT_BUDGET", "证据地图已达到尝试上限", switch_model=False)
+        logical_attempts += 1
         text = "\n".join(
             f"[segment:{segment.id} {segment.locator_json.get('start_ms', 0)}-"
             f"{segment.locator_json.get('end_ms', 0)}ms] "
             f"{segment.corrected_text or segment.text}"
             for segment in chunk
         )
+        messages = [
+            {"role": "system", "content": prompt},
+            *prompt_supplement_messages(db, "travel_place_extraction"),
+            {
+                "role": "user",
+                "content": f"视频标题：{asset.title}\n分块：{chunk_index}/{chunk_count}\n{text}",
+            },
+        ]
         try:
             response = _cached_stage_json(
                 db,
@@ -183,14 +206,7 @@ def get_or_create_grounded_map(
                 provider=provider,
                 provider_name=provider_name,
                 model=model,
-                messages=[
-                    {"role": "system", "content": prompt},
-                    *prompt_supplement_messages(db, "travel_place_extraction"),
-                    {
-                        "role": "user",
-                        "content": f"视频标题：{asset.title}\n分块：{chunk_index}/{chunk_count}\n{text}",
-                    },
-                ],
+                messages=messages,
                 attempt_metadata={
                     "chunk_index": chunk_index,
                     "chunk_count": chunk_count,
@@ -199,46 +215,63 @@ def get_or_create_grounded_map(
                 },
             )
         except AIProviderError as exc:
-            if exc.code != "AI_PROVIDER_OUTPUT_TRUNCATED" or len(chunk) <= 1:
+            if exc.code != "AI_PROVIDER_OUTPUT_TRUNCATED":
                 raise
-            midpoint = len(chunk) // 2
-            safe_max_chars = max(
-                sum(len(item.corrected_text or item.text) for item in part)
-                for part in (chunk[:midpoint], chunk[midpoint:])
-            )
-            persisted = tighten_runtime_hint(
-                db,
-                "GROUND_MAP",
-                model,
-                safe_max_chars=max(1, safe_max_chars),
-                safe_max_segments=midpoint,
-            )
-            if job:
-                hints = dict(job.payload_json.get("ai_runtime_hints") or {})
-                model_hints = dict(hints.get("ground_map") or {})
-                model_hints[model] = {**persisted, "reason": exc.code}
-                hints["ground_map"] = model_hints
-                job.payload_json = {**job.payload_json, "ai_runtime_hints": hints}
-                db.commit()
-            request_chunk(
-                chunk[:midpoint],
-                chunk_index=chunk_index,
-                chunk_count=chunk_count,
-                split_path=f"{split_path}.L",
-            )
-            request_chunk(
-                chunk[midpoint:],
-                chunk_index=chunk_index,
-                chunk_count=chunk_count,
-                split_path=f"{split_path}.R",
-            )
-            return
+            if len(chunk) <= 1:
+                if not isinstance(provider, FallbackLLMProvider):
+                    raise
+                response = provider.generate_fallback_json(messages)
+            else:
+                midpoint = len(chunk) // 2
+                safe_max_chars = max(
+                    sum(len(item.corrected_text or item.text) for item in part)
+                    for part in (chunk[:midpoint], chunk[midpoint:])
+                )
+                persisted = tighten_runtime_hint(
+                    db,
+                    "GROUND_MAP",
+                    model,
+                    safe_max_chars=max(1, safe_max_chars),
+                    safe_max_segments=midpoint,
+                )
+                if job:
+                    hints = dict(job.payload_json.get("ai_runtime_hints") or {})
+                    model_hints = dict(hints.get("ground_map") or {})
+                    model_hints[model] = {**persisted, "reason": exc.code}
+                    hints["ground_map"] = model_hints
+                    job.payload_json = {**job.payload_json, "ai_runtime_hints": hints}
+                    db.commit()
+                request_chunk(
+                    chunk[:midpoint],
+                    chunk_index=chunk_index,
+                    chunk_count=chunk_count,
+                    split_path=f"{split_path}.L",
+                )
+                request_chunk(
+                    chunk[midpoint:],
+                    chunk_index=chunk_index,
+                    chunk_count=chunk_count,
+                    split_path=f"{split_path}.R",
+                )
+                return
         chunk_facts, chunk_places, chunk_warnings = _canonical_payload(
             parse_model_json(response.content), chunk
         )
         facts.extend(chunk_facts)
         places.extend(chunk_places)
         warnings.extend(chunk_warnings)
+        completed_chars += sum(len(segment.corrected_text or segment.text) for segment in chunk)
+        if job:
+            step = db.scalar(
+                select(JobStep).where(
+                    JobStep.job_id == job.id,
+                    JobStep.step_name == "EXTRACT_TRAVEL_FACTS",
+                )
+            )
+            if step:
+                step.progress = min(99, round(completed_chars / total_chars * 100))
+                job.heartbeat_at = utc_now()
+                db.commit()
 
     for index, chunk in enumerate(chunks or [segments], start=1):
         request_chunk(chunk, chunk_index=index, chunk_count=max(1, len(chunks)))

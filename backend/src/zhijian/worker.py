@@ -19,10 +19,12 @@ from zhijian.providers.llm import provider_error_details
 from zhijian.services.audit import record_event
 from zhijian.services.job_replay import resume_deferred_full_replays
 from zhijian.services.jobs import (
+    job_run_fence,
     lease_next_job,
     purge_expired_step_artifacts,
     recover_stale_jobs,
     release_expired_cancelled_jobs,
+    renew_job_lease,
 )
 from zhijian.services.log_retention import purge_expired_logs
 from zhijian.services.pipeline import process_job
@@ -92,6 +94,34 @@ def _heartbeat_loop(owner: str, interval_seconds: float, stopped: Event) -> None
         stopped.wait(interval_seconds)
 
 
+def _watchdog_loop(
+    interval_seconds: float,
+    attempt_timeout_seconds: int,
+    attempt_timeout_grace_seconds: int,
+    stopped: Event,
+) -> None:
+    while not stopped.is_set():
+        try:
+            with SessionLocal() as db:
+                recover_stale_jobs(db, attempt_timeout_seconds, attempt_timeout_grace_seconds)
+        except Exception:
+            logger.exception("Worker watchdog update failed")
+        stopped.wait(interval_seconds)
+
+
+def _job_lease_loop(
+    job_id: str,
+    fence: dict[str, object],
+    lease_seconds: int,
+    stopped: Event,
+) -> None:
+    interval = max(1.0, lease_seconds / 3)
+    while not stopped.wait(interval):
+        with SessionLocal() as db:
+            if not renew_job_lease(db, job_id, fence, lease_seconds):
+                return
+
+
 def worker_loop(once: bool = False) -> None:
     settings = get_settings()
     configure_logging(settings, "worker")
@@ -107,10 +137,22 @@ def worker_loop(once: bool = False) -> None:
     planned_legacy_screenshots = False
     backfilled_covers = False
     heartbeat_stopped = Event()
+    watchdog_stopped = Event()
     heartbeat_thread = Thread(
         target=_heartbeat_loop,
         args=(owner, settings.worker_heartbeat_seconds, heartbeat_stopped),
         name="zhijian-worker-heartbeat",
+        daemon=True,
+    )
+    watchdog_thread = Thread(
+        target=_watchdog_loop,
+        args=(
+            settings.worker_watchdog_seconds,
+            settings.job_attempt_timeout_seconds,
+            settings.attempt_timeout_grace_seconds,
+            watchdog_stopped,
+        ),
+        name="zhijian-worker-watchdog",
         daemon=True,
     )
     logger.info("Worker started: %s", owner)
@@ -124,12 +166,12 @@ def worker_loop(once: bool = False) -> None:
             detail={"owner": owner},
         )
     heartbeat_thread.start()
+    watchdog_thread.start()
     try:
         while True:
             with SessionLocal() as db:
                 release_expired_cancelled_jobs(db)
                 resume_deferred_full_replays(db)
-                recover_stale_jobs(db, settings.job_attempt_timeout_seconds)
                 if utc_now() - last_transcript_cleanup >= timedelta(days=1):
                     purge_expired_transcripts(db)
                     purge_expired_step_artifacts(db)
@@ -150,6 +192,14 @@ def worker_loop(once: bool = False) -> None:
                 if job:
                     job_id = job.id
                     logger.info("Processing %s (%s)", job_id, job.job_type)
+                    lease_stopped = Event()
+                    lease_thread = Thread(
+                        target=_job_lease_loop,
+                        args=(job_id, job_run_fence(job), settings.worker_lease_seconds, lease_stopped),
+                        name=f"zhijian-job-lease-{job_id[-8:]}",
+                        daemon=True,
+                    )
+                    lease_thread.start()
                     try:
                         process_job(db, job)
                     except Exception as exc:
@@ -166,12 +216,17 @@ def worker_loop(once: bool = False) -> None:
                             )
                         else:
                             logger.exception("Job failed: %s", job_id, extra={"job_id": job_id})
+                    finally:
+                        lease_stopped.set()
+                        lease_thread.join(timeout=1)
             if once:
                 return
             time.sleep(settings.worker_poll_seconds)
     finally:
         heartbeat_stopped.set()
+        watchdog_stopped.set()
         heartbeat_thread.join(timeout=1)
+        watchdog_thread.join(timeout=1)
 
 
 def run() -> None:

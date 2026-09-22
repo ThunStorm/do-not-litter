@@ -73,6 +73,32 @@ def test_stage_policy_api_validates_models_and_job_override(client, app_and_sess
         assert job.payload_json["ai_overrides"]["TRANSCRIPT_CORRECTION"]["execution_mode"] == "LOCAL_ONLY"
 
 
+def test_stage_policy_requires_explicit_override_for_failed_capability(
+    client, app_and_session
+) -> None:
+    _, factory = app_and_session
+    created = client.post("/api/settings/model-profiles", json=_profile("不适配", "LOCAL", "failed"))
+    profile_id = created.json()["id"]
+    with factory() as db:
+        setting = db.get(Setting, f"model-profile:{profile_id}")
+        setting.value_json = {
+            **setting.value_json,
+            "probe_results": {"TRANSCRIPT_CORRECTION": "FAIL"},
+        }
+        db.commit()
+    rejected = client.put(
+        "/api/ai/stage-policies/TRANSCRIPT_CORRECTION",
+        json=_policy(profile_id, ""),
+    )
+    assert rejected.status_code == 422
+    accepted = client.put(
+        "/api/ai/stage-policies/TRANSCRIPT_CORRECTION",
+        json=_policy(profile_id, "", allow_unverified_model=True),
+    )
+    assert accepted.status_code == 200
+    assert accepted.json()["allow_unverified_model"] is True
+
+
 def test_stage_policy_changes_actual_provider_route(app_and_session, monkeypatch) -> None:
     _, factory = app_and_session
     with factory() as db:

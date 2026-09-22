@@ -328,6 +328,7 @@ def _materialize_core_content(
         "unresolved_places": unresolved,
         "screenshots": 0,
         "enrichment_status": "PROCESSING",
+        "note_generation_mode": job.payload_json.get("note_generation_mode", "MODEL"),
     }
     db.flush()
     first_useful_at = utc_now()

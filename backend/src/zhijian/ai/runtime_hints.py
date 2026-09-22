@@ -21,7 +21,14 @@ def read_runtime_hint(db: Session, stage: str, model: str) -> dict[str, int]:
         return {}
     return {
         key: int(value[key])
-        for key in ("safe_max_chars", "safe_max_segments")
+        for key in (
+            "safe_max_chars",
+            "safe_max_segments",
+            "safe_max_input_tokens",
+            "safe_max_facts",
+            "safe_max_quotes",
+            "safe_max_sections",
+        )
         if int(value.get(key) or 0) > 0
     }
 
@@ -44,6 +51,31 @@ def tighten_runtime_hint(
     key = _key(stage, model)
     saved = db.get(Setting, key)
     payload = {"model": model, **value}
+    if saved is None:
+        db.add(Setting(key=key, value_json=payload))
+    else:
+        saved.value_json = payload
+    db.commit()
+    return value
+
+
+def tighten_note_reduce_hint(
+    db: Session,
+    model: str,
+    *,
+    safe_max_input_tokens: int,
+    safe_max_facts: int,
+) -> dict[str, int]:
+    current = read_runtime_hint(db, "NOTE_REDUCE", model)
+    value = {
+        "safe_max_input_tokens": min(
+            current.get("safe_max_input_tokens", safe_max_input_tokens), safe_max_input_tokens
+        ),
+        "safe_max_facts": min(current.get("safe_max_facts", safe_max_facts), safe_max_facts),
+    }
+    key = _key("NOTE_REDUCE", model)
+    saved = db.get(Setting, key)
+    payload = {"model": model, **current, **value}
     if saved is None:
         db.add(Setting(key=key, value_json=payload))
     else:
