@@ -25,15 +25,19 @@ class _Adapter:
 
 def _manifest(tmp_path: Path, runner) -> dict:
     samples = []
-    for category in sorted(runner.scorer.REQUIRED_CATEGORIES):
-        audio = tmp_path / f"{category}.wav"
+    categories = sorted(runner.scorer.REQUIRED_CATEGORIES)
+    for index in range(runner.MIN_REVIEWED_SAMPLES):
+        category = categories[index % len(categories)]
+        sample_id = f"{category.lower()}_{index:02d}"
+        audio = tmp_path / f"{sample_id}.wav"
         audio.write_bytes(b"fixture")
+        duration_ms = runner.MIN_LONG_FORM_DURATION_MS if category == "LONG_FORM" else 1000
         samples.append(
             {
-                "id": category.lower(),
+                "id": sample_id,
                 "category": category,
                 "audio": audio.name,
-                "duration_ms": 1000,
+                "duration_ms": duration_ms,
                 "reference_text": "大理古城 2026",
                 "reference_segments": [{"text": "大理古城 2026", "start_ms": 0, "end_ms": 1000}],
                 "expected_entities": ["大理古城"],

@@ -173,38 +173,46 @@ def extract_screenshots(
     asset: VideoAsset,
     plans: list[VideoScreenshot],
     video_path: Path,
+    metrics: dict[str, int] | None = None,
 ) -> tuple[int, str | None]:
     if not plans:
+        if metrics is not None:
+            metrics["screenshot_process_count"] = 0
         return 0, None
     output_dir = settings.permanent_dir / "screenshots" / asset.id
     output_dir.mkdir(parents=True, exist_ok=True)
     perceptual_hashes: set[str] = set()
     ready = 0
+    process_count = 0
     for plan in plans[:12]:
         target = output_dir / f"{plan.id}.jpg"
         planned_seconds = max(0, plan.planned_timestamp_ms) / 1000
         best: tuple[float, tuple[str, float, int, int]] | None = None
-        # A short local search avoids chapter cuts, pure-black transition frames
-        # and subtitle fades while keeping every final image tied to its plan.
-        for offset in (-1.25, 0.0, 1.25):
-            seconds = max(0, planned_seconds + offset)
-            candidate = output_dir / f"{plan.id}-{int(offset * 1000):+05d}.jpg"
-            command = [
-                "ffmpeg", "-y", "-ss", str(seconds), "-i", str(video_path), "-frames:v", "1",
-                "-vf", "scale=min(960\\,iw):-2", "-q:v", "3", str(candidate),
-            ]
-            try:
-                result = subprocess.run(command, capture_output=True, text=True, check=False, timeout=90)
-            except subprocess.TimeoutExpired:
-                continue
-            quality = _quality(candidate) if result.returncode == 0 and candidate.is_file() else None
+        start_seconds = max(0, planned_seconds - 1.25)
+        pattern = output_dir / f"{plan.id}-%02d.jpg"
+        command = [
+            "ffmpeg", "-y", "-ss", str(start_seconds), "-i", str(video_path), "-frames:v", "3",
+            "-vf", "fps=1/1.25,scale=min(960\\,iw):-2", "-q:v", "3", str(pattern),
+        ]
+        try:
+            process_count += 1
+            result = subprocess.run(command, capture_output=True, text=True, check=False, timeout=90)
+        except subprocess.TimeoutExpired:
+            result = None
+        candidates = [output_dir / f"{plan.id}-{index:02d}.jpg" for index in range(1, 4)]
+        for index, candidate in enumerate(candidates):
+            seconds = start_seconds + index * 1.25
+            quality = (
+                _quality(candidate)
+                if result and result.returncode == 0 and candidate.is_file()
+                else None
+            )
             if quality and (best is None or quality[1] > best[1][1]):
                 best = (seconds, quality)
-                if candidate != target:
-                    target.unlink(missing_ok=True)
-                    candidate.replace(target)
-            else:
-                candidate.unlink(missing_ok=True)
+                target.unlink(missing_ok=True)
+                candidate.replace(target)
+        for candidate in candidates:
+            candidate.unlink(missing_ok=True)
         if best is None or not target.is_file():
             plan.status = "REJECTED"
             plan.selection_reason = "FFmpeg 未能在计划时间码抽帧"
@@ -223,6 +231,8 @@ def extract_screenshots(
         plan.width, plan.height, plan.quality_score, plan.status = width, height, score, "READY"
         ready += 1
     db.commit()
+    if metrics is not None:
+        metrics["screenshot_process_count"] = process_count
     return ready, None
 
 

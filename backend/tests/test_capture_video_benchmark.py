@@ -18,7 +18,14 @@ def _capture():
 def test_capture_video_benchmark_exports_replay_safe_metrics(app_and_session) -> None:
     _, factory = app_and_session
     with factory() as db:
-        job = Job(job_type="VIDEO", status="PARTIAL_SUCCESS", payload_json={})
+        now = utc_now()
+        job = Job(
+            job_type="VIDEO",
+            status="PARTIAL_SUCCESS",
+            payload_json={},
+            started_at=now,
+            finished_at=now + timedelta(seconds=10),
+        )
         db.add_all(
             [
                 job,
@@ -34,6 +41,56 @@ def test_capture_video_benchmark_exports_replay_safe_metrics(app_and_session) ->
                     step_name="GENERATE_AI_NOTE",
                     status="COMPLETED",
                     output_json={"note": "ok"},
+                ),
+                JobStep(
+                    job_id=job.id,
+                    step_name="FETCH_METADATA",
+                    status="COMPLETED",
+                    output_json={"duration_ms": 600_000},
+                ),
+                JobStep(
+                    job_id=job.id,
+                    step_name="CORRECT_TRANSCRIPT",
+                    status="COMPLETED",
+                    output_json={
+                        "transcript_chars": 1_000,
+                        "total_segments": 20,
+                        "candidate_segments": 4,
+                        "source_class": "LOCAL_ASR_WITH_CONFIDENCE",
+                        "correction_coverage_ratio": 0.2,
+                        "correction_target_chars": 150,
+                        "correction_context_chars": 100,
+                        "correction_input_chars": 250,
+                        "correction_input_ratio": 0.25,
+                    },
+                ),
+                JobStep(
+                    job_id=job.id,
+                    step_name="ASR",
+                    status="COMPLETED",
+                    started_at=now + timedelta(seconds=1),
+                    finished_at=now + timedelta(seconds=2),
+                ),
+                JobStep(
+                    job_id=job.id,
+                    step_name="RESOLVE_POI",
+                    status="COMPLETED",
+                    output_json={"amap_request_count": 4, "amap_cache_hit_count": 2},
+                    finished_at=now + timedelta(seconds=7),
+                ),
+                JobStep(
+                    job_id=job.id,
+                    step_name="EXTRACT_SCREENSHOTS",
+                    status="COMPLETED",
+                    output_json={"screenshot_process_count": 6},
+                    started_at=now + timedelta(seconds=8),
+                    finished_at=now + timedelta(seconds=9),
+                ),
+                JobStep(
+                    job_id=job.id,
+                    step_name="MATERIALIZE",
+                    status="COMPLETED",
+                    finished_at=now + timedelta(milliseconds=9_500),
                 ),
                 JobStepArtifact(
                     job_id=job.id,
@@ -64,8 +121,36 @@ def test_capture_video_benchmark_exports_replay_safe_metrics(app_and_session) ->
         "output_tokens": 2,
         "cached_tokens": 0,
         "attempts": 1,
+        "retries": 0,
         "fallbacks": 1,
         "cache_hits": 0,
         "wall_time_ms": 50,
+    }
+    assert result["baseline_metrics"] == {
+        "video_minutes": 10.0,
+        "transcript_chars": 1_000,
+        "prompt_tokens": 3,
+        "completion_tokens": 2,
+        "correction_candidate_segments": 4,
+        "total_segments": 20,
+        "correction_source_class": "LOCAL_ASR_WITH_CONFIDENCE",
+        "correction_coverage_ratio": 0.2,
+        "correction_target_chars": 150,
+        "correction_context_chars": 100,
+        "correction_input_chars": 250,
+        "correction_input_ratio": 0.25,
+        "ground_map_input_chars": 0,
+        "ground_map_chunks": 0,
+        "ground_map_retries": 0,
+        "model_attempts": 1,
+        "retries": 0,
+        "fallbacks": 1,
+        "amap_requests": 4,
+        "amap_cache_hits": 2,
+        "screenshot_processes": 6,
+        "asr_runtime_ms": 1_000,
+        "screenshot_stage_ms": 1_000,
+        "pipeline_wall_ms": 10_000,
+        "time_to_first_useful_note_ms": 9_500,
     }
     assert result["replay_artifacts"][0]["content_hash"] == "output-hash"

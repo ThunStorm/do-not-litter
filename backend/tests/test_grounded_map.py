@@ -90,9 +90,10 @@ def _segment_id(messages: list[dict[str, str]]) -> str:
 def test_grounded_map_is_reused_and_place_materialization_is_llm_free(app_and_session, monkeypatch) -> None:
     _, factory = app_and_session
     provider = FixtureProvider()
+    selected = {"provider": "fixture", "model": "fixture-model"}
     monkeypatch.setattr(
         "zhijian.services.video_support.provider_for_role",
-        lambda *_args: (provider, "fixture", "fixture-model"),
+        lambda *_args: (provider, selected["provider"], selected["model"]),
     )
     with factory() as db:
         source = Source(source_type="URL", locator="https://example.test/map", title="fixture")
@@ -109,8 +110,11 @@ def test_grounded_map_is_reused_and_place_materialization_is_llm_free(app_and_se
             source_kind="ASR",
         )
         artifact = get_or_create_grounded_map(db, Settings(_env_file=None), asset, transcript, segments)
+        selected.update(provider="other-provider", model="other-model")
         reused = get_or_create_grounded_map(db, Settings(_env_file=None), asset, transcript, segments)
         assert reused.id == artifact.id
+        assert reused.provider == "fixture"
+        assert reused.producer_version == "grounded-map-v3"
         assert len(provider.calls) == 1
 
         mentions = extract_place_mentions(

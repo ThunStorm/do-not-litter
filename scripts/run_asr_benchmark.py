@@ -36,6 +36,8 @@ RUN_DIRECTORY_NAMES = {
     "SENSEVOICE_SHERPA_ONNX_INT8": "sensevoice",
     "QWEN3_ASR_MLX_0_6B": "qwen3-asr",
 }
+MIN_REVIEWED_SAMPLES = 20
+MIN_LONG_FORM_DURATION_MS = 15 * 60 * 1000
 
 
 class BenchmarkAdapter(Protocol):
@@ -73,7 +75,15 @@ class CommandBenchmarkAdapter:
         segments = payload.get("segments")
         if not text or not isinstance(segments, list):
             raise RuntimeError("Benchmark Adapter 未返回 text 与 segments")
-        return text, [_normalize_segment(item) for item in segments], dict(payload.get("metrics") or {})
+        metrics = dict(payload.get("metrics") or {})
+        metrics.update(
+            {
+                "model_id": payload.get("model"),
+                "backend_id": payload.get("backend"),
+                "runtime_version": payload.get("runtime_version"),
+            }
+        )
+        return text, [_normalize_segment(item) for item in segments], metrics
 
 
 def validate_manifest(manifest: dict[str, Any], manifest_path: Path) -> list[dict[str, Any]]:
@@ -107,8 +117,8 @@ def validate_manifest(manifest: dict[str, Any], manifest_path: Path) -> list[dic
             raise ValueError(f"sample {sample_id} 缺少人工核对的 reference_segments")
         if int(sample.get("duration_ms") or 0) <= 0:
             raise ValueError(f"sample {sample_id} 缺少 duration_ms")
-        for segment in sample["reference_segments"]:
-            _normalize_segment(segment)
+        reference_segments = [_normalize_segment(segment) for segment in sample["reference_segments"]]
+        _validate_timeline(reference_segments, int(sample["duration_ms"]))
         seen_ids.add(sample_id)
         categories.add(category)
         sample["audio_path"] = manifest_path.parent / audio
@@ -116,6 +126,14 @@ def validate_manifest(manifest: dict[str, Any], manifest_path: Path) -> list[dic
     missing = sorted(scorer.REQUIRED_CATEGORIES - categories)
     if missing:
         raise ValueError(f"ASR Benchmark 缺少场景：{'、'.join(missing)}")
+    if len(normalized) < MIN_REVIEWED_SAMPLES:
+        raise ValueError(f"ASR Benchmark 至少需要 {MIN_REVIEWED_SAMPLES} 个已人工核对 clip")
+    if not any(
+        sample["category"] == "LONG_FORM"
+        and int(sample["duration_ms"]) >= MIN_LONG_FORM_DURATION_MS
+        for sample in normalized
+    ):
+        raise ValueError("LONG_FORM 至少需要一个 15 分钟已人工核对样本")
     replays = manifest.get("full_video_replays")
     if not isinstance(replays, list) or len({str(row.get("id") or "") for row in replays if isinstance(row, dict)}) < 2:
         raise ValueError("manifest 必须记录至少两个完整真实视频回放的独立证据")
@@ -150,7 +168,7 @@ def run_benchmark(
                         first_measurement = False
                     else:
                         row["warm_run_ms"] = runtime_ms
-                except (RuntimeError, subprocess.TimeoutExpired, OSError) as exc:
+                except (RuntimeError, ValueError, subprocess.TimeoutExpired, OSError) as exc:
                     row = _failed_row(provider_id, mode, sample, str(exc))
                 provider_rows.append(row)
         run_dir = output_dir / "runs" / RUN_DIRECTORY_NAMES[provider_id]
@@ -169,6 +187,7 @@ def _result_row(
     runtime_ms: int,
     adapter_metrics: dict[str, Any],
 ) -> dict[str, Any]:
+    _validate_timeline(segments, int(sample["duration_ms"]))
     timeline = _timeline_metrics(sample, segments)
     expected_entities = [str(value) for value in sample.get("expected_entities", [])]
     expected_numbers = [str(value) for value in sample.get("expected_numbers", [])]
@@ -194,6 +213,9 @@ def _result_row(
         "runtime_ms": runtime_ms,
         "peak_memory_bytes": peak_memory,
         "model_load_ms": adapter_metrics.get("model_load_ms"),
+        "model_id": adapter_metrics.get("model_id"),
+        "backend_id": adapter_metrics.get("backend_id"),
+        "runtime_version": adapter_metrics.get("runtime_version"),
         "alignment_runtime_ms": adapter_metrics.get("alignment_runtime_ms"),
         "alignment_peak_memory_bytes": adapter_metrics.get("alignment_peak_memory_bytes"),
         "cer": _cer(sample["reference_text"], text),
@@ -264,6 +286,18 @@ def _normalize_segment(value: Any) -> dict[str, Any]:
     return {"text": text, "start_ms": start_ms, "end_ms": end_ms, "locator": dict(value.get("locator") or {})}
 
 
+def _validate_timeline(segments: list[dict[str, Any]], duration_ms: int) -> None:
+    if not segments:
+        raise ValueError("ASR 必须返回至少一个带时间码 Segment")
+    previous_start = previous_end = -1
+    for segment in segments:
+        if segment["start_ms"] < previous_start or segment["end_ms"] < previous_end:
+            raise ValueError("ASR Segment 时间码不得逆序")
+        if segment["end_ms"] > duration_ms + 2000:
+            raise ValueError("ASR Segment 时间码异常超出音频时长")
+        previous_start, previous_end = segment["start_ms"], segment["end_ms"]
+
+
 def _cer(reference: str, actual: str) -> float:
     source, target = _normalized(reference), _normalized(actual)
     if not source:
@@ -316,6 +350,18 @@ def _build_adapters(args: argparse.Namespace, providers: list[str]) -> dict[str,
             adapters[provider] = WhisperBenchmarkAdapter(args.whisper_binary, args.whisper_turbo_model)
         elif provider in commands:
             adapters[provider] = CommandBenchmarkAdapter(commands[provider])
+        elif provider == "QWEN3_ASR_MLX_0_6B":
+            adapters[provider] = CommandBenchmarkAdapter(
+                shlex.join(
+                    [
+                        str(args.qwen_python),
+                        str(SCRIPT_DIR / "qwen_asr_runner.py"),
+                        "{input}",
+                        "--context",
+                        "{context}",
+                    ]
+                )
+            )
         else:
             raise ValueError(f"{provider} 需要显式 --adapter-command；实验 Runtime 不写入生产 Registry")
     return adapters
@@ -394,18 +440,34 @@ def _example_manifest() -> dict[str, Any]:
         "ground_truth_reviewed_at": "2026-09-16T00:00:00+08:00",
         "samples": [
             {
-                "id": f"{category.lower()}_001",
-                "category": category,
-                "audio": f"clips/{category.lower()}_001.wav",
-                "duration_ms": 30000,
+                "id": f"{categories[index % len(categories)].lower()}_{index + 1:03d}",
+                "category": categories[index % len(categories)],
+                "audio": (
+                    f"clips/{categories[index % len(categories)].lower()}_{index + 1:03d}.wav"
+                ),
+                "duration_ms": (
+                    MIN_LONG_FORM_DURATION_MS
+                    if categories[index % len(categories)] == "LONG_FORM"
+                    else 30_000
+                ),
                 "reference_text": "填写人工核对文本",
-                "reference_segments": [{"text": "填写人工核对文本", "start_ms": 0, "end_ms": 30000}],
+                "reference_segments": [
+                    {
+                        "text": "填写人工核对文本",
+                        "start_ms": 0,
+                        "end_ms": (
+                            MIN_LONG_FORM_DURATION_MS
+                            if categories[index % len(categories)] == "LONG_FORM"
+                            else 30_000
+                        ),
+                    }
+                ],
                 "expected_entities": [],
                 "expected_numbers": [],
                 "context_hints": [],
                 "forbidden_phrases": [],
             }
-            for category in categories
+            for index in range(MIN_REVIEWED_SAMPLES)
         ],
         "full_video_replays": [
             {"id": "填写完整视频一", "reviewed_by": "填写人工核对人", "replayed_at": "2026-09-16T00:00:00+08:00"},
@@ -422,6 +484,12 @@ def main() -> None:
     parser.add_argument("--whisper-binary", default="whisper-cli")
     parser.add_argument("--whisper-base-model", type=Path, default=Path("data/models/whisper/ggml-base.bin"))
     parser.add_argument("--whisper-turbo-model", type=Path, default=Path("data/models/whisper/ggml-large-v3-turbo-q5_0.bin"))
+    parser.add_argument(
+        "--qwen-python",
+        type=Path,
+        default=Path("data/runtime/qwen-asr/venv/bin/python"),
+        help="隔离 Qwen Runtime 的 Python；Qwen provider 未指定 adapter-command 时使用",
+    )
     parser.add_argument("--adapter-command", action="append", default=[], metavar="PROVIDER=COMMAND")
     parser.add_argument("--write-example", type=Path, metavar="PATH")
     args = parser.parse_args()

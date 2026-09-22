@@ -1,4 +1,5 @@
 import json
+from collections.abc import Callable
 from hashlib import sha256
 from time import perf_counter
 from typing import Any
@@ -33,11 +34,14 @@ class AIWorkloadGateway:
         cache_enabled: bool,
         force_regenerate: bool,
         attempt_metadata: dict[str, Any] | None = None,
+        result_validator: Callable[[LLMResult], None] | None = None,
     ) -> LLMResult:
         """Cache one route result while enforcing budget and local serialization per actual attempt."""
 
         def validate_result(result: LLMResult) -> None:
             validate_structured_output(result.content, stage, getattr(result, "metadata", {}))
+            if result_validator:
+                result_validator(result)
 
         def call() -> LLMResult:
             if isinstance(provider, FallbackLLMProvider):

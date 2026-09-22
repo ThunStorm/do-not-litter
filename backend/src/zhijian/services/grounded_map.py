@@ -13,11 +13,13 @@ from sqlalchemy.orm import Session
 from zhijian.ai.capabilities import AICapability
 from zhijian.ai.domain_context import domain_context_hash, domain_context_messages
 from zhijian.ai.reliability import AIProviderError
+from zhijian.ai.runtime_hints import read_runtime_hint, tighten_runtime_hint
 from zhijian.ai.stage_decision import decide_stage, record_stage_decision
 from zhijian.core.config import Settings
 from zhijian.db.models import GroundedMapArtifact, Job, Segment, Transcript, VideoAsset
 
 MAP_PROMPT_VERSION = "grounded-map-v2"
+MAP_ARTIFACT_SCHEMA_VERSION = "grounded-map-v3"
 LOCAL_MAP_CHUNK_CHARS = 6_000
 LOCAL_MAP_CHUNK_SEGMENTS = 64
 
@@ -120,9 +122,8 @@ def get_or_create_grounded_map(
                 "transcript_version": transcript.version,
                 "content_hash": content_hash,
                 "prompt_version": MAP_PROMPT_VERSION,
+                "schema_version": MAP_ARTIFACT_SCHEMA_VERSION,
                 "supplement_hash": supplement_hash,
-                "provider": provider_name,
-                "model": model,
                 "semantic_options": semantic_options,
             },
             ensure_ascii=False,
@@ -157,6 +158,11 @@ def get_or_create_grounded_map(
     if provider_name.lower() == "ollama" and policy.chunk_size is None:
         chunk_chars = min(chunk_chars, LOCAL_MAP_CHUNK_CHARS)
         max_segments = LOCAL_MAP_CHUNK_SEGMENTS
+    saved_hint = read_runtime_hint(db, "GROUND_MAP", model)
+    if saved_hint.get("safe_max_chars"):
+        chunk_chars = min(chunk_chars, saved_hint["safe_max_chars"])
+    if saved_hint.get("safe_max_segments"):
+        max_segments = min(max_segments or len(segments), saved_hint["safe_max_segments"])
     chunks = _transcript_chunks(segments, chunk_chars, max_segments=max_segments)
 
     def request_chunk(
@@ -196,6 +202,24 @@ def get_or_create_grounded_map(
             if exc.code != "AI_PROVIDER_OUTPUT_TRUNCATED" or len(chunk) <= 1:
                 raise
             midpoint = len(chunk) // 2
+            safe_max_chars = max(
+                sum(len(item.corrected_text or item.text) for item in part)
+                for part in (chunk[:midpoint], chunk[midpoint:])
+            )
+            persisted = tighten_runtime_hint(
+                db,
+                "GROUND_MAP",
+                model,
+                safe_max_chars=max(1, safe_max_chars),
+                safe_max_segments=midpoint,
+            )
+            if job:
+                hints = dict(job.payload_json.get("ai_runtime_hints") or {})
+                model_hints = dict(hints.get("ground_map") or {})
+                model_hints[model] = {**persisted, "reason": exc.code}
+                hints["ground_map"] = model_hints
+                job.payload_json = {**job.payload_json, "ai_runtime_hints": hints}
+                db.commit()
             request_chunk(
                 chunk[:midpoint],
                 chunk_index=chunk_index,
@@ -235,6 +259,7 @@ def get_or_create_grounded_map(
         facts_json=facts,
         places_json=places,
         warnings_json=list(dict.fromkeys(warnings)),
+        producer_version=MAP_ARTIFACT_SCHEMA_VERSION,
     )
     db.add(artifact)
     db.commit()

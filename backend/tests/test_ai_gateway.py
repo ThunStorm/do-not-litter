@@ -8,7 +8,7 @@ from zhijian.ai import (
     AIWorkloadGateway,
 )
 from zhijian.ai.reliability import AIProviderError, ModelReliabilityPolicy
-from zhijian.db.models import Job
+from zhijian.db.models import AICacheEntry, Job
 from zhijian.providers.llm import FallbackLLMProvider, LLMResult
 
 
@@ -169,3 +169,41 @@ def test_invalid_structured_output_is_not_cached(app_and_session) -> None:
                     force_regenerate=False,
                 )
     assert raw.calls == 2
+
+
+def test_stage_specific_validation_runs_before_cache_write(app_and_session) -> None:
+    class Provider:
+        name = "remote"
+
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def generate_json(self, _messages, *, model):
+            self.calls += 1
+            return LLMResult('{"changes":[{"segment_id":"unknown"}]}', self.name, model, {})
+
+    _, factory = app_and_session
+    provider = Provider()
+
+    def reject_unknown(_result) -> None:
+        raise AIProviderError("AI_PROVIDER_SCHEMA_INVALID", "未知 ID")
+
+    with factory() as db:
+        for _ in range(2):
+            with pytest.raises(AIProviderError, match="未知 ID"):
+                AIWorkloadGateway().execute_cached_json(
+                    db,
+                    job=None,
+                    stage="TRANSCRIPT_CORRECTION",
+                    capability="TRANSCRIPT_CORRECTION",
+                    provider=provider,
+                    provider_name="remote",
+                    model="model",
+                    messages=[{"role": "user", "content": "target"}],
+                    semantic_options={},
+                    cache_enabled=True,
+                    force_regenerate=False,
+                    result_validator=reject_unknown,
+                )
+        assert db.query(AICacheEntry).count() == 0
+    assert provider.calls == 2

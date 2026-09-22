@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -36,9 +37,18 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://127.0.0.1:11434"
     whisper_binary: str = "whisper-cli"
     whisper_model: Path = Path("./data/models/whisper/ggml-base.bin")
+    default_asr_provider: Literal["WHISPER_CPP", "QWEN3_ASR"] = "WHISPER_CPP"
+    qwen_asr_enabled: bool = True
+    qwen_asr_python: Path = Path("./data/runtime/qwen-asr/venv/bin/python")
+    qwen_asr_runner: Path = Path("./scripts/qwen_asr_runner.py")
+    qwen_asr_model: Path = Path("./data/models/qwen-asr/Qwen3-ASR-0.6B")
+    qwen_asr_aligner_model: Path = Path("./data/models/qwen-asr/Qwen3-ForcedAligner-0.6B")
+    qwen_asr_timeout_seconds: int = 3600
     deepseek_base_url: str = "https://api.deepseek.com/v1"
     mimo_base_url: str = ""
     amap_api_key: str = ""
+    amap_max_concurrency: int = 2
+    amap_cache_ttl_seconds: int = 24 * 60 * 60
     video_media_downloader: str = "yt-dlp"
     video_max_duration_seconds: int = 2 * 60 * 60
     video_max_media_mb: int = 800

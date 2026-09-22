@@ -335,3 +335,10 @@ def test_safe_json_recovery_rejects_truncation_and_array() -> None:
     with pytest.raises(AIProviderError) as array:
         parse_json_object("[]")
     assert array.value.code == "AI_PROVIDER_SCHEMA_INVALID"
+
+
+def test_transcript_correction_requires_delta_changes_contract() -> None:
+    validate_structured_output('{"changes":[]}', "TRANSCRIPT_CORRECTION")
+    with pytest.raises(AIProviderError) as legacy:
+        validate_structured_output('{"segments":[]}', "TRANSCRIPT_CORRECTION")
+    assert legacy.value.code == "AI_PROVIDER_SCHEMA_INVALID"

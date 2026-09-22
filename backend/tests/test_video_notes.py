@@ -164,6 +164,7 @@ def test_local_video_capture_uses_the_existing_travel_job_and_adapter(app_and_se
             source_type="FILE",
             title=media.name,
             file_path=media,
+            asr_provider="QWEN3_ASR",
         )
 
         descriptor = LocalVideoAdapter().resolve(str(media))
@@ -171,9 +172,43 @@ def test_local_video_capture_uses_the_existing_travel_job_and_adapter(app_and_se
     assert source.source_type == "FILE"
     assert job.job_type == JobType.TRAVEL.value
     assert job.payload_json["video_platform"] == "LOCAL"
+    assert job.payload_json["asr_provider"] == "QWEN3_ASR"
     assert descriptor.canonical_url == media.resolve().as_uri()
     assert descriptor.subtitles == []
     assert LocalVideoAdapter().build_timestamp_url(descriptor.canonical_url, 1000) == ""
+
+
+def test_core_note_materializes_before_screenshot_enrichment(app_and_session) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        source = Source(source_type="URL", locator="https://example.test/core", title="fixture")
+        db.add(source)
+        db.flush()
+        asset = VideoAsset(source_id=source.id, canonical_url=source.locator, title="核心笔记")
+        db.add(asset)
+        db.flush()
+        note = AINote(video_asset_id=asset.id, status="PROCESSING")
+        job = Job(job_type="TRAVEL", status="RUNNING", payload_json={})
+        db.add_all([note, job])
+        db.flush()
+        version = AINoteVersion(
+            ai_note_id=note.id,
+            version=1,
+            markdown="# 核心",
+            overview="先交付核心结果",
+            transcript_version=1,
+        )
+        db.add(version)
+        db.flush()
+
+        content = video_pipeline._materialize_core_content(
+            db, job, source, asset, version, [], 0, 0
+        )
+
+        assert job.result_content_id == content.id
+        assert job.payload_json["first_useful_note_at"]
+        assert content.structured_json["enrichment_status"] == "PROCESSING"
+        assert content.structured_json["screenshots"] == 0
 
 
 def test_youtube_capture_only_creates_the_existing_travel_job(app_and_session) -> None:
@@ -375,7 +410,11 @@ def test_ai_correction_is_persisted_before_note_generation(monkeypatch, app_and_
     class Provider:
         def generate_json(self, messages, model):
             assert any("保留作者自然口语语气" in message["content"] for message in messages)
-            values = json.loads(messages[-1]["content"])["segments"]
+            payload = json.loads(messages[-1]["content"])
+            assert "segments" not in payload
+            assert payload["items"][1]["context_before"][0]["text"] == "闪西兰田的水路案"
+            assert payload["items"][1]["context_after"][0]["text"] == "窗口鸡很短"
+            values = [item["target"] for item in payload["items"]]
             corrected = {
                 "闪西兰田的水路案": "西安蓝田水陆庵",
                 "国家深林公元": "国家森林公园",
@@ -388,7 +427,7 @@ def test_ai_correction_is_persisted_before_note_generation(monkeypatch, app_and_
                         '{"segment_id":"'
                         + item["id"]
                         + '","corrected_text":"'
-                        + corrected[item["raw_text"]]
+                        + corrected[item["text"]]
                         + '","confidence":0.96,"reason":"纠正同音字"}'
                         for item in values
                     )
@@ -410,9 +449,9 @@ def test_ai_correction_is_persisted_before_note_generation(monkeypatch, app_and_
             source,
             asset,
             [
-                {"text": "闪西兰田的水路案", "start_ms": 0, "end_ms": 1200},
-                {"text": "国家深林公元", "start_ms": 1200, "end_ms": 2400},
-                {"text": "窗口鸡很短", "start_ms": 2400, "end_ms": 3600},
+                {"text": "闪西兰田的水路案", "start_ms": 0, "end_ms": 1200, "confidence": 0.5},
+                {"text": "国家深林公元", "start_ms": 1200, "end_ms": 2400, "confidence": 0.5},
+                {"text": "窗口鸡很短", "start_ms": 2400, "end_ms": 3600, "confidence": 0.5},
             ],
             source_kind="ASR",
         )
@@ -443,7 +482,7 @@ def test_transcript_correction_splits_truncated_batches(monkeypatch, app_and_ses
 
     class Provider:
         def generate_json(self, messages, *, model):
-            values = json.loads(messages[-1]["content"])["segments"]
+            values = [item["target"] for item in json.loads(messages[-1]["content"])["items"]]
             batch_sizes.append(len(values))
             if len(values) > 2:
                 return LLMResult(
@@ -456,10 +495,10 @@ def test_transcript_correction_splits_truncated_batches(monkeypatch, app_and_ses
             return LLMResult(
                 json.dumps(
                     {
-                        "segments": [
+                        "changes": [
                             {
-                                "id": item["id"],
-                                "corrected_text": f"{item['raw_text']}（已校对）",
+                                "segment_id": item["id"],
+                                "corrected_text": f"{item['text']}（已校对）",
                                 "confidence": 0.9,
                                 "reason": "fixture",
                             }
@@ -507,10 +546,10 @@ def test_transcript_correction_splits_truncated_batches(monkeypatch, app_and_ses
             "CORRECTED",
             "UNCHANGED",
         ]
-        assert job.payload_json["ai_runtime_hints"]["transcript_correction"]["fixture-model"] == {
-            "max_batch_size": 2,
-            "reason": "AI_PROVIDER_OUTPUT_TRUNCATED",
-        }
+        hint = job.payload_json["ai_runtime_hints"]["transcript_correction"]["fixture-model"]
+        assert hint["max_batch_size"] == hint["safe_max_segments"] == 2
+        assert hint["safe_max_chars"] > 0
+        assert hint["reason"] == "AI_PROVIDER_OUTPUT_TRUNCATED"
         correct_transcript(db, Settings(_env_file=None), asset, transcript, segments, job)
         assert batch_sizes == [4, 2, 2]
 
@@ -1490,6 +1529,55 @@ def test_transcript_correction_http_failure_does_not_split_and_amplify(monkeypat
             segments,
         )
     assert calls == 1
+
+
+def test_transcript_correction_rejects_unknown_or_context_segment_id(monkeypatch) -> None:
+    class Provider:
+        def generate_json(self, _messages, *, model):
+            return LLMResult(
+                '{"changes":[{"segment_id":"seg_context","corrected_text":"伪造修改"}]}',
+                "fixture",
+                model,
+                {},
+            )
+
+    monkeypatch.setattr(
+        video_support,
+        "provider_for_role",
+        lambda *_args: (Provider(), "fixture", "fixture-model"),
+    )
+    segments = [
+        SimpleNamespace(
+            id="seg_context",
+            correction_status="UNCORRECTED",
+            raw_text="普通介绍内容",
+            text="普通介绍内容",
+            corrected_text=None,
+            confidence=0.99,
+            locator_json={"start_ms": 0, "end_ms": 1000},
+        ),
+        SimpleNamespace(
+            id="seg_target",
+            correction_status="UNCORRECTED",
+            raw_text="十月去国家森林公园",
+            text="十月去国家森林公园",
+            corrected_text=None,
+            confidence=0.99,
+            locator_json={"start_ms": 1000, "end_ms": 2000},
+        ),
+    ]
+
+    with pytest.raises(AIProviderError, match="context Segment ID"):
+        correct_transcript(
+            SimpleNamespace(),
+            SimpleNamespace(video_note_chunk_chars=12_000),
+            SimpleNamespace(title="fixture"),
+            SimpleNamespace(source_kind="QWEN3_ASR", metadata_json={}),
+            segments,
+        )
+
+    assert segments[1].correction_status == "UNCORRECTED"
+    assert segments[1].locator_json == {"start_ms": 1000, "end_ms": 2000}
 
 
 def test_transcript_export_and_retention_purge(client, app_and_session) -> None:

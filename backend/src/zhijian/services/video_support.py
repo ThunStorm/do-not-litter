@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass, replace
 from difflib import SequenceMatcher
 from hashlib import sha256
@@ -19,8 +21,9 @@ from zhijian.ai.domain_context import domain_context_hash, domain_context_messag
 from zhijian.ai.gateway import AIWorkloadGateway
 from zhijian.ai.policies import resolve_stage_policy
 from zhijian.ai.reliability import AIProviderError, ModelReliabilityPolicy, resolve_reliability_policy
+from zhijian.ai.runtime_hints import read_runtime_hint, tighten_runtime_hint
 from zhijian.ai.stage_decision import decide_stage, record_stage_decision
-from zhijian.ai.transcript_quality import correction_candidates
+from zhijian.ai.transcript_quality import correction_candidates, transcript_source_class
 from zhijian.core.config import Settings
 from zhijian.core.ids import new_id
 from zhijian.core.secret_store import build_secret_store
@@ -72,10 +75,10 @@ NOTE_SECTION_KINDS = {"PLACE", "AREA", "ROUTE", "SUPPLEMENTAL"}
 PROMPT_SUPPLEMENT_SETTING_KEY = "prompt:supplements"
 PROMPT_CORE_CONTRACTS = {
     "transcript_correction": [
-        "固定返回 JSON 对象与 segments 数组。",
-        "每个输入 Segment ID 必须且只能返回一次。",
-        "Segment ID 不得新增、遗漏、重复或改变顺序。",
-        "字段固定为 id、corrected_text、confidence、reason。",
+        "固定返回 JSON 对象与 changes 数组。",
+        "只返回确实需要修改的 target Segment；未返回的 target 保持原文。",
+        "不得返回 context Segment，不得新增或重复 Segment ID。",
+        "字段固定为 segment_id、corrected_text、confidence、reason。",
         "不得改变时间码、分段边界或 Segment 身份。",
         "只校正识别、断句和专名错误，不得新增事实。",
     ],
@@ -474,6 +477,7 @@ def _cached_stage_json(
     model: str,
     messages: list[dict[str, str]],
     attempt_metadata: dict[str, Any] | None = None,
+    result_validator: Callable[[LLMResult], None] | None = None,
 ) -> LLMResult:
     if not hasattr(db, "scalar"):
         return provider.generate_json(messages, model=model)
@@ -512,6 +516,7 @@ def _cached_stage_json(
         cache_enabled=bool(policy.cache_enabled),
         force_regenerate=policy.force_regenerate,
         attempt_metadata=attempt_metadata,
+        result_validator=result_validator,
     )
 
 
@@ -1321,22 +1326,73 @@ def correct_transcript(
     if not pending:
         return segments
     correction_policy = _resolved_stage_policy(db, "TRANSCRIPT_CORRECTION", job)
+    neighbor_count = int(correction_policy.neighbor_segments or 2)
+    transcript_metadata = getattr(transcript, "metadata_json", {}) or {}
+    source_class = transcript_source_class(
+        pending,
+        source_kind=str(getattr(transcript, "source_kind", "ASR") or "ASR"),
+        provider_id=str(transcript_metadata.get("provider_id") or ""),
+    )
     candidates = correction_candidates(
         pending,
         source_kind=str(getattr(transcript, "source_kind", "ASR") or "ASR"),
+        provider_id=str(transcript_metadata.get("provider_id") or ""),
         force_full=transcript_force_full_correction(db, job),
-        neighbor_segments=int(correction_policy.neighbor_segments or 2),
+        neighbor_segments=neighbor_count,
     )
+    positions = {segment.id: index for index, segment in enumerate(segments)}
+
+    def context_value(segment: Segment) -> dict[str, str]:
+        return {
+            "id": segment.id,
+            "text": str(segment.corrected_text or segment.text or segment.raw_text),
+        }
+
+    correction_items = {}
+    for target in candidates:
+        index = positions[target.id]
+        correction_items[target.id] = {
+            "target": {
+                "id": target.id,
+                "text": str(target.raw_text or target.text),
+                "start_ms": target.locator_json.get("start_ms"),
+                "end_ms": target.locator_json.get("end_ms"),
+            },
+            "context_before": [
+                context_value(item) for item in segments[max(0, index - neighbor_count) : index]
+            ],
+            "context_after": [
+                context_value(item) for item in segments[index + 1 : index + neighbor_count + 1]
+            ],
+        }
+    target_chars = sum(len(item["target"]["text"]) for item in correction_items.values())
+    context_chars = sum(
+        len(context["text"])
+        for item in correction_items.values()
+        for context in [*item["context_before"], *item["context_after"]]
+    )
+    transcript_chars = sum(len(segment.raw_text or segment.text) for segment in segments)
+    transcript.metadata_json = {
+        **transcript_metadata,
+        "correction_source_class": source_class,
+        "correction_candidate_segments": len(candidates),
+        "correction_coverage_ratio": len(candidates) / max(1, len(segments)),
+        "correction_target_chars": target_chars,
+        "correction_context_chars": context_chars,
+        "correction_input_chars": target_chars + context_chars,
+        "correction_input_ratio": (target_chars + context_chars) / max(1, transcript_chars),
+        "transcript_chars": transcript_chars,
+    }
     candidate_ids = {segment.id for segment in candidates}
     for segment in pending:
         if segment.id not in candidate_ids:
             segment.correction_status = "UNCHANGED"
-            segment.correction_reason = "平台字幕通过质量门禁，未发送模型校对"
+            segment.correction_reason = "通过转写质量门禁，未发送模型校对"
     if not candidates:
         record_stage_decision(db, job, decide_stage("TRANSCRIPT_CORRECTION", has_relevant_segments=False))
         transcript.text = "\n".join(segment.corrected_text or segment.text for segment in segments)
         transcript.metadata_json = {
-            **transcript.metadata_json,
+            **(getattr(transcript, "metadata_json", {}) or {}),
             "correction_status": "PASS_THROUGH",
             "correction_coverage": 1.0,
         }
@@ -1364,31 +1420,51 @@ def correct_transcript(
         if isinstance(runtime_hints.get("transcript_correction"), dict)
         else {}
     )
-    saved_batch_size = int((correction_hints.get(model) or {}).get("max_batch_size") or 0)
+    saved = {**read_runtime_hint(db, "TRANSCRIPT_CORRECTION", model), **(correction_hints.get(model) or {})}
+    saved_batch_size = int(saved.get("safe_max_segments") or saved.get("max_batch_size") or 0)
+    saved_max_chars = int(saved.get("safe_max_chars") or 0)
     adaptive_batch_size = (
         min(configured_batch_size, saved_batch_size) if saved_batch_size > 0 else configured_batch_size
     )
     chunks = _transcript_chunks(
         candidates,
-        processing.chunk_chars,
+        min(processing.chunk_chars, saved_max_chars) if saved_max_chars else processing.chunk_chars,
         adaptive_batch_size,
     )
 
     corrected_count = 0
 
-    def apply_batch_result(batch: list[Segment], response: LLMResult, values: list) -> None:
-        nonlocal corrected_count
-        by_id = {
-            str(item.get("segment_id") or item.get("id")): item
+    def validated_changes(batch: list[Segment], response: LLMResult) -> list[dict[str, Any]]:
+        payload = parse_model_json(response.content)
+        values = payload.get("changes")
+        if not isinstance(values, list):
+            raise AIProviderError("AI_PROVIDER_SCHEMA_INVALID", "校对输出缺少 changes 数组")
+        ids = [
+            str(item.get("segment_id") or "")
             for item in values
-            if isinstance(item, dict) and (item.get("segment_id") or item.get("id"))
-        }
+            if isinstance(item, dict)
+        ]
+        allowed = {segment.id for segment in batch}
+        if len(ids) != len(values) or any(not value for value in ids):
+            raise AIProviderError("AI_PROVIDER_SCHEMA_INVALID", "changes 必须使用 segment_id")
+        if len(ids) != len(set(ids)) or set(ids) - allowed:
+            raise AIProviderError(
+                "AI_PROVIDER_SCHEMA_INVALID",
+                "changes 包含重复、未知或只读 context Segment ID",
+            )
+        return values
+
+    def apply_batch_result(
+        batch: list[Segment], response: LLMResult, values: list[dict[str, Any]]
+    ) -> None:
+        nonlocal corrected_count
+        by_id = {str(item["segment_id"]): item for item in values}
         for segment in batch:
             item = by_id.get(segment.id)
             text = str(item.get("corrected_text") or "").strip() if item else ""
             segment.correction_provider = response.provider
             segment.correction_model = response.model
-            if not text:
+            if not text or text == str(segment.raw_text or segment.text).strip():
                 segment.corrected_text = segment.raw_text or segment.text
                 segment.correction_status = "UNCHANGED"
                 segment.correction_reason = "模型确认无需修改，保留原始转写"
@@ -1412,15 +1488,7 @@ def correct_transcript(
             ensure_job_active(db, job)
         payload = {
             "video_title": asset.title,
-            "segments": [
-                {
-                    "id": item.id,
-                    "start_ms": item.locator_json.get("start_ms"),
-                    "end_ms": item.locator_json.get("end_ms"),
-                    "raw_text": item.raw_text or item.text,
-                }
-                for item in batch
-            ],
+            "items": [correction_items[item.id] for item in batch],
         }
         try:
             messages = [
@@ -1443,17 +1511,30 @@ def correct_transcript(
                     "split_path": split_path,
                     "segment_count": len(batch),
                 },
+                result_validator=lambda result: validated_changes(batch, result),
             )
         except AIProviderError as exc:
             if exc.code != "AI_PROVIDER_OUTPUT_TRUNCATED" or len(batch) <= 1:
                 raise
             midpoint = len(batch) // 2
             adaptive_batch_size = min(adaptive_batch_size, midpoint)
+            safe_max_chars = max(
+                sum(len(item.raw_text or item.text) for item in part)
+                for part in (batch[:midpoint], batch[midpoint:])
+            )
+            persisted = tighten_runtime_hint(
+                db,
+                "TRANSCRIPT_CORRECTION",
+                model,
+                safe_max_chars=max(1, safe_max_chars),
+                safe_max_segments=adaptive_batch_size,
+            )
             if job:
                 hints = dict(job.payload_json.get("ai_runtime_hints") or {})
                 model_hints = dict(hints.get("transcript_correction") or {})
                 model_hints[model] = {
                     "max_batch_size": adaptive_batch_size,
+                    **persisted,
                     "reason": exc.code,
                 }
                 hints["transcript_correction"] = model_hints
@@ -1494,14 +1575,7 @@ def correct_transcript(
             raise
         if job:
             ensure_job_active(db, job)
-        try:
-            payload = parse_model_json(response.content)
-            values = payload.get("changes", payload.get("segments", []))
-        except (json.JSONDecodeError, ValueError):
-            if job:
-                ensure_job_active(db, job)
-            values = []
-        apply_batch_result(batch, response, values if isinstance(values, list) else [])
+        apply_batch_result(batch, response, validated_changes(batch, response))
 
     pending_chunks = list(chunks)
     completed_batches = 0
@@ -1562,7 +1636,7 @@ def correct_transcript(
     unchanged_count = sum(segment.correction_status == "UNCHANGED" for segment in segments)
     transcript.text = "\n".join(segment.corrected_text or segment.text for segment in segments)
     transcript.metadata_json = {
-        **transcript.metadata_json,
+        **(getattr(transcript, "metadata_json", {}) or {}),
         "correction_status": "CORRECTED" if corrected_count + unchanged_count == len(segments) else "REVIEW",
         "correction_provider": provider_name,
         "correction_model": model,
@@ -2189,14 +2263,27 @@ def materialize_place_insights(db: Session, mention: PlaceMention) -> None:
 
 
 def resolve_mentions_with_amap(
-    db: Session, settings: Settings, mentions: list[PlaceMention], api_key: str | None = None
+    db: Session,
+    settings: Settings,
+    mentions: list[PlaceMention],
+    api_key: str | None = None,
+    metrics: dict[str, int] | None = None,
 ) -> tuple[int, int]:
     if not mentions:
+        if metrics is not None:
+            metrics["amap_request_count"] = 0
+            metrics["amap_cache_hit_count"] = 0
         return 0, 0
     effective_key = api_key or settings.amap_api_key
     if not effective_key:
+        if metrics is not None:
+            metrics["amap_request_count"] = 0
+            metrics["amap_cache_hit_count"] = 0
         return 0, len(mentions)
-    provider = AMapPOIProvider(effective_key)
+    provider = AMapPOIProvider(
+        effective_key,
+        cache_ttl_seconds=settings.amap_cache_ttl_seconds,
+    )
     asset_ids = {mention.video_asset_id for mention in mentions}
     session_mentions = db.scalars(
         select(PlaceMention).where(
@@ -2206,6 +2293,26 @@ def resolve_mentions_with_amap(
     ).all()
     _assign_geo_sessions(db, session_mentions)
     confirmed = 0
+    candidate_results: dict[str, list[POICandidate] | Exception] = {}
+    searchable = [
+        mention
+        for mention in mentions
+        if not (
+            mention.resolution_status == ResolutionStatus.CONFIRMED.value
+            and (mention.metadata_json or {}).get("confirmation_origin") == "MANUAL_CONFIRMED"
+        )
+    ]
+    with ThreadPoolExecutor(max_workers=max(1, settings.amap_max_concurrency)) as executor:
+        futures = {
+            executor.submit(_rank_poi_candidates, provider, mention, mentions): mention.id
+            for mention in searchable
+        }
+        for future in as_completed(futures):
+            mention_id = futures[future]
+            try:
+                candidate_results[mention_id] = future.result()
+            except Exception as exc:
+                candidate_results[mention_id] = exc
     for mention in mentions:
         if (
             mention.resolution_status == ResolutionStatus.CONFIRMED.value
@@ -2213,9 +2320,9 @@ def resolve_mentions_with_amap(
         ):
             confirmed += 1
             continue
-        try:
-            candidates = _rank_poi_candidates(provider, mention, mentions)
-        except Exception as exc:
+        candidates = candidate_results.get(mention.id, [])
+        if isinstance(candidates, Exception):
+            exc = candidates
             mention.metadata_json = {**mention.metadata_json, "poi_error": str(exc)[:240]}
             continue
         if not candidates:
@@ -2328,6 +2435,9 @@ def resolve_mentions_with_amap(
         materialize_place_insights(db, mention)
         confirmed += 1
     db.commit()
+    if metrics is not None:
+        metrics["amap_request_count"] = int(getattr(provider, "request_count", 0))
+        metrics["amap_cache_hit_count"] = int(getattr(provider, "cache_hit_count", 0))
     return confirmed, len(mentions) - confirmed
 
 

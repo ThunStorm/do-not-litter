@@ -49,10 +49,10 @@ def validate_structured_output(content: str, stage: str, metadata: dict[str, Any
     if str((metadata or {}).get("finish_reason") or "").lower() in {"length", "max_tokens"}:
         raise AIProviderError("AI_PROVIDER_OUTPUT_TRUNCATED", "模型输出达到长度上限")
     value = parse_json_object(content)
-    if stage == "TRANSCRIPT_CORRECTION" and not isinstance(value.get("segments", value.get("changes")), list):
+    if stage == "TRANSCRIPT_CORRECTION" and not isinstance(value.get("changes"), list):
         raise AIProviderError(
             "AI_PROVIDER_SCHEMA_INVALID",
-            "模型输出缺少字段：segments",
+            "模型输出缺少字段：changes",
             retryable=True,
         )
     missing = [field for field in _REQUIRED_FIELDS.get(stage, ()) if field not in value]

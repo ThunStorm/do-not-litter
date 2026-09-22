@@ -42,6 +42,7 @@ from zhijian.resolvers.video.bilibili import (
     VideoResolveError,
     first_usable_subtitle,
 )
+from zhijian.services.asr_context import build_asr_context
 from zhijian.services.audit import record_event
 from zhijian.services.external_audit import audited_call
 from zhijian.services.grounded_map import artifact_for_transcript, get_or_create_grounded_map
@@ -267,6 +268,85 @@ def _done(db: Session, job: Job, step: JobStep, progress: int, output: dict[str,
     db.commit()
 
 
+def _correction_output(
+    transcript: Transcript, segments: list[Segment]
+) -> dict[str, int | float | str]:
+    metadata = transcript.metadata_json or {}
+    corrected = sum(item.correction_status == "CORRECTED" for item in segments)
+    unchanged = sum(item.correction_status == "UNCHANGED" for item in segments)
+    total = len(segments)
+    candidates = int(metadata.get("correction_candidate_segments") or corrected)
+    return {
+        "corrected": corrected,
+        "unchanged": unchanged,
+        "review": total - corrected - unchanged,
+        "total_segments": total,
+        "candidate_segments": candidates,
+        "source_class": str(metadata.get("correction_source_class") or ""),
+        "correction_coverage_ratio": float(
+            metadata.get("correction_coverage_ratio") or candidates / max(1, total)
+        ),
+        "correction_target_chars": int(metadata.get("correction_target_chars") or 0),
+        "correction_context_chars": int(metadata.get("correction_context_chars") or 0),
+        "correction_input_chars": int(metadata.get("correction_input_chars") or 0),
+        "correction_input_ratio": float(metadata.get("correction_input_ratio") or 0),
+        "transcript_chars": int(metadata.get("transcript_chars") or len(transcript.text)),
+    }
+
+
+def _materialize_core_content(
+    db: Session,
+    job: Job,
+    source: Source,
+    asset: VideoAsset,
+    note_version: AINoteVersion,
+    mentions: list[PlaceMention],
+    confirmed: int,
+    unresolved: int,
+) -> ContentItem:
+    content = db.scalar(
+        select(ContentItem).where(
+            ContentItem.source_id == source.id,
+            ContentItem.content_type == ContentType.VIDEO_NOTE.value,
+        )
+    )
+    if content is None:
+        content = ContentItem(
+            content_type=ContentType.VIDEO_NOTE.value,
+            title=asset.title,
+            source_id=source.id,
+        )
+        db.add(content)
+    content.summary = note_version.overview
+    content.status = "COMPLETED"
+    content.structured_json = {
+        "video_asset_id": asset.id,
+        "note_id": note_version.ai_note_id,
+        "note_version_id": note_version.id,
+        "place_mentions": len(mentions),
+        "confirmed_places": confirmed,
+        "unresolved_places": unresolved,
+        "screenshots": 0,
+        "enrichment_status": "PROCESSING",
+    }
+    db.flush()
+    first_useful_at = utc_now()
+    job.result_content_id = content.id
+    job.payload_json = {**job.payload_json, "first_useful_note_at": first_useful_at.isoformat()}
+    record_event(
+        db,
+        "video.note.core_materialized",
+        "核心视频笔记已可用，继续处理非核心截图",
+        component="video-pipeline",
+        entity_type="job",
+        entity_id=job.id,
+        detail={"content_id": content.id, "note_version_id": note_version.id},
+        commit=False,
+    )
+    db.commit()
+    return content
+
+
 def _fail_step(db: Session, step: JobStep, error: Exception) -> None:
     step.status, step.error, step.finished_at = "FAILED", str(error)[:4000], utc_now()
     db.commit()
@@ -377,10 +457,18 @@ def _download_and_transcribe_audio(
             "cache_path": str(audio_path),
         },
     )
-    registry = ASRProviderRegistry(settings.whisper_binary, settings.whisper_model)
-    requested_provider = str((job.payload_json.get("ai_overrides") or {}).get("asr_provider") or "")
+    registry = ASRProviderRegistry(
+        settings.whisper_binary,
+        settings.whisper_model,
+        settings.qwen_asr_python if settings.qwen_asr_enabled else None,
+        settings.qwen_asr_runner if settings.qwen_asr_enabled else None,
+        settings.qwen_asr_model if settings.qwen_asr_enabled else None,
+        settings.qwen_asr_aligner_model if settings.qwen_asr_enabled else None,
+        settings.qwen_asr_timeout_seconds,
+    )
+    requested_provider = str(job.payload_json.get("asr_provider") or "")
     try:
-        provider = registry.get(requested_provider or registry.default_provider_id)
+        provider = registry.get(requested_provider or settings.default_asr_provider)
     except ValueError as exc:
         raise NeedsUser("ASR_UNAVAILABLE", str(exc)) from exc
     asr_step = _step(
@@ -388,31 +476,72 @@ def _download_and_transcribe_audio(
         job,
         "ASR",
         48,
-        {"audio": audio_path.name, "model": str(settings.whisper_model), "provider": provider.provider_id},
+        {
+            "audio": audio_path.name,
+            "model": str(
+                settings.qwen_asr_model if provider.provider_id == "QWEN3_ASR" else settings.whisper_model
+            ),
+            "provider": provider.provider_id,
+        },
     )
     _stage_event(db, job, "asr.requested", f"正在调用本机 {provider.provider_id} 转写")
-    try:
-        text, raw_segments = audited_call(
+    context = build_asr_context(asset)
+
+    def run_provider(active_provider):
+        return audited_call(
             db,
             job_id=job.id,
             capability="ASR",
-            provider=provider.provider_id,
+            provider=active_provider.provider_id,
             operation="transcribe",
-            request_meta={"audio": audio_path.name, "asr_provider": provider.provider_id},
+            request_meta={
+                "audio": audio_path.name,
+                "asr_provider": active_provider.provider_id,
+                "context_hash": context["hash"] if active_provider.provider_id == "QWEN3_ASR" else None,
+            },
             call=lambda: local_ai_resource_manager.run(
                 "ASR",
-                lambda: provider.transcribe(audio_path),
+                lambda: active_provider.transcribe(
+                    audio_path,
+                    context=context["text"] if active_provider.provider_id == "QWEN3_ASR" else None,
+                ),
             ),
         )
+
+    try:
+        text, raw_segments = run_provider(provider)
     except RuntimeError as exc:
-        raise NeedsUser("ASR_UNAVAILABLE", str(exc)) from exc
+        if provider.provider_id != "QWEN3_ASR":
+            raise NeedsUser("ASR_UNAVAILABLE", str(exc)) from exc
+        record_event(
+            db,
+            "asr.fallback",
+            "Qwen3-ASR 运行失败，已回退 Whisper.cpp",
+            component="video-pipeline",
+            level="WARNING",
+            entity_type="job",
+            entity_id=job.id,
+            detail={"from": "QWEN3_ASR", "to": registry.default_provider_id, "reason": str(exc)[:240]},
+        )
+        provider = registry.get(registry.default_provider_id)
+        try:
+            text, raw_segments = run_provider(provider)
+        except RuntimeError as fallback_exc:
+            raise NeedsUser("ASR_UNAVAILABLE", str(fallback_exc)) from fallback_exc
     if not text or not raw_segments:
         raise NeedsUser("ASR_EMPTY", "本地转写没有产生带时间码的结果")
     last_ms = max(int(item.get("end_ms") or item.get("start_ms") or 0) for item in raw_segments)
     _stage_event(
         db, job, "asr.completed", "本机转写已完成", provider=provider.provider_id, segments=len(raw_segments)
     )
-    _done(db, job, asr_step, 62, {"segments": len(raw_segments), "provider": provider.provider_id})
+    provider_metadata = dict(getattr(provider, "last_metadata", {}) or {})
+    _done(
+        db,
+        job,
+        asr_step,
+        62,
+        {"segments": len(raw_segments), "provider": provider.provider_id, **provider_metadata},
+    )
     transcript, segments = materialize_transcript(
         db,
         source,
@@ -426,6 +555,10 @@ def _download_and_transcribe_audio(
             "validation_reasons": validation_reasons or [],
             "validation_version": SUBTITLE_VALIDATION_VERSION,
             "timeline_ratio": round(last_ms / asset.duration_ms, 4) if asset.duration_ms else None,
+            "provider_id": provider.provider_id,
+            "context_hash": context["hash"] if provider.provider_id == "QWEN3_ASR" else None,
+            "context_source_types": context["source_types"] if provider.provider_id == "QWEN3_ASR" else [],
+            **provider_metadata,
         },
     )
     return audio_path, transcript, segments
@@ -836,14 +969,7 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
             raise NeedsUser(exc.code, f"转写校对暂停：{str(exc)[:240]}") from exc
         except Exception as exc:
             raise NeedsUser("TRANSCRIPT_CORRECTION_FAILED", f"转写校对失败：{str(exc)[:240]}") from exc
-        corrected_count = sum(item.correction_status == "CORRECTED" for item in segments)
-        _done(
-            db,
-            job,
-            correction,
-            70,
-            {"corrected": corrected_count, "review": len(segments) - corrected_count},
-        )
+        _done(db, job, correction, 70, _correction_output(transcript, segments))
 
         extract = _step(
             db,
@@ -907,11 +1033,13 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
 
         poi = _step(db, job, "RESOLVE_POI", 88, {"mentions": len(mentions), "provider": "AMap"})
         _stage_event(db, job, "poi.requested", "正在校验地点 POI", mentions=len(mentions))
+        poi_metrics: dict[str, int] = {}
         confirmed, unresolved = resolve_mentions_with_amap(
             db,
             settings,
             mentions,
             store.get("amap:web-service-key") or settings.amap_api_key,
+            poi_metrics,
         )
         _done(
             db,
@@ -922,11 +1050,15 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
                 "confirmed": confirmed,
                 "unresolved": unresolved,
                 "amap_configured": bool(store.get("amap:web-service-key") or settings.amap_api_key),
+                **poi_metrics,
             },
         )
         place_notes = _step(db, job, "BUILD_PLACE_NOTES", 93, {"confirmed": confirmed})
         built = build_place_notes(db, asset, mentions)
         _done(db, job, place_notes, 95, {"built": built})
+        content = _materialize_core_content(
+            db, job, source, asset, note_version, mentions, confirmed, unresolved
+        )
 
         screenshot_plan = _step(db, job, "PLAN_SCREENSHOTS", 92, {"note_version": note_version.id})
         _stage_event(db, job, "screenshot.plan", "正在按章节和主要地点规划代表截图")
@@ -979,8 +1111,9 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
         else:
             _stage_event(db, job, "screenshot.extract", "正在抽取并筛选代表截图", planned=len(plans))
             try:
+                screenshot_metrics: dict[str, int] = {}
                 screenshot_count, extract_error = extract_screenshots(
-                    db, settings, asset, plans, video_for_frames
+                    db, settings, asset, plans, video_for_frames, screenshot_metrics
                 )
                 screenshot_error = screenshot_error or extract_error
                 _done(
@@ -988,7 +1121,12 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
                     job,
                     extract_frames,
                     97,
-                    {"planned": len(plans), "ready": screenshot_count, "error": screenshot_error},
+                    {
+                        "planned": len(plans),
+                        "ready": screenshot_count,
+                        "error": screenshot_error,
+                        **screenshot_metrics,
+                    },
                 )
             except Exception as exc:
                 screenshot_error = f"SCREENSHOT_EXTRACTION_FAILED: {str(exc)[:240]}"
@@ -1002,20 +1140,6 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
                 )
 
         materialize = _step(db, job, "MATERIALIZE", 98, {"note": note_version.ai_note_id})
-        content = db.scalar(
-            select(ContentItem).where(
-                ContentItem.source_id == source.id, ContentItem.content_type == ContentType.VIDEO_NOTE.value
-            )
-        )
-        if content is None:
-            content = ContentItem(
-                content_type=ContentType.VIDEO_NOTE.value,
-                title=asset.title,
-                summary=note_version.overview,
-                source_id=source.id,
-                structured_json={},
-            )
-            db.add(content)
         content.summary = note_version.overview
         content.status = "COMPLETED"
         content.structured_json = {
@@ -1027,6 +1151,7 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
             "unresolved_places": unresolved,
             "screenshots": screenshot_count,
             "screenshot_error": screenshot_error,
+            "enrichment_status": "COMPLETED" if not screenshot_error else "PARTIAL",
         }
         db.flush()
         job.result_content_id = content.id
@@ -1305,7 +1430,7 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                 segments = correct_transcript(db, settings, asset, transcript, segments, job)
             except AIProviderError as exc:
                 raise NeedsUser(exc.code, f"转写校对暂停：{str(exc)[:300]}") from exc
-            _done(db, job, step, 70, {"corrected": len(segments)})
+            _done(db, job, step, 70, _correction_output(transcript, segments))
 
         note = db.scalar(select(AINote).where(AINote.video_asset_id == asset.id))
         note_version = (
@@ -1379,13 +1504,27 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
         unresolved = len(mentions) - confirmed
         if start <= VIDEO_STEPS.index("RESOLVE_POI"):
             step = _step(db, job, "RESOLVE_POI", 88, {"mentions": len(mentions), "provider": "AMap"})
+            poi_metrics = {}
             confirmed, unresolved = resolve_mentions_with_amap(
-                db, settings, mentions, store.get("amap:web-service-key") or settings.amap_api_key
+                db,
+                settings,
+                mentions,
+                store.get("amap:web-service-key") or settings.amap_api_key,
+                poi_metrics,
             )
-            _done(db, job, step, 92, {"confirmed": confirmed, "unresolved": unresolved})
+            _done(
+                db,
+                job,
+                step,
+                92,
+                {"confirmed": confirmed, "unresolved": unresolved, **poi_metrics},
+            )
         if start <= VIDEO_STEPS.index("BUILD_PLACE_NOTES"):
             step = _step(db, job, "BUILD_PLACE_NOTES", 93, {"confirmed": confirmed})
             _done(db, job, step, 95, {"built": build_place_notes(db, asset, mentions)})
+        content = _materialize_core_content(
+            db, job, source, asset, note_version, mentions, confirmed, unresolved
+        )
 
         plans = []
         if start <= VIDEO_STEPS.index("PLAN_SCREENSHOTS"):
@@ -1439,26 +1578,20 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
         if start <= VIDEO_STEPS.index("EXTRACT_SCREENSHOTS"):
             step = _step(db, job, "EXTRACT_SCREENSHOTS", 96, {"planned": len(plans)})
             if video_path:
+                screenshot_metrics = {}
                 screenshot_count, screenshot_error = extract_screenshots(
-                    db, settings, asset, plans, video_path
+                    db, settings, asset, plans, video_path, screenshot_metrics
                 )
-                _done(db, job, step, 97, {"ready": screenshot_count, "error": screenshot_error})
+                _done(
+                    db,
+                    job,
+                    step,
+                    97,
+                    {"ready": screenshot_count, "error": screenshot_error, **screenshot_metrics},
+                )
             else:
                 _skip_step(db, job, step, 97, "截图视频不可用")
 
-        content = db.scalar(
-            select(ContentItem).where(
-                ContentItem.source_id == source.id, ContentItem.content_type == ContentType.VIDEO_NOTE.value
-            )
-        )
-        if content is None:
-            content = ContentItem(
-                content_type=ContentType.VIDEO_NOTE.value,
-                title=asset.title,
-                summary=note_version.overview,
-                source_id=source.id,
-            )
-            db.add(content)
         content.summary = note_version.overview
         content.status = "COMPLETED"
         content.structured_json = {
@@ -1470,6 +1603,7 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
             "unresolved_places": unresolved,
             "screenshots": screenshot_count,
             "screenshot_error": screenshot_error,
+            "enrichment_status": "COMPLETED" if not screenshot_error else "PARTIAL",
         }
         db.flush()
         step = _step(db, job, "MATERIALIZE", 98, {"note": note_version.ai_note_id})

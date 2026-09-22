@@ -7,13 +7,17 @@ from zhijian.ai.budget import AIBudgetExceeded, soft_budget_state
 from zhijian.ai.capabilities import AICapability
 from zhijian.ai.cost_router import choose_auto_route
 from zhijian.ai.reliability import AIProviderError, ModelReliabilityPolicy
-from zhijian.ai.transcript_quality import correction_candidates
+from zhijian.ai.transcript_quality import (
+    LOCAL_ASR_WITH_CONFIDENCE,
+    correction_candidates,
+    transcript_source_class,
+)
 from zhijian.db.models import ExternalCallAudit, Job, Setting
 from zhijian.providers.llm import FallbackLLMProvider
 from zhijian.services.video_support import parse_model_json, provider_for_role
 
 
-def test_whisper_correction_uses_semantic_candidates_and_neighbors() -> None:
+def test_asr_correction_uses_provider_independent_targets_without_neighbors() -> None:
     segments = [
         SimpleNamespace(raw_text=text, text=text, confidence=0.99)
         for text in (
@@ -28,9 +32,11 @@ def test_whisper_correction_uses_semantic_candidates_and_neighbors() -> None:
 
     candidates = correction_candidates(segments, source_kind="WHISPER_CPP_ASR", neighbor_segments=1)
 
-    assert candidates == segments[2:5]
+    assert candidates == segments[3:4]
+    assert correction_candidates(segments, source_kind="QWEN3_ASR") == segments[3:4]
     assert correction_candidates(segments, source_kind="MANUAL_SUBTITLE") == []
-    assert correction_candidates(segments[:2], source_kind="ASR") == segments[:2]
+    assert correction_candidates(segments[:2], source_kind="ASR") == []
+    assert transcript_source_class(segments, source_kind="QWEN3_ASR") == LOCAL_ASR_WITH_CONFIDENCE
 
 
 def test_long_prompts_follow_profile_retry_policy() -> None:

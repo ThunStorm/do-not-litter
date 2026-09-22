@@ -17,6 +17,7 @@ class CaptureRequest(BaseModel):
     text: str | None = Field(default=None, max_length=2_000_000)
     title: str | None = Field(default=None, max_length=500)
     ai_overrides: dict[str, dict[str, Any]] = Field(default_factory=dict, max_length=3)
+    asr_provider: Literal["WHISPER_CPP", "QWEN3_ASR"] | None = None
 
 
 class CaptureResponse(BaseModel):

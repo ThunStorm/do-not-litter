@@ -482,6 +482,7 @@ def capture(
         text="" if is_url else raw_input,
         metadata=metadata,
         ai_overrides=payload.ai_overrides,
+        asr_provider=payload.asr_provider,
     )
     return CaptureResponse(
         source_id=source.id,
