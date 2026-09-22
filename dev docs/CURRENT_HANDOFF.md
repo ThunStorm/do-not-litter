@@ -5,7 +5,7 @@
 ## 任务续接
 
 - 完成：Pipeline runtime resilience 已部署；Attempt 预登记/heartbeat、lease 续期、独立 watchdog、run fence、Stage-first 截断恢复、Note Reduce 有界分包/降级、能力准入及任务/日志实时 UI 已加载。后端 209 项、完整 Ruff、前端 verify、文档与 `diff --check` 通过；桌面/390px Browser 无溢出或控制台错误。
-- 部署：2026-09-22 无 migration 重启；门禁 active Job/lease=0、revision=`0023`、`integrity_check=ok`，备份 `app-pre-runtime-resilience-20260922-165753.db` 完整性 ok、SHA-256=`ba23d9a…f41`。API/Worker/首页/heartbeat READY，PID=`97038`，executor=`IDLE`；OpenAPI 已含 active Attempt 与 Stage budget 字段。
+- 部署：2026-09-22 无 migration 重启；门禁 active Job/lease=0、revision=`0023`、`integrity_check=ok`，备份 `app-pre-runtime-resilience-20260922-165753.db` 完整性 ok、SHA-256=`ba23d9a…f41`。API/Worker/首页/heartbeat READY，PID=`97038`，executor=`IDLE`；OpenAPI 已含 active Attempt 与 Stage budget 字段。提交 `5e11213` 已推送 `origin/codex/mac-mini-implementation`。
 - 保留：Qwen 仍为显式备用，默认 Whisper；真实 Frozen Benchmark、Context A/B、长视频、真实 fallback/迟到响应 E2E 仍待用户授权执行。禁止用 Fake/Smoke 代替真实毕业，不自动重跑历史视频、切默认或确认 POI。
 
 ## 生产快照（采样 2026-09-13）
