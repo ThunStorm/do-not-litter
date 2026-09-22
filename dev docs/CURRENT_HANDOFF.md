@@ -4,10 +4,10 @@
 
 ## 任务续接
 
-- 完成：WP0–WP8 源码已部署；Qwen 为备用，默认仍是 Whisper。Delta Correction、adaptive hint、Artifact 复用、AMap cache/并发、截图批处理、Core-first 和 Graduation Gate 已加载。后端 201 项、Ruff、文档生成、`diff --check` 通过。
-- 部署：2026-09-22 无 migration 重启；此前 active Job/lease=0、revision=`0023`、完整性 ok，备份 `app-pre-qwen-pipeline-20260922-093917.db`。API/Worker/首页/心跳 READY，PID=`66388`；OpenAPI 已含 `QWEN3_ASR`。
-- 未完成：Qwen 两份权重、真实 Frozen Benchmark/Context A-B/长视频/RAM/RTF/fallback/WP8 毕业待用户执行；当前不证明默认资格。
-- 下一步：安装权重并运行冻结 manifest。禁止用 Fixture/smoke 代替真实证据，自动切默认、重跑历史视频或确认 POI。
+- 完成：WP0–WP8 已部署；Qwen 为备用，默认仍是 Whisper。Delta Correction、adaptive hint、Artifact 复用、AMap cache/并发、截图批处理、Core-first 和 Graduation Gate 已加载。后端 201 项、Ruff、文档生成、`diff --check` 通过。
+- 部署：2026-09-22 无 migration 重启；active Job/lease=0、revision=`0023`、完整性 ok，备份 `app-pre-qwen-model-enable-20260922-105008.db`。API/Worker/首页/心跳 READY，PID=`73667`；OpenAPI 已含 `QWEN3_ASR`。
+- Qwen：两份 0.6B 权重已安装到 `/Volumes/D/Projects/ollama-models/ASR/`，离线 TTS+时间码和 Provider smoke 通过。
+- 未完成：真实 Frozen Benchmark/Context A-B/长视频/fallback/WP8 毕业待用户执行；下一步运行冻结 manifest。禁止用 smoke 代替真实证据，自动切默认、重跑历史视频或确认 POI。
 
 ## 生产快照（采样 2026-09-13）
 

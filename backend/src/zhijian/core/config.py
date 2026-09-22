@@ -41,8 +41,10 @@ class Settings(BaseSettings):
     qwen_asr_enabled: bool = True
     qwen_asr_python: Path = Path("./data/runtime/qwen-asr/venv/bin/python")
     qwen_asr_runner: Path = Path("./scripts/qwen_asr_runner.py")
-    qwen_asr_model: Path = Path("./data/models/qwen-asr/Qwen3-ASR-0.6B")
-    qwen_asr_aligner_model: Path = Path("./data/models/qwen-asr/Qwen3-ForcedAligner-0.6B")
+    qwen_asr_model: Path = Path("/Volumes/D/Projects/ollama-models/ASR/Qwen3-ASR-0.6B")
+    qwen_asr_aligner_model: Path = Path(
+        "/Volumes/D/Projects/ollama-models/ASR/Qwen3-ForcedAligner-0.6B"
+    )
     qwen_asr_timeout_seconds: int = 3600
     deepseek_base_url: str = "https://api.deepseek.com/v1"
     mimo_base_url: str = ""

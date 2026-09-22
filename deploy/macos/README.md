@@ -29,6 +29,8 @@ brew install ffmpeg whisper-cpp
 
 Ollama 模型固定存放在 `/Volumes/D/Projects/ollama-models`。`manage.py install` 会校验该目录包含 `blobs/` 与 `manifests/`，并把 Ollama.app 的默认路径 `~/.ollama/models` 持久链接到该目录；原默认目录会先备份。该链接不依赖临时环境变量，系统重启、Ollama.app 更新和重复执行 `manage.py install` 后仍然有效。Whisper.cpp 还需要 `data/models/whisper/ggml-base.bin`。模型启用前必须核对 SHA-256 为 `60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe`。页面“设置 → 语音与 OCR”读取实际二进制路径、模型大小和 Ollama API，不以配置文字代替运行状态。
 
+备用 Qwen3-ASR Runtime 位于 `data/runtime/qwen-asr/venv`，权重固定存放在 `/Volumes/D/Projects/ollama-models/ASR/Qwen3-ASR-0.6B` 与 `/Volumes/D/Projects/ollama-models/ASR/Qwen3-ForcedAligner-0.6B`。两份 `model.safetensors` 的 SHA-256 分别为 `79d6cbd4c98c7bbffe9db2edac07f56cd6637d0d5944b27f6c2b8353840323ea`、`47831d0e82f96b20e9034dba01a075ee06436654719f6a68289e49f1b65ce0e7`；Qwen 只在 Capture 显式选择时运行，默认仍为 Whisper。
+
 当前已验收组合为 FFmpeg 9.0.1、Whisper.cpp 1.9.2、`ggml-base.bin`（141 MB）和 Ollama.app 0.32.15 + `qwen2.5:7b`。Whisper 在 Metal 分配受 Ollama 统一内存占用影响时会自动以 `-ng` 回退 CPU，避免任务直接失败。
 
 ## 管理与回退
