@@ -88,4 +88,6 @@
 
 - 2026-09-23：已修复 Ground Map Runtime Hint 的正文字符/分块开销单位不一致；该 Job 的既有 `safe_max_chars=240`、`safe_max_segments=5` 在旧 Worker 下形成 70 块，按校对后真实 Segment 离线重算现为 17 块、每块不超过 5 段。步骤续跑中协作取消的 `JobCancelled` 现保持 `CANCELLED` 并释放 lease；对旧 Worker 已写成 `FAILED` Job + `CANCELLED` Step + 指定 run-fence 错误的状态，仅在 Replay Artifact 门禁通过时恢复原步骤续跑选项。目标与完整后端、Ruff、Node 24 前端 18 项/构建、文档生成检查和 `diff --check` 通过；生产续跑与再次加载新代码的状态见 CURRENT_HANDOFF。
 
+- 2026-09-23：真实步骤续跑证实 Ground Map 新分块和自适应备用路由有效，地图 Artifact 已交付；后续 Note Reduce 因 Job 提交快照内主模型无 `GLOBAL_SYNTHESIS` 声明、备用模型该能力 Probe 为 `FAIL`，在模型调用前停止。现有模型能力 Probe 不测试 `GLOBAL_SYNTHESIS`，不能把结构化输出通过外推为笔记综合能力；原 Job 仍需用户明确选择合规模型/路由并保留可审计恢复证据。现场采样见 CURRENT_HANDOFF。
+
 [实施历史](history/IMPLEMENTATION_HISTORY.md) 和 [归档实施计划](history/planning/README.md) 保留旧状态与计划追溯，默认不读。当前页只保留最新结论和未闭环项；完成项不持续追加长叙事。生产现场只更新 CURRENT_HANDOFF.md；冻结约束只更新 REGRESSION_AND_CHANGE_GUARD.md。新增证据必须写明日期、对象与验证层级。

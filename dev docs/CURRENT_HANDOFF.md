@@ -5,10 +5,12 @@
 ## 任务续接
 
 - 目标：修复 `job_ad0ba062003a492bb9ff62270bcce385` 的证据地图超时，并从 `EXTRACT_TRAVEL_FACTS` 验证步骤续跑；保持原 Transcript/Evidence 和 POI 人工审核边界。
-- 已完成：Qwen 逐字分段与校对修复 `7a3488d`、Ground Map 自适应备用路由 `f85ccd9` 已提交；目标/完整后端、Ruff、前端与文档验证通过。2026-09-23 首次无迁移重载后 API/Worker/内容/心跳 READY；已授权的一次真实步骤续跑因旧 Hint 错分成 70 块而协作取消，仅发起 1 次本地调用、无远程调用。
-- 未完成：取消时旧 Worker 又将 Job 错写为 `FAILED` + Step `CANCELLED`。现有未部署源码已修正 Hint 计算、取消状态和该旧状态的 Replay Options；离线实算 17 块，完整验证通过。下一步经再次授权受控重载与真实续跑。不可把源码测试当作生产成功，也不自动确认 POI。
+- 已完成：`7a3488d`、`f85ccd9`、`34a801f` 已提交并经目标/完整后端、Ruff、前端和文档验证。2026-09-23 两次无迁移重载及备份通过；第二次真实步骤续跑按 17 块执行，2 次本地后切备用，Ground Map 已持久化，API/Worker/内容/心跳 READY。
+- 未完成：Job 在 `GENERATE_AI_NOTE` 选路时停下，尚未调用笔记模型。提交快照的本地 Qwen 未声明 `GLOBAL_SYNTHESIS`，备用 DeepSeek Flash 的该能力 Probe 为 `FAIL`；无活跃 Job/lease。下一步按用户选择验证/指定笔记模型并做可审计的任务级恢复，再仅从笔记阶段续跑。保留快照、历史事件和 POI 人工审核；不把地图成功称为整条 Job 成功。
 
 ## 生产快照（最新采样 2026-09-23；下列历史条目保留原日期）
+
+- 2026-09-23 22:08（Hint 与取消修复重载）：重启前 revision=`0025`、`integrity_check=ok`、FK 错误 0、active Job/lease=0；逻辑备份 `data/backups/app-pre-ground-map-hint-reload-20260923-220822.db` 完整性 ok、FK=0、revision=`0025`。无 migration 重启后 API/Worker RUNNING、内容/心跳 READY，Worker PID=`83871`；旧 `FAILED` Job + `CANCELLED` Step 已恢复步骤续跑选项。22:09 再次真实续跑中 Ground Map 17 块，2 次本地完成后因预计耗时切到 DeepSeek，15 次备用完成、1 次备用截断后拆分恢复，地图产物 `gma_22c844fa00aa459e9d255cb1973a6a3f` 已持久化。Job 随后在 `GENERATE_AI_NOTE` 未选到 `GLOBAL_SYNTHESIS` 模型而 `FAILED`，无笔记模型调用；此刻 active Job/lease=0，笔记步骤 Replay Options 可用，有效至 2026-09-24 17:53 北京时间。
 
 - 2026-09-23 21:52（证据地图首次重载）：重启前 revision=`0025`、`integrity_check=ok`、FK 错误 0、active Job/lease=0；逻辑备份 `data/backups/app-pre-ground-map-fallback-20260923-215216.db` 完整性 ok、FK=0、revision=`0025`。无 migration 重启后 API/Worker RUNNING、内容/心跳 READY，Worker PID=`80152`。21:54 已授权的 `EXTRACT_TRAVEL_FACTS` 续跑因旧 Hint 形成 70 块，发现超出远程 48 次/轮上限后请求取消；仅 1 次本地 Attempt，记录 `CANCELLED/JOB_RUN_FENCED`，无远程调用。旧 Worker 错把 Job 终态写为 `FAILED`、Step 留在 `CANCELLED`，无 lease；本次真实端到端未通过。
 
