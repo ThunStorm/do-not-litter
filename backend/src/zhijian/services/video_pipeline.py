@@ -571,12 +571,41 @@ def _download_and_transcribe_audio(
     return audio_path, transcript, segments
 
 
+def _observe_cancelled_job(db: Session, job_id: str) -> None:
+    db.rollback()
+    cancelled = db.get(Job, job_id)
+    if cancelled and cancelled.status == JobStatus.CANCELLED.value:
+        step = db.scalar(
+            select(JobStep).where(JobStep.job_id == cancelled.id, JobStep.step_name == cancelled.current_step)
+        )
+        if step:
+            step.status = "CANCELLED"
+            step.finished_at = utc_now()
+            step.error = None
+        cancelled.lease_owner = None
+        cancelled.lease_expire_at = None
+        cancelled.heartbeat_at = utc_now()
+        record_event(
+            db,
+            "job.cancel.observed",
+            "Worker 已停止该任务的当前阶段并释放执行 lease",
+            component="video-pipeline",
+            entity_type="job",
+            entity_id=cancelled.id,
+            detail={"step": cancelled.current_step},
+            commit=False,
+        )
+        db.commit()
+
+
 def process_video_job(db: Session, job: Job, settings: Settings | None = None) -> None:
     settings = settings or get_settings()
     if job.payload_json.get("replay_from_step"):
         job_id = job.id
         try:
             _process_video_replay(db, job, settings, str(job.payload_json["replay_from_step"]))
+        except JobCancelled:
+            _observe_cancelled_job(db, job_id)
         except NeedsUser as exc:
             db.rollback()
             replay_job = db.get(Job, job_id)
@@ -1222,32 +1251,7 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
         )
         db.commit()
     except JobCancelled:
-        db.rollback()
-        cancelled = db.get(Job, job_id)
-        if cancelled and cancelled.status == JobStatus.CANCELLED.value:
-            step = db.scalar(
-                select(JobStep).where(
-                    JobStep.job_id == cancelled.id, JobStep.step_name == cancelled.current_step
-                )
-            )
-            if step:
-                step.status = "CANCELLED"
-                step.finished_at = utc_now()
-                step.error = None
-            cancelled.lease_owner = None
-            cancelled.lease_expire_at = None
-            cancelled.heartbeat_at = utc_now()
-            record_event(
-                db,
-                "job.cancel.observed",
-                "Worker 已停止该任务的当前阶段并释放执行 lease",
-                component="video-pipeline",
-                entity_type="job",
-                entity_id=cancelled.id,
-                detail={"step": cancelled.current_step},
-                commit=False,
-            )
-            db.commit()
+        _observe_cancelled_job(db, job_id)
     except NeedsUser as exc:
         current_step = db.scalar(
             select(JobStep).where(

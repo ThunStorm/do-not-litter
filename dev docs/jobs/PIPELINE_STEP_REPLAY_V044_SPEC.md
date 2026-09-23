@@ -128,6 +128,8 @@ Artifact 状态：`AVAILABLE / EXPIRED / INVALIDATED / MISSING`。
 
 取消不是失败步骤。步骤续跑仍只在有明确失败步骤与有效 Artifact 时可用。完整重跑是独立动作：任何状态下均复用原 Job ID；终态 Job 立即清除步骤执行态并重新 `QUEUED`，运行中的 Job 先协作式取消，Worker 在安全边界释放 lease 后将同一 Job 从首步重新入队。保留 Job ID 与 SystemEvent/ExternalCallAudit，重置 Step 执行态和中间 Artifact，避免生成同标题替代 Job 或两个流程并发写同一结果。
 
+兼容修复：旧 Worker 可能在用户取消步骤续跑后，将 Job 错写为 `FAILED`、当前 Step 保留 `CANCELLED`，且错误为“本次模型调用所属的任务执行权已失效”。仅对此可识别的旧状态，Replay Options 可在上游 Artifact 门禁通过时从原步骤续跑；真正的 `CANCELLED` Job 仍按完整重跑契约处理，原事件与审计不改写。
+
 ---
 
 # 6. API

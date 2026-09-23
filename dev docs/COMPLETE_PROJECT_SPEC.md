@@ -246,7 +246,7 @@
 | AI Gateway 契约 | Model Profile 显式保存 location/modalities/capabilities；Stage 参数仅白名单；新 Job 按提交时快照固定路由、Profile、Stage Policy、Prompt/领域上下文与 AI 参数，完整/步骤重跑复用快照，Secret 不进 Job；没有快照的历史任务保持兼容路由，`AUTO/LOCAL_ONLY/LOCAL_FIRST/REMOTE_FIRST/REMOTE_ONLY` 语义不得回退 | `ai-gateway/05-job-policy.md`、`ai/policies.py` |
 | AI Gateway 质量与上下文 | 干净平台字幕不得无条件全文送模；长转写只传候选或 Facts，不能多阶段重复全文；Domain Context 仅低优先级增强，不能覆盖 Evidence、Schema 或安全契约；text-only Profile 不得绑定视觉 Stage | `ai-gateway/AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md`、`services/video_support.py` |
 | Qwen 逐字对齐与校对预算 | 高比例逐字对齐须在新 Transcript 物化前合并为语句 Segment，保留原始时间码；不得原地修改历史 Segment。校对预算按实际批次预估，实测剩余工作超墙钟上限时提前收口，请求 timeout 受剩余时长约束 | `scripts/qwen_asr_runner.py`、`services/video_support.py`、`ai/budget.py` |
-| 证据地图截断恢复 | `LOCAL_FIRST` 首次本地输出截断后先拆分；存在已配置备用模型时，子块或预计超出剩余阶段预算的后续块走备用路由，保持原 Segment Evidence、Schema 校验、调用审计与缓存，不重复扩大本地慢请求 | `services/grounded_map.py`、`ai/gateway.py` |
+| 证据地图截断恢复 | `LOCAL_FIRST` 首次本地输出截断后先拆分；存在已配置备用模型时，子块或预计超出剩余阶段预算的后续块走备用路由，保持原 Segment Evidence、Schema 校验、调用审计与缓存，不重复扩大本地慢请求；正文字符 Hint 不得漏算分块结构开销 | `services/grounded_map.py`、`ai/gateway.py` |
 | AI Gateway 稳定性 | 精确 Cache hit 不重复调用 Provider；`force_regenerate` 绕过命中并保留结果链；本机 ASR/文本/视觉/模型测试必须跨 API/Worker 进程串行；LOCAL/REMOTE Token 分账只依据审计路由位置；Cache hit 不计模型调用或预算；Ollama `keep_alive: 0` 与本地重任务低并发不得回退；未经真实 E2E 与 Benchmark Gate 不得宣称生产验证 | `ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md`、`ai/resource_manager.py`、`ai/budget.py`、`ai-gateway/AI_RUNTIME_AND_PROVIDERS.md` |
 | 任务控制 | 当前标记只属于运行中的当前 JobStep；终态不固定高亮最后一步；时间线按 Pipeline 排序、阶段中文化并显示步骤用时；普通步骤 90 秒、LLM 步骤 500 秒预警，900 秒才终止；取消协作释放 lease，确认前不允许重试 | `jobs/MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md`、`jobs/TASK_SUMMARY_AND_PARTIAL_SUCCESS_SPEC.md`、`jobs/TASK_STATUS_AND_BEIJING_TIME_SPEC.md` |
 | Worker 存活与完整重跑 | 全局 Worker 心跳独立于同步 Pipeline；Job 活动只反映真实阶段/batch；长模型取消在请求边界停止后续批次，429/5xx 不放大请求；取消 lease 释放后 `CANCELLED` 也可完整重跑 | `operations/RUNTIME_MONITOR_AND_PROVIDER_SWITCH_V06_SPEC.md`、`jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md`、ADR-030 |
@@ -412,7 +412,9 @@
 
 - 2026-09-23：针对 `job_ad0ba062003a492bb9ff62270bcce385` 的逐字 Qwen 对齐与校对超时，Runner 对高比例逐字输出在入库前合并语句 Segment，并在 `alignment_ms` 保留原时间码；校对按真实批次数/请求体预估预算，至少两批后用实测最快耗时判断是否应提前暂停，模型 timeout 受 Job 剩余时长约束。对该 Job 的已存片段做纯离线重放：3377 个原片段 → 71 个语句 Segment、48 个校对候选、2 批，文本及 3377 条对齐时间全部保留。目标回归、完整后端、完整源码 Ruff、Node 24 前端 18 项/TypeScript/Vite 和 `diff --check` 通过。仅完成源码与离线验证；本机服务未加载新代码，原 Job 未真实重跑，旧逐字 Transcript 需完整重跑才会得到新分段。
 
-- 2026-09-23：该 Job 后续实际完整重跑生成 71 个 Qwen Segment，校对约 5 分钟完成，但 `EXTRACT_TRAVEL_FACTS` 的 Ground Map 第二块在本地 4096 输出上限连续截断，递归拆分使 Job 耗尽时长预算；运行 Worker 仍是 11:40 启动的旧进程，上一提交的预算/timeout 改动未加载。源码现让已配置备用的 `LOCAL_FIRST` 在首次截断并拆分后对子块使用备用模型；至少两个本地块证明剩余工作无法保留下游 600 秒时，后续块也切备用，保持缓存、审计和原 Evidence 契约。尚未重新加载服务或真实续跑，不能视为生产修复验收。
+- 2026-09-23：该 Job 后续实际完整重跑生成 71 个 Qwen Segment，校对约 5 分钟完成，但 `EXTRACT_TRAVEL_FACTS` 的 Ground Map 第二块在本地 4096 输出上限连续截断，递归拆分使 Job 耗尽时长预算；当时 Worker 仍是 11:40 启动的旧进程，上一提交的预算/timeout 改动尚未加载。源码现让已配置备用的 `LOCAL_FIRST` 在首次截断并拆分后对子块使用备用模型；至少两个本地块证明剩余工作无法保留下游 600 秒时，后续块也切备用，保持缓存、审计和原 Evidence 契约。生产加载与真实续跑结果见 CURRENT_HANDOFF。
+
+- 2026-09-23：已修复 Ground Map Runtime Hint 的正文字符/分块开销单位不一致；该 Job 的既有 `safe_max_chars=240`、`safe_max_segments=5` 在旧 Worker 下形成 70 块，按校对后真实 Segment 离线重算现为 17 块、每块不超过 5 段。步骤续跑中协作取消的 `JobCancelled` 现保持 `CANCELLED` 并释放 lease；对旧 Worker 已写成 `FAILED` Job + `CANCELLED` Step + 指定 run-fence 错误的状态，仅在 Replay Artifact 门禁通过时恢复原步骤续跑选项。目标与完整后端、Ruff、Node 24 前端 18 项/构建、文档生成检查和 `diff --check` 通过；生产续跑与再次加载新代码的状态见 CURRENT_HANDOFF。
 
 [实施历史](history/IMPLEMENTATION_HISTORY.md) 和 [归档实施计划](history/planning/README.md) 保留旧状态与计划追溯，默认不读。当前页只保留最新结论和未闭环项；完成项不持续追加长叙事。生产现场只更新 CURRENT_HANDOFF.md；冻结约束只更新 REGRESSION_AND_CHANGE_GUARD.md。新增证据必须写明日期、对象与验证层级。
 
@@ -5056,6 +5058,8 @@ Artifact 状态：`AVAILABLE / EXPIRED / INVALIDATED / MISSING`。
 
 取消不是失败步骤。步骤续跑仍只在有明确失败步骤与有效 Artifact 时可用。完整重跑是独立动作：任何状态下均复用原 Job ID；终态 Job 立即清除步骤执行态并重新 `QUEUED`，运行中的 Job 先协作式取消，Worker 在安全边界释放 lease 后将同一 Job 从首步重新入队。保留 Job ID 与 SystemEvent/ExternalCallAudit，重置 Step 执行态和中间 Artifact，避免生成同标题替代 Job 或两个流程并发写同一结果。
 
+兼容修复：旧 Worker 可能在用户取消步骤续跑后，将 Job 错写为 `FAILED`、当前 Step 保留 `CANCELLED`，且错误为“本次模型调用所属的任务执行权已失效”。仅对此可识别的旧状态，Replay Options 可在上游 Artifact 门禁通过时从原步骤续跑；真正的 `CANCELLED` Job 仍按完整重跑契约处理，原事件与审计不改写。
+
 ---
 
 # 6. API
@@ -6993,6 +6997,8 @@ Replay：重置本轮预算状态，历史审计只作证据，不消耗新一�
 转写校对按实际候选批次及请求体长度更新软预算预估；至少两批的实测耗时用于判断剩余工作能否在墙钟预算内完成。模型单次请求的 timeout 受本轮剩余时长约束。预估不替代真实调用审计，也不改变本地/远程分账。
 
 证据地图的 `LOCAL_FIRST` 路由遇到本地输出截断时先二分；已配置备用模型的子块改由备用模型处理，备用结果仍经过相同 Schema/Evidence 校验、调用审计和 Request Cache。完成至少两个本地块后，若按已观察到的最快速度也无法在扣除 600 秒下游预留后的 Job 时长内处理剩余块，后续块改走备用模型，并记录路由升级事件；无备用模型时保留本地拆分与原错误边界。
+
+Ground Map 的跨 Job `safe_max_chars` Hint 只统计正文字符；传给通用分块器时须加回每 Segment 的 80 字结构开销，并同时遵守 `safe_max_segments`。不得把 5 段的安全 Hint 错解释成每块 1 段，放大真实模型调用次数。
 
 只有 `capability=LLM` 且非 Cache Hit 的真实模型尝试进入调用次数；视频解析、字幕、下载、ASR 等外部调用不得混入。预算在 Provider 请求前拒绝时，不记录成 Provider 调用失败，也不得切换备用模型。不得无限 retry。
 

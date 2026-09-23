@@ -363,6 +363,47 @@ def test_grounded_map_prechunks_for_local_models(app_and_session, monkeypatch) -
     assert batch_sizes == [64, 64, 2]
 
 
+def test_grounded_map_hint_keeps_five_segments_per_chunk(app_and_session, monkeypatch) -> None:
+    _, factory = app_and_session
+    batch_sizes: list[int] = []
+
+    class Provider:
+        name = "ollama"
+
+        def generate_json(self, messages, *, model):
+            batch_sizes.append(messages[-1]["content"].count("[segment:"))
+            return LLMResult('{"section_facts":[],"places":[],"warnings":[]}', self.name, model, {})
+
+    monkeypatch.setattr(
+        "zhijian.services.video_support.provider_for_role",
+        lambda *_args: (Provider(), "ollama", "local-model"),
+    )
+    monkeypatch.setattr(
+        "zhijian.services.grounded_map.read_runtime_hint",
+        lambda *_args: {"safe_max_chars": 240, "safe_max_segments": 5},
+    )
+    with factory() as db:
+        source = Source(source_type="URL", locator="https://example.test/hinted-map", title="fixture")
+        db.add(source)
+        db.flush()
+        asset = VideoAsset(source_id=source.id, canonical_url=source.locator, title="安全分块")
+        db.add(asset)
+        db.flush()
+        transcript, segments = materialize_transcript(
+            db,
+            source,
+            asset,
+            [
+                {"text": "山" * 48, "start_ms": index * 1000, "end_ms": (index + 1) * 1000}
+                for index in range(71)
+            ],
+            source_kind="ASR",
+        )
+        get_or_create_grounded_map(db, Settings(_env_file=None), asset, transcript, segments)
+
+    assert batch_sizes == [5] * 14 + [1]
+
+
 def test_note_profile_regeneration_starts_at_reduce(client, app_and_session) -> None:
     _, factory = app_and_session
     with factory() as db:

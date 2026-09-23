@@ -4,11 +4,13 @@
 
 ## 任务续接
 
-- 完成：Settings 可显示并保存默认 Whisper/Qwen3-ASR；新视频和音频 Job 固定提交时 Provider，完整重跑不受后续切换影响，任务详情显示原选择。Qwen Runtime/Runner 改为仓库绝对路径。完整后端、Ruff、Node 24 前端 verify、隔离 A→B 提交和桌面浏览器保存/刷新验证通过。
-- 部署：2026-09-23 两次重载当前 checkout、无迁移；首次发现生产 Qwen 相对路径错误，修复后复载。每次前均确认 revision=`0025`、`integrity_check=ok`、active Job/lease=0，并制作完整性 ok 的逻辑备份。最终 API/Worker、内容/心跳 READY，Qwen 资产 READY，Settings 新控件可见；默认仍为 Whisper。提交/推送见当前分支 Git 记录。
-- 保留：真实 Qwen 视频、Frozen Benchmark、移动端浏览器、双提交模型 A/B 与 Token/延迟仍待验收；OCR 仅 Vision。旧 Job 无提交时快照，不自动重跑历史视频、切默认或确认 POI。
+- 目标：修复 `job_ad0ba062003a492bb9ff62270bcce385` 的证据地图超时，并从 `EXTRACT_TRAVEL_FACTS` 验证步骤续跑；保持原 Transcript/Evidence 和 POI 人工审核边界。
+- 已完成：Qwen 逐字分段与校对修复 `7a3488d`、Ground Map 自适应备用路由 `f85ccd9` 已提交；目标/完整后端、Ruff、前端与文档验证通过。2026-09-23 首次无迁移重载后 API/Worker/内容/心跳 READY；已授权的一次真实步骤续跑因旧 Hint 错分成 70 块而协作取消，仅发起 1 次本地调用、无远程调用。
+- 未完成：取消时旧 Worker 又将 Job 错写为 `FAILED` + Step `CANCELLED`。现有未部署源码已修正 Hint 计算、取消状态和该旧状态的 Replay Options；离线实算 17 块，完整验证通过。下一步经再次授权受控重载与真实续跑。不可把源码测试当作生产成功，也不自动确认 POI。
 
 ## 生产快照（最新采样 2026-09-23；下列历史条目保留原日期）
+
+- 2026-09-23 21:52（证据地图首次重载）：重启前 revision=`0025`、`integrity_check=ok`、FK 错误 0、active Job/lease=0；逻辑备份 `data/backups/app-pre-ground-map-fallback-20260923-215216.db` 完整性 ok、FK=0、revision=`0025`。无 migration 重启后 API/Worker RUNNING、内容/心跳 READY，Worker PID=`80152`。21:54 已授权的 `EXTRACT_TRAVEL_FACTS` 续跑因旧 Hint 形成 70 块，发现超出远程 48 次/轮上限后请求取消；仅 1 次本地 Attempt，记录 `CANCELLED/JOB_RUN_FENCED`，无远程调用。旧 Worker 错把 Job 终态写为 `FAILED`、Step 留在 `CANCELLED`，无 lease；本次真实端到端未通过。
 
 - 2026-09-23（ASR 设置部署）：无 migration；复载后 `data/app.db` revision=`0025`、`integrity_check=ok`、`foreign_key_check=0`、active Job/lease=0。两份本轮逻辑备份 `app-pre-asr-settings-20260923-113702.db` 和 `app-pre-asr-path-fix-20260923-113952.db` 均验证完整性 ok、FK=0、revision=`0025`。API/Worker RUNNING、内容/心跳 READY（Worker PID=`21988`）；OpenAPI 含 `/api/settings/asr` GET/PUT，状态页 Qwen `READY`（运行包 0.4.4），桌面 Settings 新控件可见。默认 `WHISPER_CPP`；未提交媒体或调用真实 Provider。
 

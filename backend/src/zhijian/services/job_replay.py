@@ -151,7 +151,14 @@ def replay_options(db: Session, job: Job) -> dict:
         failed is None
         and job.status in {JobStatus.FAILED.value, JobStatus.NEEDS_USER.value}
         and steps.get(job.current_step)
-        and steps[job.current_step].status in {"PENDING", "RUNNING"}
+        and (
+            steps[job.current_step].status in {"PENDING", "RUNNING"}
+            or (
+                job.status == JobStatus.FAILED.value
+                and steps[job.current_step].status == "CANCELLED"
+                and job.error == "本次模型调用所属的任务执行权已失效"
+            )
+        )
     ):
         failed = steps[job.current_step]
     if failed is None or failed.step_name not in VIDEO_STEP_ORDER:

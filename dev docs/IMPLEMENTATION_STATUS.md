@@ -84,6 +84,8 @@
 
 - 2026-09-23：针对 `job_ad0ba062003a492bb9ff62270bcce385` 的逐字 Qwen 对齐与校对超时，Runner 对高比例逐字输出在入库前合并语句 Segment，并在 `alignment_ms` 保留原时间码；校对按真实批次数/请求体预估预算，至少两批后用实测最快耗时判断是否应提前暂停，模型 timeout 受 Job 剩余时长约束。对该 Job 的已存片段做纯离线重放：3377 个原片段 → 71 个语句 Segment、48 个校对候选、2 批，文本及 3377 条对齐时间全部保留。目标回归、完整后端、完整源码 Ruff、Node 24 前端 18 项/TypeScript/Vite 和 `diff --check` 通过。仅完成源码与离线验证；本机服务未加载新代码，原 Job 未真实重跑，旧逐字 Transcript 需完整重跑才会得到新分段。
 
-- 2026-09-23：该 Job 后续实际完整重跑生成 71 个 Qwen Segment，校对约 5 分钟完成，但 `EXTRACT_TRAVEL_FACTS` 的 Ground Map 第二块在本地 4096 输出上限连续截断，递归拆分使 Job 耗尽时长预算；运行 Worker 仍是 11:40 启动的旧进程，上一提交的预算/timeout 改动未加载。源码现让已配置备用的 `LOCAL_FIRST` 在首次截断并拆分后对子块使用备用模型；至少两个本地块证明剩余工作无法保留下游 600 秒时，后续块也切备用，保持缓存、审计和原 Evidence 契约。尚未重新加载服务或真实续跑，不能视为生产修复验收。
+- 2026-09-23：该 Job 后续实际完整重跑生成 71 个 Qwen Segment，校对约 5 分钟完成，但 `EXTRACT_TRAVEL_FACTS` 的 Ground Map 第二块在本地 4096 输出上限连续截断，递归拆分使 Job 耗尽时长预算；当时 Worker 仍是 11:40 启动的旧进程，上一提交的预算/timeout 改动尚未加载。源码现让已配置备用的 `LOCAL_FIRST` 在首次截断并拆分后对子块使用备用模型；至少两个本地块证明剩余工作无法保留下游 600 秒时，后续块也切备用，保持缓存、审计和原 Evidence 契约。生产加载与真实续跑结果见 CURRENT_HANDOFF。
+
+- 2026-09-23：已修复 Ground Map Runtime Hint 的正文字符/分块开销单位不一致；该 Job 的既有 `safe_max_chars=240`、`safe_max_segments=5` 在旧 Worker 下形成 70 块，按校对后真实 Segment 离线重算现为 17 块、每块不超过 5 段。步骤续跑中协作取消的 `JobCancelled` 现保持 `CANCELLED` 并释放 lease；对旧 Worker 已写成 `FAILED` Job + `CANCELLED` Step + 指定 run-fence 错误的状态，仅在 Replay Artifact 门禁通过时恢复原步骤续跑选项。目标与完整后端、Ruff、Node 24 前端 18 项/构建、文档生成检查和 `diff --check` 通过；生产续跑与再次加载新代码的状态见 CURRENT_HANDOFF。
 
 [实施历史](history/IMPLEMENTATION_HISTORY.md) 和 [归档实施计划](history/planning/README.md) 保留旧状态与计划追溯，默认不读。当前页只保留最新结论和未闭环项；完成项不持续追加长叙事。生产现场只更新 CURRENT_HANDOFF.md；冻结约束只更新 REGRESSION_AND_CHANGE_GUARD.md。新增证据必须写明日期、对象与验证层级。

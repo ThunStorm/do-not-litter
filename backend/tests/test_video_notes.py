@@ -883,6 +883,41 @@ def test_replay_provider_throttle_becomes_needs_user(monkeypatch, app_and_sessio
         assert event and event.detail_json["code"] == "AI_PROVIDER_THROTTLED"
 
 
+def test_replay_cancellation_does_not_turn_into_failure(monkeypatch, app_and_session) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        job = Job(
+            job_type="TRAVEL",
+            status="CANCELLED",
+            current_step="EXTRACT_TRAVEL_FACTS",
+            lease_owner="worker:test",
+            payload_json={"replay_from_step": "EXTRACT_TRAVEL_FACTS"},
+        )
+        db.add(job)
+        db.flush()
+        db.add(JobStep(job_id=job.id, step_name="EXTRACT_TRAVEL_FACTS", status="RUNNING"))
+        db.commit()
+        monkeypatch.setattr(
+            video_pipeline,
+            "_process_video_replay",
+            lambda *_args: (_ for _ in ()).throw(JobCancelled("执行权已失效")),
+        )
+
+        video_pipeline.process_video_job(db, job, Settings(_env_file=None))
+
+        db.refresh(job)
+        step = db.scalar(select(JobStep).where(JobStep.job_id == job.id))
+        assert job.status == "CANCELLED"
+        assert job.lease_owner is None
+        assert step and step.status == "CANCELLED"
+        assert db.scalar(
+            select(SystemEvent).where(
+                SystemEvent.entity_id == job.id,
+                SystemEvent.event_type == "job.cancel.observed",
+            )
+        )
+
+
 def test_llm_retry_policy_waits_before_calls_and_between_retries() -> None:
     attempts = 0
     sleeps: list[float] = []

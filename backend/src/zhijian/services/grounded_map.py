@@ -349,7 +349,9 @@ def get_or_create_grounded_map(
         max_segments = LOCAL_MAP_CHUNK_SEGMENTS
     saved_hint = read_runtime_hint(db, "GROUND_MAP", model)
     if saved_hint.get("safe_max_chars"):
-        chunk_chars = min(chunk_chars, saved_hint["safe_max_chars"])
+        # Runtime hints count transcript text; _transcript_chunks adds 80 chars per Segment.
+        hint_segments = int(saved_hint.get("safe_max_segments") or 1)
+        chunk_chars = min(chunk_chars, int(saved_hint["safe_max_chars"]) + 80 * hint_segments)
     if saved_hint.get("safe_max_segments"):
         max_segments = min(max_segments or len(segments), saved_hint["safe_max_segments"])
     chunks = _transcript_chunks(segments, chunk_chars, max_segments=max_segments)

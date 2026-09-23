@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
 
+import pytest
 from docx import Document
 from sqlalchemy import select
 from starlette.responses import Response
@@ -410,7 +411,16 @@ def test_rejected_place_mention_leaves_review_queue_and_can_be_restored(client, 
     assert any(item["mention_id"] == mention_id for item in client.get("/api/travel/place-reviews").json())
 
 
-def test_failed_video_step_replays_only_current_and_downstream(client, app_and_session) -> None:
+@pytest.mark.parametrize(
+    ("job_error", "step_status"),
+    [
+        ("模型暂时不可用", "FAILED"),
+        ("本次模型调用所属的任务执行权已失效", "CANCELLED"),
+    ],
+)
+def test_failed_video_step_replays_only_current_and_downstream(
+    client, app_and_session, job_error: str, step_status: str
+) -> None:
     _, factory = app_and_session
     replayable_until = datetime.now(UTC) + timedelta(hours=1)
     with factory() as db:
@@ -419,7 +429,7 @@ def test_failed_video_step_replays_only_current_and_downstream(client, app_and_s
             status="FAILED",
             current_step="CORRECT_TRANSCRIPT",
             payload_json={"title": "续跑测试", "ai_soft_budget": {"status": "HARD_LIMIT"}},
-            error="模型暂时不可用",
+            error=job_error,
         )
         db.add(job)
         db.flush()
@@ -437,9 +447,9 @@ def test_failed_video_step_replays_only_current_and_downstream(client, app_and_s
             JobStep(
                 job_id=job.id,
                 step_name="CORRECT_TRANSCRIPT",
-                status="FAILED",
+                status=step_status,
                 progress=0,
-                error="模型暂时不可用",
+                error=job_error if step_status == "FAILED" else None,
             )
         )
         db.commit()
