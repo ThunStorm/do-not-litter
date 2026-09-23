@@ -11,6 +11,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from zhijian.ai.budget import remaining_ai_wall_seconds
 from zhijian.ai.capabilities import AICapability
 from zhijian.ai.domain_context import domain_context_hash, domain_context_messages
 from zhijian.ai.job_config import job_video_note_chunk_chars
@@ -22,11 +23,13 @@ from zhijian.core.time import utc_now
 from zhijian.db.models import GroundedMapArtifact, Job, JobStep, Segment, Transcript, VideoAsset
 from zhijian.providers.llm import FallbackLLMProvider
 from zhijian.services.audit import record_event
+from zhijian.services.jobs import ensure_job_active
 
 MAP_PROMPT_VERSION = "semantic-map-v3"
 MAP_ARTIFACT_SCHEMA_VERSION = "grounded-map-v3"
 LOCAL_MAP_CHUNK_CHARS = 6_000
 LOCAL_MAP_CHUNK_SEGMENTS = 64
+DOWNSTREAM_JOB_RESERVE_SECONDS = 600
 UNIT_TYPES = {
     "AREA_GUIDE",
     "PLACE_GUIDE",
@@ -276,6 +279,13 @@ def get_or_create_grounded_map(
 
     policy = _resolved_stage_policy(db, "GROUND_MAP", job)
     provider, provider_name, model = provider_for_role(db, settings, "grounded_map", job)
+    has_fallback = (
+        isinstance(provider, FallbackLLMProvider)
+        and provider.fallback is not None
+        and bool(provider.fallback_model)
+    )
+    if job and isinstance(provider, FallbackLLMProvider):
+        provider.before_fallback = lambda: ensure_job_active(db, job)
     content_hash = _content_hash(segments)
     supplement_hash = prompt_supplement_hash(db, "travel_place_extraction", job)
     _, domain_versions = domain_context_messages(
@@ -345,13 +355,20 @@ def get_or_create_grounded_map(
     chunks = _transcript_chunks(segments, chunk_chars, max_segments=max_segments)
     stage_started = perf_counter()
     logical_attempts = 0
+    fallback_requests = 0
+    local_chunk_durations: list[float] = []
     completed_chars = 0
     total_chars = max(1, sum(len(segment.corrected_text or segment.text) for segment in segments))
 
     def request_chunk(
-        chunk: list[Segment], *, chunk_index: int, chunk_count: int, split_path: str = "root"
+        chunk: list[Segment],
+        *,
+        chunk_index: int,
+        chunk_count: int,
+        split_path: str = "root",
+        fallback_only: bool = False,
     ) -> None:
-        nonlocal completed_chars, logical_attempts
+        nonlocal completed_chars, logical_attempts, fallback_requests
         if policy.wall_time_seconds and perf_counter() - stage_started >= policy.wall_time_seconds:
             raise AIProviderError(
                 "AI_STAGE_WALL_TIME_EXCEEDED", "证据地图已达到阶段总时限", switch_model=False
@@ -359,6 +376,8 @@ def get_or_create_grounded_map(
         if policy.max_attempts and logical_attempts >= policy.max_attempts:
             raise AIProviderError("AI_PROVIDER_ATTEMPT_BUDGET", "证据地图已达到尝试上限", switch_model=False)
         logical_attempts += 1
+        if fallback_only:
+            fallback_requests += 1
         text = "\n".join(
             f"[segment:{segment.id} {segment.locator_json.get('start_ms', 0)}-"
             f"{segment.locator_json.get('end_ms', 0)}ms] "
@@ -380,9 +399,18 @@ def get_or_create_grounded_map(
                 stage="GROUND_MAP",
                 capability="STRUCTURED_EXTRACTION",
                 provider=provider,
-                provider_name=provider_name,
-                model=model,
+                provider_name=(
+                    str(getattr(provider.fallback, "name", ""))
+                    if fallback_only and isinstance(provider, FallbackLLMProvider)
+                    else provider_name
+                ),
+                model=(
+                    str(provider.fallback_model)
+                    if fallback_only and isinstance(provider, FallbackLLMProvider)
+                    else model
+                ),
                 messages=messages,
+                fallback_only=fallback_only,
                 attempt_metadata={
                     "chunk_index": chunk_index,
                     "chunk_count": chunk_count,
@@ -394,9 +422,16 @@ def get_or_create_grounded_map(
             if exc.code != "AI_PROVIDER_OUTPUT_TRUNCATED":
                 raise
             if len(chunk) <= 1:
-                if not isinstance(provider, FallbackLLMProvider):
+                if fallback_only or not has_fallback:
                     raise
-                response = provider.generate_fallback_json(messages)
+                request_chunk(
+                    chunk,
+                    chunk_index=chunk_index,
+                    chunk_count=chunk_count,
+                    split_path=split_path,
+                    fallback_only=True,
+                )
+                return
             else:
                 midpoint = len(chunk) // 2
                 safe_max_chars = max(
@@ -417,17 +452,20 @@ def get_or_create_grounded_map(
                     hints["ground_map"] = model_hints
                     job.payload_json = {**job.payload_json, "ai_runtime_hints": hints}
                     db.commit()
+                next_fallback = fallback_only or has_fallback
                 request_chunk(
                     chunk[:midpoint],
                     chunk_index=chunk_index,
                     chunk_count=chunk_count,
                     split_path=f"{split_path}.L",
+                    fallback_only=next_fallback,
                 )
                 request_chunk(
                     chunk[midpoint:],
                     chunk_index=chunk_index,
                     chunk_count=chunk_count,
                     split_path=f"{split_path}.R",
+                    fallback_only=next_fallback,
                 )
                 return
         (
@@ -459,8 +497,44 @@ def get_or_create_grounded_map(
                 job.heartbeat_at = utc_now()
                 db.commit()
 
-    for index, chunk in enumerate(chunks or [segments], start=1):
-        request_chunk(chunk, chunk_index=index, chunk_count=max(1, len(chunks)))
+    planned_chunks = chunks or [segments]
+    prefer_fallback = False
+    for index, chunk in enumerate(planned_chunks, start=1):
+        chunk_started = perf_counter()
+        previous_fallback_requests = fallback_requests
+        request_chunk(
+            chunk, chunk_index=index, chunk_count=len(planned_chunks), fallback_only=prefer_fallback
+        )
+        if fallback_requests == previous_fallback_requests:
+            local_chunk_durations.append(perf_counter() - chunk_started)
+        if (
+            job
+            and job.started_at
+            and not prefer_fallback
+            and len(local_chunk_durations) >= 2
+            and index < len(planned_chunks)
+            and has_fallback
+        ):
+            projected = min(local_chunk_durations) * (len(planned_chunks) - index)
+            available = remaining_ai_wall_seconds(db, job) - DOWNSTREAM_JOB_RESERVE_SECONDS
+            if policy.wall_time_seconds:
+                available = min(available, policy.wall_time_seconds - (perf_counter() - stage_started))
+            if projected > available:
+                prefer_fallback = True
+                record_event(
+                    db,
+                    "ground_map.route.escalated",
+                    "本地证据地图预计无法在剩余预算内完成，后续分块改用备用模型",
+                    component="video-pipeline",
+                    level="WARNING",
+                    entity_type="job",
+                    entity_id=job.id,
+                    detail={
+                        "remaining_chunks": len(planned_chunks) - index,
+                        "projected_seconds": round(projected),
+                        "available_seconds": round(available),
+                    },
+                )
 
     escalation_reasons = _semantic_escalation_reasons(entities, float(policy.escalation_threshold or 0.6))
     if job and provider_name.lower() == "ollama" and escalation_reasons:
@@ -558,6 +632,7 @@ def get_or_create_grounded_map(
         item.get("poi_policy") in {"REFERENCE_ONLY", "SKIP"} for item in entities
     )
     semantic_options["semantic_unit_count"] = len(content_units)
+    semantic_options["fallback_chunk_count"] = fallback_requests
     semantic_options["remote_escalation_count"] = int(
         bool(job and provider_name.lower() == "ollama" and escalation_reasons)
     )

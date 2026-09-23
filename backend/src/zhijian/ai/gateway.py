@@ -35,6 +35,7 @@ class AIWorkloadGateway:
         force_regenerate: bool,
         attempt_metadata: dict[str, Any] | None = None,
         result_validator: Callable[[LLMResult], None] | None = None,
+        fallback_only: bool = False,
     ) -> LLMResult:
         """Cache one route result while enforcing budget and local serialization per actual attempt."""
 
@@ -101,7 +102,11 @@ class AIWorkloadGateway:
                 provider.before_attempt = ensure_attempt_budget
                 provider.attempt_runner = run_attempt
                 provider.result_validator = validate_result if not provider._legacy_reliability else None
-                return provider.generate_json(messages, model=model)
+                return (
+                    provider.generate_fallback_json(messages)
+                    if fallback_only
+                    else provider.generate_json(messages, model=model)
+                )
             return self._execute_attempt(db, job, provider, "generate_json", messages, model, None)
 
         return cached_json_result(

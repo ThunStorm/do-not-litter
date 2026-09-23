@@ -506,6 +506,7 @@ def _cached_stage_json(
     messages: list[dict[str, str]],
     attempt_metadata: dict[str, Any] | None = None,
     result_validator: Callable[[LLMResult], None] | None = None,
+    fallback_only: bool = False,
 ) -> LLMResult:
     if not hasattr(db, "scalar"):
         return provider.generate_json(messages, model=model)
@@ -546,6 +547,7 @@ def _cached_stage_json(
         force_regenerate=policy.force_regenerate,
         attempt_metadata=attempt_metadata,
         result_validator=result_validator,
+        fallback_only=fallback_only,
     )
 
 
