@@ -27,7 +27,7 @@ from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from zhijian.ai.domain_context import DOMAIN_PACK_PREFIX, DomainPack
-from zhijian.ai.job_config import job_setting
+from zhijian.ai.job_config import ASR_DEFAULT_KEY, default_asr_provider, job_setting
 from zhijian.ai.model_registry import (
     invoke_profile_model,
     model_profile_from_value,
@@ -81,6 +81,7 @@ from zhijian.db.session import get_db
 from zhijian.domain.enums import JobStatus, ResolutionStatus
 from zhijian.domain.schemas import (
     AMapConfig,
+    ASRSettings,
     BulkDeleteRequest,
     BulkPlaceUpdate,
     CaptureRequest,
@@ -126,7 +127,7 @@ from zhijian.providers.llm import (
     OllamaProvider,
     OpenAICompatibleProvider,
 )
-from zhijian.providers.runtime import hardware_report, runtime_report
+from zhijian.providers.runtime import check_qwen_asr, check_whisper, hardware_report, runtime_report
 from zhijian.services.audit import record_event
 from zhijian.services.auth import (
     assert_auth_attempt_allowed,
@@ -269,6 +270,7 @@ def job_view(job: Job, db: Session | None = None) -> JobView:
     return JobView(
         id=job.id,
         job_type=job.job_type,
+        asr_provider=job.payload_json.get("asr_provider"),
         status=job.status,
         current_step=job.current_step,
         progress=job.progress,
@@ -400,7 +402,16 @@ def status_view(
     settings: Settings = Depends(get_settings),
     db: Session = Depends(get_db),
 ) -> dict:
-    checks = runtime_report(settings.ollama_base_url, settings.whisper_binary, settings.whisper_model)
+    checks = runtime_report(
+        settings.ollama_base_url,
+        settings.whisper_binary,
+        settings.whisper_model,
+        settings.qwen_asr_python,
+        settings.qwen_asr_runner,
+        settings.qwen_asr_model,
+        settings.qwen_asr_aligner_model,
+        settings.qwen_asr_enabled,
+    )
     hardware = hardware_report()
     heartbeat = db.get(Setting, "runtime:worker-heartbeat")
     worker_running = False
@@ -443,7 +454,15 @@ def status_view(
         },
         "runtime": {
             "ollama": settings.ollama_base_url,
-            "asr": next((item["detail"] for item in checks if item["name"] == "whisper.cpp"), "未检测"),
+            "asr": next(
+                (
+                    item["detail"]
+                    for item in checks
+                    if item["name"]
+                    == ("qwen3-asr" if default_asr_provider(db, settings) == "QWEN3_ASR" else "whisper.cpp")
+                ),
+                "未检测",
+            ),
         },
         "hardware": hardware,
         "metrics": metrics,
@@ -1328,6 +1347,44 @@ def save_profile(payload: ProfileConfig, _: Protected, db: Session = Depends(get
 def read_general_settings(_: Protected, db: Session = Depends(get_db)) -> dict:
     setting = db.get(Setting, "app:general")
     return GeneralConfig(**(setting.value_json if setting else {})).model_dump()
+
+
+@router.get("/api/settings/asr", response_model=ASRSettings)
+def read_asr_settings(
+    _: Protected, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)
+) -> ASRSettings:
+    return ASRSettings(default_provider=default_asr_provider(db, settings))
+
+
+@router.put("/api/settings/asr", response_model=ASRSettings)
+def save_asr_settings(
+    payload: ASRSettings,
+    _: Protected,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> ASRSettings:
+    if payload.default_provider == "QWEN3_ASR":
+        check = (
+            check_qwen_asr(
+                settings.qwen_asr_python,
+                settings.qwen_asr_runner,
+                settings.qwen_asr_model,
+                settings.qwen_asr_aligner_model,
+            )
+            if settings.qwen_asr_enabled
+            else None
+        )
+    else:
+        check = check_whisper(settings.whisper_binary, settings.whisper_model)
+    if check is None or check.status != "READY":
+        raise HTTPException(status_code=409, detail="所选语音引擎在当前节点不可用")
+    row = db.get(Setting, ASR_DEFAULT_KEY)
+    if row is None:
+        db.add(Setting(key=ASR_DEFAULT_KEY, value_json={"provider": payload.default_provider}))
+    else:
+        row.value_json = {"provider": payload.default_provider}
+    record_event(db, "settings.asr.updated", "默认语音识别引擎已保存")
+    return payload
 
 
 @router.put("/api/settings/general")

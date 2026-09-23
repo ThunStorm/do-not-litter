@@ -20,6 +20,10 @@ class CaptureRequest(BaseModel):
     asr_provider: Literal["WHISPER_CPP", "QWEN3_ASR"] | None = None
 
 
+class ASRSettings(BaseModel):
+    default_provider: Literal["WHISPER_CPP", "QWEN3_ASR"]
+
+
 class CaptureResponse(BaseModel):
     source_id: str
     job_id: str
@@ -43,6 +47,7 @@ class SourceEvidenceChainDelete(BaseModel):
 class JobView(BaseModel):
     id: str
     job_type: str
+    asr_provider: str | None = None
     status: str
     current_step: str
     progress: int

@@ -49,7 +49,7 @@ def resolve_payload(payload: dict) -> tuple[str, list[dict], dict]:
 
     file_path = payload.get("file_path")
     if file_path:
-        text, segments = read_document(Path(file_path))
+        text, segments = read_document(Path(file_path), asr_provider=payload.get("asr_provider"))
         return text, segments, {"resolver": "document", "file_path": file_path}
 
     locator = str(payload.get("locator") or "")

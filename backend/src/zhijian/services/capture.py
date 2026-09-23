@@ -42,6 +42,10 @@ def create_capture_job(
     )
     db.add(source)
     db.flush()
+    snapshot = capture_ai_config(db, settings)
+    needs_asr = is_video or bool(
+        file_path and file_path.suffix.lower() in {".mp3", ".m4a", ".wav", ".aac"}
+    )
     payload = {
         "source_id": source.id,
         "locator": locator,
@@ -52,9 +56,9 @@ def create_capture_job(
             "LOCAL" if is_local_video else "YOUTUBE" if is_youtube else "BILIBILI" if is_video else None
         ),
         "ai_overrides": ai_overrides or {},
-        "asr_provider": asr_provider or settings.default_asr_provider if is_video else asr_provider,
+        "asr_provider": (asr_provider or snapshot["default_asr_provider"]) if needs_asr else None,
         "ai_automation_version": "v2",
-        SNAPSHOT_KEY: capture_ai_config(db, settings),
+        SNAPSHOT_KEY: snapshot,
     }
     job = Job(job_type=job_type.value, status=JobStatus.QUEUED.value, payload_json=payload)
     db.add(job)

@@ -7,6 +7,8 @@ from typing import Literal
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -41,8 +43,8 @@ class Settings(BaseSettings):
     whisper_model: Path = Path("./data/models/whisper/ggml-base.bin")
     default_asr_provider: Literal["WHISPER_CPP", "QWEN3_ASR"] = "WHISPER_CPP"
     qwen_asr_enabled: bool = True
-    qwen_asr_python: Path = Path("./data/runtime/qwen-asr/venv/bin/python")
-    qwen_asr_runner: Path = Path("./scripts/qwen_asr_runner.py")
+    qwen_asr_python: Path = PROJECT_ROOT / "data/runtime/qwen-asr/venv/bin/python"
+    qwen_asr_runner: Path = PROJECT_ROOT / "scripts/qwen_asr_runner.py"
     qwen_asr_model: Path = Path("/Volumes/D/Projects/ollama-models/ASR/Qwen3-ASR-0.6B")
     qwen_asr_aligner_model: Path = Path(
         "/Volumes/D/Projects/ollama-models/ASR/Qwen3-ForcedAligner-0.6B"

@@ -4,7 +4,7 @@ import platform
 from pathlib import Path
 
 
-def read_document(path: Path) -> tuple[str, list[dict]]:
+def read_document(path: Path, *, asr_provider: str | None = None) -> tuple[str, list[dict]]:
     suffix = path.suffix.lower()
     if suffix == ".docx":
         from docx import Document
@@ -60,9 +60,20 @@ def read_document(path: Path) -> tuple[str, list[dict]]:
                 }
             ]
     if suffix in {".mp3", ".m4a", ".wav", ".aac", ".mp4", ".mov", ".webm"}:
+        from zhijian.ai.resource_manager import local_ai_resource_manager
         from zhijian.core.config import get_settings
-        from zhijian.providers.asr import WhisperCppProvider
+        from zhijian.providers.asr import ASRProviderRegistry
 
         settings = get_settings()
-        return WhisperCppProvider(settings.whisper_binary, settings.whisper_model).transcribe(path)
+        registry = ASRProviderRegistry(
+            settings.whisper_binary,
+            settings.whisper_model,
+            settings.qwen_asr_python if settings.qwen_asr_enabled else None,
+            settings.qwen_asr_runner if settings.qwen_asr_enabled else None,
+            settings.qwen_asr_model if settings.qwen_asr_enabled else None,
+            settings.qwen_asr_aligner_model if settings.qwen_asr_enabled else None,
+            settings.qwen_asr_timeout_seconds,
+        )
+        provider = registry.get(asr_provider or settings.default_asr_provider)
+        return local_ai_resource_manager.run("ASR", lambda: provider.transcribe(path))
     raise ValueError(f"暂不支持的文件类型：{suffix or 'unknown'}")

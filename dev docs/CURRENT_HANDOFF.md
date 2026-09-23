@@ -4,11 +4,13 @@
 
 ## 任务续接
 
-- 完成：新 Job 固定提交时的无密钥 AI 配置；同链接每次提交生成独立 Note/Content/Transcript，同一 Job 重跑只增该 Note 版本，地点复用同一高德 Place。任务标题和复制来源地址修复一并加载。完整后端、Ruff、Node 24 前端 verify、0024→0025 隔离迁移及文档一致性检查通过。
-- 部署：2026-09-23 按用户要求跳过新备份；迁移前 active Job/lease=0、revision=`0024`、`integrity_check=ok`。已升级 `0025` 并重启 API/Worker；现场 API/Worker RUNNING、内容/heartbeat READY（Worker PID=`7051`），OpenAPI 与 `/api/video-notes` 可读，FK 检查无异常、active Job/lease=0。备份清理按“保留最新两份”执行：删除旧快照 29 份及 58 个 WAL/SHM，共 163643392 字节；保留两份 2026-09-22 的 0023 快照，完整性均 ok。未提交真实视频或调用 Provider。
-- 保留：真实双提交模型 A/B、Place 复用、Browser PC/Mobile 和 Token/延迟仍待取证。旧 Job 无提交时快照，不可追溯补齐；Qwen 仍显式备用、Whisper 默认，不自动重跑历史视频、切默认或确认 POI。
+- 完成：Settings 可显示并保存默认 Whisper/Qwen3-ASR；新视频和音频 Job 固定提交时 Provider，完整重跑不受后续切换影响，任务详情显示原选择。Qwen Runtime/Runner 改为仓库绝对路径。完整后端、Ruff、Node 24 前端 verify、隔离 A→B 提交和桌面浏览器保存/刷新验证通过。
+- 部署：2026-09-23 两次重载当前 checkout、无迁移；首次发现生产 Qwen 相对路径错误，修复后复载。每次前均确认 revision=`0025`、`integrity_check=ok`、active Job/lease=0，并制作完整性 ok 的逻辑备份。最终 API/Worker、内容/心跳 READY，Qwen 资产 READY，Settings 新控件可见；默认仍为 Whisper。提交/推送见当前分支 Git 记录。
+- 保留：真实 Qwen 视频、Frozen Benchmark、移动端浏览器、双提交模型 A/B 与 Token/延迟仍待验收；OCR 仅 Vision。旧 Job 无提交时快照，不自动重跑历史视频、切默认或确认 POI。
 
 ## 生产快照（最新采样 2026-09-23；下列历史条目保留原日期）
+
+- 2026-09-23（ASR 设置部署）：无 migration；复载后 `data/app.db` revision=`0025`、`integrity_check=ok`、`foreign_key_check=0`、active Job/lease=0。两份本轮逻辑备份 `app-pre-asr-settings-20260923-113702.db` 和 `app-pre-asr-path-fix-20260923-113952.db` 均验证完整性 ok、FK=0、revision=`0025`。API/Worker RUNNING、内容/心跳 READY（Worker PID=`21988`）；OpenAPI 含 `/api/settings/asr` GET/PUT，状态页 Qwen `READY`（运行包 0.4.4），桌面 Settings 新控件可见。默认 `WHISPER_CPP`；未提交媒体或调用真实 Provider。
 
 - 2026-09-23：`data/app.db` revision=`0025`、`integrity_check=ok`、`foreign_key_check=0`；API/Worker RUNNING、内容/心跳 READY、active Job/lease=0。本轮未制作新备份；旧备份按最新两份保留策略清理，剩余两份 revision=`0023` 且完整性 ok。
 

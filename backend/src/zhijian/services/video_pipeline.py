@@ -10,7 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from zhijian.ai.job_config import SNAPSHOT_KEY
+from zhijian.ai.job_config import SNAPSHOT_KEY, job_asr_provider
 from zhijian.ai.reliability import AIProviderError
 from zhijian.ai.resource_manager import local_ai_resource_manager
 from zhijian.ai.stage_decision import decide_stage, record_stage_decision
@@ -472,9 +472,9 @@ def _download_and_transcribe_audio(
         settings.qwen_asr_aligner_model if settings.qwen_asr_enabled else None,
         settings.qwen_asr_timeout_seconds,
     )
-    requested_provider = str(job.payload_json.get("asr_provider") or "")
+    requested_provider = job_asr_provider(job, settings)
     try:
-        provider = registry.get(requested_provider or settings.default_asr_provider)
+        provider = registry.get(requested_provider)
     except ValueError as exc:
         raise NeedsUser("ASR_UNAVAILABLE", str(exc)) from exc
     asr_step = _step(

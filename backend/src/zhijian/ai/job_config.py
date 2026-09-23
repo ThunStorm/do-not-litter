@@ -15,6 +15,14 @@ SNAPSHOT_KEY = "ai_submission_config"
 _SETTING_KEYS = {"model-routing", "app:general", "prompt:supplements", "transcript-processing"}
 _SETTING_PREFIXES = ("model-profile:", "ai-stage-policy:", "ai-domain-pack:")
 _SECRET_FIELDS = {"api_key", "secret", "token", "password", "cookie", "authorization"}
+ASR_DEFAULT_KEY = "asr:default"
+ASR_PROVIDERS = {"WHISPER_CPP", "QWEN3_ASR"}
+
+
+def default_asr_provider(db: Session, settings: Settings) -> str:
+    row = db.get(Setting, ASR_DEFAULT_KEY)
+    provider = (row.value_json or {}).get("provider") if row else None
+    return provider if provider in ASR_PROVIDERS else settings.default_asr_provider
 
 
 def capture_ai_config(db: Session, settings: Settings) -> dict[str, Any]:
@@ -37,7 +45,7 @@ def capture_ai_config(db: Session, settings: Settings) -> dict[str, Any]:
     return {
         "version": 1,
         "settings": values,
-        "default_asr_provider": settings.default_asr_provider,
+        "default_asr_provider": default_asr_provider(db, settings),
         "video_note_chunk_chars": settings.video_note_chunk_chars,
     }
 
@@ -58,3 +66,15 @@ def job_video_note_chunk_chars(job: Job | None, default: int) -> int:
     if isinstance(snapshot, dict) and snapshot.get("version") == 1:
         return int(snapshot.get("video_note_chunk_chars") or default)
     return default
+
+
+def job_asr_provider(job: Job, settings: Settings) -> str:
+    provider = (job.payload_json or {}).get("asr_provider")
+    if provider in ASR_PROVIDERS:
+        return provider
+    snapshot = (job.payload_json or {}).get(SNAPSHOT_KEY)
+    if isinstance(snapshot, dict) and snapshot.get("version") == 1:
+        provider = snapshot.get("default_asr_provider")
+        if provider in ASR_PROVIDERS:
+            return provider
+    return settings.default_asr_provider

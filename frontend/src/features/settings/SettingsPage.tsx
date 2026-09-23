@@ -29,6 +29,8 @@ import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { SelectMenu } from "../../components/ui/SelectMenu";
 import { api } from "../../lib/api";
 import type {
+  ASRProvider,
+  ASRSettingsView,
   AIStagePolicy,
   DomainPackView,
   ModelProfileView,
@@ -761,10 +763,28 @@ function PromptSupplementsPanel() {
 }
 
 function RuntimePanel() {
+  const queryClient = useQueryClient();
+  const asr = useQuery({ queryKey: ["asr-settings"], queryFn: api.asrSettings });
+  const [draft, setDraft] = useState<ASRProvider | null>(null);
+  const [message, setMessage] = useState("");
+  const selected = draft ?? asr.data?.default_provider ?? "WHISPER_CPP";
   const status = useQuery({
     queryKey: ["status"],
     queryFn: api.status,
     refetchInterval: 10000,
+  });
+  const qwenReady = status.data?.runtime_checks.some(
+    (check) => check.name === "qwen3-asr" && check.status === "READY",
+  );
+  const save = useMutation({
+    mutationFn: () => api.saveAsrSettings(selected),
+    onSuccess: (value: ASRSettingsView) => {
+      queryClient.setQueryData(["asr-settings"], value);
+      void queryClient.invalidateQueries({ queryKey: ["status"] });
+      setDraft(null);
+      setMessage("默认语音引擎已保存，仅对之后提交的任务生效");
+    },
+    onError: (error) => setMessage(error.message),
   });
   return (
     <>
@@ -772,6 +792,23 @@ function RuntimePanel() {
         title="语音、视频与 OCR"
         detail="以下状态来自当前 Mac mini 的真实二进制、模型文件和服务连通检测。"
       />
+      <form className="provider-form" onSubmit={(event) => { event.preventDefault(); save.mutate(); }}>
+        <div className="provider-form__title"><h3>默认语音识别引擎</h3></div>
+        <div className="provider-form__body">
+          <div className="field-grid">
+            <SelectField label="新任务使用" value={selected} onChange={(value) => { setDraft(value as ASRProvider); setMessage(""); }}>
+              <option value="WHISPER_CPP">Whisper.cpp</option>
+              <option value="QWEN3_ASR">Qwen3-ASR 0.6B</option>
+            </SelectField>
+          </div>
+        </div>
+        <div className="settings-form-actions">
+          <button className="button button--primary" type="submit" disabled={!asr.data || save.isPending || selected === asr.data.default_provider || (selected === "QWEN3_ASR" && !qwenReady)}>
+            {save.isPending && <LoaderCircle className="spin" />}保存默认引擎
+          </button>
+        </div>
+        {message && <p className="settings-note settings-note--inset" role="status">{message}</p>}
+      </form>
       <section className="runtime-list">
         {status.data?.runtime_checks.map((check) => (
           <div className="runtime-row" key={check.name}>
@@ -779,7 +816,7 @@ function RuntimePanel() {
               className={`runtime-dot runtime-dot--${check.status.toLowerCase()}`}
             />
             <div>
-              <strong>{check.name}</strong>
+              <strong>{check.name === "qwen3-asr" ? "Qwen3-ASR 0.6B" : check.name === "macos-vision-ocr" ? "macOS Vision OCR" : check.name}</strong>
               <small>{check.detail}</small>
               {check.path && <code>{check.path}</code>}
             </div>
@@ -788,8 +825,8 @@ function RuntimePanel() {
         ))}
       </section>
       <p className="settings-note">
-        音视频上传会先由 FFmpeg 提取 16 kHz 单声道音频，再交给本机
-        Whisper.cpp；图片由 macOS Vision OCR 处理。
+        新提交的视频和音频文件使用当前默认引擎；已提交任务及其重跑保留提交时的选择。
+        视频有可信字幕时会跳过 ASR；视频中的 Qwen 转写失败时回退 Whisper.cpp。图片目前由 macOS Vision OCR 处理。
       </p>
     </>
   );

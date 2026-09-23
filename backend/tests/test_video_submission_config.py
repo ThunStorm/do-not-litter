@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 
 from zhijian.ai.capabilities import AICapability
 from zhijian.ai.domain_context import domain_context_messages
-from zhijian.ai.job_config import SNAPSHOT_KEY, job_setting
+from zhijian.ai.job_config import SNAPSHOT_KEY, job_asr_provider, job_setting
 from zhijian.core.config import Settings
 from zhijian.db.models import (
     AINote,
@@ -21,6 +21,7 @@ from zhijian.db.models import (
 )
 from zhijian.providers.amap import POICandidate
 from zhijian.providers.llm import LLMResult
+from zhijian.providers.runtime import RuntimeCheck
 from zhijian.services.capture import create_capture_job
 from zhijian.services.job_replay import queue_full_replay
 from zhijian.services.video_pipeline import _bind_job_to_asset_source, _materialize_core_content
@@ -33,6 +34,53 @@ from zhijian.services.video_support import (
     provider_for_role,
     resolve_mentions_with_amap,
 )
+
+
+def test_asr_default_is_saved_per_submission_and_full_retry(client, app_and_session, monkeypatch) -> None:
+    _, factory = app_and_session
+    monkeypatch.setattr(
+        "zhijian.api.router.check_qwen_asr",
+        lambda *_: RuntimeCheck("qwen3-asr", "READY", "test"),
+    )
+    monkeypatch.setattr(
+        "zhijian.api.router.check_whisper",
+        lambda *_: RuntimeCheck("whisper.cpp", "READY", "test"),
+    )
+    assert client.get("/api/settings/asr").json() == {"default_provider": "WHISPER_CPP"}
+    assert client.put("/api/settings/asr", json={"default_provider": "QWEN3_ASR"}).status_code == 200
+    first = client.post("/api/capture", json={"text": "https://www.bilibili.com/video/BV1same"})
+    video = client.post("/api/capture/file", files={"upload": ("clip.mp4", b"video", "video/mp4")})
+    audio = client.post("/api/capture/file", files={"upload": ("clip.wav", b"audio", "audio/wav")})
+    assert first.status_code == video.status_code == audio.status_code == 200
+    assert client.get(f"/api/jobs/{first.json()['job_id']}").json()["asr_provider"] == "QWEN3_ASR"
+
+    assert client.put("/api/settings/asr", json={"default_provider": "WHISPER_CPP"}).status_code == 200
+    second = client.post("/api/capture", json={"text": "https://www.bilibili.com/video/BV1same"})
+    assert second.status_code == 200
+    with factory() as db:
+        old_jobs = [db.get(Job, response.json()["job_id"]) for response in (first, video, audio)]
+        new_job = db.get(Job, second.json()["job_id"])
+        for job in old_jobs:
+            assert job.payload_json["asr_provider"] == "QWEN3_ASR"
+            assert job.payload_json[SNAPSHOT_KEY]["default_asr_provider"] == "QWEN3_ASR"
+            assert job_asr_provider(job, Settings(_env_file=None)) == "QWEN3_ASR"
+        assert new_job.payload_json["asr_provider"] == "WHISPER_CPP"
+        assert new_job.payload_json[SNAPSHOT_KEY]["default_asr_provider"] == "WHISPER_CPP"
+        original = old_jobs[0]
+        original.status = "FAILED"
+        db.commit()
+        queue_full_replay(db, original)
+        assert original.payload_json["asr_provider"] == "QWEN3_ASR"
+
+
+def test_unavailable_asr_cannot_be_saved(client, monkeypatch) -> None:
+    monkeypatch.setattr(
+        "zhijian.api.router.check_qwen_asr",
+        lambda *_: RuntimeCheck("qwen3-asr", "MISSING", "test"),
+    )
+    assert client.put("/api/settings/asr", json={"default_provider": "QWEN3_ASR"}).status_code == 409
+    assert client.put("/api/settings/asr", json={"default_provider": "OTHER"}).status_code == 422
+    assert client.get("/api/settings/asr").json() == {"default_provider": "WHISPER_CPP"}
 
 
 def test_queued_and_replayed_jobs_keep_submission_ai_config(app_and_session, monkeypatch, tmp_path) -> None:

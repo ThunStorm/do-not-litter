@@ -56,6 +56,31 @@ def check_whisper(binary: str, model: Path) -> RuntimeCheck:
     )
 
 
+def check_qwen_asr(python: Path, runner: Path, model: Path, aligner: Path) -> RuntimeCheck:
+    assets = (
+        (python, "运行环境"),
+        (runner, "转写程序"),
+        (model / "model.safetensors", "语音模型"),
+        (aligner / "model.safetensors", "时间对齐模型"),
+    )
+    missing = [label for path, label in assets if not path.is_file()]
+    if missing:
+        return RuntimeCheck("qwen3-asr", "MISSING", f"缺少：{'、'.join(missing)}", str(model))
+    try:
+        package = _run(
+            [str(python), "-c", "from importlib.metadata import version; print(version('mlx-qwen3-asr'))"],
+            timeout=5,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return RuntimeCheck("qwen3-asr", "UNAVAILABLE", "运行包检查失败", str(python))
+    if package.returncode:
+        return RuntimeCheck("qwen3-asr", "MISSING", "mlx-qwen3-asr 运行包未安装", str(python))
+    detail = f"运行包 {package.stdout.strip()} · 0.6B 与时间对齐模型已安装；实际效果仍需任务验证"
+    return RuntimeCheck(
+        "qwen3-asr", "READY", detail, str(model)
+    )
+
+
 def check_ollama(base_url: str) -> RuntimeCheck:
     executable = shutil.which("ollama")
     if not executable:
@@ -71,7 +96,16 @@ def check_ollama(base_url: str) -> RuntimeCheck:
         return RuntimeCheck("ollama", "UNAVAILABLE", f"已安装但服务未响应：{str(exc)[:140]}", executable)
 
 
-def runtime_report(ollama_base_url: str, whisper_binary: str, whisper_model: Path) -> list[dict]:
+def runtime_report(
+    ollama_base_url: str,
+    whisper_binary: str,
+    whisper_model: Path,
+    qwen_python: Path,
+    qwen_runner: Path,
+    qwen_model: Path,
+    qwen_aligner: Path,
+    qwen_enabled: bool,
+) -> list[dict]:
     vision_ready = platform.system() == "Darwin" and shutil.which("swift") is not None
     vision = RuntimeCheck(
         "macos-vision-ocr",
@@ -83,6 +117,9 @@ def runtime_report(ollama_base_url: str, whisper_binary: str, whisper_model: Pat
         vision,
         check_binary("ffmpeg"),
         check_whisper(whisper_binary, whisper_model),
+        check_qwen_asr(qwen_python, qwen_runner, qwen_model, qwen_aligner)
+        if qwen_enabled
+        else RuntimeCheck("qwen3-asr", "UNAVAILABLE", "此节点未启用 Qwen ASR"),
         check_ollama(ollama_base_url),
     ]
     return [asdict(check) for check in checks]

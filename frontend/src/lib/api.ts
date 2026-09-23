@@ -1,4 +1,6 @@
 import type {
+  ASRProvider,
+  ASRSettingsView,
   ContentView,
   DashboardView,
   JobView,
@@ -81,6 +83,8 @@ export const api = {
     }),
   dashboard: () => request<DashboardView>('/api/dashboard'),
   status: () => request<StatusView>('/api/status'),
+  asrSettings: () => request<ASRSettingsView>('/api/settings/asr'),
+  saveAsrSettings: (defaultProvider: ASRProvider) => request<ASRSettingsView>('/api/settings/asr', { method: 'PUT', headers: jsonHeaders, body: JSON.stringify({ default_provider: defaultProvider }) }),
   lanToken: () => request<{ token: string; display: string; digits: number }>('/api/admin/lan-token'),
   rotateLanToken: () => request<{ token: string; sessions_revoked: boolean }>('/api/admin/lan-token/rotate', { method: 'POST' }),
   jobs: () => request<JobView[]>('/api/jobs'),

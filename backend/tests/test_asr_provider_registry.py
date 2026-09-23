@@ -5,12 +5,14 @@ from pathlib import Path
 
 import pytest
 
+from zhijian.core.config import Settings
 from zhijian.providers.asr import (
     ASRProviderRegistry,
     Qwen3ASRProvider,
     WhisperCppCpuProvider,
     WhisperCppProvider,
 )
+from zhijian.services.resolver import resolve_payload
 
 
 def _benchmark():
@@ -30,6 +32,13 @@ def test_asr_registry_preserves_default_and_exposes_cpu_fallback(tmp_path) -> No
     assert isinstance(registry.get("WHISPER_CPP_CPU"), WhisperCppCpuProvider)
     with pytest.raises(ValueError, match="不支持的本地 ASR Provider"):
         registry.get("UNKNOWN")
+
+
+def test_qwen_runtime_paths_do_not_depend_on_service_working_directory(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    settings = Settings(_env_file=None)
+    assert settings.qwen_asr_python == Path(__file__).parents[2] / "data/runtime/qwen-asr/venv/bin/python"
+    assert settings.qwen_asr_runner == Path(__file__).parents[2] / "scripts/qwen_asr_runner.py"
 
 
 def test_qwen_provider_passes_context_and_parses_runner_json(tmp_path, monkeypatch) -> None:
@@ -62,6 +71,31 @@ def test_qwen_provider_passes_context_and_parses_runner_json(tmp_path, monkeypat
     assert text == "大理古城" and segments[0]["end_ms"] == 1000
     assert commands[0][-2:] == ["--context", "大理 古城"]
     assert provider.last_metadata["runtime_version"] == "1"
+
+
+def test_audio_file_resolver_uses_submitted_asr_provider(tmp_path, monkeypatch) -> None:
+    media = tmp_path / "audio.wav"
+    media.write_bytes(b"fixture")
+    selected = []
+
+    class FakeProvider:
+        provider_id = "QWEN3_ASR"
+
+        def transcribe(self, _path):
+            return "大理古城", [{"text": "大理古城", "start_ms": 0, "end_ms": 1000}]
+
+    def get_provider(_registry, provider_id):
+        selected.append(provider_id)
+        return FakeProvider()
+
+    monkeypatch.setattr(ASRProviderRegistry, "get", get_provider)
+    monkeypatch.setattr(
+        "zhijian.ai.resource_manager.local_ai_resource_manager.run",
+        lambda _capability, call: call(),
+    )
+    text, _, _ = resolve_payload({"file_path": str(media), "asr_provider": "QWEN3_ASR"})
+    assert text == "大理古城"
+    assert selected == ["QWEN3_ASR"]
 
 
 def test_asr_benchmark_requires_all_frozen_scenarios() -> None:

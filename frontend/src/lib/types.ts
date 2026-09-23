@@ -5,6 +5,7 @@ export type UserState = 'DISCOVERED' | 'SAVED' | 'PLANNED' | 'VISITED' | 'DISMIS
 export interface JobView {
   id: string
   job_type: string
+  asr_provider?: ASRProvider | null
   status: JobStatus
   current_step: string
   progress: number
@@ -73,6 +74,9 @@ export interface RuntimeCheck {
   detail: string
   path?: string | null
 }
+
+export type ASRProvider = 'WHISPER_CPP' | 'QWEN3_ASR'
+export interface ASRSettingsView { default_provider: ASRProvider }
 
 export interface StatusView {
   node_name: string
