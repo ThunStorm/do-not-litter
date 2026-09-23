@@ -14,6 +14,8 @@ from zhijian.db.models import (
     AINoteSection,
     AINoteVersion,
     ContentItem,
+    Destination,
+    GroundedMapArtifact,
     Job,
     Place,
     PlaceInsightItem,
@@ -161,6 +163,18 @@ def video_note_detail(note_id: str, _: Protected, db: Session = Depends(get_db))
     transcript = db.scalar(
         select(Transcript).where(Transcript.video_asset_id == asset.id).order_by(Transcript.version.desc())
     )
+    artifact = (
+        db.scalar(
+            select(GroundedMapArtifact)
+            .where(
+                GroundedMapArtifact.transcript_id == transcript.id,
+                GroundedMapArtifact.transcript_version == transcript.version,
+            )
+            .order_by(GroundedMapArtifact.created_at.desc())
+        )
+        if transcript
+        else None
+    )
     screenshot_total = (
         db.scalar(
             select(func.count(VideoScreenshot.id)).where(
@@ -191,6 +205,15 @@ def video_note_detail(note_id: str, _: Protected, db: Session = Depends(get_db))
             "screenshot_status": (
                 "READY" if screenshot_ready else "PLANNING" if screenshot_total else "UNAVAILABLE"
             ),
+            "semantic_map": {
+                "prompt_version": artifact.prompt_version,
+                "content_units": artifact.content_units_json,
+                "entities": artifact.entities_json,
+                "relations": artifact.relations_json,
+                "claims": artifact.claims_json,
+            }
+            if artifact
+            else None,
         }
     )
     return data
@@ -389,6 +412,7 @@ def video_note_places(note_id: str, _: Protected, db: Session = Depends(get_db))
         select(PlaceMention).where(PlaceMention.video_asset_id == asset.id).order_by(PlaceMention.created_at)
     ).all():
         place = db.get(Place, mention.place_id) if mention.place_id else None
+        destination = db.get(Destination, mention.destination_id) if mention.destination_id else None
         evidence_segments = [
             segment_by_id[segment_id]
             for segment_id in mention.segment_ids_json
@@ -412,6 +436,10 @@ def video_note_places(note_id: str, _: Protected, db: Session = Depends(get_db))
                 "id": mention.id,
                 "name": mention.name,
                 "place_type": mention.place_type,
+                "content_unit_id": mention.content_unit_id,
+                "subject_role": mention.subject_role,
+                "visit_intent": mention.visit_intent,
+                "poi_policy": mention.poi_policy,
                 "quote": mention.quote,
                 "segment_ids": mention.segment_ids_json,
                 "start_ms": (
@@ -446,6 +474,13 @@ def video_note_places(note_id: str, _: Protected, db: Session = Depends(get_db))
                     "coordinate_system": place.coordinate_system,
                 }
                 if place
+                else None,
+                "destination": {
+                    "id": destination.id,
+                    "name": destination.canonical_name,
+                    "scope_type": destination.scope_type,
+                }
+                if destination
                 else None,
             }
         )
@@ -486,9 +521,7 @@ def regenerate_video_note(
 
 
 @router.delete("/api/video-notes/bulk")
-def bulk_delete_video_notes(
-    payload: BulkDeleteRequest, _: Protected, db: Session = Depends(get_db)
-) -> dict:
+def bulk_delete_video_notes(payload: BulkDeleteRequest, _: Protected, db: Session = Depends(get_db)) -> dict:
     notes_assets = [_asset_for_note(db, note_id) for note_id in dict.fromkeys(payload.ids)]
     source_ids = {asset.source_id for _, asset in notes_assets}
     active = db.scalar(

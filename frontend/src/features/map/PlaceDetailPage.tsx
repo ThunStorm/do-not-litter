@@ -69,6 +69,7 @@ export function PlaceDetailPage() {
   const navigate = useNavigate()
   const client = useQueryClient()
   const place = useQuery({ queryKey: ['place', placeId], queryFn: () => api.place(placeId) })
+  const destinations = useQuery({ queryKey: ['place-destinations', placeId], queryFn: () => api.placeDestinations(placeId) })
   const history = useQuery({ queryKey: ['place-history', placeId], queryFn: () => api.placeHistory(placeId) })
   const [note, setNote] = useState('')
   const [displayName, setDisplayName] = useState('')
@@ -134,6 +135,7 @@ export function PlaceDetailPage() {
       <h1>{name}</h1>
       <p className="place-location"><MapPin />{String(detail.address || '')}<a href={amapUrl} target="_blank" rel="noreferrer">在高德中打开 <ExternalLink /></a></p>
       <section className="place-facts"><div><span>类型</span><strong>{labelPlaceType(detail.display?.place_type || String(detail.place_type))}</strong></div><div><span>坐标系</span><strong>高德 GCJ-02</strong></div><div><span>状态</span><strong>{stateLabels[String(detail.user_state)] ?? String(detail.user_state)}</strong></div></section>
+      {destinations.data?.length ? <section className="detail-section"><h2>所属目的地</h2><ul className="place-insights">{destinations.data.map((destination) => <li key={destination.id}><b>{destination.name}</b>{destination.relation_type === 'RECOMMENDED_IN' ? ' · 本视频推荐地点' : ' · 同单元关联地点'}<small>关联 {destination.source_count} 个地点</small></li>)}</ul></section> : null}
       <PlaceKnowledge knowledge={detail.knowledge} />
       <section className="detail-section"><h2>为什么推荐给你</h2><p>{detail.recommendation?.label ?? '一般'}</p>{detail.recommendation?.reasons?.length ? <ul className="place-insights">{detail.recommendation.reasons.map((item, index) => <li key={`${item.kind}-${index}`}>{item.text}</li>)}</ul> : <p>尚未积累足够偏好行为；推荐仅使用已保存的地点事实与行为。</p>}</section>
       <section className="detail-section"><h2>截图视觉事实</h2>{detail.visual_facts?.length ? <ul className="place-insights">{detail.visual_facts.map((item) => <li key={item.id}>截图 · {item.value} <a href={item.evidence_url} target="_blank" rel="noreferrer">查看截图</a></li>)}</ul> : <p>尚无截图视觉事实；视觉信息始终作为实验性补充 Evidence。</p>}</section>

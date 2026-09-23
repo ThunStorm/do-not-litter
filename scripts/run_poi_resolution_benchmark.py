@@ -1,4 +1,5 @@
 """Score deterministic POI-resolution Golden fixtures without contacting a provider."""
+
 from __future__ import annotations
 
 import argparse
@@ -9,10 +10,9 @@ from typing import Any
 from zhijian.db.models import PlaceMention
 from zhijian.providers.amap import POICandidate
 from zhijian.services.video_support import (
-    _auto_strong_allowed,
     _poi_review_reasons,
     _poi_score,
-    _resolver_v2_shadow,
+    _resolver_v3_decision,
 )
 
 
@@ -41,40 +41,68 @@ def _candidate(value: dict[str, Any]) -> POICandidate:
 
 
 def evaluate(cases: list[dict[str, Any]]) -> dict[str, float | int]:
-    correct_at_1 = correct_at_3 = auto_confirmed = correct_auto_confirms = wrong_confirm_count = 0
+    correct_at_1 = correct_at_3 = auto_confirmed = correct_auto_confirms = (
+        wrong_confirm_count
+    ) = 0
     statuses: list[dict[str, str]] = []
     for case in cases:
         mention = _mention(case["mention"], str(case["sample_id"]))
-        contexts = [mention, *[_mention({"name": value, "city_hint": value}, value) for value in case["mention"].get("cross_place_context", [])]]
+        contexts = [
+            mention,
+            *[
+                _mention({"name": value, "city_hint": value}, value)
+                for value in case["mention"].get("cross_place_context", [])
+            ],
+        ]
         candidates = [_candidate(value) for value in case["candidates"]]
         for candidate in candidates:
-            candidate.score, candidate.match_reasons, candidate.match_explanation = _poi_score(
-                mention, candidate, contexts
+            candidate.score, candidate.match_reasons, candidate.match_explanation = (
+                _poi_score(mention, candidate, contexts)
             )
         candidates.sort(key=lambda item: (-item.score, item.name))
         expected = case["expected"]
         expected_id = str(expected["candidate_id"])
-        rank = next((index for index, item in enumerate(candidates) if item.provider_id == expected_id), None)
+        rank = next(
+            (
+                index
+                for index, item in enumerate(candidates)
+                if item.provider_id == expected_id
+            ),
+            None,
+        )
         correct_at_1 += int(rank == 0)
         correct_at_3 += int(rank is not None and rank < 3)
-        review_reasons = _poi_review_reasons(candidates[0], candidates[1] if len(candidates) > 1 else None)
+        review_reasons = _poi_review_reasons(
+            candidates[0], candidates[1] if len(candidates) > 1 else None
+        )
+        decision = _resolver_v3_decision(mention, candidates, review_reasons)
         status = (
             "CONFIRMED"
-            if _auto_strong_allowed(candidates[0], _resolver_v2_shadow(mention, candidates), review_reasons)
+            if decision["decision"] in {"AUTO_EXACT", "AUTO_NORMALIZED"}
             else "REVIEW"
         )
         auto_confirmed += int(status == "CONFIRMED")
-        correct_auto_confirms += int(status == "CONFIRMED" and expected["status"] == "CONFIRMED" and rank == 0)
-        wrong_confirm_count += int(status == "CONFIRMED" and (expected["status"] != "CONFIRMED" or rank != 0))
+        correct_auto_confirms += int(
+            status == "CONFIRMED" and expected["status"] == "CONFIRMED" and rank == 0
+        )
+        wrong_confirm_count += int(
+            status == "CONFIRMED" and (expected["status"] != "CONFIRMED" or rank != 0)
+        )
         statuses.append({"sample_id": str(case["sample_id"]), "status": status})
     total = len(cases)
     return {
         "cases": total,
         "candidate_recall_at_1": round(correct_at_1 / total, 4) if total else 1.0,
         "candidate_recall_at_3": round(correct_at_3 / total, 4) if total else 1.0,
-        "auto_confirm_precision": round(correct_auto_confirms / auto_confirmed, 4) if auto_confirmed else 1.0,
+        "auto_confirm_precision": round(correct_auto_confirms / auto_confirmed, 4)
+        if auto_confirmed
+        else 1.0,
         "auto_confirm_rate": round(auto_confirmed / total, 4) if total else 0.0,
-        "review_rate": round(sum(item["status"] == "REVIEW" for item in statuses) / total, 4) if total else 0.0,
+        "review_rate": round(
+            sum(item["status"] == "REVIEW" for item in statuses) / total, 4
+        )
+        if total
+        else 0.0,
         "unresolved_rate": 0.0,
         "wrong_confirm_count": wrong_confirm_count,
         "statuses": statuses,

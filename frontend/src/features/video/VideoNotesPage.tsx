@@ -42,7 +42,10 @@ function InsightChips({ insights, jump }: { insights: Array<{ insight_type: stri
 
 function VideoPlaceCandidate({ place, review, canonicalUrl, platform, jump, jumpToReview }: { place: VideoPlace; review?: PlaceReview; canonicalUrl: string; platform: string; jump: (sectionId?: string | null) => void; jumpToReview: (mentionId: string) => void }) {
   if (place.resolution_status === 'CONFIRMED' && place.place_id && place.place) return <div className="video-place video-place--confirmed"><Link to={`/places/${place.place_id}`}><strong>{place.place.name}</strong><small>{place.place.address || '已确认 POI'}</small></Link></div>
-  return <div className="video-place"><button onClick={() => jump(place.target_section_id)}><strong>{place.name}</strong><small>待确认</small></button>{place.start_ms != null && platform !== 'LOCAL' ? <a className="video-place__time-link" href={videoTimestampUrl(canonicalUrl, place.start_ms)} target="_blank" rel="noreferrer" aria-label={`在新窗口打开视频并跳至 ${timecode(place.start_ms)}`} title="在新窗口打开视频并跳至此时间"><time>{timecode(place.start_ms)}</time></a> : place.start_ms != null ? <time>{timecode(place.start_ms)}</time> : null}<InsightChips insights={place.insights} jump={jump} />{review ? <button className="text-action" onClick={() => jumpToReview(place.id)}>确认 POI</button> : null}</div>
+  const reference = place.poi_policy === 'REFERENCE_ONLY' || place.poi_policy === 'SKIP'
+  const area = place.poi_policy === 'AREA_RESOLVE'
+  const status = reference ? '比较/背景提及，不进入 POI' : area ? `内容区域${place.destination ? ` · ${place.destination.name}` : ''}` : '待确认'
+  return <div className="video-place"><button onClick={() => jump(place.target_section_id)}><strong>{place.name}</strong><small>{status}</small></button>{place.start_ms != null && platform !== 'LOCAL' ? <a className="video-place__time-link" href={videoTimestampUrl(canonicalUrl, place.start_ms)} target="_blank" rel="noreferrer" aria-label={`在新窗口打开视频并跳至 ${timecode(place.start_ms)}`} title="在新窗口打开视频并跳至此时间"><time>{timecode(place.start_ms)}</time></a> : place.start_ms != null ? <time>{timecode(place.start_ms)}</time> : null}<InsightChips insights={place.insights} jump={jump} />{review && !reference && !area ? <button className="text-action" onClick={() => jumpToReview(place.id)}>确认 POI</button> : null}</div>
 }
 
 export function VideoNotesPage() {

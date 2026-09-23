@@ -45,6 +45,37 @@ def test_health(client) -> None:
     assert response.json()["status"] == "ok"
 
 
+def test_job_view_prefers_metadata_title_and_exposes_only_web_source_url(client, app_and_session) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        job = Job(
+            job_type="TRAVEL",
+            status="RUNNING",
+            current_step="FETCH_METADATA",
+            payload_json={"locator": "https://www.bilibili.com/video/BV1test"},
+        )
+        local = Job(
+            job_type="TRAVEL",
+            status="RUNNING",
+            payload_json={"locator": "/private/tmp/video.mp4"},
+        )
+        db.add_all([job, local])
+        db.commit()
+        job_id, local_id = job.id, local.id
+
+        job.payload_json = {**job.payload_json, "title": "视频内容标题"}
+        db.commit()
+
+    response = client.get(f"/api/jobs/{job_id}")
+    assert response.status_code == 200
+    assert response.json()["title"] == "视频内容标题"
+    assert response.json()["source_url"] == "https://www.bilibili.com/video/BV1test"
+
+    local_response = client.get(f"/api/jobs/{local_id}")
+    assert local_response.status_code == 200
+    assert local_response.json()["source_url"] is None
+
+
 def test_place_detail_returns_active_evidence_linked_insights(client, app_and_session) -> None:
     _, factory = app_and_session
     with factory() as db:

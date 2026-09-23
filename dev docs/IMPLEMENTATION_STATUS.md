@@ -1,11 +1,11 @@
 # 当前实施状态
 
-> 状态记录日期：2026-09-17。本文唯一记录当前源码能力与自动验证；生产状态只见 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
+> 状态记录日期：2026-09-23。本文唯一记录当前源码能力与自动验证；生产状态只见 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
 
 ## Current repository freeze
 
 - 当前工作分支为 `codex/mac-mini-implementation`；提交前仍须用 git 状态核对，保护同批文档拆分与地图改动。
-- 仓库 migration head 为 Alembic 0020；生产版本见 CURRENT_HANDOFF 的实际采样，不由仓库推断。
+- 仓库 migration head 为 Alembic 0024；生产版本见 CURRENT_HANDOFF 的实际采样，不由仓库推断。
 - 唯一支持的后端为 Mac mini；FastAPI、SQLite/WAL、独立 Worker；其他平台不在当前支持范围。
 - 真实验收与自动回归分开记录；规格中的“待实施”、历史 Work Package、未来规划均不得单独认定为当前缺口。
 
@@ -15,7 +15,7 @@
 | --- | --- | --- |
 | Capture / 基础 | URL、正文、DOCX、PDF、XLSX、图像 OCR、音视频；局域网配对与 Session；Source/Evidence | product/PRODUCT_REQUIREMENTS.md、architecture/SECURITY_PRIVACY.md |
 | 招聘 / 旅行 | 首批招聘结构化与证据；Place Insight、POI Review、全国交互地图、Marker 生命周期、地点管理/人工路线；POI Resolver Golden、事实归一化、跨来源共识/冲突、地点知识 API/证据跳转；月份/日期 Visit Window 状态、可重算 Preference Event 与确定性可解释推荐；Visual Fact 实验性截图任务、Vision Profile Skip 与离线 Golden | product/TRAVEL_FOOD_PIPELINE.md、ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md |
-| 视频 | 字幕优先、ASR、校对、笔记/章节、地点、截图、列表封面、保留式删除 | video/VIDEO_AI_NOTE_PIPELINE.md（分篇索引） |
+| 视频 | 字幕优先、ASR、校对、Semantic Map v3（ContentUnit、实体角色、关系、Atomic Claim）、自适应笔记/章节、地点、Destination、截图、列表封面、保留式删除 | video/VIDEO_AI_NOTE_PIPELINE.md（分篇索引） |
 | Bilibili 登录恢复 | 站内扫码、nav 账号验证、Keychain 保存；登录失败进入 NEEDS_USER；核心恢复与非核心截图显式跳过；字幕多轨与官方 CDN Host Policy | video/02-input-transcript.md |
 | Job / Replay | 独立 Worker 心跳、协作取消、租约门禁、终态表达、步骤续跑和完整重跑；后端决定 Replay Options | jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md |
 | Gateway | 显式 Profile/Stage Policy、路由、Usage、转写质量门禁、Map/Reduce Facts、Cache、Budget、Domain Context、Vision Profile 边界 | ai-gateway/AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md（分篇索引） |
@@ -31,6 +31,7 @@
 
 - Plan C C1–C5 已进入源码：时间状态与推荐仅由可追溯事实/行为确定，Visual Fact 保持实验性并且不覆盖 Transcript；未进行真实高德、Vision 或视频验收，也未在本轮验证后重启加载新增源码。390px 视觉验收待具备可设定视口的 Browser/Playwright 时补做。
 - Gateway 真实 Local/Remote Provider、真实视频、fallback、cache/force-regenerate、预算、取消/Replay 与 Benchmark 仍需按 [生产验收门禁](ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md) 取证；本次未执行。
+- VIDEO_SEMANTIC_POI_NOTE 优化已完成源码与离线 Golden；真实视频的 ContentUnit/Remote Escalation、真实高德 POI、Token/延迟基线和 PC/Mobile Browser 视觉验收仍未执行。不得用 Fixture、构建或数据库 revision 替代这些验收。
 - 2026-09-08 已对本机 `qwen2.5:7b`、`qwen3:8b`、`qwen3.5:9b` 运行 Capability Probe：分类、结构化抽取、实体抽取与转写校对通过。其他 Stage 的 `FAIL` 只是该基础 Probe 未覆盖，不能视为模型能力否定；未更改默认模型或删除模型。
 - Bilibili 扫码、nav 验证和 Keychain 保存已有真实验收记录；曾暴露 VIDEO_HOST_BLOCKED 的现场 Job 未自动重跑，不把修复等同于该 Job 成功。
 - 高德、远程 Provider 等需要用户合法提供外部配置；不在文档保存 Secret，不通过编造状态代替配置/验收。
@@ -74,5 +75,7 @@
 - 2026-09-22：经用户明确允许在 Benchmark 前以非默认备用方式部署，主计划 WP2、WP4–WP8 的源码实现已完成：`QWEN3_ASR` 通过隔离 Runner/本地模型路径进入 Registry，Capture 可显式选择，可信 Context 仅来自标题、平台标签和人工核对词，运行/对齐失败独立审计后回退 Whisper，默认仍为 `WHISPER_CPP`；Correction/Ground Map 的安全 chars/segments hint 按模型跨 Job 持久化，成功子块继续由 Request Cache checkpoint；Canonical Grounded Map key 不再绑定 provider/model；AMap 增加 TTL cache、同查询合并和 2 路有界并发；每个截图计划由 3 次降为 1 次 ffmpeg，核心 Note/POI/Evidence 在截图前先物化；统一 Graduation Gate 现同时检查 ASR、质量、Token 和性能。完整后端 201 项、完整源码 Ruff 与 `diff --check` 通过；Qwen 权重与真实 Frozen Benchmark 仍由用户后续执行，因此未切默认、未宣称真实毕业。
 - 2026-09-22：Qwen3-ASR 运行资产已安装并启用：官方 0.6B ASR 与 Forced Aligner 权重固定在 `/Volumes/D/Projects/ollama-models/ASR/`，SHA-256 分别为 `79d6cbd4c98c7bbffe9db2edac07f56cd6637d0d5944b27f6c2b8353840323ea`、`47831d0e82f96b20e9034dba01a075ee06436654719f6a68289e49f1b65ce0e7`，生产配置已指向该目录。离线普通话 TTS smoke 真实加载 `mlx-qwen3-asr 0.4.4` 并正确识别“大理古城”，Forced Aligner 返回 7 个单调时间码；模型加载约 1.9 秒、转写/对齐约 4.8 秒、峰值内存约 1.19 GiB，生产 Provider 封装复测同样通过。完整后端 201 项、Ruff 与 `diff --check` 通过；默认仍为 Whisper，Frozen Benchmark 和默认晋级仍待用户执行。
 - 2026-09-22：Pipeline 运行韧性与实时进度升级已完成并部署。真实模型请求在发出前写入同一条 `RUNNING` Audit，独立 heartbeat 续期 Job lease，Worker watchdog 可按 deadline / stale Job 收口，run fence 拒绝超时或重跑后的迟到写入；任务/API/日志页显示 active attempt、主备路由、分块、elapsed 与 deadline。Correction、Ground Map、Note Reduce 对截断先同模型拆分，最小单元才允许 fallback；Note Reduce 使用有界 Evidence Pack、跨包 checkpoint、Stage wall/attempt budget 与 Evidence-backed 确定性降级。AUTO 路由排除 capability Probe 明确失败的 Profile，人工覆盖需显式允许并审计。后端 209 项、完整 Ruff、前端 18 项/TypeScript/Vite、文档与 `diff --check` 通过；桌面及 390×844 Browser 无溢出/控制台错误。无 migration 重启后 API/Worker/首页/heartbeat READY，OpenAPI 已加载新字段；未调用真实 Provider、未重跑视频，Frozen Benchmark/真实 fallback 仍是外部验收门禁。
+- 2026-09-22：VIDEO_SEMANTIC_POI_NOTE 优化已进入源码。Grounded Map 同次 Local-first 调用保存 Semantic Map v3 的 ContentUnit、Entity 角色/意图/POI Policy、Relation 与 Evidence-bound Atomic Claim；歧义只以目标段及邻段做 Remote Escalation，失败保留本地结果并走保守 Review。`REFERENCE_ONLY`/`SKIP` 不进入 AMap、Review 或手动确认；AREA 物化为 Destination，已确认 Place 才创建同 Unit 的 Destination Link。Resolver v3 在既有精度门禁上区分 `AUTO_EXACT`/`AUTO_NORMALIZED`；Note 保留模型 heading、以 Claim 驱动并去除低信息/重复 bullet。新增 12 个语义 Golden、API Gate 和迁移 0024；目标后端 108 项、Ruff 与 Node 24 前端 verify 通过。未调用真实 Provider/高德/视频，Browser 插件与项目 Playwright 均不可用，故未做渲染验收。
+- 2026-09-23：视频 Job 在 `FETCH_METADATA` 完成时立即将解析标题写回 payload，运行详情刷新后显示视频标题；Job API 另返回仅限 HTTP(S) 的来源地址，任务详情页提供仅本页可见的复制按钮。API 回归、完整后端测试、Ruff、Node 24 前端 18 项/Vite/TypeScript verify 与 `diff --check` 通过。当前运行服务未重启加载这项 UI/API 变更，真实浏览器渲染未验收。
 
 [实施历史](history/IMPLEMENTATION_HISTORY.md) 和 [归档实施计划](history/planning/README.md) 保留旧状态与计划追溯，默认不读。当前页只保留最新结论和未闭环项；完成项不持续追加长叙事。生产现场只更新 CURRENT_HANDOFF.md；冻结约束只更新 REGRESSION_AND_CHANGE_GUARD.md。新增证据必须写明日期、对象与验证层级。

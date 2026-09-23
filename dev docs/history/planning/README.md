@@ -17,5 +17,6 @@
 | [模型级可靠调用机制](MODEL_RELIABILITY_PLAN.md) | Profile Reliability、错误分类、Retry/Circuit、结构化恢复与 Audit 已交付 | 真实 Provider 稳定性仍按生产验收门禁取证。 |
 | [Pipeline 性能、Token 与 Qwen-ASR](PIPELINE_PERFORMANCE_TOKEN_QWEN_ASR_MASTER_IMPLEMENTATION_PLAN.md) | WP0–WP8、Qwen 备用 Provider、Delta Correction、Artifact 复用、AMap/截图性能及 Graduation Gate 已交付 | Frozen Benchmark、Context A/B、长视频和默认晋级仍待真实证据。 |
 | [Pipeline 运行韧性与实时进度](PIPELINE_RUNTIME_RESILIENCE_AND_LIVE_PROGRESS_UPGRADE_PLAN.md) | Attempt heartbeat、lease/watchdog、run fence、Stage-first recovery、Note Reduce 有界归纳、能力准入和实时 UI 已部署 | 真实 Provider fallback、deadline 与迟到响应 E2E 仍待授权取证。 |
+| [视频语义结构、POI 与笔记优化](VIDEO_SEMANTIC_POI_NOTE_OPTIMIZATION_PLAN.md) | Semantic Map v3、ContentUnit、POI Gate、Resolver v3、Destination、Claim 笔记与离线 Golden 已进入源码 | 真实视频/高德、Remote Escalation、Token/延迟及 Browser 验收仍待取证。 |
 
 计划中描述的旧 migration head、旧 UI 现状和“下一 WP”均只对原写作时点有效。若需要追溯，先读当前状态与冻结清单，再按章节查阅本目录文件。

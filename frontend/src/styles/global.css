@@ -593,6 +593,7 @@ svg { flex: 0 0 auto; }
 .task-table__progress { min-width: 0; }.task-table__progress > span { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 10px; }.task-table__progress b { color: var(--ink); font-variant-numeric: tabular-nums; }
 .task-table__row em { display: grid; min-width: 0; gap: 3px; color: var(--green); font-style: normal; font-size: 11px; }.task-table__row em small { max-width: 100%; overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }.task-status--attention { color: #a66c15 !important; }.task-status--error { color: var(--accent) !important; }
 .task-hero { padding: 26px 30px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+.task-hero__heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-width: 0; }.task-hero__heading h1 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.task-hero__copy { flex: 0 0 auto; }
 .task-hero h1 { margin: 0; font: 600 26px var(--serif); }
 .task-hero p { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
 .task-hero--partial { border-color: #b7cda8; }.task-hero--partial p { color: var(--green); }.task-hero > small { display: block; margin: -2px 0 12px 18px; color: var(--muted); font-size: 11px; }

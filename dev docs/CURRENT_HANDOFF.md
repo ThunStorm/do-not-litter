@@ -4,9 +4,9 @@
 
 ## 任务续接
 
-- 完成：Pipeline runtime resilience 已部署；Attempt 预登记/heartbeat、lease 续期、独立 watchdog、run fence、Stage-first 截断恢复、Note Reduce 有界分包/降级、能力准入及任务/日志实时 UI 已加载。后端 209 项、完整 Ruff、前端 verify、文档与 `diff --check` 通过；桌面/390px Browser 无溢出或控制台错误。
-- 部署：2026-09-22 无 migration 重启；门禁 active Job/lease=0、revision=`0023`、`integrity_check=ok`，备份 `app-pre-runtime-resilience-20260922-165753.db` 完整性 ok、SHA-256=`ba23d9a…f41`。API/Worker/首页/heartbeat READY，PID=`97038`，executor=`IDLE`；OpenAPI 已含 active Attempt 与 Stage budget 字段。提交 `5e11213` 已推送 `origin/codex/mac-mini-implementation`。
-- 保留：Qwen 仍为显式备用，默认 Whisper；真实 Frozen Benchmark、Context A/B、长视频、真实 fallback/迟到响应 E2E 仍待用户授权执行。禁止用 Fake/Smoke 代替真实毕业，不自动重跑历史视频、切默认或确认 POI。
+- 完成：VIDEO_SEMANTIC_POI_NOTE 源码实现了 Semantic Map v3、POI Gate、Resolver v3、Destination、Local→Remote 小上下文升级、Claim 驱动笔记、API/UI 与 12 项语义 Golden；任务在 `FETCH_METADATA` 后立即写入视频标题，运行详情仅对网页来源显示“复制地址”。完整后端、Ruff、Node 24 前端 verify 与 `diff --check` 通过。
+- 部署：2026-09-22 用户明确要求不备份直接重部署。重启前 active Job/lease=0、revision=`0024`、`integrity_check=ok`；已重启 API/Worker，API/Worker RUNNING、内容与 heartbeat READY（PID=`18913`）。OpenAPI 已加载 `/api/video-notes/{note_id}`、`/places`、`/api/travel/place-reviews` 和 `/api/travel/places/{place_id}/destinations`。本轮未运行 Job/Provider；此前无备份的 migration 仍应在后续运维中如实保留。
+- 保留：任务标题/复制地址修复尚未重载服务；真实视频/高德/Remote Escalation/Token 延迟基线与 Browser PC/Mobile 仍待用户授权。Browser 插件和项目 Playwright 均不可用；Qwen 仍显式备用、Whisper 默认；不自动重跑历史视频、切默认或确认 POI。
 
 ## 生产快照（采样 2026-09-13）
 

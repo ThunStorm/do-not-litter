@@ -1,0 +1,14 @@
+[
+  {"sample_id":"G-001","title":"北京攻略","expected":{"unit_count":1,"actionable":["故宫","天坛","颐和园"],"reference":[]}},
+  {"sample_id":"G-002","title":"北京、天津、承德三城","expected":{"unit_count":3,"actionable":["故宫","五大道","避暑山庄"],"reference":[]}},
+  {"sample_id":"G-003","title":"黄山攻略","expected":{"unit_count":1,"actionable":["黄山"],"reference":[]}},
+  {"sample_id":"G-004","title":"国内十个湿地","expected":{"unit_count":1,"actionable":["额尔古纳湿地"],"reference":[]}},
+  {"sample_id":"G-005","title":"北京故宫比沈阳故宫大","expected":{"unit_count":1,"actionable":["北京故宫"],"reference":["沈阳故宫"]}},
+  {"sample_id":"G-006","title":"北京故宫 vs 沈阳故宫","expected":{"unit_count":1,"actionable":["北京故宫","沈阳故宫"],"reference":[]}},
+  {"sample_id":"G-007","title":"妙峰山","expected":{"unit_count":1,"actionable":["妙峰山"],"reference":[],"resolver":"AUTO_NORMALIZED"}},
+  {"sample_id":"G-008","title":"额尔古纳湿地","expected":{"unit_count":1,"actionable":["额尔古纳湿地"],"reference":[],"resolver":"AUTO_NORMALIZED"}},
+  {"sample_id":"G-009","title":"天津怎么玩","expected":{"unit_count":1,"actionable":[],"reference":[],"destination":"天津市"}},
+  {"sample_id":"G-010","title":"凤凰山","expected":{"unit_count":1,"actionable":["凤凰山"],"reference":[],"resolver":"REVIEW"}},
+  {"sample_id":"G-011","title":"喜茶","expected":{"unit_count":1,"actionable":["喜茶"],"reference":[],"resolver":"REVIEW"}},
+  {"sample_id":"G-012","title":"旅行 Vlog","expected":{"unit_count":2,"actionable":["五大道"],"reference":["北京站"]}}
+]

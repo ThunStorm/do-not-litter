@@ -47,6 +47,7 @@ class JobView(BaseModel):
     current_step: str
     progress: int
     title: str
+    source_url: str | None = None
     error: str | None
     error_code: str | None
     created_at: datetime

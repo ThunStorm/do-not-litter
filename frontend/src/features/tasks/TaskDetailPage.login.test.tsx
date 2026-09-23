@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
@@ -23,8 +23,10 @@ vi.mock('../../lib/api', () => ({
 
 describe('TaskDetailPage login recovery', () => {
   it('offers QR login recovery and an explicit screenshot skip', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.assign(navigator, { clipboard: { writeText } })
     vi.mocked(api.job).mockResolvedValue({
-      id: 'job-login', job_type: 'TRAVEL', status: 'NEEDS_USER', current_step: 'DOWNLOAD_VIDEO_FOR_FRAMES', progress: 94, title: '测试视频', error: 'Bilibili 登录已失效', error_code: 'VIDEO_LOGIN_REQUIRED', created_at: '2026-08-30T00:00:00Z', started_at: '2026-08-30T00:00:00Z', finished_at: '2026-08-30T00:01:00Z', retry_count: 0, worker_id: null, heartbeat_at: null, last_activity_at: '2026-08-30T00:01:00Z', current_step_status: 'FAILED', current_step_started_at: '2026-08-30T00:00:30Z', current_step_message: null, runtime_state: 'IDLE', last_activity_age_seconds: 0, last_activity_source: null, completion_summary: null, model_step: null, provider: null, model: null, active_attempt: null,
+      id: 'job-login', job_type: 'TRAVEL', status: 'NEEDS_USER', current_step: 'DOWNLOAD_VIDEO_FOR_FRAMES', progress: 94, title: '测试视频', source_url: 'https://www.bilibili.com/video/BV1test', error: 'Bilibili 登录已失效', error_code: 'VIDEO_LOGIN_REQUIRED', created_at: '2026-08-30T00:00:00Z', started_at: '2026-08-30T00:00:00Z', finished_at: '2026-08-30T00:01:00Z', retry_count: 0, worker_id: null, heartbeat_at: null, last_activity_at: '2026-08-30T00:01:00Z', current_step_status: 'FAILED', current_step_started_at: '2026-08-30T00:00:30Z', current_step_message: null, runtime_state: 'IDLE', last_activity_age_seconds: 0, last_activity_source: null, completion_summary: null, model_step: null, provider: null, model: null, active_attempt: null,
       steps: [{ name: 'DOWNLOAD_VIDEO_FOR_FRAMES', status: 'FAILED', progress: 0, error: '登录失效', started_at: '2026-08-30T00:00:30Z', finished_at: '2026-08-30T00:01:00Z', input: {}, output: {} }],
       events: [],
     })
@@ -39,5 +41,7 @@ describe('TaskDetailPage login recovery', () => {
     expect(screen.getByRole('button', { name: '跳过截图并继续' })).toBeEnabled()
     expect(screen.getByRole('button', { name: '扫码登录后可继续' })).toBeDisabled()
     expect(screen.queryByLabelText('Cookie 请求头值')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '复制来源地址' }))
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('https://www.bilibili.com/video/BV1test'))
   })
 })

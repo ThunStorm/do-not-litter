@@ -9,6 +9,7 @@ export interface JobView {
   current_step: string
   progress: number
   title: string
+  source_url?: string | null
   error: string | null
   error_code: string | null
   created_at: string

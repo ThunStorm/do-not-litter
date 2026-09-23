@@ -60,6 +60,7 @@ from zhijian.services.video_support import (
     correct_transcript,
     extract_place_mentions,
     generate_note,
+    materialize_destinations,
     materialize_transcript,
     prompt_supplement_hash,
     resolve_mentions_with_amap,
@@ -268,9 +269,7 @@ def _done(db: Session, job: Job, step: JobStep, progress: int, output: dict[str,
     db.commit()
 
 
-def _correction_output(
-    transcript: Transcript, segments: list[Segment]
-) -> dict[str, int | float | str]:
+def _correction_output(transcript: Transcript, segments: list[Segment]) -> dict[str, int | float | str]:
     metadata = transcript.metadata_json or {}
     corrected = sum(item.correction_status == "CORRECTED" for item in segments)
     unchanged = sum(item.correction_status == "UNCHANGED" for item in segments)
@@ -785,7 +784,7 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
             22,
             {"video_asset_id": asset.id, "title": asset.title, "duration_ms": asset.duration_ms},
         )
-        job.payload_json = {**job.payload_json, "video_asset_id": asset.id}
+        job.payload_json = {**job.payload_json, "video_asset_id": asset.id, "title": asset.title}
         db.commit()
         try:
             materialize_cover(db, settings, asset)
@@ -986,7 +985,13 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
         try:
             grounded_map = get_or_create_grounded_map(db, settings, asset, transcript, segments, job)
             mentions = extract_place_mentions(
-                db, settings, asset, None, segments, job, candidates=grounded_map.places_json
+                db,
+                settings,
+                asset,
+                None,
+                segments,
+                job,
+                candidates=grounded_map.entities_json or grounded_map.places_json,
             )
         except ProviderUnavailable as exc:
             raise NeedsUser(exc.code, str(exc)) from exc
@@ -995,7 +1000,15 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
             job,
             extract,
             80,
-            {"mentions": len(mentions), "grounded_map_id": grounded_map.id, "llm_prompt_tokens": 0},
+            {
+                "mentions": len(mentions),
+                "grounded_map_id": grounded_map.id,
+                "llm_prompt_tokens": 0,
+                "semantic_units": grounded_map.semantic_options_json.get("semantic_unit_count", 0),
+                "semantic_entities": grounded_map.semantic_options_json.get("semantic_entity_count", 0),
+                "semantic_references": grounded_map.semantic_options_json.get("semantic_reference_count", 0),
+                "remote_escalations": grounded_map.semantic_options_json.get("remote_escalation_count", 0),
+            },
         )
 
         note_step = _step(
@@ -1042,6 +1055,7 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
             store.get("amap:web-service-key") or settings.amap_api_key,
             poi_metrics,
         )
+        destination_count, destination_links = materialize_destinations(db, asset, mentions)
         _done(
             db,
             job,
@@ -1051,6 +1065,8 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
                 "confirmed": confirmed,
                 "unresolved": unresolved,
                 "amap_configured": bool(store.get("amap:web-service-key") or settings.amap_api_key),
+                "destinations": destination_count,
+                "destination_links": destination_links,
                 **poi_metrics,
             },
         )
@@ -1464,14 +1480,32 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
             )
             grounded_map = get_or_create_grounded_map(db, settings, asset, transcript, segments, job)
             mentions = extract_place_mentions(
-                db, settings, asset, None, segments, job, candidates=grounded_map.places_json
+                db,
+                settings,
+                asset,
+                None,
+                segments,
+                job,
+                candidates=grounded_map.entities_json or grounded_map.places_json,
             )
             _done(
                 db,
                 job,
                 step,
                 80,
-                {"mentions": len(mentions), "grounded_map_id": grounded_map.id, "llm_prompt_tokens": 0},
+                {
+                    "mentions": len(mentions),
+                    "grounded_map_id": grounded_map.id,
+                    "llm_prompt_tokens": 0,
+                    "semantic_units": grounded_map.semantic_options_json.get("semantic_unit_count", 0),
+                    "semantic_entities": grounded_map.semantic_options_json.get("semantic_entity_count", 0),
+                    "semantic_references": grounded_map.semantic_options_json.get(
+                        "semantic_reference_count", 0
+                    ),
+                    "remote_escalations": grounded_map.semantic_options_json.get(
+                        "remote_escalation_count", 0
+                    ),
+                },
             )
         if start <= VIDEO_STEPS.index("GENERATE_AI_NOTE"):
             step = _step(
@@ -1513,12 +1547,19 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                 store.get("amap:web-service-key") or settings.amap_api_key,
                 poi_metrics,
             )
+            destination_count, destination_links = materialize_destinations(db, asset, mentions)
             _done(
                 db,
                 job,
                 step,
                 92,
-                {"confirmed": confirmed, "unresolved": unresolved, **poi_metrics},
+                {
+                    "confirmed": confirmed,
+                    "unresolved": unresolved,
+                    "destinations": destination_count,
+                    "destination_links": destination_links,
+                    **poi_metrics,
+                },
             )
         if start <= VIDEO_STEPS.index("BUILD_PLACE_NOTES"):
             step = _step(db, job, "BUILD_PLACE_NOTES", 93, {"confirmed": confirmed})

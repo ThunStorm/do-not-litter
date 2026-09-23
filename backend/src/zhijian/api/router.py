@@ -48,6 +48,8 @@ from zhijian.db.models import (
     AINoteVersion,
     Claim,
     ContentItem,
+    Destination,
+    DestinationPlaceLink,
     Evidence,
     ExternalCallAudit,
     Job,
@@ -225,13 +227,9 @@ def job_view(job: Job, db: Session | None = None) -> JobView:
         step_input = _safe_step_input(latest_llm_step) if latest_llm_step else step_input
     active_meta = active_attempt.request_meta_json if active_attempt else {}
     provider = (
-        active_attempt.provider
-        if active_attempt
-        else step_input.get("provider") if model_step else None
+        active_attempt.provider if active_attempt else step_input.get("provider") if model_step else None
     )
-    model = active_meta.get("model") if active_attempt else (
-        step_input.get("model") if model_step else None
-    )
+    model = active_meta.get("model") if active_attempt else (step_input.get("model") if model_step else None)
     if db and model_step and not (provider and model):
         routing = db.get(Setting, "model-routing")
         route = routing.value_json if routing and isinstance(routing.value_json, dict) else {}
@@ -274,6 +272,11 @@ def job_view(job: Job, db: Session | None = None) -> JobView:
         current_step=job.current_step,
         progress=job.progress,
         title=str(job.payload_json.get("title") or job.payload_json.get("locator") or "未命名任务"),
+        source_url=(
+            str(job.payload_json.get("locator"))
+            if str(job.payload_json.get("locator") or "").startswith(("https://", "http://"))
+            else None
+        ),
         error=job.error,
         error_code=job.error_code,
         created_at=as_utc(job.created_at),
@@ -2342,6 +2345,33 @@ def place_detail(place_id: str, _: Protected, db: Session = Depends(get_db)) -> 
     )
 
 
+@router.get("/api/travel/places/{place_id}/destinations")
+def place_destinations(place_id: str, _: Protected, db: Session = Depends(get_db)) -> list[dict]:
+    if db.get(Place, place_id) is None:
+        raise HTTPException(status_code=404, detail="地点不存在")
+    links = db.scalars(
+        select(DestinationPlaceLink)
+        .where(DestinationPlaceLink.place_id == place_id)
+        .order_by(DestinationPlaceLink.created_at.desc())
+    ).all()
+    return [
+        {
+            "id": destination.id,
+            "name": destination.canonical_name,
+            "scope_type": destination.scope_type,
+            "relation_type": link.relation_type,
+            "source_count": db.scalar(
+                select(func.count(DestinationPlaceLink.id)).where(
+                    DestinationPlaceLink.destination_id == destination.id
+                )
+            )
+            or 0,
+        }
+        for link in links
+        if (destination := db.get(Destination, link.destination_id)) is not None
+    ]
+
+
 def _revision_conflict(current: int) -> HTTPException:
     return HTTPException(status_code=409, detail={"code": "REVISION_CONFLICT", "latest_revision": current})
 
@@ -2986,6 +3016,10 @@ def _place_review_view(db: Session, mention: PlaceMention) -> dict:
         "reason_codes": list(metadata.get("reason_codes") or []),
         "source_reason": mention.reason,
         "confidence": mention.confidence,
+        "content_unit_id": mention.content_unit_id,
+        "subject_role": mention.subject_role,
+        "visit_intent": mention.visit_intent,
+        "poi_policy": mention.poi_policy,
         "resolution_status": mention.resolution_status,
         "revision": mention.revision,
         "candidates": metadata.get("poi_candidates", []),
@@ -3033,6 +3067,7 @@ def list_place_reviews(
                 [ResolutionStatus.REVIEW.value, ResolutionStatus.UNRESOLVED.value]
             ),
             PlaceMention.extraction_status != "USER_REJECTED",
+            PlaceMention.poi_policy.in_(["RESOLVE", "LEGACY"]),
         )
     ).all()
     result = [_place_review_view(db, mention) for mention in mentions]
@@ -3052,6 +3087,7 @@ def place_review_count(_: Protected, db: Session = Depends(get_db)) -> dict[str,
                     [ResolutionStatus.REVIEW.value, ResolutionStatus.UNRESOLVED.value]
                 ),
                 PlaceMention.extraction_status != "USER_REJECTED",
+                PlaceMention.poi_policy.in_(["RESOLVE", "LEGACY"]),
             )
         )
         or 0
@@ -3119,6 +3155,8 @@ def search_place_review(
     mention = db.get(PlaceMention, mention_id)
     if mention is None or mention.extraction_status == "USER_REJECTED":
         raise HTTPException(status_code=404, detail={"code": "PLACE_NOT_FOUND"})
+    if mention.poi_policy not in {"RESOLVE", "LEGACY"}:
+        raise HTTPException(status_code=409, detail={"code": "MENTION_NOT_POI_ELIGIBLE"})
     if mention.revision != payload.expected_revision:
         raise _revision_conflict(mention.revision)
     web_key = store.get("amap:web-service-key") or settings.amap_api_key
@@ -3159,6 +3197,8 @@ def confirm_place_review(
         raise HTTPException(status_code=404, detail={"code": "PLACE_NOT_FOUND"})
     if mention.extraction_status == "USER_REJECTED":
         raise HTTPException(status_code=409, detail={"code": "MENTION_REJECTED"})
+    if mention.poi_policy not in {"RESOLVE", "LEGACY"}:
+        raise HTTPException(status_code=409, detail={"code": "MENTION_NOT_POI_ELIGIBLE"})
     if payload.expected_revision is not None and mention.revision != payload.expected_revision:
         raise _revision_conflict(mention.revision)
     candidate = next(
@@ -3465,11 +3505,7 @@ def _test_model_connection(value: dict, api_key: str | None) -> object:
             [{"role": "user", "content": '仅返回 JSON：{"ok":true}'}],
         )
 
-    return (
-        local_ai_resource_manager.run("MODEL_TEST", call)
-        if profile.location == "LOCAL"
-        else call()
-    )
+    return local_ai_resource_manager.run("MODEL_TEST", call) if profile.location == "LOCAL" else call()
 
 
 def _model_test_http_error(label: str, exc: AIProviderError) -> HTTPException:

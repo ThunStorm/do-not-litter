@@ -59,11 +59,16 @@ export type VideoPlace = {
   id: string
   name: string
   quote: string
+  content_unit_id: string
+  subject_role: string
+  visit_intent: string
+  poi_policy: string
   resolution_status: string
   place_id: string | null
   start_ms: number | null
   target_section_id: string | null
   place: { name: string; address: string } | null
+  destination: { id: string; name: string; scope_type: string } | null
   insights: Array<{ insight_type: string; value_text: string; segment_ids: string[]; source_quote: string; target_section_id: string | null }>
 }
 
@@ -149,6 +154,7 @@ export const api = {
   createManualPlace: (payload: { mode: 'CUSTOM' | 'AMAP_POI'; name?: string; place_type: string; longitude: number; latitude: number; note?: string; poi_id?: string }) => request<{ place_id: string }>('/api/travel/places', { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) }),
   places: (params = '') => request<PlaceListView>(`/api/travel/places${params ? `?${params}` : ''}`),
   place: (id: string) => request<PlacePreview & Record<string, unknown>>(`/api/travel/places/${id}`),
+  placeDestinations: (id: string) => request<Array<{ id: string; name: string; scope_type: string; relation_type: string; source_count: number }>>(`/api/travel/places/${id}/destinations`),
   placeHistory: (id: string) => request<LogEventView[]>(`/api/travel/places/${id}/history`),
   updatePlaceNote: (id: string, markdown: string, expectedRevision: number) => request(`/api/travel/places/${id}/note`, { method: 'PUT', headers: jsonHeaders, body: JSON.stringify({ markdown, expected_revision: expectedRevision }) }),
   updatePlaceOverlay: (id: string, payload: { display_name: string; override_place_type: string; custom_tags: string[]; expected_revision: number }) => request(`/api/travel/places/${id}/overlay`, { method: 'PATCH', headers: jsonHeaders, body: JSON.stringify(payload) }),

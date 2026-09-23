@@ -32,6 +32,8 @@ from zhijian.db.models import (
     AINote,
     AINoteSection,
     AINoteVersion,
+    Destination,
+    DestinationPlaceLink,
     GroundedMapArtifact,
     Job,
     JobStep,
@@ -72,7 +74,29 @@ TRANSCRIPT_CORRECTION_CHUNK_CHARS = 12_000
 TRANSCRIPT_CORRECTION_BATCH_SIZE = 128
 PLACE_EXTRACTION_CHUNK_CHARS = 8_000
 PLACE_EXTRACTION_NEIGHBOR_SEGMENTS = 3
-NOTE_SECTION_KINDS = {"PLACE", "AREA", "ROUTE", "SUPPLEMENTAL"}
+NOTE_SECTION_KINDS = {
+    "PLACE",
+    "AREA",
+    "ROUTE",
+    "SUPPLEMENTAL",
+    "AREA_GUIDE",
+    "PLACE_GUIDE",
+    "MULTI_PLACE_LIST",
+    "THEME",
+    "CATEGORY_COMPARE",
+    "EXPERIENCE",
+    "FOOD",
+    "MIXED",
+}
+LOW_INFORMATION_BULLETS = (
+    "景色优美",
+    "非常值得一去",
+    "体验很好",
+    "很有特色",
+    "非常推荐",
+    "环境不错",
+    "值得打卡",
+)
 PROMPT_SUPPLEMENT_SETTING_KEY = "prompt:supplements"
 PROMPT_CORE_CONTRACTS = {
     "transcript_correction": [
@@ -86,7 +110,8 @@ PROMPT_CORE_CONTRACTS = {
     "video_note_summary": [
         "固定返回 JSON 对象及约定字段结构。",
         "顶层只使用 overview、warnings、sections、section_facts。",
-        "章节字段保持 heading、thesis、summary、bullets、body_markdown、segment_ids。",
+        "章节字段保持 heading、thesis、summary、bullets、body_markdown、segment_ids 与 content_unit_id；"
+        "比较/背景实体不得改写成推荐地点。",
         "每个章节必须引用当前输入中的有效 Segment ID。",
         "地点时间窗口必须逐字引用 Transcript 并绑定有效 Segment ID。",
         "Section 锚点和时间范围由服务端生成，模型不得编造。",
@@ -97,7 +122,8 @@ PROMPT_CORE_CONTRACTS = {
         "每个地点必须引用当前输入中的有效 Segment ID。",
         "时间窗口必须逐字引用 Transcript 并绑定有效 Segment ID。",
         "不得生成、猜测或改写经纬度。",
-        "名称歧义只能保留候选并进入校验，不得伪造已确认 POI。",
+        "名称歧义只能保留候选并进入校验，不得伪造已确认 POI；"
+        "必须保留 content_unit_id、subject_role、visit_intent、poi_policy，REFERENCE_ONLY 不进入 POI。",
     ],
 }
 ROLE_STAGE = {
@@ -105,6 +131,7 @@ ROLE_STAGE = {
     "video_note_summary": "GENERATE_AI_NOTE",
     "note_reduce": "NOTE_REDUCE",
     "grounded_map": "GROUND_MAP",
+    "grounded_map_escalation": "GROUND_MAP",
     "travel_place_extraction": "EXTRACT_TRAVEL_FACTS",
     "visual_fact": "VISION_FACT",
 }
@@ -702,6 +729,8 @@ def provider_for_role(
             )
             if route_decision:
                 primary_id, fallback_id = route_decision.primary_id, route_decision.fallback_id
+        if role == "grounded_map_escalation":
+            primary_id, fallback_id = remote_id, ""
         primary_config = _profile_config(db, primary_id)
         fallback_config = _profile_config(db, fallback_id)
         if not _profile_supports_capability(
@@ -1178,13 +1207,14 @@ def _candidate_has_evidence(candidate: dict[str, Any], ids: list[str], segment_t
 
 
 def _merge_place_candidates(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    merged: dict[tuple[str, str, str], dict[str, Any]] = {}
+    merged: dict[tuple[str, str, str, str], dict[str, Any]] = {}
     for candidate in candidates:
         raw_name = str(candidate.get("raw_name") or candidate.get("name") or "")
         key = (
             _normalized_insight_key(raw_name),
             _normalized_insight_key(candidate.get("city_hint")),
             str(candidate.get("place_type") or "UNKNOWN"),
+            str(candidate.get("content_unit_id") or candidate.get("entity_id") or ""),
         )
         if not key[0]:
             continue
@@ -1236,7 +1266,9 @@ def _place_evidence_index(mentions: list[PlaceMention]) -> list[dict[str, object
             "quotes": [mention.quote[:500]],
         }
         for mention in sorted(mentions, key=lambda item: item.id)
-        if mention.extraction_status != "USER_REJECTED" and mention.quote
+        if mention.extraction_status != "USER_REJECTED"
+        and mention.poi_policy not in {"REFERENCE_ONLY", "SKIP"}
+        and mention.quote
     ]
 
 
@@ -1255,7 +1287,7 @@ def _ground_section(
     related = [mention for mention in mentions if set(mention.segment_ids_json) & set(ids)]
     requested_ids = {str(value) for value in item.get("place_mention_ids", [])}
     related = [mention for mention in related if not requested_ids or mention.id in requested_ids]
-    kind = str(item.get("section_kind") or "").upper()
+    kind = str(item.get("unit_type") or item.get("section_kind") or "").upper()
     if kind not in NOTE_SECTION_KINDS:
         kind = "PLACE" if related else "SUPPLEMENTAL"
     if kind in {"PLACE", "AREA", "ROUTE"} and not related:
@@ -1265,14 +1297,15 @@ def _ground_section(
             str(next(segment.corrected_text or segment.text for segment in segments if segment.id in ids))
         ]
     names = list(dict.fromkeys(mention.name for mention in related))
-    if kind == "PLACE":
+    heading = str(item.get("heading") or "").strip()
+    if not heading and kind == "PLACE":
         heading = names[0]
-    elif kind == "AREA":
+    elif not heading and kind in {"AREA", "AREA_GUIDE"}:
         city = next((mention.city_hint for mention in related if mention.city_hint), "周边")
         heading = f"{city}｜{'・'.join(names[:3])}"
-    elif kind == "ROUTE":
+    elif not heading and kind == "ROUTE":
         heading = " → ".join(names[:4])
-    else:
+    elif not heading:
         heading = "补充信息"
     return {
         **item,
@@ -1282,6 +1315,23 @@ def _ground_section(
         "place_mention_ids": [mention.id for mention in related],
         "supporting_quotes": quotes[:8],
     }
+
+
+def _high_information_bullets(values: list[object]) -> tuple[list[str], int]:
+    """Drop duplicate boilerplate without asking another model to review the note."""
+    result: list[str] = []
+    seen: set[str] = set()
+    removed = 0
+    for value in values:
+        text = str(value).strip()
+        key = _normalized_text(text)
+        generic = key and any(_normalized_text(item) == key for item in LOW_INFORMATION_BULLETS)
+        if not text or key in seen or generic:
+            removed += 1
+            continue
+        seen.add(key)
+        result.append(text)
+    return result, removed
 
 
 def _ground_map_facts(
@@ -1316,7 +1366,10 @@ def _ground_map_facts(
                 "segment_ids": ids,
                 "supporting_quotes": quotes[:8],
                 "place_mention_ids": [
-                    mention.id for mention in mentions if set(mention.segment_ids_json) & set(ids)
+                    mention.id
+                    for mention in mentions
+                    if mention.poi_policy not in {"REFERENCE_ONLY", "SKIP"}
+                    and set(mention.segment_ids_json) & set(ids)
                 ],
                 "places": [],
             }
@@ -1333,9 +1386,7 @@ def _compact_note_facts(facts: list[dict[str, object]]) -> list[dict[str, object
             "key_points": list(dict.fromkeys(str(item)[:300] for item in fact.get("key_points", []) if item))[
                 :8
             ],
-            "warnings": list(dict.fromkeys(str(item)[:300] for item in fact.get("warnings", []) if item))[
-                :4
-            ],
+            "warnings": list(dict.fromkeys(str(item)[:300] for item in fact.get("warnings", []) if item))[:4],
             "segment_ids": list(dict.fromkeys(str(item) for item in fact.get("segment_ids", []) if item)),
             "supporting_quotes": list(
                 dict.fromkeys(str(item)[:500] for item in fact.get("supporting_quotes", []) if item)
@@ -1566,11 +1617,7 @@ def correct_transcript(
         values = payload.get("changes")
         if not isinstance(values, list):
             raise AIProviderError("AI_PROVIDER_SCHEMA_INVALID", "校对输出缺少 changes 数组")
-        ids = [
-            str(item.get("segment_id") or "")
-            for item in values
-            if isinstance(item, dict)
-        ]
+        ids = [str(item.get("segment_id") or "") for item in values if isinstance(item, dict)]
         allowed = {segment.id for segment in batch}
         if len(ids) != len(values) or any(not value for value in ids):
             raise AIProviderError("AI_PROVIDER_SCHEMA_INVALID", "changes 必须使用 segment_id")
@@ -1581,9 +1628,7 @@ def correct_transcript(
             )
         return values
 
-    def apply_batch_result(
-        batch: list[Segment], response: LLMResult, values: list[dict[str, Any]]
-    ) -> None:
+    def apply_batch_result(batch: list[Segment], response: LLMResult, values: list[dict[str, Any]]) -> None:
         nonlocal corrected_count
         by_id = {str(item["segment_id"]): item for item in values}
         for segment in batch:
@@ -1901,8 +1946,21 @@ def generate_note(
     place_evidence_json = json.dumps(_place_evidence_index(mentions), ensure_ascii=False)
     valid_ids = {segment.id for segment in segments}
     raw_sections: list[dict[str, object]] = []
+    semantic_claims = list(grounded_map.claims_json or []) if grounded_map else []
+    claim_facts = [
+        {
+            "summary": item.get("text", ""),
+            "key_points": [item.get("text", "")],
+            "supporting_quotes": [item.get("supporting_quote", "")],
+            "segment_ids": item.get("segment_ids", []),
+            "content_unit_id": item.get("content_unit_id", ""),
+            "claim_ids": [item.get("claim_id", "")],
+        }
+        for item in semantic_claims
+        if isinstance(item, dict)
+    ]
     map_facts: list[dict[str, object]] = (
-        _ground_map_facts(grounded_map.facts_json, segments, mentions) if grounded_map else []
+        _ground_map_facts(claim_facts or grounded_map.facts_json, segments, mentions) if grounded_map else []
     )
     overview_parts: list[str] = []
     warnings: list[str] = list(grounded_map.warnings_json) if grounded_map else []
@@ -2080,12 +2138,16 @@ def generate_note(
                     return
             payload = parse_model_json(reduced.content)
             sections = payload.get("sections")
-            accepted = [
-                item
-                for item in sections if isinstance(item, dict) and any(
-                    value in valid_ids for value in item.get("segment_ids", [])
-                )
-            ] if isinstance(sections, list) else []
+            accepted = (
+                [
+                    item
+                    for item in sections
+                    if isinstance(item, dict)
+                    and any(value in valid_ids for value in item.get("segment_ids", []))
+                ]
+                if isinstance(sections, list)
+                else []
+            )
             reduced_sections.extend(accepted)
             if payload.get("overview"):
                 overview_parts.append(str(payload["overview"]).strip())
@@ -2108,9 +2170,7 @@ def generate_note(
                 request_pack(pack, pack_index=pack_index, pack_count=len(packs))
             except Exception as exc:
                 failed_segment_ids.update(
-                    str(segment_id)
-                    for fact in pack
-                    for segment_id in fact.get("segment_ids", [])
+                    str(segment_id) for fact in pack for segment_id in fact.get("segment_ids", [])
                 )
                 warnings.append(f"第 {pack_index} 个笔记归纳分包不可用")
                 record_event(
@@ -2163,6 +2223,7 @@ def generate_note(
     db.flush()
     rendered = [f"# {asset.title}", "", overview]
     created_sections = 0
+    low_information_removed = 0
     for ordinal, raw_item in enumerate(raw_sections):
         item = _ground_section(raw_item, segments, mentions)
         if item is None:
@@ -2172,9 +2233,9 @@ def generate_note(
         heading = str(item.get("heading") or f"要点 {ordinal + 1}")
         thesis = str(item.get("thesis") or item.get("summary") or "")[:500]
         summary = str(item.get("summary") or thesis)
-        bullets = [str(value) for value in item.get("bullets", []) if value][
-            : int(render_profile["max_bullets"])
-        ]
+        bullets, removed = _high_information_bullets(list(item.get("bullets", [])))
+        low_information_removed += removed
+        bullets = bullets[: int(render_profile["max_bullets"])]
         if not body:
             body = "\n".join([summary, *[f"- {value}" for value in bullets]]).strip()
         refs = [segment for segment in segments if segment.id in segment_ids]
@@ -2230,6 +2291,18 @@ def generate_note(
             )
         )
     version.markdown = "\n".join(rendered).strip() + "\n"
+    if low_information_removed:
+        warnings.append(f"已移除 {low_information_removed} 条低信息或重复要点")
+        record_event(
+            db,
+            "note.low_information_removed",
+            "已移除低信息或重复笔记要点",
+            component="video-pipeline",
+            entity_type="video_asset",
+            entity_id=asset.id,
+            detail={"count": low_information_removed},
+            commit=False,
+        )
     note.current_version_id = version.id
     note.status = "COMPLETED"
     if not response.content:
@@ -2325,6 +2398,15 @@ def extract_place_mentions(
             continue
         if _normalized_insight_key(item.get("raw_name") or item["name"]) in rejected_names:
             continue
+        poi_policy = str(item.get("poi_policy") or "LEGACY").upper()
+        if poi_policy not in {"RESOLVE", "AREA_RESOLVE", "REFERENCE_ONLY", "SKIP"}:
+            poi_policy = "LEGACY"
+        subject_role = str(item.get("subject_role") or "LEGACY").upper()
+        if subject_role not in {"PRIMARY", "SECONDARY", "REFERENCE", "CONTEXT"}:
+            subject_role = "LEGACY"
+        visit_intent = str(item.get("visit_intent") or "NOT_APPLICABLE").upper()
+        if visit_intent not in {"RECOMMENDED", "OPTIONAL", "NEUTRAL", "NOT_RECOMMENDED", "NOT_APPLICABLE"}:
+            visit_intent = "NOT_APPLICABLE"
         insights = _insights_from_candidate(item, ids, segment_texts)
         visit_windows = _visit_windows_from_candidate(item, ids, segment_texts)
         mention = PlaceMention(
@@ -2333,6 +2415,11 @@ def extract_place_mentions(
             name=str(item["name"])[:300],
             raw_name=str(item.get("raw_name") or item["name"])[:300],
             suggested_name=str(item.get("suggested_name") or item["name"])[:300],
+            content_unit_id=str(item.get("content_unit_id") or "")[:96],
+            subject_role=subject_role,
+            visit_intent=visit_intent,
+            poi_policy=poi_policy,
+            semantic_confidence=normalized_confidence(item.get("confidence")),
             city_hint=str(item.get("city_hint") or "")[:64],
             province_hint=str(item.get("province_hint") or "")[:64],
             place_type=str(item.get("place_type") or "UNKNOWN")[:64],
@@ -2341,10 +2428,23 @@ def extract_place_mentions(
             segment_ids_json=ids,
             confidence=normalized_confidence(item.get("confidence")),
             extraction_status="EXTRACTED",
-            resolution_status=ResolutionStatus.UNRESOLVED.value,
+            resolution_status=(
+                "AREA_RESOLVED"
+                if poi_policy == "AREA_RESOLVE"
+                else "SKIPPED"
+                if poi_policy in {"REFERENCE_ONLY", "SKIP"}
+                else ResolutionStatus.UNRESOLVED.value
+            ),
             metadata_json={
                 "insights": insights,
                 "visit_windows": visit_windows,
+                "semantic": {
+                    "entity_id": str(item.get("entity_id") or "")[:96],
+                    "content_unit_id": str(item.get("content_unit_id") or "")[:96],
+                    "subject_role": subject_role,
+                    "visit_intent": visit_intent,
+                    "poi_policy": poi_policy,
+                },
                 "resolver_context": {
                     "aliases": [str(value)[:300] for value in item.get("aliases", []) if value][:10],
                     "district_hint": str(item.get("district_hint") or "")[:64],
@@ -2523,6 +2623,18 @@ def resolve_mentions_with_amap(
     api_key: str | None = None,
     metrics: dict[str, int] | None = None,
 ) -> tuple[int, int]:
+    actionable = [item for item in mentions if (item.poi_policy or "LEGACY") in {"RESOLVE", "LEGACY"}]
+    skipped = [item for item in mentions if item not in actionable]
+    for mention in skipped:
+        if mention.poi_policy in {"REFERENCE_ONLY", "SKIP"}:
+            mention.resolution_status = "SKIPPED"
+        elif mention.poi_policy == "AREA_RESOLVE":
+            mention.resolution_status = "AREA_RESOLVED"
+    if metrics is not None:
+        metrics["poi_skipped_reference"] = sum(
+            item.poi_policy in {"REFERENCE_ONLY", "SKIP"} for item in skipped
+        )
+        metrics["poi_resolve_requested"] = len(actionable)
     if not mentions:
         if metrics is not None:
             metrics["amap_request_count"] = 0
@@ -2533,7 +2645,8 @@ def resolve_mentions_with_amap(
         if metrics is not None:
             metrics["amap_request_count"] = 0
             metrics["amap_cache_hit_count"] = 0
-        return 0, len(mentions)
+        db.commit()
+        return 0, len(actionable)
     provider = AMapPOIProvider(
         effective_key,
         cache_ttl_seconds=settings.amap_cache_ttl_seconds,
@@ -2550,7 +2663,7 @@ def resolve_mentions_with_amap(
     candidate_results: dict[str, list[POICandidate] | Exception] = {}
     searchable = [
         mention
-        for mention in mentions
+        for mention in actionable
         if not (
             mention.resolution_status == ResolutionStatus.CONFIRMED.value
             and (mention.metadata_json or {}).get("confirmation_origin") == "MANUAL_CONFIRMED"
@@ -2567,7 +2680,7 @@ def resolve_mentions_with_amap(
                 candidate_results[mention_id] = future.result()
             except Exception as exc:
                 candidate_results[mention_id] = exc
-    for mention in mentions:
+    for mention in actionable:
         if (
             mention.resolution_status == ResolutionStatus.CONFIRMED.value
             and (mention.metadata_json or {}).get("confirmation_origin") == "MANUAL_CONFIRMED"
@@ -2586,6 +2699,7 @@ def resolve_mentions_with_amap(
         runner_up = candidates[1] if len(candidates) > 1 else None
         shadow = _resolver_v2_shadow(mention, candidates)
         review_reasons = _poi_review_reasons(selected, runner_up)
+        resolver_v3 = _resolver_v3_decision(mention, candidates, review_reasons)
         contextual_verification: dict[str, Any] | None = None
         if shadow["decision"] == "AUTO_CONTEXTUAL":
             try:
@@ -2594,7 +2708,7 @@ def resolve_mentions_with_amap(
                 contextual = None
             if contextual is not None:
                 contextual_verification = _candidate_metadata(contextual)
-        if not _auto_strong_allowed(selected, shadow, review_reasons):
+        if resolver_v3["decision"] == "REVIEW":
             reason_codes = list(selected.match_explanation.get("review_reason_codes", []))
             if shadow["decision"] == "AUTO_CONTEXTUAL":
                 reason_codes.append(
@@ -2608,9 +2722,10 @@ def resolve_mentions_with_amap(
                 "poi_candidates": [_candidate_metadata(item) for item in candidates[:5]],
                 "reason": "；".join(review_reasons or ["候选未满足 AUTO_STRONG 门禁"]),
                 "reason_codes": list(dict.fromkeys(reason_codes or ["AUTO_STRONG_GATE_FAILED"])),
-                "poi_decision": shadow["decision"],
+                "poi_decision": resolver_v3["decision"],
                 "contextual_verification": contextual_verification,
                 "resolver_v2_shadow": shadow,
+                "resolver_v3": resolver_v3,
             }
             continue
         try:
@@ -2626,6 +2741,7 @@ def resolve_mentions_with_amap(
                 "reason_codes": ["DETAIL_VERIFICATION_FAILED"],
                 "poi_decision": "REVIEW",
                 "resolver_v2_shadow": shadow,
+                "resolver_v3": resolver_v3,
             }
             continue
         selected = verified
@@ -2680,11 +2796,12 @@ def resolve_mentions_with_amap(
             "poi_match_reasons": candidates[0].match_reasons,
             "poi_explanation": candidates[0].match_explanation,
             "poi_candidates": [_candidate_metadata(item) for item in candidates[:5]],
-            "poi_decision": "CONFIRMED",
+            "poi_decision": resolver_v3["decision"],
             "confirmation_origin": "AUTO_STRONG",
             "confirmation_at": utc_now().isoformat(),
-            "resolver_version": "poi-v1+v2-shadow",
+            "resolver_version": "poi-v3",
             "resolver_v2_shadow": shadow,
+            "resolver_v3": resolver_v3,
         }
         materialize_place_insights(db, mention)
         confirmed += 1
@@ -2692,7 +2809,94 @@ def resolve_mentions_with_amap(
     if metrics is not None:
         metrics["amap_request_count"] = int(getattr(provider, "request_count", 0))
         metrics["amap_cache_hit_count"] = int(getattr(provider, "cache_hit_count", 0))
-    return confirmed, len(mentions) - confirmed
+    if metrics is not None:
+        metrics["poi_auto_exact"] = sum(
+            item.metadata_json.get("poi_decision") == "AUTO_EXACT" for item in actionable
+        )
+        metrics["poi_auto_normalized"] = sum(
+            item.metadata_json.get("poi_decision") == "AUTO_NORMALIZED" for item in actionable
+        )
+        metrics["poi_review"] = sum(
+            item.resolution_status == ResolutionStatus.REVIEW.value for item in actionable
+        )
+        metrics["poi_unresolved"] = sum(
+            item.resolution_status == ResolutionStatus.UNRESOLVED.value for item in actionable
+        )
+    return confirmed, len(actionable) - confirmed
+
+
+def materialize_destinations(db: Session, asset: VideoAsset, mentions: list[PlaceMention]) -> tuple[int, int]:
+    """Persist AREA semantics separately and link only confirmed actionable Places."""
+    by_unit: dict[str, Destination] = {}
+    created = linked = 0
+    for mention in mentions:
+        if mention.poi_policy != "AREA_RESOLVE":
+            continue
+        canonical = (mention.city_hint or mention.name or mention.raw_name).strip()
+        if not canonical:
+            continue
+        scope_type = (
+            "DISTRICT"
+            if (mention.metadata_json or {}).get("resolver_context", {}).get("district_hint")
+            else "CITY"
+        )
+        destination = db.scalar(
+            select(Destination).where(
+                Destination.scope_type == scope_type,
+                Destination.canonical_name == canonical,
+            )
+        )
+        if destination is None:
+            destination = Destination(
+                name=mention.name,
+                canonical_name=canonical,
+                scope_type=scope_type,
+                province=mention.province_hint,
+                city=mention.city_hint or canonical,
+                district=str(
+                    (mention.metadata_json or {}).get("resolver_context", {}).get("district_hint") or ""
+                ),
+                metadata_json={"origin": "SEMANTIC_MAP", "representative_anchor": None},
+            )
+            db.add(destination)
+            db.flush()
+            created += 1
+        mention.destination_id = destination.id
+        mention.resolution_status = "AREA_RESOLVED"
+        by_unit[mention.content_unit_id] = destination
+    for mention in mentions:
+        if mention.resolution_status != ResolutionStatus.CONFIRMED.value or not mention.place_id:
+            continue
+        destination = by_unit.get(mention.content_unit_id)
+        if destination is None:
+            continue
+        exists = db.scalar(
+            select(DestinationPlaceLink).where(
+                DestinationPlaceLink.destination_id == destination.id,
+                DestinationPlaceLink.place_id == mention.place_id,
+                DestinationPlaceLink.video_asset_id == asset.id,
+                DestinationPlaceLink.content_unit_id == mention.content_unit_id,
+            )
+        )
+        if exists is not None:
+            continue
+        db.add(
+            DestinationPlaceLink(
+                destination_id=destination.id,
+                place_id=mention.place_id,
+                source_id=asset.source_id,
+                video_asset_id=asset.id,
+                place_mention_id=mention.id,
+                content_unit_id=mention.content_unit_id,
+                relation_type=("RECOMMENDED_IN" if mention.visit_intent == "RECOMMENDED" else "NEARBY"),
+                segment_ids_json=mention.segment_ids_json,
+                confidence=mention.semantic_confidence,
+                metadata_json={"subject_role": mention.subject_role, "visit_intent": mention.visit_intent},
+            )
+        )
+        linked += 1
+    db.commit()
+    return created, linked
 
 
 def _assign_geo_sessions(db: Session, mentions: list[PlaceMention]) -> None:
@@ -2878,6 +3082,9 @@ def _poi_score(
     aliases = [str(value) for value in context.get("aliases", []) if value]
     names = [value for value in (mention.suggested_name, mention.name, mention.raw_name, *aliases) if value]
     candidate_key = _normalized_insight_key(candidate.name)
+    mention_tokens = _normalized_poi_tokens(" ".join(str(value) for value in names))
+    candidate_tokens = _normalized_poi_tokens(candidate.name)
+    token_overlap = len(mention_tokens & candidate_tokens) / max(1, len(mention_tokens | candidate_tokens))
     similarity = max(
         (
             1.0
@@ -2897,7 +3104,8 @@ def _poi_score(
     location_text = " ".join((candidate.province, candidate.city, candidate.district, candidate.address))
     session_city = str(context.get("geo_session_city") or "")
     session_province = str(context.get("geo_session_province") or "")
-    effective_city = mention.city_hint or session_city
+    unit_city = str(context.get("unit_city") or "")
+    effective_city = mention.city_hint or unit_city or session_city
     effective_province = mention.province_hint or session_province
     city_match = bool(effective_city and effective_city in location_text)
     province_match = bool(effective_province and effective_province in location_text)
@@ -2946,7 +3154,9 @@ def _poi_score(
         reasons.append("视频内地域上下文匹配")
     explanation = {
         "name_match": round(similarity, 3),
+        "normalized_token_overlap": round(token_overlap, 3),
         "city_match": city_match,
+        "unit_city_match": bool(unit_city and unit_city in location_text),
         "province_match": province_match,
         "district_match": district_match,
         "category_match": category_match,
@@ -2954,8 +3164,18 @@ def _poi_score(
         "nearby_context": nearby_matches,
         "cross_place_context": cross_location_matches,
         "coordinate_valid": 73.5 <= candidate.longitude <= 135.1 and 18 <= candidate.latitude <= 53.6,
+        "reference_only": mention.poi_policy in {"REFERENCE_ONLY", "SKIP"},
+        "distance_to_unit_cluster_m": None,
     }
     return min(score, 100), reasons, explanation
+
+
+def _normalized_poi_tokens(value: str) -> set[str]:
+    """Small deterministic normalizer for short Chinese POI names and official suffixes."""
+    normalized = _normalized_insight_key(value)
+    for suffix in ("广播电视塔", "森林公园", "湿地景区", "博物馆", "风景区", "景区", "公园", "旅游区"):
+        normalized = normalized.replace(suffix, "")
+    return {normalized} if normalized else set()
 
 
 def _poi_review_reasons(selected: POICandidate, runner_up: POICandidate | None) -> list[str]:
@@ -3048,6 +3268,36 @@ def _auto_strong_allowed(selected: POICandidate, shadow: dict[str, Any], review_
     """Only strict, evidence-clean candidates can create a confirmed Place."""
     negative = set(selected.match_explanation.get("negative_evidence") or [])
     return not review_reasons and shadow.get("decision") == "AUTO_STRONG" and not negative
+
+
+def _resolver_v3_decision(
+    mention: PlaceMention, candidates: list[POICandidate], review_reasons: list[str]
+) -> dict[str, Any]:
+    """Keep the proven V2 precision gate, then name the exact/normalized V3 outcome."""
+    policy = mention.poi_policy or "LEGACY"
+    if not candidates or policy not in {"RESOLVE", "LEGACY"}:
+        return {"version": "poi-v3", "decision": "REVIEW", "features": {"policy": policy}}
+    selected = candidates[0]
+    shadow = _resolver_v2_shadow(mention, candidates)
+    if not _auto_strong_allowed(selected, shadow, review_reasons):
+        return {"version": "poi-v3", "decision": "REVIEW", "features": shadow["features"]}
+    candidate_name = _normalized_insight_key(selected.name)
+    mention_names = {
+        _normalized_insight_key(value)
+        for value in (mention.suggested_name, mention.name, mention.raw_name)
+        if value
+    }
+    decision = "AUTO_EXACT" if candidate_name in mention_names else "AUTO_NORMALIZED"
+    return {
+        "version": "poi-v3",
+        "decision": decision,
+        "selected_provider_id": selected.provider_id,
+        "features": {
+            **shadow["features"],
+            "normalized_token_overlap": selected.match_explanation.get("normalized_token_overlap", 0),
+            "unit_city_match": selected.match_explanation.get("unit_city_match", False),
+        },
+    }
 
 
 def _candidate_metadata(candidate: POICandidate) -> dict[str, Any]:

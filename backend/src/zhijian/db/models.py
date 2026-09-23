@@ -193,6 +193,53 @@ class Place(Base, TimestampMixin):
     revision: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
 
+class Destination(Base, TimestampMixin):
+    """Administrative or travel-area context; never a substitute POI."""
+
+    __tablename__ = "destinations"
+    __table_args__ = (UniqueConstraint("scope_type", "canonical_name", name="uq_destination_scope_name"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("dst"))
+    name: Mapped[str] = mapped_column(String(300), nullable=False)
+    canonical_name: Mapped[str] = mapped_column(String(300), nullable=False)
+    scope_type: Mapped[str] = mapped_column(String(32), default="OTHER", nullable=False)
+    country: Mapped[str] = mapped_column(String(64), default="中国", nullable=False)
+    province: Mapped[str] = mapped_column(String(64), default="", nullable=False)
+    city: Mapped[str] = mapped_column(String(64), default="", nullable=False)
+    district: Mapped[str] = mapped_column(String(64), default="", nullable=False)
+    adcode: Mapped[str] = mapped_column(String(32), default="", nullable=False)
+    center_latitude: Mapped[float | None] = mapped_column(Float)
+    center_longitude: Mapped[float | None] = mapped_column(Float)
+    external_provider: Mapped[str | None] = mapped_column(String(64))
+    external_area_id: Mapped[str | None] = mapped_column(String(128))
+    metadata_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class DestinationPlaceLink(Base, TimestampMixin):
+    __tablename__ = "destination_place_links"
+    __table_args__ = (
+        UniqueConstraint(
+            "destination_id",
+            "place_id",
+            "video_asset_id",
+            "content_unit_id",
+            name="uq_destination_place_video_unit",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("dpl"))
+    destination_id: Mapped[str] = mapped_column(ForeignKey("destinations.id", ondelete="CASCADE"))
+    place_id: Mapped[str] = mapped_column(ForeignKey("places.id", ondelete="CASCADE"))
+    source_id: Mapped[str | None] = mapped_column(ForeignKey("sources.id", ondelete="SET NULL"))
+    video_asset_id: Mapped[str | None] = mapped_column(ForeignKey("video_assets.id", ondelete="SET NULL"))
+    place_mention_id: Mapped[str | None] = mapped_column(ForeignKey("place_mentions.id", ondelete="SET NULL"))
+    content_unit_id: Mapped[str] = mapped_column(String(96), default="", nullable=False)
+    relation_type: Mapped[str] = mapped_column(String(32), default="RECOMMENDED_IN", nullable=False)
+    segment_ids_json: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    metadata_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+
+
 class PlaceObservation(Base):
     __tablename__ = "place_observations"
 
@@ -282,6 +329,10 @@ class GroundedMapArtifact(Base, TimestampMixin):
     semantic_options_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     facts_json: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     places_json: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    content_units_json: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    entities_json: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    relations_json: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    claims_json: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     warnings_json: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     producer_version: Mapped[str] = mapped_column(String(32), default="grounded-map-v1", nullable=False)
 
@@ -376,6 +427,11 @@ class PlaceMention(Base, TimestampMixin):
     name: Mapped[str] = mapped_column(String(300), nullable=False)
     raw_name: Mapped[str] = mapped_column(String(300), default="", nullable=False)
     suggested_name: Mapped[str] = mapped_column(String(300), default="", nullable=False)
+    content_unit_id: Mapped[str] = mapped_column(String(96), default="", nullable=False)
+    subject_role: Mapped[str] = mapped_column(String(32), default="LEGACY", nullable=False)
+    visit_intent: Mapped[str] = mapped_column(String(32), default="NOT_APPLICABLE", nullable=False)
+    poi_policy: Mapped[str] = mapped_column(String(32), default="LEGACY", nullable=False)
+    semantic_confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     city_hint: Mapped[str] = mapped_column(String(64), default="", nullable=False)
     province_hint: Mapped[str] = mapped_column(String(64), default="", nullable=False)
     place_type: Mapped[str] = mapped_column(String(64), default="UNKNOWN", nullable=False)
@@ -386,6 +442,7 @@ class PlaceMention(Base, TimestampMixin):
     extraction_status: Mapped[str] = mapped_column(String(32), default="EXTRACTED", nullable=False)
     resolution_status: Mapped[str] = mapped_column(String(32), default="UNRESOLVED", nullable=False)
     place_id: Mapped[str | None] = mapped_column(ForeignKey("places.id", ondelete="SET NULL"))
+    destination_id: Mapped[str | None] = mapped_column(ForeignKey("destinations.id", ondelete="SET NULL"))
     metadata_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     brief_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     revision: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
