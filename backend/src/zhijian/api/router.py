@@ -27,7 +27,7 @@ from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from zhijian.ai.domain_context import DOMAIN_PACK_PREFIX, DomainPack
-from zhijian.ai.job_config import ASR_DEFAULT_KEY, default_asr_provider, job_setting
+from zhijian.ai.job_config import ASR_DEFAULT_KEY, default_asr_provider, job_setting, job_stage_override
 from zhijian.ai.model_registry import (
     invoke_profile_model,
     model_profile_from_value,
@@ -916,7 +916,13 @@ def retry_from_step(
     if job is None:
         raise HTTPException(status_code=404, detail="任务不存在")
     try:
-        options = queue_step_replay(db, job, payload.step_name, payload.source_event_id)
+        options = queue_step_replay(
+            db,
+            job,
+            payload.step_name,
+            payload.source_event_id,
+            use_current_note_policy=payload.use_current_note_policy,
+        )
     except ValueError as exc:
         code, _, message = str(exc).partition(":")
         raise HTTPException(status_code=409, detail={"code": code, "message": message}) from exc
@@ -3756,7 +3762,7 @@ def _stage_profiles(db: Session) -> dict[str, dict]:
 def _resolved_stage_policy_view(db: Session, stage: str, job: Job | None = None) -> dict:
     _stage_policy_setting(db, stage)
     saved = job_setting(db, f"ai-stage-policy:{stage}", job)
-    overrides = (job.payload_json.get("ai_overrides") or {}).get(stage) if job else None
+    overrides = job_stage_override(job, stage)
     return resolve_stage_policy(stage, saved=saved or None, job_override=overrides).model_dump(mode="json")
 
 

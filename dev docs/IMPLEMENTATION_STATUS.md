@@ -90,4 +90,6 @@
 
 - 2026-09-23：真实步骤续跑证实 Ground Map 新分块和自适应备用路由有效，地图 Artifact 已交付；后续 Note Reduce 因 Job 提交快照内主模型无 `GLOBAL_SYNTHESIS` 声明、备用模型该能力 Probe 为 `FAIL`，在模型调用前停止。现有模型能力 Probe 不测试 `GLOBAL_SYNTHESIS`，不能把结构化输出通过外推为笔记综合能力；原 Job 仍需用户明确选择合规模型/路由并保留可审计恢复证据。现场采样见 CURRENT_HANDOFF。
 
+- 2026-09-24：笔记模型恢复链路已在源码修复：任务详情可显式选择“使用当前笔记模型继续”，服务端仅在本 Job 保存当前 Note 阶段策略和所选 Profile 的无密钥恢复配置、保留原提交快照与上游 Artifact，并在排队事件记录模型/Probe 状态；完整重跑会清除恢复配置。显式选定、Probe 为 `NOT_TESTED` 的模型可受 JSON/Evidence/预算门禁约束尝试，`FAIL` 仍被拒绝；步骤续跑的模型不可用错误会进入 `NEEDS_USER/PROVIDER_NOT_CONFIGURED`，页面显示中文业务提示。Note Reduce 每包按 4096 输出上限预留 1024 Token 后估算事实数，已有截断拆分和确定性提纲兜底保留。一条不改变 Job 的 DeepSeek V4 Flash 小样探测用 3 条真实 Evidence 生成 3 个有效 Segment ID 章节，JSON 合格、1055 输出 Token、未截断；这只证明小分包可行，不是整篇笔记验收。待生产加载与原 Job 续跑验证。
+
 [实施历史](history/IMPLEMENTATION_HISTORY.md) 和 [归档实施计划](history/planning/README.md) 保留旧状态与计划追溯，默认不读。当前页只保留最新结论和未闭环项；完成项不持续追加长叙事。生产现场只更新 CURRENT_HANDOFF.md；冻结约束只更新 REGRESSION_AND_CHANGE_GUARD.md。新增证据必须写明日期、对象与验证层级。

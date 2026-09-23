@@ -19,6 +19,8 @@ Custom 下允许只覆盖某几个 Stage。
 
 没有覆盖的 Stage 使用提交 Job 当时保存的 Stage Policy。Job 同时固定当时的模型路由、Profile 非密钥字段、Prompt 补充、领域包、转写处理参数、AI 通用参数与 ASR/笔记分块选择；排队期间修改设置不影响该 Job 或其完整/步骤重跑。新提交的 Job 使用更新后的设置。API Key 等凭据仍在调用时从 Secret Store 读取，不写入 Job payload。没有历史快照的旧 Job 保持兼容读取行为。
 
+失败在笔记生成步骤时，用户可明确选择“使用当前笔记模型继续”。服务端只把当前笔记阶段策略与所选 Profile 的无密钥字段记为本次 Job 的恢复配置，原提交快照及上游 Artifact 不变，并在 `job.step_replay.queued` 记录模型与探测状态。普通步骤续跑仍使用原提交配置；完整重跑会清除恢复配置。手动选定且探测为 `NOT_TESTED` 的 Profile 可进入原有 JSON、Segment Evidence 与预算门禁；`FAIL` 仍拒绝选路。
+
 例如：
 
 ```text

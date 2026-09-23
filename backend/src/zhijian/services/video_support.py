@@ -19,7 +19,7 @@ from zhijian.ai.capabilities import AICapability
 from zhijian.ai.cost_router import RouteDecision, choose_auto_route
 from zhijian.ai.domain_context import domain_context_hash, domain_context_messages
 from zhijian.ai.gateway import AIWorkloadGateway
-from zhijian.ai.job_config import SNAPSHOT_KEY, job_setting, job_video_note_chunk_chars
+from zhijian.ai.job_config import SNAPSHOT_KEY, job_setting, job_stage_override, job_video_note_chunk_chars
 from zhijian.ai.policies import resolve_stage_policy
 from zhijian.ai.reliability import AIProviderError, ModelReliabilityPolicy, resolve_reliability_policy
 from zhijian.ai.runtime_hints import read_runtime_hint, tighten_note_reduce_hint, tighten_runtime_hint
@@ -583,6 +583,7 @@ def _profile_supports_capability(
     capability: AICapability,
     *,
     allow_unverified: bool = False,
+    explicitly_selected: bool = False,
 ) -> bool:
     if not config or not bool(config.get("enabled", True)):
         return False
@@ -590,7 +591,11 @@ def _profile_supports_capability(
     probe = str((config.get("probe_results") or {}).get(capability.value) or "NOT_TESTED").upper()
     if allow_unverified:
         return True
-    return probe != "FAIL" and (not capabilities or capability.value in capabilities)
+    return probe != "FAIL" and (
+        not capabilities
+        or capability.value in capabilities
+        or (explicitly_selected and probe == "NOT_TESTED")
+    )
 
 
 def _profile_request_interval(config: dict[str, Any] | None, default: float) -> float:
@@ -612,7 +617,7 @@ def _resolved_stage_policy(db: Session, stage: str, job: Job | None):
     if not hasattr(db, "get"):
         return resolve_stage_policy(stage)
     saved = job_setting(db, f"ai-stage-policy:{stage}", job)
-    override = (job.payload_json.get("ai_overrides") or {}).get(stage) if job else None
+    override = job_stage_override(job, stage)
     return resolve_stage_policy(
         stage,
         saved=saved or None,
@@ -658,9 +663,10 @@ def provider_for_role(
     routes = job_setting(db, "model-routing", job)
     primary_id = str(routes.get("primary_id") or "")
     fallback_id = str(routes.get("fallback_id") or "")
+    configured_profile_ids = (primary_id, fallback_id)
     stage = ROLE_STAGE.get(role)
     stage_setting = job_setting(db, f"ai-stage-policy:{stage}", job) if stage else {}
-    job_override = (job.payload_json.get("ai_overrides") or {}).get(stage) if job and stage else None
+    job_override = job_stage_override(job, stage) if stage else None
     automation_enabled = bool(job and job.payload_json.get("ai_automation_version") == "v2")
     resolved_policy = (
         resolve_stage_policy(
@@ -730,12 +736,16 @@ def provider_for_role(
             primary_config,
             resolved_policy.capability,
             allow_unverified=resolved_policy.allow_unverified_model,
+            explicitly_selected=primary_id
+            in {resolved_policy.local_profile_id, resolved_policy.remote_profile_id},
         ):
             primary_config = None
         if not _profile_supports_capability(
             fallback_config,
             resolved_policy.capability,
             allow_unverified=resolved_policy.allow_unverified_model,
+            explicitly_selected=fallback_id
+            in {resolved_policy.local_profile_id, resolved_policy.remote_profile_id},
         ):
             fallback_config = None
     policy = GeneralConfig(**job_setting(db, "app:general", job))
@@ -928,6 +938,13 @@ def provider_for_role(
         primary_id, primary_config = fallback_id, fallback_config
         fallback_id, fallback_config = "", None
     if primary_config is None:
+        if any(configured_profile_ids) or (
+            resolved_policy and (resolved_policy.local_profile_id or resolved_policy.remote_profile_id)
+        ):
+            stage_label = {"NOTE_REDUCE": "笔记归纳", "GENERATE_AI_NOTE": "视频笔记"}.get(
+                stage or "", stage or role
+            )
+            raise ProviderUnavailable(f"{stage_label}所选模型不满足阶段能力要求或探测失败")
         raise ProviderUnavailable("尚未在设置中选择主模型")
     if resolved_policy and resolved_policy.allow_unverified_model and job:
         record_event(
@@ -2123,7 +2140,15 @@ def generate_note(
             int(reduce_policy.max_input_tokens or 6000),
             int(saved_hint.get("safe_max_input_tokens") or 6000),
         )
-        max_facts = int(saved_hint.get("safe_max_facts") or 40)
+        output_tokens = int(
+            reduce_policy.max_output_tokens
+            or getattr(getattr(provider, "request_options", None), "max_output_tokens", None)
+            or 4096
+        )
+        max_facts = min(
+            int(saved_hint.get("safe_max_facts") or 40),
+            max(1, (output_tokens - 1024) // 256),
+        )
         compact_facts = _compact_note_facts(map_facts)
         fixed_chars = (
             len(system_text)

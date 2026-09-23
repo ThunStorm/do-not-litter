@@ -58,6 +58,7 @@ from zhijian.services.video_pipeline import (
     _trusted_transcript_or_raise,
 )
 from zhijian.services.video_support import (
+    ProviderUnavailable,
     _place_evidence_index,
     _section_facts,
     build_place_notes,
@@ -834,7 +835,16 @@ def test_cancellation_is_checked_before_fallback_model() -> None:
     assert fallback_calls == 0
 
 
-def test_replay_provider_throttle_becomes_needs_user(monkeypatch, app_and_session) -> None:
+@pytest.mark.parametrize(
+    ("failure", "expected_code"),
+    [
+        (AIProviderError("AI_PROVIDER_THROTTLED", "TPM/RPM 暂时受限"), "AI_PROVIDER_THROTTLED"),
+        (ProviderUnavailable("尚未在设置中选择主模型"), "PROVIDER_NOT_CONFIGURED"),
+    ],
+)
+def test_replay_provider_failure_becomes_needs_user(
+    monkeypatch, app_and_session, failure: Exception, expected_code: str
+) -> None:
     _, factory = app_and_session
     with factory() as db:
         job = Job(
@@ -857,16 +867,14 @@ def test_replay_provider_throttle_becomes_needs_user(monkeypatch, app_and_sessio
         monkeypatch.setattr(
             video_pipeline,
             "_process_video_replay",
-            lambda *_args: (_ for _ in ()).throw(
-                AIProviderError("AI_PROVIDER_THROTTLED", "TPM/RPM 暂时受限")
-            ),
+            lambda *_args: (_ for _ in ()).throw(failure),
         )
 
         video_pipeline.process_video_job(db, job, Settings(_env_file=None))
 
         db.refresh(job)
         assert job.status == "NEEDS_USER"
-        assert job.error_code == "AI_PROVIDER_THROTTLED"
+        assert job.error_code == expected_code
         step = db.scalar(
             select(JobStep).where(
                 JobStep.job_id == job.id,
@@ -880,7 +888,7 @@ def test_replay_provider_throttle_becomes_needs_user(monkeypatch, app_and_sessio
                 SystemEvent.event_type == "job.step_replay.needs_user",
             )
         )
-        assert event and event.detail_json["code"] == "AI_PROVIDER_THROTTLED"
+        assert event and event.detail_json["code"] == expected_code
 
 
 def test_replay_cancellation_does_not_turn_into_failure(monkeypatch, app_and_session) -> None:

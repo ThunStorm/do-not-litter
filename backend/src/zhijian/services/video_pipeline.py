@@ -606,7 +606,7 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
             _process_video_replay(db, job, settings, str(job.payload_json["replay_from_step"]))
         except JobCancelled:
             _observe_cancelled_job(db, job_id)
-        except NeedsUser as exc:
+        except (NeedsUser, ProviderUnavailable) as exc:
             db.rollback()
             replay_job = db.get(Job, job_id)
             if replay_job:

@@ -6,8 +6,9 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from zhijian.ai.job_config import RECOVERY_KEY, secret_free_model_profile
 from zhijian.core.time import as_utc, utc_now
-from zhijian.db.models import Job, JobStep, JobStepArtifact, SystemEvent
+from zhijian.db.models import GroundedMapArtifact, Job, JobStep, JobStepArtifact, Setting, SystemEvent
 from zhijian.domain.enums import JobStatus
 from zhijian.services.audit import record_event
 from zhijian.services.video_support import prompt_supplement_hash
@@ -43,8 +44,57 @@ FULL_REPLAY_CLEARED_PAYLOAD_KEYS = {
     "replay_from_step",
     "source_event_id",
     "skip_login_step",
+    RECOVERY_KEY,
+    "ai_recovery_overrides",
     FULL_REPLAY_DEFERRED_KEY,
 }
+
+
+def _current_note_recovery(db: Session, job: Job) -> dict | None:
+    transcript_id = str(job.payload_json.get("transcript_id") or "")
+    has_map = bool(
+        transcript_id
+        and db.scalar(
+            select(GroundedMapArtifact.id).where(GroundedMapArtifact.transcript_id == transcript_id)
+        )
+    )
+    stage = "NOTE_REDUCE" if has_map else "GENERATE_AI_NOTE"
+    setting = db.get(Setting, f"ai-stage-policy:{stage}")
+    policy = setting.value_json if setting and isinstance(setting.value_json, dict) else {}
+    mode = str(policy.get("execution_mode") or "")
+    selected_id = (
+        policy.get("remote_profile_id")
+        if mode in {"REMOTE_FIRST", "REMOTE_ONLY"}
+        else policy.get("local_profile_id")
+        if mode in {"LOCAL_FIRST", "LOCAL_ONLY"}
+        else None
+    )
+    profile_id = str(selected_id or "")
+    if not profile_id:
+        return None
+    profile_setting = db.get(Setting, f"model-profile:{profile_id}")
+    profile = (
+        profile_setting.value_json if profile_setting and isinstance(profile_setting.value_json, dict) else {}
+    )
+    probe = str((profile.get("probe_results") or {}).get("GLOBAL_SYNTHESIS") or "NOT_TESTED").upper()
+    expected_location = "REMOTE" if mode.startswith("REMOTE") else "LOCAL"
+    if (
+        not profile
+        or not profile.get("enabled", True)
+        or profile.get("location") != expected_location
+        or probe == "FAIL"
+    ):
+        return None
+    return {
+        "stage": stage,
+        "policy": {
+            key: value for key, value in policy.items() if key not in {"stage", "capability", "version"}
+        },
+        "profile_id": profile_id,
+        "profile": secret_free_model_profile(profile),
+        "profile_name": str(profile.get("name") or profile.get("model") or profile_id),
+        "probe": probe,
+    }
 
 
 def full_replay_options(job: Job) -> dict:
@@ -220,6 +270,7 @@ def replay_options(db: Session, job: Job) -> dict:
     if expired:
         return _unavailable(job, "REPLAY_ARTIFACT_EXPIRED", f"中间产物已清理：{expired[0]}")
     deadline = min((as_utc(artifacts[name].replayable_until) for name in required), default=now)
+    note_recovery = _current_note_recovery(db, job) if failed.step_name == "GENERATE_AI_NOTE" else None
     return {
         "step_replay_available": True,
         "replay_from_step": failed.step_name,
@@ -230,17 +281,32 @@ def replay_options(db: Session, job: Job) -> dict:
         "reason": None,
         "code": None,
         "prompt_changed_steps": prompt_changed_steps,
+        "note_policy_refresh_available": note_recovery is not None,
+        "note_policy_refresh_model": note_recovery["profile_name"] if note_recovery else None,
+        "note_policy_refresh_probe": note_recovery["probe"] if note_recovery else None,
         **_login_recovery_options(job, failed.step_name),
         **full_replay_options(job),
     }
 
 
-def queue_step_replay(db: Session, job: Job, step_name: str, source_event_id: str | None = None) -> dict:
+def queue_step_replay(
+    db: Session,
+    job: Job,
+    step_name: str,
+    source_event_id: str | None = None,
+    *,
+    use_current_note_policy: bool = False,
+) -> dict:
     options = replay_options(db, job)
     if not options["step_replay_available"]:
         raise ValueError(f"{options['code']}:{options['reason']}")
     if step_name != options["replay_from_step"]:
         raise ValueError("REPLAY_STEP_MISMATCH:请求步骤与服务端可续跑步骤不一致")
+    note_recovery = None
+    if use_current_note_policy:
+        note_recovery = _current_note_recovery(db, job) if step_name == "GENERATE_AI_NOTE" else None
+        if note_recovery is None:
+            raise ValueError("REPLAY_NOTE_POLICY_UNAVAILABLE:当前笔记模型设置不可用于此步骤")
     if source_event_id:
         event = db.get(SystemEvent, source_event_id)
         if (
@@ -267,8 +333,16 @@ def queue_step_replay(db: Session, job: Job, step_name: str, source_event_id: st
         if artifact.step_name in VIDEO_STEP_ORDER[start:]:
             artifact.status = "INVALIDATED"
             artifact.invalidated_at = utc_now()
+    payload = {key: value for key, value in job.payload_json.items() if key != "ai_soft_budget"}
+    if note_recovery:
+        settings = dict((payload.get(RECOVERY_KEY) or {}).get("settings") or {})
+        settings[f"model-profile:{note_recovery['profile_id']}"] = note_recovery["profile"]
+        payload[RECOVERY_KEY] = {"version": 1, "settings": settings}
+        overrides = dict(payload.get("ai_recovery_overrides") or {})
+        overrides[note_recovery["stage"]] = note_recovery["policy"]
+        payload["ai_recovery_overrides"] = overrides
     job.payload_json = {
-        **{key: value for key, value in job.payload_json.items() if key != "ai_soft_budget"},
+        **payload,
         "replay_from_step": step_name,
         "source_event_id": source_event_id,
     }
@@ -291,6 +365,16 @@ def queue_step_replay(db: Session, job: Job, step_name: str, source_event_id: st
             "source_event_id": source_event_id,
             "reused_steps": options["reused_steps"],
             "rerun_steps": options["rerun_steps"],
+            "note_policy_refresh": (
+                {
+                    "stage": note_recovery["stage"],
+                    "profile_id": note_recovery["profile_id"],
+                    "model": note_recovery["profile"].get("model"),
+                    "probe": note_recovery["probe"],
+                }
+                if note_recovery
+                else None
+            ),
         },
         commit=False,
     )

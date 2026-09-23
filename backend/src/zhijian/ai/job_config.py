@@ -12,6 +12,7 @@ from zhijian.core.config import Settings
 from zhijian.db.models import Job, Setting
 
 SNAPSHOT_KEY = "ai_submission_config"
+RECOVERY_KEY = "ai_recovery_config"
 _SETTING_KEYS = {"model-routing", "app:general", "prompt:supplements", "transcript-processing"}
 _SETTING_PREFIXES = ("model-profile:", "ai-stage-policy:", "ai-domain-pack:")
 _SECRET_FIELDS = {"api_key", "secret", "token", "password", "cookie", "authorization"}
@@ -40,7 +41,7 @@ def capture_ai_config(db: Session, settings: Settings) -> dict[str, Any]:
             continue
         value = deepcopy(row.value_json)
         if row.key.startswith("model-profile:"):
-            value = {key: item for key, item in value.items() if key.lower() not in _SECRET_FIELDS}
+            value = secret_free_model_profile(value)
         values[row.key] = value
     return {
         "version": 1,
@@ -50,7 +51,16 @@ def capture_ai_config(db: Session, settings: Settings) -> dict[str, Any]:
     }
 
 
+def secret_free_model_profile(value: dict[str, Any]) -> dict[str, Any]:
+    return {key: deepcopy(item) for key, item in value.items() if key.lower() not in _SECRET_FIELDS}
+
+
 def job_setting(db: Session, key: str, job: Job | None = None) -> dict[str, Any]:
+    recovery = (job.payload_json or {}).get(RECOVERY_KEY) if job else None
+    recovery_values = recovery.get("settings") if isinstance(recovery, dict) else None
+    if isinstance(recovery_values, dict) and key in recovery_values:
+        value = recovery_values[key]
+        return deepcopy(value) if isinstance(value, dict) else {}
     snapshot = (job.payload_json or {}).get(SNAPSHOT_KEY) if job else None
     if isinstance(snapshot, dict) and snapshot.get("version") == 1:
         values = snapshot.get("settings")
@@ -59,6 +69,15 @@ def job_setting(db: Session, key: str, job: Job | None = None) -> dict[str, Any]
         row = db.get(Setting, key)
         value = row.value_json if row else None
     return deepcopy(value) if isinstance(value, dict) else {}
+
+
+def job_stage_override(job: Job | None, stage: str) -> dict[str, Any] | None:
+    if job is None:
+        return None
+    submitted = (job.payload_json.get("ai_overrides") or {}).get(stage) or {}
+    recovery = (job.payload_json.get("ai_recovery_overrides") or {}).get(stage) or {}
+    merged = {**submitted, **recovery}
+    return merged or None
 
 
 def job_video_note_chunk_chars(job: Job | None, default: int) -> int:

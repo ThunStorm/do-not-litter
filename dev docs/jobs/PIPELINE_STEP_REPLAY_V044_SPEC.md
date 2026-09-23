@@ -124,6 +124,8 @@ Artifact 状态：`AVAILABLE / EXPIRED / INVALIDATED / MISSING`。
 - 写入 `job.step_replay.queued/started/completed/failed` 审计链；
 - 新 Attempt 再失败时保留旧 ERROR 和旧 Attempt。
 
+笔记步骤因提交时模型路由不可用而失败时，Replay Options 可展示当前设置中明确选定的笔记模型。用户选择“使用当前笔记模型继续”后，步骤续跑请求携带 `use_current_note_policy=true`；服务端只覆盖该 Job 的笔记阶段恢复策略与选定 Profile 的无密钥字段，保留原提交快照并在排队事件中记录新模型。未选择此动作时仍按提交快照续跑；真实 `GLOBAL_SYNTHESIS` Probe 为 `FAIL` 的模型不可借此绕过。
+
 完整重跑是不同动作：从 Pipeline 首个步骤开始，可按缓存策略复用，但不保证跳过任何步骤。
 
 取消不是失败步骤。步骤续跑仍只在有明确失败步骤与有效 Artifact 时可用。完整重跑是独立动作：任何状态下均复用原 Job ID；终态 Job 立即清除步骤执行态并重新 `QUEUED`，运行中的 Job 先协作式取消，Worker 在安全边界释放 lease 后将同一 Job 从首步重新入队。保留 Job ID 与 SystemEvent/ExternalCallAudit，重置 Step 执行态和中间 Artifact，避免生成同标题替代 Job 或两个流程并发写同一结果。

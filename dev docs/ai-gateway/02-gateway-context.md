@@ -533,6 +533,8 @@ Replay：重置本轮预算状态，历史审计只作证据，不消耗新一�
 
 Ground Map 的跨 Job `safe_max_chars` Hint 只统计正文字符；传给通用分块器时须加回每 Segment 的 80 字结构开销，并同时遵守 `safe_max_segments`。不得把 5 段的安全 Hint 错解释成每块 1 段，放大真实模型调用次数。
 
+笔记归纳的 Evidence Pack 同时受输入预算、已学习安全事实数和输出预算限制：每包预留约 1024 输出 Token，其余按每个事实约 256 Token 保守估算。此预分包只减少容易截断的大请求；模型结果仍必须通过 JSON、Segment ID 与逐字 Evidence 校验，截断拆分与确定性提纲兜底保持可用。
+
 只有 `capability=LLM` 且非 Cache Hit 的真实模型尝试进入调用次数；视频解析、字幕、下载、ASR 等外部调用不得混入。预算在 Provider 请求前拒绝时，不记录成 Provider 调用失败，也不得切换备用模型。不得无限 retry。
 
 ---

@@ -15,6 +15,7 @@ from zhijian.db.models import (
     AINoteVersion,
     ContentItem,
     ExternalCallAudit,
+    GroundedMapArtifact,
     Job,
     JobStep,
     JobStepArtifact,
@@ -25,6 +26,7 @@ from zhijian.db.models import (
     Setting,
     Source,
     SystemEvent,
+    Transcript,
     VideoAsset,
 )
 from zhijian.main import SPAStaticFiles
@@ -37,7 +39,7 @@ from zhijian.services.place_knowledge import normalize_insight
 from zhijian.services.runtime_monitor import METRICS_SAMPLE_KEY
 from zhijian.services.video_note_search import sync_video_note_search_index
 from zhijian.services.video_screenshots import _quality, plan_screenshots
-from zhijian.services.video_support import materialize_transcript
+from zhijian.services.video_support import materialize_transcript, prompt_supplement_hash, provider_for_role
 
 
 def test_health(client) -> None:
@@ -476,6 +478,158 @@ def test_failed_video_step_replays_only_current_and_downstream(
         assert steps["CORRECT_TRANSCRIPT"] == "PENDING"
 
 
+def test_note_replay_can_explicitly_use_current_stage_model_without_rewriting_snapshot(
+    client, app_and_session, monkeypatch
+) -> None:
+    _, factory = app_and_session
+    local = {
+        "name": "提交时本地模型",
+        "provider": "Ollama",
+        "model": "local-old",
+        "location": "LOCAL",
+        "base_url": "http://127.0.0.1:11434",
+        "enabled": True,
+        "capabilities": ["STRUCTURED_EXTRACTION"],
+    }
+    remote = {
+        "name": "DeepSeek V4 Pro",
+        "provider": "DeepSeek",
+        "model": "deepseek-v4-pro",
+        "location": "REMOTE",
+        "base_url": "https://api.example.test/v1",
+        "enabled": True,
+        "capabilities": ["STRUCTURED_EXTRACTION"],
+        "probe_results": {"GLOBAL_SYNTHESIS": "NOT_TESTED"},
+        "api_key": "must-not-enter-job",
+    }
+    with factory() as db:
+        source = Source(source_type="URL", locator="https://example.test/note-replay", title="fixture")
+        db.add(source)
+        db.flush()
+        asset = VideoAsset(source_id=source.id, canonical_url=source.locator, title="fixture")
+        db.add(asset)
+        db.flush()
+        transcript = Transcript(
+            video_asset_id=asset.id, version=1, source_kind="ASR", text="证据", segment_count=1
+        )
+        db.add(transcript)
+        db.flush()
+        db.add(
+            GroundedMapArtifact(
+                video_asset_id=asset.id,
+                transcript_id=transcript.id,
+                transcript_version=1,
+                content_hash="content",
+                semantic_hash="note-replay-fixture",
+                prompt_version="v1",
+                supplement_hash="none",
+                provider="ollama",
+                model="local-old",
+            )
+        )
+        db.add(Setting(key="model-profile:pro", value_json=remote))
+        db.add(
+            Setting(
+                key="ai-stage-policy:NOTE_REDUCE",
+                value_json={
+                    "stage": "NOTE_REDUCE",
+                    "capability": "GLOBAL_SYNTHESIS",
+                    "execution_mode": "REMOTE_FIRST",
+                    "remote_profile_id": "pro",
+                },
+            )
+        )
+        snapshot = {
+            "version": 1,
+            "settings": {
+                "model-routing": {"primary_id": "local", "fallback_id": None},
+                "model-profile:local": local,
+                "ai-stage-policy:NOTE_REDUCE": {"execution_mode": "LOCAL_FIRST"},
+            },
+        }
+        job = Job(
+            job_type="TRAVEL",
+            status="FAILED",
+            current_step="GENERATE_AI_NOTE",
+            error="尚未在设置中选择主模型",
+            payload_json={"transcript_id": transcript.id, "ai_submission_config": snapshot},
+        )
+        db.add(job)
+        db.flush()
+        prompt_roles = {
+            "CORRECT_TRANSCRIPT": "transcript_correction",
+            "EXTRACT_TRAVEL_FACTS": "travel_place_extraction",
+        }
+        for name in VIDEO_STEP_ORDER[: VIDEO_STEP_ORDER.index("GENERATE_AI_NOTE")]:
+            db.add(
+                JobStep(
+                    job_id=job.id,
+                    step_name=name,
+                    status="COMPLETED",
+                    progress=100,
+                    input_json={"prompt_supplement_hash": prompt_supplement_hash(db, prompt_roles[name], job)}
+                    if name in prompt_roles
+                    else {},
+                )
+            )
+            db.add(
+                JobStepArtifact(
+                    job_id=job.id,
+                    step_name=name,
+                    artifact_ref_json={"ok": True},
+                    replayable_until=datetime.now(UTC) + timedelta(hours=1),
+                )
+            )
+        db.add(
+            JobStep(
+                job_id=job.id,
+                step_name="GENERATE_AI_NOTE",
+                status="FAILED",
+                input_json={"prompt_supplement_hash": prompt_supplement_hash(db, "video_note_summary", job)},
+            )
+        )
+        db.commit()
+        job_id = job.id
+    with factory() as db:
+        saved = db.get(Setting, "model-profile:pro")
+        assert saved
+        saved.value_json = {**saved.value_json, "probe_results": {"GLOBAL_SYNTHESIS": "FAIL"}}
+        db.commit()
+    assert client.get(f"/api/jobs/{job_id}/replay-options").json()["note_policy_refresh_available"] is False
+    with factory() as db:
+        saved = db.get(Setting, "model-profile:pro")
+        assert saved
+        saved.value_json = {**saved.value_json, "probe_results": {"GLOBAL_SYNTHESIS": "NOT_TESTED"}}
+        db.commit()
+    options = client.get(f"/api/jobs/{job_id}/replay-options").json()
+    assert options["note_policy_refresh_available"] is True
+    assert options["note_policy_refresh_model"] == "DeepSeek V4 Pro"
+    queued = client.post(
+        f"/api/jobs/{job_id}/retry-from-step",
+        json={"step_name": "GENERATE_AI_NOTE", "use_current_note_policy": True},
+    )
+    assert queued.status_code == 200
+    with factory() as db:
+        job = db.get(Job, job_id)
+        assert job and job.status == "QUEUED"
+        assert job.payload_json["ai_submission_config"] == snapshot
+        assert job.payload_json["ai_recovery_overrides"]["NOTE_REDUCE"]["remote_profile_id"] == "pro"
+        assert "api_key" not in str(job.payload_json["ai_recovery_config"])
+        monkeypatch.setattr(
+            "zhijian.services.video_support._provider_from_config",
+            lambda config, *_args: (object(), "deepseek", str(config["model"])),
+        )
+        _, _, model = provider_for_role(db, Settings(_env_file=None), "note_reduce", job)
+        assert model == "deepseek-v4-pro"
+        event = db.scalar(
+            select(SystemEvent).where(
+                SystemEvent.entity_id == job_id,
+                SystemEvent.event_type == "job.step_replay.queued",
+            )
+        )
+        assert event and event.detail_json["note_policy_refresh"]["profile_id"] == "pro"
+
+
 def test_full_replay_stops_active_job_and_requeues_same_job(client, app_and_session) -> None:
     _, factory = app_and_session
     with factory() as db:
@@ -545,6 +699,8 @@ def test_full_replay_reuses_terminal_job_id(client, app_and_session) -> None:
                 "title": "终态完整重跑",
                 "replay_from_step": "CORRECT_TRANSCRIPT",
                 "ai_soft_budget": {"status": "HARD_LIMIT"},
+                "ai_recovery_config": {"version": 1, "settings": {"model-profile:pro": {"model": "pro"}}},
+                "ai_recovery_overrides": {"NOTE_REDUCE": {"execution_mode": "REMOTE_ONLY"}},
             },
         )
         db.add(job)
@@ -568,6 +724,8 @@ def test_full_replay_reuses_terminal_job_id(client, app_and_session) -> None:
         assert job.retry_count == 3
         assert "replay_from_step" not in job.payload_json
         assert "ai_soft_budget" not in job.payload_json
+        assert "ai_recovery_config" not in job.payload_json
+        assert "ai_recovery_overrides" not in job.payload_json
 
 
 def test_general_settings_include_ai_retry_defaults(client) -> None:
