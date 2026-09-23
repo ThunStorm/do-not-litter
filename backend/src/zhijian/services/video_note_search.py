@@ -46,7 +46,20 @@ def sync_video_note_search_index(
         .where(AINoteSection.ai_note_version_id == version.id)
         .order_by(AINoteSection.ordinal)
     ).all()
-    places = db.scalars(select(PlaceMention).where(PlaceMention.video_asset_id == asset.id)).all()
+    places = db.scalars(
+        select(PlaceMention).where(PlaceMention.ai_note_version_id == version.id)
+    ).all()
+    if not places and note.submission_job_id:
+        places = db.scalars(
+            select(PlaceMention).where(PlaceMention.submission_job_id == note.submission_job_id)
+        ).all()
+    if not places and note.submission_job_id is None:
+        places = db.scalars(
+            select(PlaceMention).where(
+                PlaceMention.video_asset_id == asset.id,
+                PlaceMention.submission_job_id.is_(None),
+            )
+        ).all()
     section_text = "\n".join(
         f"{item.heading}\n{item.summary}\n{item.body_markdown}" for item in sections
     )

@@ -197,9 +197,7 @@ def test_grounded_map_splits_truncated_chunks(app_and_session, monkeypatch) -> N
 def test_grounded_map_prechunks_for_local_models(app_and_session, monkeypatch) -> None:
     _, factory = app_and_session
     batch_sizes: list[int] = []
-    monkeypatch.setattr(
-        "zhijian.ai.gateway.local_ai_resource_manager.run", lambda _kind, call: call()
-    )
+    monkeypatch.setattr("zhijian.ai.gateway.local_ai_resource_manager.run", lambda _kind, call: call())
 
     class Provider:
         def generate_json(self, messages, *, model):
@@ -258,3 +256,5 @@ def test_note_profile_regeneration_starts_at_reduce(client, app_and_session) -> 
         job = db.get(Job, response.json()["job_id"])
         assert job and job.payload_json["replay_from_step"] == "GENERATE_AI_NOTE"
         assert job.payload_json["video_asset_id"] == asset_id
+        assert job.payload_json["note_id"] == note_id
+        assert job.payload_json["ai_submission_config"]["version"] == 1

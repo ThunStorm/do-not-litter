@@ -3,8 +3,9 @@ from dataclasses import dataclass
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from zhijian.ai.job_config import job_setting
 from zhijian.core.time import as_utc, utc_now
-from zhijian.db.models import ExternalCallAudit, Job, Setting, Transcript, VideoAsset
+from zhijian.db.models import ExternalCallAudit, Job, Transcript, VideoAsset
 from zhijian.domain.schemas import GeneralConfig
 from zhijian.services.audit import record_event
 
@@ -22,11 +23,8 @@ class SoftBudgetState:
     projected_prompt_tokens: int
 
 
-def _config(db: Session) -> GeneralConfig:
-    setting = db.get(Setting, "app:general")
-    return GeneralConfig(
-        **(setting.value_json if setting and isinstance(setting.value_json, dict) else {})
-    )
+def _config(db: Session, job: Job | None) -> GeneralConfig:
+    return GeneralConfig(**job_setting(db, "app:general", job))
 
 
 def _expected_budget(db: Session, job: Job, input_chars: int) -> dict[str, int]:
@@ -73,7 +71,7 @@ def soft_budget_state(
 ) -> SoftBudgetState | None:
     if job is None:
         return None
-    config = _config(db)
+    config = _config(db, job)
     location = location.upper()
     previous = (job.payload_json.get("ai_soft_budget") or {}).get("status")
     expected = _expected_budget(db, job, input_chars)
@@ -152,7 +150,7 @@ def ensure_ai_budget(
 ) -> SoftBudgetState | None:
     if job is None:
         return None
-    config = _config(db)
+    config = _config(db, job)
     elapsed = (utc_now() - as_utc(job.started_at)).total_seconds() if job.started_at else 0
     if elapsed >= config.ai_max_wall_time_seconds_per_job:
         raise AIBudgetExceeded("本轮任务已达到 AI 处理时长上限")

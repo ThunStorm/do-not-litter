@@ -173,7 +173,7 @@ def replay_options(db: Session, job: Job) -> dict:
         for step_name, role in PROMPT_ROLE_BY_STEP.items()
         if VIDEO_STEP_ORDER.index(step_name) <= index
         and steps.get(step_name)
-        and steps[step_name].input_json.get("prompt_supplement_hash") != prompt_supplement_hash(db, role)
+        and steps[step_name].input_json.get("prompt_supplement_hash") != prompt_supplement_hash(db, role, job)
     ]
     if prompt_changed_steps:
         index = min(VIDEO_STEP_ORDER.index(step_name) for step_name in prompt_changed_steps)

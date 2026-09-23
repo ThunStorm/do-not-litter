@@ -27,6 +27,7 @@ from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from zhijian.ai.domain_context import DOMAIN_PACK_PREFIX, DomainPack
+from zhijian.ai.job_config import job_setting
 from zhijian.ai.model_registry import (
     invoke_profile_model,
     model_profile_from_value,
@@ -3066,7 +3067,7 @@ def list_place_reviews(
             PlaceMention.resolution_status.in_(
                 [ResolutionStatus.REVIEW.value, ResolutionStatus.UNRESOLVED.value]
             ),
-            PlaceMention.extraction_status != "USER_REJECTED",
+            PlaceMention.extraction_status == "EXTRACTED",
             PlaceMention.poi_policy.in_(["RESOLVE", "LEGACY"]),
         )
     ).all()
@@ -3086,7 +3087,7 @@ def place_review_count(_: Protected, db: Session = Depends(get_db)) -> dict[str,
                 PlaceMention.resolution_status.in_(
                     [ResolutionStatus.REVIEW.value, ResolutionStatus.UNRESOLVED.value]
                 ),
-                PlaceMention.extraction_status != "USER_REJECTED",
+                PlaceMention.extraction_status == "EXTRACTED",
                 PlaceMention.poi_policy.in_(["RESOLVE", "LEGACY"]),
             )
         )
@@ -3155,6 +3156,8 @@ def search_place_review(
     mention = db.get(PlaceMention, mention_id)
     if mention is None or mention.extraction_status == "USER_REJECTED":
         raise HTTPException(status_code=404, detail={"code": "PLACE_NOT_FOUND"})
+    if mention.extraction_status == "SUPERSEDED":
+        raise HTTPException(status_code=409, detail={"code": "MENTION_SUPERSEDED"})
     if mention.poi_policy not in {"RESOLVE", "LEGACY"}:
         raise HTTPException(status_code=409, detail={"code": "MENTION_NOT_POI_ELIGIBLE"})
     if mention.revision != payload.expected_revision:
@@ -3197,6 +3200,8 @@ def confirm_place_review(
         raise HTTPException(status_code=404, detail={"code": "PLACE_NOT_FOUND"})
     if mention.extraction_status == "USER_REJECTED":
         raise HTTPException(status_code=409, detail={"code": "MENTION_REJECTED"})
+    if mention.extraction_status == "SUPERSEDED":
+        raise HTTPException(status_code=409, detail={"code": "MENTION_SUPERSEDED"})
     if mention.poi_policy not in {"RESOLVE", "LEGACY"}:
         raise HTTPException(status_code=409, detail={"code": "MENTION_NOT_POI_ELIGIBLE"})
     if payload.expected_revision is not None and mention.revision != payload.expected_revision:
@@ -3280,6 +3285,8 @@ def update_place_mention_review(
     mention = db.get(PlaceMention, mention_id)
     if mention is None:
         raise HTTPException(status_code=404, detail={"code": "PLACE_NOT_FOUND"})
+    if mention.extraction_status == "SUPERSEDED":
+        raise HTTPException(status_code=409, detail={"code": "MENTION_SUPERSEDED"})
     if action == "reject" and mention.extraction_status == "USER_REJECTED":
         return {
             "mention_id": mention.id,
@@ -3690,10 +3697,10 @@ def _stage_profiles(db: Session) -> dict[str, dict]:
 
 
 def _resolved_stage_policy_view(db: Session, stage: str, job: Job | None = None) -> dict:
-    setting = _stage_policy_setting(db, stage)
-    saved = setting.value_json if setting and isinstance(setting.value_json, dict) else None
+    _stage_policy_setting(db, stage)
+    saved = job_setting(db, f"ai-stage-policy:{stage}", job)
     overrides = (job.payload_json.get("ai_overrides") or {}).get(stage) if job else None
-    return resolve_stage_policy(stage, saved=saved, job_override=overrides).model_dump(mode="json")
+    return resolve_stage_policy(stage, saved=saved or None, job_override=overrides).model_dump(mode="json")
 
 
 @router.get("/api/ai/stages")

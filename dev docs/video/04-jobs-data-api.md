@@ -67,8 +67,10 @@ ExternalCallAudit
 Source 1 ── * Snapshot
 Snapshot 1 ── 1 VideoAsset
 VideoAsset 1 ── * Transcript
+VideoAsset 1 ── * AINote（每次独立提交一篇；同一 Job 重跑产生该 Note 的新 Version）
+Job 1 ── 0..1 AINote（新提交使用提交时 AI 配置快照）
 Transcript 1 ── * Segment
-ContentItem 1 ── * AINoteVersion
+ContentItem 1 ── 1 AINote 当前版本投影
 AINoteVersion 1 ── * AINoteSection
 AINoteSection 1 ── * VideoScreenshot
 Segment 1 ── * Claim/Evidence

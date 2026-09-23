@@ -97,7 +97,7 @@ Artifact 状态：`AVAILABLE / EXPIRED / INVALIDATED / MISSING`。
 2. ERROR/CRITICAL 事件规范关联该 Job 和失败 Step；
 3. 请求 step_name 等于服务端判定的最早失败/失效步骤；
 4. 该步骤所有上游 Artifact 均 AVAILABLE 且未过期；
-5. Source、模型路由、Prompt、Parser 和配置没有使上游输入哈希失效；
+5. Source、Job 提交时的配置快照、Prompt/Parser 版本没有使上游输入哈希失效；提交后的全局设置变化不改变该 Job 快照，也不单独使其步骤续跑失效；
 6. 没有另一个 replay 正在排队或执行。
 
 不满足时返回不可续跑原因：

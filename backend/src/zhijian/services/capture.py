@@ -5,6 +5,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
+from zhijian.ai.job_config import SNAPSHOT_KEY, capture_ai_config
 from zhijian.core.config import Settings
 from zhijian.db.models import Job, Source
 from zhijian.domain.enums import JobStatus, JobType
@@ -51,8 +52,9 @@ def create_capture_job(
             "LOCAL" if is_local_video else "YOUTUBE" if is_youtube else "BILIBILI" if is_video else None
         ),
         "ai_overrides": ai_overrides or {},
-        "asr_provider": asr_provider,
+        "asr_provider": asr_provider or settings.default_asr_provider if is_video else asr_provider,
         "ai_automation_version": "v2",
+        SNAPSHOT_KEY: capture_ai_config(db, settings),
     }
     job = Job(job_type=job_type.value, status=JobStatus.QUEUED.value, payload_json=payload)
     db.add(job)

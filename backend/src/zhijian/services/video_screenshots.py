@@ -40,8 +40,10 @@ def plan_screenshots(db: Session, asset: VideoAsset, note_version: AINoteVersion
     if not sections:
         transcript = db.scalar(
             select(Transcript)
-            .where(Transcript.video_asset_id == asset.id)
-            .order_by(Transcript.version.desc())
+            .where(
+                Transcript.video_asset_id == asset.id,
+                Transcript.version == note_version.transcript_version,
+            )
         )
         snapshot_id = transcript.metadata_json.get("snapshot_id") if transcript else ""
         segments = db.scalars(

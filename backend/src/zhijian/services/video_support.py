@@ -19,6 +19,7 @@ from zhijian.ai.capabilities import AICapability
 from zhijian.ai.cost_router import RouteDecision, choose_auto_route
 from zhijian.ai.domain_context import domain_context_hash, domain_context_messages
 from zhijian.ai.gateway import AIWorkloadGateway
+from zhijian.ai.job_config import SNAPSHOT_KEY, job_setting, job_video_note_chunk_chars
 from zhijian.ai.policies import resolve_stage_policy
 from zhijian.ai.reliability import AIProviderError, ModelReliabilityPolicy, resolve_reliability_policy
 from zhijian.ai.runtime_hints import read_runtime_hint, tighten_note_reduce_hint, tighten_runtime_hint
@@ -32,6 +33,7 @@ from zhijian.db.models import (
     AINote,
     AINoteSection,
     AINoteVersion,
+    ContentItem,
     Destination,
     DestinationPlaceLink,
     GroundedMapArtifact,
@@ -44,7 +46,6 @@ from zhijian.db.models import (
     PlaceNoteVersion,
     PlaceVisitWindow,
     Segment,
-    Setting,
     Snapshot,
     Source,
     Transcript,
@@ -458,21 +459,20 @@ class ProviderUnavailable(RuntimeError):
     code = "PROVIDER_NOT_CONFIGURED"
 
 
-def prompt_supplement_value(db: Session, role: str) -> str:
+def prompt_supplement_value(db: Session, role: str, job: Job | None = None) -> str:
     if not hasattr(db, "get"):
         return ""
-    setting = db.get(Setting, PROMPT_SUPPLEMENT_SETTING_KEY)
-    values = setting.value_json if setting and isinstance(setting.value_json, dict) else {}
+    values = job_setting(db, PROMPT_SUPPLEMENT_SETTING_KEY, job)
     return str(values.get(role) or "").strip()
 
 
-def prompt_supplement_hash(db: Session, role: str) -> str:
-    value = prompt_supplement_value(db, role)
+def prompt_supplement_hash(db: Session, role: str, job: Job | None = None) -> str:
+    value = prompt_supplement_value(db, role, job)
     return sha256(f"prompt-supplement-v1\0{role}\0{value}".encode()).hexdigest()
 
 
-def prompt_supplement_messages(db: Session, role: str) -> list[dict[str, str]]:
-    value = prompt_supplement_value(db, role)
+def prompt_supplement_messages(db: Session, role: str, job: Job | None = None) -> list[dict[str, str]]:
+    value = prompt_supplement_value(db, role, job)
     if not value:
         return []
     return [
@@ -511,7 +511,7 @@ def _cached_stage_json(
         return provider.generate_json(messages, model=model)
     policy = _resolved_stage_policy(db, stage, job)
     domain_messages, domain_versions = domain_context_messages(
-        db, policy.domain_pack_ids, AICapability(capability)
+        db, policy.domain_pack_ids, AICapability(capability), job
     )
     enriched_messages = [messages[0], *domain_messages, *messages[1:]] if messages else domain_messages
     return AIWorkloadGateway().execute_cached_json(
@@ -539,6 +539,7 @@ def _cached_stage_json(
                     "GROUND_MAP": "travel_place_extraction",
                     "NOTE_REDUCE": "video_note_summary",
                 }[stage],
+                job,
             ),
         },
         cache_enabled=bool(policy.cache_enabled),
@@ -563,13 +564,10 @@ def normalized_confidence(value: object) -> float:
         return 0.0
 
 
-def _profile_config(db: Session, profile_id: str | None) -> dict[str, Any] | None:
+def _profile_config(db: Session, profile_id: str | None, job: Job | None = None) -> dict[str, Any] | None:
     if not profile_id:
         return None
-    saved = db.get(Setting, f"model-profile:{profile_id}")
-    if saved is None or not isinstance(saved.value_json, dict):
-        return None
-    return dict(saved.value_json)
+    return job_setting(db, f"model-profile:{profile_id}", job) or None
 
 
 def _profile_location(config: dict[str, Any] | None) -> str:
@@ -598,12 +596,10 @@ def _profile_request_interval(config: dict[str, Any] | None, default: float) -> 
     return default if not value else float(value)
 
 
-def transcript_processing_config(db: Session) -> TranscriptProcessingConfig:
+def transcript_processing_config(db: Session, job: Job | None = None) -> TranscriptProcessingConfig:
     if not hasattr(db, "get"):
         return TranscriptProcessingConfig()
-    setting = db.get(Setting, "transcript-processing")
-    value = setting.value_json if setting and isinstance(setting.value_json, dict) else {}
-    return TranscriptProcessingConfig(**value)
+    return TranscriptProcessingConfig(**job_setting(db, "transcript-processing", job))
 
 
 def transcript_force_full_correction(db: Session, job: Job | None) -> bool:
@@ -613,11 +609,11 @@ def transcript_force_full_correction(db: Session, job: Job | None) -> bool:
 def _resolved_stage_policy(db: Session, stage: str, job: Job | None):
     if not hasattr(db, "get"):
         return resolve_stage_policy(stage)
-    saved = db.get(Setting, f"ai-stage-policy:{stage}")
+    saved = job_setting(db, f"ai-stage-policy:{stage}", job)
     override = (job.payload_json.get("ai_overrides") or {}).get(stage) if job else None
     return resolve_stage_policy(
         stage,
-        saved=saved.value_json if saved and isinstance(saved.value_json, dict) else None,
+        saved=saved or None,
         job_override=override if isinstance(override, dict) else None,
     )
 
@@ -657,29 +653,24 @@ def _provider_from_config(
 def provider_for_role(
     db: Session, settings: Settings, role: str, job: Job | None = None
 ) -> tuple[LLMProvider, str, str]:
-    routing = db.get(Setting, "model-routing")
-    routes = routing.value_json if routing and isinstance(routing.value_json, dict) else {}
+    routes = job_setting(db, "model-routing", job)
     primary_id = str(routes.get("primary_id") or "")
     fallback_id = str(routes.get("fallback_id") or "")
     stage = ROLE_STAGE.get(role)
-    stage_setting = db.get(Setting, f"ai-stage-policy:{stage}") if stage else None
+    stage_setting = job_setting(db, f"ai-stage-policy:{stage}", job) if stage else {}
     job_override = (job.payload_json.get("ai_overrides") or {}).get(stage) if job and stage else None
     automation_enabled = bool(job and job.payload_json.get("ai_automation_version") == "v2")
     resolved_policy = (
         resolve_stage_policy(
             stage,
-            saved=(
-                stage_setting.value_json
-                if stage_setting and isinstance(stage_setting.value_json, dict)
-                else None
-            ),
+            saved=stage_setting or None,
             job_override=job_override if isinstance(job_override, dict) else None,
         )
         if stage and (stage_setting or job_override or automation_enabled)
         else None
     )
-    primary_config = _profile_config(db, primary_id)
-    fallback_config = _profile_config(db, fallback_id)
+    primary_config = _profile_config(db, primary_id, job)
+    fallback_config = _profile_config(db, fallback_id, job)
     route_decision: RouteDecision | None = None
     budget_pressure = bool(
         job and str((job.payload_json.get("ai_soft_budget") or {}).get("status") or "") == "WARNING"
@@ -716,7 +707,7 @@ def provider_for_role(
             candidates = {
                 item_id: config
                 for item_id in candidate_ids
-                if (config := _profile_config(db, item_id)) is not None
+                if (config := _profile_config(db, item_id, job)) is not None
             }
             route_decision = choose_auto_route(
                 stage,
@@ -731,8 +722,8 @@ def provider_for_role(
                 primary_id, fallback_id = route_decision.primary_id, route_decision.fallback_id
         if role == "grounded_map_escalation":
             primary_id, fallback_id = remote_id, ""
-        primary_config = _profile_config(db, primary_id)
-        fallback_config = _profile_config(db, fallback_id)
+        primary_config = _profile_config(db, primary_id, job)
+        fallback_config = _profile_config(db, fallback_id, job)
         if not _profile_supports_capability(
             primary_config,
             resolved_policy.capability,
@@ -745,14 +736,7 @@ def provider_for_role(
             allow_unverified=resolved_policy.allow_unverified_model,
         ):
             fallback_config = None
-    general_setting = db.get(Setting, "app:general")
-    policy = GeneralConfig(
-        **(
-            general_setting.value_json
-            if general_setting and isinstance(general_setting.value_json, dict)
-            else {}
-        )
-    )
+    policy = GeneralConfig(**job_setting(db, "app:general", job))
 
     def on_retry(attempt: int, exc: Exception) -> None:
         error = provider_error_details(exc)
@@ -971,7 +955,7 @@ def provider_for_role(
             commit=False,
         )
     timeout_cap = (
-        transcript_processing_config(db).timeout_seconds if role == "transcript_correction" else None
+        transcript_processing_config(db, job).timeout_seconds if role == "transcript_correction" else None
     )
     if resolved_policy and resolved_policy.timeout_seconds:
         timeout_cap = (
@@ -1035,6 +1019,7 @@ def materialize_transcript(
     source_kind: str,
     language: str = "zh-CN",
     metadata: dict[str, Any] | None = None,
+    submission_job_id: str | None = None,
 ) -> tuple[Transcript, list[Segment]]:
     normalized = []
     for item in raw_segments:
@@ -1062,7 +1047,9 @@ def materialize_transcript(
             raise ValueError("转写末段时间显著超过视频时长，拒绝物化异常时间轴")
     fingerprint = "\n".join(f"{item['start_ms']}:{item['end_ms']}:{item['text']}" for item in normalized)
     fingerprint_sha = __import__("hashlib").sha256(fingerprint.encode()).hexdigest()
-    provenance = metadata or {}
+    provenance = dict(metadata or {})
+    if submission_job_id:
+        provenance["submission_job_id"] = submission_job_id
     existing = db.scalar(
         select(Transcript).where(Transcript.video_asset_id == asset.id).order_by(Transcript.version.desc())
     )
@@ -1073,6 +1060,7 @@ def materialize_transcript(
             or existing.metadata_json.get("fingerprint_sha256") == fingerprint_sha
         )
         and existing.source_kind == source_kind
+        and (not submission_job_id or existing.metadata_json.get("submission_job_id") == submission_job_id)
         and (existing.metadata_json.get("validation_status") == provenance.get("validation_status"))
     ):
         snapshot_id = existing.metadata_json.get("snapshot_id")
@@ -1590,7 +1578,7 @@ def correct_transcript(
     prompt = (Path(__file__).resolve().parents[1] / "prompts" / "transcript_correction.md").read_text(
         encoding="utf-8"
     )
-    processing = transcript_processing_config(db)
+    processing = transcript_processing_config(db, job)
     configured_batch_size = _correction_batch_size(provider_name, processing.batch_size)
     runtime_hints = (job.payload_json.get("ai_runtime_hints") or {}) if job else {}
     correction_hints = (
@@ -1665,7 +1653,7 @@ def correct_transcript(
         try:
             messages = [
                 {"role": "system", "content": prompt},
-                *prompt_supplement_messages(db, "transcript_correction"),
+                *prompt_supplement_messages(db, "transcript_correction", job),
                 {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
             ]
             response = _cached_stage_json(
@@ -1819,7 +1807,7 @@ def correct_transcript(
         "correction_provider": provider_name,
         "correction_model": model,
         "correction_coverage": (corrected_count + unchanged_count) / max(1, len(segments)),
-        "correction_prompt_supplement_hash": prompt_supplement_hash(db, "transcript_correction"),
+        "correction_prompt_supplement_hash": prompt_supplement_hash(db, "transcript_correction", job),
     }
     record_event(
         db,
@@ -1923,6 +1911,57 @@ def repair_legacy_transcript_timing(db: Session) -> int:
     return repaired
 
 
+def note_for_job(db: Session, asset: VideoAsset, job: Job | None) -> AINote | None:
+    if job is None:
+        return db.scalar(
+            select(AINote).where(AINote.video_asset_id == asset.id).order_by(AINote.created_at.desc())
+        )
+    note_id = str(job.payload_json.get("note_id") or "")
+    if not note_id and job.result_content_id:
+        content = db.get(ContentItem, job.result_content_id)
+        note_id = str((content.structured_json or {}).get("note_id") or "") if content else ""
+    if not note_id:
+        step = db.scalar(
+            select(JobStep).where(JobStep.job_id == job.id, JobStep.step_name == "GENERATE_AI_NOTE")
+        )
+        note_id = str((step.output_json or {}).get("note_id") or "") if step else ""
+    if note_id:
+        note = db.get(AINote, note_id)
+        if note is not None and note.video_asset_id == asset.id:
+            return note
+    return db.scalar(select(AINote).where(AINote.submission_job_id == job.id))
+
+
+def mentions_for_job(
+    db: Session, asset: VideoAsset, job: Job | None, note: AINote | None = None
+) -> list[PlaceMention]:
+    if note and note.current_version_id:
+        current = db.scalars(
+            select(PlaceMention).where(PlaceMention.ai_note_version_id == note.current_version_id)
+        ).all()
+        if current:
+            return current
+    owner_id = note.submission_job_id if note and note.submission_job_id else job.id if job else None
+    if owner_id:
+        rows = db.scalars(
+            select(PlaceMention).where(
+                PlaceMention.video_asset_id == asset.id,
+                PlaceMention.submission_job_id == owner_id,
+            )
+        ).all()
+        if rows or (job and SNAPSHOT_KEY in job.payload_json and note is None):
+            return rows
+    if job and SNAPSHOT_KEY in job.payload_json:
+        return []
+    return db.scalars(
+        select(PlaceMention).where(
+            PlaceMention.video_asset_id == asset.id,
+            PlaceMention.submission_job_id.is_(None),
+            PlaceMention.ai_note_version_id.is_(None),
+        )
+    ).all()
+
+
 def generate_note(
     db: Session,
     settings: Settings,
@@ -1939,10 +1978,11 @@ def generate_note(
     provider, provider_name, model = provider_for_role(
         db, settings, "note_reduce" if grounded_map else "video_note_summary", job
     )
-    chunks = _transcript_chunks(segments, settings.video_note_chunk_chars)
+    chunk_chars = job_video_note_chunk_chars(job, settings.video_note_chunk_chars)
+    chunks = _transcript_chunks(segments, chunk_chars)
     system = Path(__file__).resolve().parents[1] / "prompts" / "video_note.md"
     system_text = system.read_text(encoding="utf-8")
-    supplement_messages = prompt_supplement_messages(db, "video_note_summary")
+    supplement_messages = prompt_supplement_messages(db, "video_note_summary", job)
     place_evidence_json = json.dumps(_place_evidence_index(mentions), ensure_ascii=False)
     valid_ids = {segment.id for segment in segments}
     raw_sections: list[dict[str, object]] = []
@@ -1977,7 +2017,7 @@ def generate_note(
             ),
         )
     for chunk_index, chunk in enumerate((chunks or [segments]) if grounded_map is None else []):
-        context = _transcript_context(chunk, settings.video_note_chunk_chars)
+        context = _transcript_context(chunk, chunk_chars)
         try:
             messages = [
                 {"role": "system", "content": system_text},
@@ -2193,11 +2233,13 @@ def generate_note(
                 note_generation_mode = "HYBRID"
         else:
             note_generation_mode = "DETERMINISTIC_FALLBACK"
-    note = db.scalar(select(AINote).where(AINote.video_asset_id == asset.id))
+    note = note_for_job(db, asset, job)
     if note is None:
-        note = AINote(video_asset_id=asset.id)
+        note = AINote(video_asset_id=asset.id, submission_job_id=job.id if job else None)
         db.add(note)
         db.flush()
+    if job:
+        job.payload_json = {**job.payload_json, "note_id": note.id}
     old = db.scalar(select(func.max(AINoteVersion.version)).where(AINoteVersion.ai_note_id == note.id)) or 0
     overview = " ".join(dict.fromkeys(value for value in overview_parts if value))[
         : int(render_profile["overview_limit"])
@@ -2214,7 +2256,7 @@ def generate_note(
         map_facts_json=map_facts,
         model_provider=response.provider,
         model_name=response.model,
-        prompt_version=f"video-note-v2+{prompt_supplement_hash(db, 'video_note_summary')[:8]}",
+        prompt_version=f"video-note-v2+{prompt_supplement_hash(db, 'video_note_summary', job)[:8]}",
         render_profile_id=profile_id,
         render_profile_version=str(render_profile["version"]),
         transcript_version=transcript.version,
@@ -2303,8 +2345,17 @@ def generate_note(
             detail={"count": low_information_removed},
             commit=False,
         )
+    if note.current_version_id:
+        active_ids = {mention.id for mention in mentions}
+        for previous in db.scalars(
+            select(PlaceMention).where(PlaceMention.ai_note_version_id == note.current_version_id)
+        ):
+            if previous.id not in active_ids and previous.extraction_status == "EXTRACTED":
+                previous.extraction_status = "SUPERSEDED"
     note.current_version_id = version.id
     note.status = "COMPLETED"
+    for mention in mentions:
+        mention.ai_note_version_id = version.id
     if not response.content:
         note_generation_mode = "DETERMINISTIC_FALLBACK"
     if job:
@@ -2347,7 +2398,7 @@ def extract_place_mentions(
                 model=model,
                 messages=[
                     {"role": "system", "content": prompt},
-                    *prompt_supplement_messages(db, "travel_place_extraction"),
+                    *prompt_supplement_messages(db, "travel_place_extraction", job),
                     {
                         "role": "user",
                         "content": (
@@ -2376,6 +2427,7 @@ def extract_place_mentions(
         for item in db.scalars(
             select(PlaceMention).where(
                 PlaceMention.video_asset_id == asset.id,
+                PlaceMention.submission_job_id == job.id if job else PlaceMention.submission_job_id.is_(None),
                 PlaceMention.extraction_status == "USER_REJECTED",
             )
         )
@@ -2411,6 +2463,7 @@ def extract_place_mentions(
         visit_windows = _visit_windows_from_candidate(item, ids, segment_texts)
         mention = PlaceMention(
             video_asset_id=asset.id,
+            submission_job_id=job.id if job else None,
             ai_note_version_id=note.id if note else None,
             name=str(item["name"])[:300],
             raw_name=str(item.get("raw_name") or item["name"])[:300],
@@ -2652,10 +2705,14 @@ def resolve_mentions_with_amap(
         cache_ttl_seconds=settings.amap_cache_ttl_seconds,
     )
     asset_ids = {mention.video_asset_id for mention in mentions}
+    submission_ids = {mention.submission_job_id for mention in mentions if mention.submission_job_id}
     session_mentions = db.scalars(
         select(PlaceMention).where(
             PlaceMention.video_asset_id.in_(asset_ids),
-            PlaceMention.extraction_status != "USER_REJECTED",
+            PlaceMention.submission_job_id.in_(submission_ids)
+            if submission_ids
+            else PlaceMention.submission_job_id.is_(None),
+            PlaceMention.extraction_status == "EXTRACTED",
         )
     ).all()
     _assign_geo_sessions(db, session_mentions)

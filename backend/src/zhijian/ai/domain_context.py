@@ -4,7 +4,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from zhijian.ai.capabilities import AICapability
-from zhijian.db.models import Setting
+from zhijian.ai.job_config import job_setting
+from zhijian.db.models import Job
 
 DOMAIN_PACK_PREFIX = "ai-domain-pack:"
 
@@ -29,15 +30,15 @@ class DomainPack(BaseModel):
 
 
 def domain_context_messages(
-    db: Session, pack_ids: list[str], capability: AICapability
+    db: Session, pack_ids: list[str], capability: AICapability, job: Job | None = None
 ) -> tuple[list[dict[str, str]], dict[str, str]]:
     selected = []
     versions = {}
     for pack_id in dict.fromkeys(pack_ids):
-        setting = db.get(Setting, f"{DOMAIN_PACK_PREFIX}{pack_id}")
-        if setting is None or not isinstance(setting.value_json, dict):
+        value = job_setting(db, f"{DOMAIN_PACK_PREFIX}{pack_id}", job)
+        if not value:
             continue
-        pack = DomainPack(**setting.value_json)
+        pack = DomainPack(**value)
         if pack.allowed_capabilities and capability not in pack.allowed_capabilities:
             continue
         selected.append(pack)

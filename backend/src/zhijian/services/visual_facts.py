@@ -10,11 +10,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from zhijian.ai.gateway import AIWorkloadGateway
+from zhijian.ai.job_config import job_setting
 from zhijian.ai.model_registry import model_profile_from_value
 from zhijian.ai.policies import resolve_stage_policy
 from zhijian.core.config import Settings
 from zhijian.core.time import utc_now
-from zhijian.db.models import Job, JobStep, PlaceMention, Setting, VideoAsset, VideoScreenshot, VisualFact
+from zhijian.db.models import Job, JobStep, PlaceMention, VideoAsset, VideoScreenshot, VisualFact
 from zhijian.domain.enums import JobStatus
 from zhijian.services.audit import record_event
 from zhijian.services.video_support import normalized_confidence, parse_model_json, provider_for_role
@@ -146,16 +147,16 @@ def process_visual_fact_job(db: Session, job: Job, settings: Settings) -> None:
 
 
 def _vision_profile(db: Session, job: Job) -> bool:
-    saved = db.get(Setting, "ai-stage-policy:VISION_FACT")
+    saved = job_setting(db, "ai-stage-policy:VISION_FACT", job)
     policy = resolve_stage_policy(
         "VISION_FACT",
-        saved=saved.value_json if saved and isinstance(saved.value_json, dict) else None,
+        saved=saved or None,
         job_override=(job.payload_json.get("ai_overrides") or {}).get("VISION_FACT"),
     )
     for profile_id in (policy.local_profile_id, policy.remote_profile_id):
-        setting = db.get(Setting, f"model-profile:{profile_id}") if profile_id else None
-        if setting and isinstance(setting.value_json, dict):
-            profile = model_profile_from_value(profile_id, setting.value_json)
+        value = job_setting(db, f"model-profile:{profile_id}", job) if profile_id else {}
+        if value:
+            profile = model_profile_from_value(profile_id, value)
             if profile.enabled and "image" in profile.modalities:
                 return True
     return False

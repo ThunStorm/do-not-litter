@@ -4,11 +4,13 @@
 
 ## 任务续接
 
-- 完成：VIDEO_SEMANTIC_POI_NOTE 源码实现了 Semantic Map v3、POI Gate、Resolver v3、Destination、Local→Remote 小上下文升级、Claim 驱动笔记、API/UI 与 12 项语义 Golden；任务在 `FETCH_METADATA` 后立即写入视频标题，运行详情仅对网页来源显示“复制地址”。完整后端、Ruff、Node 24 前端 verify 与 `diff --check` 通过。
-- 部署：2026-09-22 用户明确要求不备份直接重部署。重启前 active Job/lease=0、revision=`0024`、`integrity_check=ok`；已重启 API/Worker，API/Worker RUNNING、内容与 heartbeat READY（PID=`18913`）。OpenAPI 已加载 `/api/video-notes/{note_id}`、`/places`、`/api/travel/place-reviews` 和 `/api/travel/places/{place_id}/destinations`。本轮未运行 Job/Provider；此前无备份的 migration 仍应在后续运维中如实保留。
-- 保留：任务标题/复制地址修复尚未重载服务；真实视频/高德/Remote Escalation/Token 延迟基线与 Browser PC/Mobile 仍待用户授权。Browser 插件和项目 Playwright 均不可用；Qwen 仍显式备用、Whisper 默认；不自动重跑历史视频、切默认或确认 POI。
+- 完成：新 Job 固定提交时的无密钥 AI 配置；同链接每次提交生成独立 Note/Content/Transcript，同一 Job 重跑只增该 Note 版本，地点复用同一高德 Place。任务标题和复制来源地址修复一并加载。完整后端、Ruff、Node 24 前端 verify、0024→0025 隔离迁移及文档一致性检查通过。
+- 部署：2026-09-23 按用户要求跳过新备份；迁移前 active Job/lease=0、revision=`0024`、`integrity_check=ok`。已升级 `0025` 并重启 API/Worker；现场 API/Worker RUNNING、内容/heartbeat READY（Worker PID=`7051`），OpenAPI 与 `/api/video-notes` 可读，FK 检查无异常、active Job/lease=0。备份清理按“保留最新两份”执行：删除旧快照 29 份及 58 个 WAL/SHM，共 163643392 字节；保留两份 2026-09-22 的 0023 快照，完整性均 ok。未提交真实视频或调用 Provider。
+- 保留：真实双提交模型 A/B、Place 复用、Browser PC/Mobile 和 Token/延迟仍待取证。旧 Job 无提交时快照，不可追溯补齐；Qwen 仍显式备用、Whisper 默认，不自动重跑历史视频、切默认或确认 POI。
 
-## 生产快照（采样 2026-09-13）
+## 生产快照（最新采样 2026-09-23；下列历史条目保留原日期）
+
+- 2026-09-23：`data/app.db` revision=`0025`、`integrity_check=ok`、`foreign_key_check=0`；API/Worker RUNNING、内容/心跳 READY、active Job/lease=0。本轮未制作新备份；旧备份按最新两份保留策略清理，剩余两份 revision=`0023` 且完整性 ok。
 
 - 2026-09-13 已重启 cn.zhijian.api、cn.zhijian.worker；health、首页正文和 Worker 心跳 READY。迁移前 active Job/lease=0，SQLite/WAL `integrity_check=ok`。
 - SQLite/WAL 实读 Alembic 0022（head），`video_note_search` 已存在；本次升级前逻辑备份为 `data/backups/app-pre-ui-video-poi-v2-20260913-125600.db`，完整性为 ok。

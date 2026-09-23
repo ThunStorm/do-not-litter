@@ -339,10 +339,11 @@ class GroundedMapArtifact(Base, TimestampMixin):
 
 class AINote(Base, TimestampMixin):
     __tablename__ = "ai_notes"
-    __table_args__ = (UniqueConstraint("video_asset_id", name="uq_ai_note_video_asset"),)
+    __table_args__ = (UniqueConstraint("submission_job_id", name="uq_ai_note_submission_job"),)
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("note"))
     video_asset_id: Mapped[str] = mapped_column(ForeignKey("video_assets.id", ondelete="CASCADE"))
+    submission_job_id: Mapped[str | None] = mapped_column(String(64))
     current_version_id: Mapped[str | None] = mapped_column(String(64))
     status: Mapped[str] = mapped_column(String(32), default="PROCESSING", nullable=False)
 
@@ -421,6 +422,7 @@ class PlaceMention(Base, TimestampMixin):
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("pm"))
     video_asset_id: Mapped[str] = mapped_column(ForeignKey("video_assets.id", ondelete="CASCADE"))
+    submission_job_id: Mapped[str | None] = mapped_column(String(64))
     ai_note_version_id: Mapped[str | None] = mapped_column(
         ForeignKey("ai_note_versions.id", ondelete="SET NULL")
     )

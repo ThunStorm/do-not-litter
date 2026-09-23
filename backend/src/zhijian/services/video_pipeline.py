@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from zhijian.ai.job_config import SNAPSHOT_KEY
 from zhijian.ai.reliability import AIProviderError
 from zhijian.ai.resource_manager import local_ai_resource_manager
 from zhijian.ai.stage_decision import decide_stage, record_stage_decision
@@ -18,7 +19,6 @@ from zhijian.core.config import Settings, get_settings
 from zhijian.core.secret_store import build_secret_store
 from zhijian.core.time import as_utc, utc_now
 from zhijian.db.models import (
-    AINote,
     AINoteVersion,
     ContentItem,
     ExternalCallAudit,
@@ -62,6 +62,8 @@ from zhijian.services.video_support import (
     generate_note,
     materialize_destinations,
     materialize_transcript,
+    mentions_for_job,
+    note_for_job,
     prompt_supplement_hash,
     resolve_mentions_with_amap,
 )
@@ -303,12 +305,15 @@ def _materialize_core_content(
     confirmed: int,
     unresolved: int,
 ) -> ContentItem:
-    content = db.scalar(
-        select(ContentItem).where(
-            ContentItem.source_id == source.id,
-            ContentItem.content_type == ContentType.VIDEO_NOTE.value,
+    content = db.get(ContentItem, job.result_content_id) if job.result_content_id else None
+    if content is None:
+        content = db.scalar(
+            select(ContentItem).where(
+                ContentItem.source_id == source.id,
+                ContentItem.content_type == ContentType.VIDEO_NOTE.value,
+                ContentItem.structured_json["note_id"].as_string() == note_version.ai_note_id,
+            )
         )
-    )
     if content is None:
         content = ContentItem(
             content_type=ContentType.VIDEO_NOTE.value,
@@ -316,6 +321,7 @@ def _materialize_core_content(
             source_id=source.id,
         )
         db.add(content)
+    content.title = asset.title
     content.summary = note_version.overview
     content.status = "COMPLETED"
     content.structured_json = {
@@ -548,6 +554,7 @@ def _download_and_transcribe_audio(
         asset,
         raw_segments,
         source_kind=f"{provider.provider_id}_ASR",
+        submission_job_id=job.id,
         metadata={
             "requested_bvid": bvid,
             "requested_cid": asset.cid or "",
@@ -858,6 +865,7 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
                 raw_segments,
                 source_kind=selected_track.source_kind,
                 language=selected_track.language or "zh-CN",
+                submission_job_id=job.id,
                 metadata={
                     "requested_bvid": resolved.bvid,
                     "requested_cid": resolved.cid,
@@ -936,6 +944,7 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
         if transcript is None or not segments:
             raise NeedsUser("TRANSCRIPT_MISSING", "未获得可用于笔记生成的时间码转写")
         _trusted_transcript_or_raise(db, source, asset, transcript, segments)
+        job.payload_json = {**job.payload_json, "transcript_id": transcript.id}
         _done(
             db,
             job,
@@ -957,7 +966,7 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
             {
                 "transcript_id": transcript.id,
                 "segments": len(segments),
-                "prompt_supplement_hash": prompt_supplement_hash(db, "transcript_correction"),
+                "prompt_supplement_hash": prompt_supplement_hash(db, "transcript_correction", job),
             },
         )
         _stage_event(db, job, "transcript.correction.requested", "正在使用 AI 校对完整转写")
@@ -978,7 +987,7 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
             72,
             {
                 "transcript": transcript.id,
-                "prompt_supplement_hash": prompt_supplement_hash(db, "travel_place_extraction"),
+                "prompt_supplement_hash": prompt_supplement_hash(db, "travel_place_extraction", job),
             },
         )
         _stage_event(db, job, "places.requested", "正在从完整转写提取旅行地点与观察")
@@ -1020,7 +1029,7 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
                 "transcript": transcript.id,
                 "version": transcript.version,
                 "place_mentions": len(mentions),
-                "prompt_supplement_hash": prompt_supplement_hash(db, "video_note_summary"),
+                "prompt_supplement_hash": prompt_supplement_hash(db, "video_note_summary", job),
             },
         )
         _stage_event(db, job, "note.requested", "正在基于已验证地点生成 AI 视频笔记", segments=len(segments))
@@ -1375,9 +1384,34 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
         "video_platform": asset.platform,
         "locator": str(asset.metadata_json.get("local_path") or asset.canonical_url),
     }
-    transcript = db.scalar(
-        select(Transcript).where(Transcript.video_asset_id == asset.id).order_by(Transcript.version.desc())
-    )
+    note = note_for_job(db, asset, job)
+    transcript = db.get(Transcript, str(job.payload_json.get("transcript_id") or ""))
+    if transcript is None and note and note.current_version_id:
+        current_version = db.get(AINoteVersion, note.current_version_id)
+        if current_version:
+            transcript = db.scalar(
+                select(Transcript).where(
+                    Transcript.video_asset_id == asset.id,
+                    Transcript.version == current_version.transcript_version,
+                )
+            )
+    if transcript is None:
+        transcript = db.scalar(
+            select(Transcript)
+            .where(
+                Transcript.video_asset_id == asset.id,
+                Transcript.metadata_json["submission_job_id"].as_string() == job.id,
+            )
+            .order_by(Transcript.version.desc())
+        )
+    if transcript is None and SNAPSHOT_KEY not in job.payload_json:
+        transcript = db.scalar(
+            select(Transcript)
+            .where(Transcript.video_asset_id == asset.id)
+            .order_by(Transcript.version.desc())
+        )
+    if transcript is not None and transcript.video_asset_id != asset.id:
+        raise NeedsUser("TRANSCRIPT_SOURCE_MISMATCH", "转写来源与当前视频不一致")
     snapshot_id = transcript.metadata_json.get("snapshot_id") if transcript else None
     segments = (
         db.scalars(select(Segment).where(Segment.snapshot_id == snapshot_id).order_by(Segment.ordinal)).all()
@@ -1396,7 +1430,9 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
     screenshot_count = (
         db.scalar(
             select(func.count(VideoScreenshot.id)).where(
-                VideoScreenshot.video_asset_id == asset.id, VideoScreenshot.status == "READY"
+                VideoScreenshot.video_asset_id == asset.id,
+                VideoScreenshot.ai_note_version_id == (note.current_version_id if note else ""),
+                VideoScreenshot.status == "READY",
             )
         )
         or 0
@@ -1419,6 +1455,7 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                 ),
                 platform=asset.platform,
             )
+            job.payload_json = {**job.payload_json, "transcript_id": transcript.id}
             step = _step(
                 db,
                 job,
@@ -1440,7 +1477,7 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                 69,
                 {
                     "transcript_id": transcript.id,
-                    "prompt_supplement_hash": prompt_supplement_hash(db, "transcript_correction"),
+                    "prompt_supplement_hash": prompt_supplement_hash(db, "transcript_correction", job),
                 },
             )
             try:
@@ -1449,11 +1486,11 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                 raise NeedsUser(exc.code, f"转写校对暂停：{str(exc)[:300]}") from exc
             _done(db, job, step, 70, _correction_output(transcript, segments))
 
-        note = db.scalar(select(AINote).where(AINote.video_asset_id == asset.id))
+        note = note_for_job(db, asset, job)
         note_version = (
             db.get(AINoteVersion, note.current_version_id) if note and note.current_version_id else None
         )
-        mentions = db.scalars(select(PlaceMention).where(PlaceMention.video_asset_id == asset.id)).all()
+        mentions = mentions_for_job(db, asset, job, note)
         grounded_map = artifact_for_transcript(db, transcript)
         if grounded_map is not None:
             estimated_tokens = sum(len(item.corrected_text or item.text) for item in segments) // 4
@@ -1465,7 +1502,7 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
             db.commit()
         if start <= VIDEO_STEPS.index("EXTRACT_TRAVEL_FACTS"):
             for mention in mentions:
-                if mention.extraction_status != "USER_REJECTED":
+                if mention.ai_note_version_id is None and mention.extraction_status != "USER_REJECTED":
                     db.delete(mention)
             db.commit()
             step = _step(
@@ -1475,7 +1512,7 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                 72,
                 {
                     "transcript": transcript.id,
-                    "prompt_supplement_hash": prompt_supplement_hash(db, "travel_place_extraction"),
+                    "prompt_supplement_hash": prompt_supplement_hash(db, "travel_place_extraction", job),
                 },
             )
             grounded_map = get_or_create_grounded_map(db, settings, asset, transcript, segments, job)
@@ -1516,7 +1553,7 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                 {
                     "transcript": transcript.id,
                     "place_mentions": len(mentions),
-                    "prompt_supplement_hash": prompt_supplement_hash(db, "video_note_summary"),
+                    "prompt_supplement_hash": prompt_supplement_hash(db, "video_note_summary", job),
                 },
             )
             note_version = generate_note(

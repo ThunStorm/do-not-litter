@@ -5,7 +5,7 @@
 ## Current repository freeze
 
 - 当前工作分支为 `codex/mac-mini-implementation`；提交前仍须用 git 状态核对，保护同批文档拆分与地图改动。
-- 仓库 migration head 为 Alembic 0024；生产版本见 CURRENT_HANDOFF 的实际采样，不由仓库推断。
+- 仓库 migration head 为 Alembic 0025；生产版本见 CURRENT_HANDOFF 的实际采样，不由仓库推断。
 - 唯一支持的后端为 Mac mini；FastAPI、SQLite/WAL、独立 Worker；其他平台不在当前支持范围。
 - 真实验收与自动回归分开记录；规格中的“待实施”、历史 Work Package、未来规划均不得单独认定为当前缺口。
 
@@ -15,10 +15,10 @@
 | --- | --- | --- |
 | Capture / 基础 | URL、正文、DOCX、PDF、XLSX、图像 OCR、音视频；局域网配对与 Session；Source/Evidence | product/PRODUCT_REQUIREMENTS.md、architecture/SECURITY_PRIVACY.md |
 | 招聘 / 旅行 | 首批招聘结构化与证据；Place Insight、POI Review、全国交互地图、Marker 生命周期、地点管理/人工路线；POI Resolver Golden、事实归一化、跨来源共识/冲突、地点知识 API/证据跳转；月份/日期 Visit Window 状态、可重算 Preference Event 与确定性可解释推荐；Visual Fact 实验性截图任务、Vision Profile Skip 与离线 Golden | product/TRAVEL_FOOD_PIPELINE.md、ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md |
-| 视频 | 字幕优先、ASR、校对、Semantic Map v3（ContentUnit、实体角色、关系、Atomic Claim）、自适应笔记/章节、地点、Destination、截图、列表封面、保留式删除 | video/VIDEO_AI_NOTE_PIPELINE.md（分篇索引） |
+| 视频 | 字幕优先、ASR、校对、Semantic Map v3（ContentUnit、实体角色、关系、Atomic Claim）、同链接每次提交独立 Note/Content/Transcript Version、共享规范 Place、自适应笔记/章节、地点、Destination、截图、列表封面、保留式删除 | video/VIDEO_AI_NOTE_PIPELINE.md（分篇索引） |
 | Bilibili 登录恢复 | 站内扫码、nav 账号验证、Keychain 保存；登录失败进入 NEEDS_USER；核心恢复与非核心截图显式跳过；字幕多轨与官方 CDN Host Policy | video/02-input-transcript.md |
-| Job / Replay | 独立 Worker 心跳、协作取消、租约门禁、终态表达、步骤续跑和完整重跑；后端决定 Replay Options | jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md |
-| Gateway | 显式 Profile/Stage Policy、路由、Usage、转写质量门禁、Map/Reduce Facts、Cache、Budget、Domain Context、Vision Profile 边界 | ai-gateway/AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md（分篇索引） |
+| Job / Replay | 独立 Worker 心跳、协作取消、租约门禁、终态表达、步骤续跑和完整重跑；新任务提交时冻结 AI 配置，重跑复用快照；后端决定 Replay Options | jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md |
+| Gateway | 显式 Profile/Stage Policy、路由、Usage、转写质量门禁、Map/Reduce Facts、Cache、Budget、Domain Context、Vision Profile 边界；凭据仍从 Secret Store 读取 | ai-gateway/AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md（分篇索引） |
 | 稳定性 | Gateway 按每次实际 Provider 尝试（含重试/fallback）执行预算与本地 OS flock；LOCAL/REMOTE 分账，Cache hit 不计真实模型尝试或预算 | ai-gateway/02-gateway-context.md、ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md |
 | 产品 / 运维 | PC/手机 Web、真实状态快照、自定义模型/补充 Prompt、JSONL + SQLite 审计、运维工作台 | product/CONTROL_CENTER.md、operations/LOGGING.md |
 | 部署 | Mac mini LaunchAgent 双服务、外置生产 venv Python 3.14、健康内容与 Worker 心跳门禁 | operations/DEPLOYMENT_OPTIONS.md、CURRENT_HANDOFF.md |
@@ -32,6 +32,7 @@
 - Plan C C1–C5 已进入源码：时间状态与推荐仅由可追溯事实/行为确定，Visual Fact 保持实验性并且不覆盖 Transcript；未进行真实高德、Vision 或视频验收，也未在本轮验证后重启加载新增源码。390px 视觉验收待具备可设定视口的 Browser/Playwright 时补做。
 - Gateway 真实 Local/Remote Provider、真实视频、fallback、cache/force-regenerate、预算、取消/Replay 与 Benchmark 仍需按 [生产验收门禁](ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md) 取证；本次未执行。
 - VIDEO_SEMANTIC_POI_NOTE 优化已完成源码与离线 Golden；真实视频的 ContentUnit/Remote Escalation、真实高德 POI、Token/延迟基线和 PC/Mobile Browser 视觉验收仍未执行。不得用 Fixture、构建或数据库 revision 替代这些验收。
+- 提交时 AI 配置快照与同视频多笔记的 0025 已于 2026-09-23 加载到本机服务；真实 Bilibili 双提交、模型切换、Place 复用与浏览器列表验收未执行。旧 Job 不具有提交时快照，不可追溯地补造当时设置；现场采样见 CURRENT_HANDOFF。
 - 2026-09-08 已对本机 `qwen2.5:7b`、`qwen3:8b`、`qwen3.5:9b` 运行 Capability Probe：分类、结构化抽取、实体抽取与转写校对通过。其他 Stage 的 `FAIL` 只是该基础 Probe 未覆盖，不能视为模型能力否定；未更改默认模型或删除模型。
 - Bilibili 扫码、nav 验证和 Keychain 保存已有真实验收记录；曾暴露 VIDEO_HOST_BLOCKED 的现场 Job 未自动重跑，不把修复等同于该 Job 成功。
 - 高德、远程 Provider 等需要用户合法提供外部配置；不在文档保存 Secret，不通过编造状态代替配置/验收。
@@ -77,5 +78,6 @@
 - 2026-09-22：Pipeline 运行韧性与实时进度升级已完成并部署。真实模型请求在发出前写入同一条 `RUNNING` Audit，独立 heartbeat 续期 Job lease，Worker watchdog 可按 deadline / stale Job 收口，run fence 拒绝超时或重跑后的迟到写入；任务/API/日志页显示 active attempt、主备路由、分块、elapsed 与 deadline。Correction、Ground Map、Note Reduce 对截断先同模型拆分，最小单元才允许 fallback；Note Reduce 使用有界 Evidence Pack、跨包 checkpoint、Stage wall/attempt budget 与 Evidence-backed 确定性降级。AUTO 路由排除 capability Probe 明确失败的 Profile，人工覆盖需显式允许并审计。后端 209 项、完整 Ruff、前端 18 项/TypeScript/Vite、文档与 `diff --check` 通过；桌面及 390×844 Browser 无溢出/控制台错误。无 migration 重启后 API/Worker/首页/heartbeat READY，OpenAPI 已加载新字段；未调用真实 Provider、未重跑视频，Frozen Benchmark/真实 fallback 仍是外部验收门禁。
 - 2026-09-22：VIDEO_SEMANTIC_POI_NOTE 优化已进入源码。Grounded Map 同次 Local-first 调用保存 Semantic Map v3 的 ContentUnit、Entity 角色/意图/POI Policy、Relation 与 Evidence-bound Atomic Claim；歧义只以目标段及邻段做 Remote Escalation，失败保留本地结果并走保守 Review。`REFERENCE_ONLY`/`SKIP` 不进入 AMap、Review 或手动确认；AREA 物化为 Destination，已确认 Place 才创建同 Unit 的 Destination Link。Resolver v3 在既有精度门禁上区分 `AUTO_EXACT`/`AUTO_NORMALIZED`；Note 保留模型 heading、以 Claim 驱动并去除低信息/重复 bullet。新增 12 个语义 Golden、API Gate 和迁移 0024；目标后端 108 项、Ruff 与 Node 24 前端 verify 通过。未调用真实 Provider/高德/视频，Browser 插件与项目 Playwright 均不可用，故未做渲染验收。
 - 2026-09-23：视频 Job 在 `FETCH_METADATA` 完成时立即将解析标题写回 payload，运行详情刷新后显示视频标题；Job API 另返回仅限 HTTP(S) 的来源地址，任务详情页提供仅本页可见的复制按钮。API 回归、完整后端测试、Ruff、Node 24 前端 18 项/Vite/TypeScript verify 与 `diff --check` 通过。当前运行服务未重启加载这项 UI/API 变更，真实浏览器渲染未验收。
+- 2026-09-23：新 Job 提交时保存无密钥 AI 配置快照，路由、Profile、Stage Policy、Prompt/Domain、转写参数、预算/重试、默认 ASR 与笔记分块在排队和重跑期间保持提交值；后续新任务使用后来设置。Alembic 0025 允许同一 VideoAsset 对应多个 Note，每次提交独立 Note/Content/Transcript，完整重跑只给所属 Note 增版本；POI 依高德 ID 复用 Place，笔记页和搜索按 Note 读 Evidence，单篇删除保留另一篇。A→B→C 离线时序、双 Note/单 Place/重跑与删除回归、隔离 0024→0025 迁移（旧 Note/Version 保留、FK/integrity ok）、完整后端、Ruff、Node 24 前端 verify 和 `diff --check` 通过；已受控加载到本机服务，未调用真实 Provider/视频。现场采样见 CURRENT_HANDOFF。
 
 [实施历史](history/IMPLEMENTATION_HISTORY.md) 和 [归档实施计划](history/planning/README.md) 保留旧状态与计划追溯，默认不读。当前页只保留最新结论和未闭环项；完成项不持续追加长叙事。生产现场只更新 CURRENT_HANDOFF.md；冻结约束只更新 REGRESSION_AND_CHANGE_GUARD.md。新增证据必须写明日期、对象与验证层级。

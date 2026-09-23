@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from zhijian.ai.capabilities import AICapability
 from zhijian.ai.domain_context import domain_context_hash, domain_context_messages
+from zhijian.ai.job_config import job_video_note_chunk_chars
 from zhijian.ai.reliability import AIProviderError
 from zhijian.ai.runtime_hints import read_runtime_hint, tighten_runtime_hint
 from zhijian.ai.stage_decision import decide_stage, record_stage_decision
@@ -276,9 +277,9 @@ def get_or_create_grounded_map(
     policy = _resolved_stage_policy(db, "GROUND_MAP", job)
     provider, provider_name, model = provider_for_role(db, settings, "grounded_map", job)
     content_hash = _content_hash(segments)
-    supplement_hash = prompt_supplement_hash(db, "travel_place_extraction")
+    supplement_hash = prompt_supplement_hash(db, "travel_place_extraction", job)
     _, domain_versions = domain_context_messages(
-        db, policy.domain_pack_ids, AICapability.STRUCTURED_EXTRACTION
+        db, policy.domain_pack_ids, AICapability.STRUCTURED_EXTRACTION, job
     )
     domain_pack_version = domain_context_hash(domain_versions)
     semantic_options = {
@@ -331,7 +332,7 @@ def get_or_create_grounded_map(
     entities: list[dict] = []
     relations: list[dict] = []
     claims: list[dict] = []
-    chunk_chars = int(policy.chunk_size or settings.video_note_chunk_chars)
+    chunk_chars = int(policy.chunk_size or job_video_note_chunk_chars(job, settings.video_note_chunk_chars))
     max_segments = None
     if provider_name.lower() == "ollama" and policy.chunk_size is None:
         chunk_chars = min(chunk_chars, LOCAL_MAP_CHUNK_CHARS)
@@ -366,7 +367,7 @@ def get_or_create_grounded_map(
         )
         messages = [
             {"role": "system", "content": prompt},
-            *prompt_supplement_messages(db, "travel_place_extraction"),
+            *prompt_supplement_messages(db, "travel_place_extraction", job),
             {
                 "role": "user",
                 "content": f"视频标题：{asset.title}\n分块：{chunk_index}/{chunk_count}\n{text}",
@@ -490,7 +491,7 @@ def get_or_create_grounded_map(
                     model=remote_model,
                     messages=[
                         {"role": "system", "content": prompt},
-                        *prompt_supplement_messages(db, "travel_place_extraction"),
+                        *prompt_supplement_messages(db, "travel_place_extraction", job),
                         {
                             "role": "user",
                             "content": (

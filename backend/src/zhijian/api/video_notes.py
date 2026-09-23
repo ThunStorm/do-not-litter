@@ -8,6 +8,8 @@ from fastapi.responses import FileResponse, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from zhijian.ai.job_config import SNAPSHOT_KEY, capture_ai_config
+from zhijian.core.config import Settings, get_settings
 from zhijian.core.time import utc_now
 from zhijian.db.models import (
     AINote,
@@ -64,9 +66,45 @@ def _asset_for_note(db: Session, note_id: str) -> tuple[AINote, VideoAsset]:
     return note, asset
 
 
+def _transcript_for_note(db: Session, note: AINote, asset: VideoAsset) -> Transcript | None:
+    version = db.get(AINoteVersion, note.current_version_id) if note.current_version_id else None
+    statement = select(Transcript).where(Transcript.video_asset_id == asset.id)
+    if version:
+        statement = statement.where(Transcript.version == version.transcript_version)
+    return db.scalar(statement.order_by(Transcript.version.desc()))
+
+
+def _mentions_for_note(db: Session, note: AINote) -> list[PlaceMention]:
+    rows = (
+        db.scalars(
+            select(PlaceMention)
+            .where(PlaceMention.ai_note_version_id == note.current_version_id)
+            .order_by(PlaceMention.created_at)
+        ).all()
+        if note.current_version_id
+        else []
+    )
+    if rows:
+        return rows
+    if note.submission_job_id:
+        return db.scalars(
+            select(PlaceMention)
+            .where(PlaceMention.submission_job_id == note.submission_job_id)
+            .order_by(PlaceMention.created_at)
+        ).all()
+    return db.scalars(
+        select(PlaceMention)
+        .where(
+            PlaceMention.video_asset_id == note.video_asset_id,
+            PlaceMention.submission_job_id.is_(None),
+        )
+        .order_by(PlaceMention.created_at)
+    ).all()
+
+
 def _note_view(db: Session, note: AINote, asset: VideoAsset) -> dict:
     current = db.get(AINoteVersion, note.current_version_id) if note.current_version_id else None
-    mentions = db.scalars(select(PlaceMention).where(PlaceMention.video_asset_id == asset.id)).all()
+    mentions = _mentions_for_note(db, note)
     cover = db.query(VideoCoverAsset).filter_by(video_asset_id=asset.id).one_or_none()
     return {
         "id": note.id,
@@ -160,9 +198,7 @@ def video_note_detail(note_id: str, _: Protected, db: Session = Depends(get_db))
     data["needs_regeneration"] = bool(
         section_rows and any(not section.summary and not section.bullets_json for section in section_rows)
     )
-    transcript = db.scalar(
-        select(Transcript).where(Transcript.video_asset_id == asset.id).order_by(Transcript.version.desc())
-    )
+    transcript = _transcript_for_note(db, note, asset)
     artifact = (
         db.scalar(
             select(GroundedMapArtifact)
@@ -221,10 +257,8 @@ def video_note_detail(note_id: str, _: Protected, db: Session = Depends(get_db))
 
 @router.get("/api/video-notes/{note_id}/transcript")
 def video_note_transcript(note_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
-    _, asset = _asset_for_note(db, note_id)
-    transcript = db.scalar(
-        select(Transcript).where(Transcript.video_asset_id == asset.id).order_by(Transcript.version.desc())
-    )
+    note, asset = _asset_for_note(db, note_id)
+    transcript = _transcript_for_note(db, note, asset)
     if transcript is None:
         raise HTTPException(404, "转写尚未生成")
     if transcript.purged_at:
@@ -264,10 +298,8 @@ def export_video_note_transcript(
     version: str = "corrected",
     db: Session = Depends(get_db),
 ) -> Response:
-    _, asset = _asset_for_note(db, note_id)
-    transcript = db.scalar(
-        select(Transcript).where(Transcript.video_asset_id == asset.id).order_by(Transcript.version.desc())
-    )
+    note, asset = _asset_for_note(db, note_id)
+    transcript = _transcript_for_note(db, note, asset)
     if transcript is None:
         raise HTTPException(404, "转写尚未生成")
     if transcript.purged_at:
@@ -346,7 +378,12 @@ def video_screenshot_image(screenshot_id: str, _: Protected, db: Session = Depen
 
 
 @router.post("/api/video-screenshots/{screenshot_id}/visual-facts")
-def queue_visual_fact_extraction(screenshot_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
+def queue_visual_fact_extraction(
+    screenshot_id: str,
+    _: Protected,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> dict:
     screenshot = db.get(VideoScreenshot, screenshot_id)
     if screenshot is None or screenshot.status != "READY" or not screenshot.image_path:
         raise HTTPException(status_code=409, detail="截图尚不可用")
@@ -361,7 +398,10 @@ def queue_visual_fact_extraction(screenshot_id: str, _: Protected, db: Session =
     job = Job(
         job_type=JobType.TRAVEL.value,
         status=JobStatus.QUEUED.value,
-        payload_json={"visual_fact_screenshot_id": screenshot_id},
+        payload_json={
+            "visual_fact_screenshot_id": screenshot_id,
+            SNAPSHOT_KEY: capture_ai_config(db, settings),
+        },
     )
     db.add(job)
     record_event(
@@ -393,9 +433,7 @@ def video_cover_image(cover_id: str, _: Protected, db: Session = Depends(get_db)
 @router.get("/api/video-notes/{note_id}/places")
 def video_note_places(note_id: str, _: Protected, db: Session = Depends(get_db)) -> list[dict]:
     note, asset = _asset_for_note(db, note_id)
-    transcript = db.scalar(
-        select(Transcript).where(Transcript.video_asset_id == asset.id).order_by(Transcript.version.desc())
-    )
+    transcript = _transcript_for_note(db, note, asset)
     segment_rows = (
         db.scalars(
             select(Segment).where(Segment.snapshot_id == transcript.metadata_json.get("snapshot_id"))
@@ -408,9 +446,7 @@ def video_note_places(note_id: str, _: Protected, db: Session = Depends(get_db))
         select(AINoteSection).where(AINoteSection.ai_note_version_id == (note.current_version_id or ""))
     ).all()
     result = []
-    for mention in db.scalars(
-        select(PlaceMention).where(PlaceMention.video_asset_id == asset.id).order_by(PlaceMention.created_at)
-    ).all():
+    for mention in _mentions_for_note(db, note):
         place = db.get(Place, mention.place_id) if mention.place_id else None
         destination = db.get(Destination, mention.destination_id) if mention.destination_id else None
         evidence_segments = [
@@ -493,8 +529,9 @@ def regenerate_video_note(
     _: Protected,
     profile_id: str = "CURRENT_DEFAULT",
     db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
 ) -> dict:
-    _, asset = _asset_for_note(db, note_id)
+    note, asset = _asset_for_note(db, note_id)
     try:
         note_render_profile(profile_id)
     except ValueError as exc:
@@ -508,10 +545,12 @@ def regenerate_video_note(
             "title": asset.title,
             "video_platform": asset.platform,
             "video_asset_id": asset.id,
+            "note_id": note.id,
             "note_render_profile": profile_id,
             "replay_from_step": "GENERATE_AI_NOTE",
             "reuse_reason": "NOTE_RENDER_PROFILE_CHANGED",
             "ai_automation_version": "v2",
+            SNAPSHOT_KEY: capture_ai_config(db, settings),
         },
         created_at=utc_now(),
     )
@@ -533,12 +572,7 @@ def bulk_delete_video_notes(payload: BulkDeleteRequest, _: Protected, db: Sessio
     if active:
         raise HTTPException(status_code=409, detail="请先取消或等待关联活跃任务结束")
     for note, asset in notes_assets:
-        for content in db.scalars(
-            select(ContentItem).where(
-                ContentItem.source_id == asset.source_id,
-                ContentItem.content_type == "VIDEO_NOTE",
-            )
-        ).all():
+        for content in _note_contents(db, note, asset):
             db.delete(content)
         remove_video_note_search_index(db, note.id)
         db.delete(note)
@@ -572,12 +606,7 @@ def delete_video_note(note_id: str, _: Protected, db: Session = Depends(get_db))
     if active:
         raise HTTPException(status_code=409, detail="该视频仍有活跃任务，请先取消或等待结束")
     title, canonical_id, source_id = asset.title, note.id, asset.source_id
-    for content in db.scalars(
-        select(ContentItem).where(
-            ContentItem.source_id == asset.source_id,
-            ContentItem.content_type == "VIDEO_NOTE",
-        )
-    ).all():
+    for content in _note_contents(db, note, asset):
         db.delete(content)
     remove_video_note_search_index(db, note.id)
     db.delete(note)
@@ -601,6 +630,21 @@ def delete_video_note(note_id: str, _: Protected, db: Session = Depends(get_db))
         "preserved": preserved,
         "source_deleted": source_deleted,
     }
+
+
+def _note_contents(db: Session, note: AINote, asset: VideoAsset) -> list[ContentItem]:
+    contents = db.scalars(
+        select(ContentItem).where(
+            ContentItem.source_id == asset.source_id,
+            ContentItem.content_type == "VIDEO_NOTE",
+        )
+    ).all()
+    return [
+        content
+        for content in contents
+        if (content.structured_json or {}).get("note_id") == note.id
+        or (note.submission_job_id is None and not (content.structured_json or {}).get("note_id"))
+    ]
 
 
 @router.get("/api/travel/places/{place_id}/note")
