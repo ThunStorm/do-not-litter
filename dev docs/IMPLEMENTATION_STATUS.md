@@ -82,4 +82,6 @@
 
 - 2026-09-23：Settings「语音与 OCR」新增可保存的默认 ASR 选择和 Qwen3-ASR 运行资产状态；仅允许在当前节点资产就绪时选择对应引擎。视频链接、本地视频及音频文件在提交时把选定 Provider 写入 Job 与无密钥配置快照，排队与完整重跑保持原值；任务详情显示提交时选择。视频 Qwen 转写失败时回退 Whisper，可信字幕仍跳过 ASR；普通音频文件失败则保留任务错误。OCR 仍由 macOS Vision 处理，尚无可切换的第二个 OCR Provider。修复 LaunchAgent 从用户主目录启动时 Qwen Runtime/Runner 相对路径失效，默认路径改为仓库绝对路径。隔离 API/Job 测试验证先 Qwen 后 Whisper 的两次提交与重跑不串设置；完整后端、Ruff、Node 24 前端验证通过。隔离浏览器桌面端验证选择、保存与刷新持久化；生产服务已加载并在桌面浏览器显示新控件，Qwen 资产探测 READY，默认仍为 Whisper。移动端浏览器与真实媒体/Provider 尚未验收，生产现场见 CURRENT_HANDOFF。
 
+- 2026-09-23：针对 `job_ad0ba062003a492bb9ff62270bcce385` 的逐字 Qwen 对齐与校对超时，Runner 对高比例逐字输出在入库前合并语句 Segment，并在 `alignment_ms` 保留原时间码；校对按真实批次数/请求体预估预算，至少两批后用实测最快耗时判断是否应提前暂停，模型 timeout 受 Job 剩余时长约束。对该 Job 的已存片段做纯离线重放：3377 个原片段 → 71 个语句 Segment、48 个校对候选、2 批，文本及 3377 条对齐时间全部保留。目标回归、完整后端、完整源码 Ruff、Node 24 前端 18 项/TypeScript/Vite 和 `diff --check` 通过。仅完成源码与离线验证；本机服务未加载新代码，原 Job 未真实重跑，旧逐字 Transcript 需完整重跑才会得到新分段。
+
 [实施历史](history/IMPLEMENTATION_HISTORY.md) 和 [归档实施计划](history/planning/README.md) 保留旧状态与计划追溯，默认不读。当前页只保留最新结论和未闭环项；完成项不持续追加长叙事。生产现场只更新 CURRENT_HANDOFF.md；冻结约束只更新 REGRESSION_AND_CHANGE_GUARD.md。新增证据必须写明日期、对象与验证层级。

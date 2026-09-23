@@ -237,4 +237,8 @@ ASR 与本地 LLM 不默认并行争用 GPU。模型未安装、损坏或不就�
 
 本机 Ollama 对 ASR 全量校对每批最多 32 段；这是既有分块机制的资源上限，不改变模型路由或允许跨 Job 并行。
 
+Qwen Forced Aligner 若返回高比例逐字片段，Runner 在物化前按标点、超过 800 ms 的停顿、48 字或 12 秒边界合并为语句片段；每个新 Segment 保留起止时间及 `locator_json.alignment_ms` 的原始对齐时间。已有 Transcript/Snapshot/Segment 不原地改写；旧逐字 Job 须在加载新代码后完整重跑，步骤续跑会继续使用旧片段。
+
+校对开始前按实际候选批次和序列化请求体登记预计调用量。至少完成两批后，若剩余批次即使按已完成批次的最快速度仍超过本轮 AI 时长预算，暂停为 `AI_BUDGET_EXCEEDED`；请求 timeout 不超过剩余时长。已完成批次保持持久化，不把预计耗时当作真实 Provider 验收。
+
 Whisper.cpp `-oj` JSON 的 `offsets.from/to` 已经是毫秒，适配器必须直接使用，不得再乘以 10。归一化后必须校验 `max(segment.end_ms)` 与 `VideoAsset.duration_ms`：允许片尾静音和平台元数据的小幅误差，但超过视频时长 2 倍必须中止后续 Note/截图物化并记录 `TRANSCRIPT_TIMELINE_INVALID`。已受影响的历史 Transcript 不原地篡改；当末段时间与视频时长比值约为 10 时，从现有 Segment 生成修正后的新 Transcript Version，再基于新版本重建 Note Version 与截图。

@@ -201,9 +201,7 @@ def test_core_note_materializes_before_screenshot_enrichment(app_and_session) ->
         db.add(version)
         db.flush()
 
-        content = video_pipeline._materialize_core_content(
-            db, job, source, asset, version, [], 0, 0
-        )
+        content = video_pipeline._materialize_core_content(db, job, source, asset, version, [], 0, 0)
 
         assert job.result_content_id == content.id
         assert job.payload_json["first_useful_note_at"]
@@ -224,6 +222,36 @@ def test_youtube_capture_only_creates_the_existing_travel_job(app_and_session) -
 
     assert job.job_type == JobType.TRAVEL.value
     assert job.payload_json["video_platform"] == "YOUTUBE"
+
+
+def test_materialize_transcript_keeps_qwen_alignment(app_and_session) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        source = Source(source_type="URL", locator="https://example.test/alignment", title="fixture")
+        db.add(source)
+        db.flush()
+        asset = VideoAsset(source_id=source.id, canonical_url=source.locator, title="对齐测试")
+        db.add(asset)
+        db.flush()
+        _, segments = materialize_transcript(
+            db,
+            source,
+            asset,
+            [
+                {
+                    "text": "大理古城",
+                    "start_ms": 100,
+                    "end_ms": 900,
+                    "locator": {"alignment_ms": [[100, 300], [300, 500], [500, 700], [700, 900]]},
+                }
+            ],
+            source_kind="QWEN3_ASR_ASR",
+        )
+        assert segments[0].locator_json == {
+            "start_ms": 100,
+            "end_ms": 900,
+            "alignment_ms": [[100, 300], [300, 500], [500, 700], [700, 900]],
+        }
 
 
 def test_timestamped_transcript_reuses_same_fingerprint(app_and_session) -> None:
@@ -552,6 +580,54 @@ def test_transcript_correction_splits_truncated_batches(monkeypatch, app_and_ses
         assert hint["reason"] == "AI_PROVIDER_OUTPUT_TRUNCATED"
         correct_transcript(db, Settings(_env_file=None), asset, transcript, segments, job)
         assert batch_sizes == [4, 2, 2]
+
+
+def test_transcript_correction_stops_when_remaining_batches_exceed_wall_budget(
+    monkeypatch, app_and_session
+) -> None:
+    _, factory = app_and_session
+    calls = 0
+
+    class Provider:
+        name = "ollama"
+
+        def generate_json(self, _messages, *, model):
+            nonlocal calls
+            calls += 1
+            return LLMResult('{"changes":[]}', self.name, model, {})
+
+    with factory() as db:
+        source = Source(source_type="URL", locator="https://example.test/wall", title="fixture")
+        db.add(source)
+        db.flush()
+        asset = VideoAsset(source_id=source.id, canonical_url=source.locator, title="校对预算")
+        db.add(asset)
+        db.flush()
+        transcript, segments = materialize_transcript(
+            db,
+            source,
+            asset,
+            [{"text": "山", "start_ms": index * 100, "end_ms": (index + 1) * 100} for index in range(100)],
+            source_kind="QWEN3_ASR_ASR",
+        )
+        db.add(Setting(key="app:general", value_json={"ai_max_wall_time_seconds_per_job": 60}))
+        job = Job(job_type="TRAVEL", status="RUNNING", payload_json={}, started_at=datetime.now(UTC))
+        db.add(job)
+        db.commit()
+        monkeypatch.setattr(
+            "zhijian.services.video_support.provider_for_role",
+            lambda *_args: (Provider(), "ollama", "fixture-model"),
+        )
+        ticks = iter(range(0, 10_000, 100))
+        monkeypatch.setattr(video_support, "perf_counter", lambda: next(ticks))
+
+        with pytest.raises(AIProviderError, match="剩余 2 批"):
+            correct_transcript(db, Settings(_env_file=None), asset, transcript, segments, job)
+
+        assert calls == 2
+        assert job.payload_json["ai_planned_workload"]["calls"] == 4
+        assert job.payload_json["ai_soft_budget"]["expected_total_calls"] == 4
+        assert sum(segment.correction_status == "UNCHANGED" for segment in segments) == 64
 
 
 def test_video_note_api_returns_versioned_sections(client, app_and_session) -> None:

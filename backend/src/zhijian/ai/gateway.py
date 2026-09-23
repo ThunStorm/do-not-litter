@@ -6,7 +6,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from zhijian.ai.budget import ensure_ai_budget
+from zhijian.ai.budget import ensure_ai_budget, remaining_ai_wall_seconds
 from zhijian.ai.cache import cached_json_result
 from zhijian.ai.capabilities import AIModelLocation
 from zhijian.ai.resource_manager import local_ai_resource_manager
@@ -92,6 +92,11 @@ class AIWorkloadGateway:
                         model=attempt_model,
                         profile_id=getattr(attempt_provider, "profile_id", None),
                     )
+                    timeout = getattr(attempt_provider, "timeout", None)
+                    if timeout is not None and job is not None:
+                        attempt_provider.timeout = min(
+                            float(timeout), max(1.0, remaining_ai_wall_seconds(db, job))
+                        )
 
                 provider.before_attempt = ensure_attempt_budget
                 provider.attempt_runner = run_attempt
@@ -139,6 +144,9 @@ class AIWorkloadGateway:
                 model=model,
                 profile_id=getattr(provider, "profile_id", None),
             )
+            timeout = getattr(provider, "timeout", None)
+            if timeout is not None and job is not None:
+                provider.timeout = min(float(timeout), max(1.0, remaining_ai_wall_seconds(db, job)))
 
         def invoke() -> LLMResult:
             if options is None:

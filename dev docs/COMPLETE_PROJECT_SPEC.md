@@ -245,6 +245,7 @@
 | 模型设置 | 用户可维护任意 Provider/模型库；预设仅帮助填写；主/备用从已存模型选择；草稿可真实测试；默认超时 300 秒 | `ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md`、`operations/RUNTIME_MONITOR_AND_MODEL_PRESETS_SPEC.md` |
 | AI Gateway 契约 | Model Profile 显式保存 location/modalities/capabilities；Stage 参数仅白名单；新 Job 按提交时快照固定路由、Profile、Stage Policy、Prompt/领域上下文与 AI 参数，完整/步骤重跑复用快照，Secret 不进 Job；没有快照的历史任务保持兼容路由，`AUTO/LOCAL_ONLY/LOCAL_FIRST/REMOTE_FIRST/REMOTE_ONLY` 语义不得回退 | `ai-gateway/05-job-policy.md`、`ai/policies.py` |
 | AI Gateway 质量与上下文 | 干净平台字幕不得无条件全文送模；长转写只传候选或 Facts，不能多阶段重复全文；Domain Context 仅低优先级增强，不能覆盖 Evidence、Schema 或安全契约；text-only Profile 不得绑定视觉 Stage | `ai-gateway/AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md`、`services/video_support.py` |
+| Qwen 逐字对齐与校对预算 | 高比例逐字对齐须在新 Transcript 物化前合并为语句 Segment，保留原始时间码；不得原地修改历史 Segment。校对预算按实际批次预估，实测剩余工作超墙钟上限时提前收口，请求 timeout 受剩余时长约束 | `scripts/qwen_asr_runner.py`、`services/video_support.py`、`ai/budget.py` |
 | AI Gateway 稳定性 | 精确 Cache hit 不重复调用 Provider；`force_regenerate` 绕过命中并保留结果链；本机 ASR/文本/视觉/模型测试必须跨 API/Worker 进程串行；LOCAL/REMOTE Token 分账只依据审计路由位置；Cache hit 不计模型调用或预算；Ollama `keep_alive: 0` 与本地重任务低并发不得回退；未经真实 E2E 与 Benchmark Gate 不得宣称生产验证 | `ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md`、`ai/resource_manager.py`、`ai/budget.py`、`ai-gateway/AI_RUNTIME_AND_PROVIDERS.md` |
 | 任务控制 | 当前标记只属于运行中的当前 JobStep；终态不固定高亮最后一步；时间线按 Pipeline 排序、阶段中文化并显示步骤用时；普通步骤 90 秒、LLM 步骤 500 秒预警，900 秒才终止；取消协作释放 lease，确认前不允许重试 | `jobs/MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md`、`jobs/TASK_SUMMARY_AND_PARTIAL_SUCCESS_SPEC.md`、`jobs/TASK_STATUS_AND_BEIJING_TIME_SPEC.md` |
 | Worker 存活与完整重跑 | 全局 Worker 心跳独立于同步 Pipeline；Job 活动只反映真实阶段/batch；长模型取消在请求边界停止后续批次，429/5xx 不放大请求；取消 lease 释放后 `CANCELLED` 也可完整重跑 | `operations/RUNTIME_MONITOR_AND_PROVIDER_SWITCH_V06_SPEC.md`、`jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md`、ADR-030 |
@@ -405,6 +406,10 @@
 - 2026-09-22：VIDEO_SEMANTIC_POI_NOTE 优化已进入源码。Grounded Map 同次 Local-first 调用保存 Semantic Map v3 的 ContentUnit、Entity 角色/意图/POI Policy、Relation 与 Evidence-bound Atomic Claim；歧义只以目标段及邻段做 Remote Escalation，失败保留本地结果并走保守 Review。`REFERENCE_ONLY`/`SKIP` 不进入 AMap、Review 或手动确认；AREA 物化为 Destination，已确认 Place 才创建同 Unit 的 Destination Link。Resolver v3 在既有精度门禁上区分 `AUTO_EXACT`/`AUTO_NORMALIZED`；Note 保留模型 heading、以 Claim 驱动并去除低信息/重复 bullet。新增 12 个语义 Golden、API Gate 和迁移 0024；目标后端 108 项、Ruff 与 Node 24 前端 verify 通过。未调用真实 Provider/高德/视频，Browser 插件与项目 Playwright 均不可用，故未做渲染验收。
 - 2026-09-23：视频 Job 在 `FETCH_METADATA` 完成时立即将解析标题写回 payload，运行详情刷新后显示视频标题；Job API 另返回仅限 HTTP(S) 的来源地址，任务详情页提供仅本页可见的复制按钮。API 回归、完整后端测试、Ruff、Node 24 前端 18 项/Vite/TypeScript verify 与 `diff --check` 通过。当前运行服务未重启加载这项 UI/API 变更，真实浏览器渲染未验收。
 - 2026-09-23：新 Job 提交时保存无密钥 AI 配置快照，路由、Profile、Stage Policy、Prompt/Domain、转写参数、预算/重试、默认 ASR 与笔记分块在排队和重跑期间保持提交值；后续新任务使用后来设置。Alembic 0025 允许同一 VideoAsset 对应多个 Note，每次提交独立 Note/Content/Transcript，完整重跑只给所属 Note 增版本；POI 依高德 ID 复用 Place，笔记页和搜索按 Note 读 Evidence，单篇删除保留另一篇。A→B→C 离线时序、双 Note/单 Place/重跑与删除回归、隔离 0024→0025 迁移（旧 Note/Version 保留、FK/integrity ok）、完整后端、Ruff、Node 24 前端 verify 和 `diff --check` 通过；已受控加载到本机服务，未调用真实 Provider/视频。现场采样见 CURRENT_HANDOFF。
+
+- 2026-09-23：Settings「语音与 OCR」新增可保存的默认 ASR 选择和 Qwen3-ASR 运行资产状态；仅允许在当前节点资产就绪时选择对应引擎。视频链接、本地视频及音频文件在提交时把选定 Provider 写入 Job 与无密钥配置快照，排队与完整重跑保持原值；任务详情显示提交时选择。视频 Qwen 转写失败时回退 Whisper，可信字幕仍跳过 ASR；普通音频文件失败则保留任务错误。OCR 仍由 macOS Vision 处理，尚无可切换的第二个 OCR Provider。修复 LaunchAgent 从用户主目录启动时 Qwen Runtime/Runner 相对路径失效，默认路径改为仓库绝对路径。隔离 API/Job 测试验证先 Qwen 后 Whisper 的两次提交与重跑不串设置；完整后端、Ruff、Node 24 前端验证通过。隔离浏览器桌面端验证选择、保存与刷新持久化；生产服务已加载并在桌面浏览器显示新控件，Qwen 资产探测 READY，默认仍为 Whisper。移动端浏览器与真实媒体/Provider 尚未验收，生产现场见 CURRENT_HANDOFF。
+
+- 2026-09-23：针对 `job_ad0ba062003a492bb9ff62270bcce385` 的逐字 Qwen 对齐与校对超时，Runner 对高比例逐字输出在入库前合并语句 Segment，并在 `alignment_ms` 保留原时间码；校对按真实批次数/请求体预估预算，至少两批后用实测最快耗时判断是否应提前暂停，模型 timeout 受 Job 剩余时长约束。对该 Job 的已存片段做纯离线重放：3377 个原片段 → 71 个语句 Segment、48 个校对候选、2 批，文本及 3377 条对齐时间全部保留。目标回归、完整后端、完整源码 Ruff、Node 24 前端 18 项/TypeScript/Vite 和 `diff --check` 通过。仅完成源码与离线验证；本机服务未加载新代码，原 Job 未真实重跑，旧逐字 Transcript 需完整重跑才会得到新分段。
 
 [实施历史](history/IMPLEMENTATION_HISTORY.md) 和 [归档实施计划](history/planning/README.md) 保留旧状态与计划追溯，默认不读。当前页只保留最新结论和未闭环项；完成项不持续追加长叙事。生产现场只更新 CURRENT_HANDOFF.md；冻结约束只更新 REGRESSION_AND_CHANGE_GUARD.md。新增证据必须写明日期、对象与验证层级。
 
@@ -3728,6 +3733,10 @@ ASR 与本地 LLM 不默认并行争用 GPU。模型未安装、损坏或不就�
 
 本机 Ollama 对 ASR 全量校对每批最多 32 段；这是既有分块机制的资源上限，不改变模型路由或允许跨 Job 并行。
 
+Qwen Forced Aligner 若返回高比例逐字片段，Runner 在物化前按标点、超过 800 ms 的停顿、48 字或 12 秒边界合并为语句片段；每个新 Segment 保留起止时间及 `locator_json.alignment_ms` 的原始对齐时间。已有 Transcript/Snapshot/Segment 不原地改写；旧逐字 Job 须在加载新代码后完整重跑，步骤续跑会继续使用旧片段。
+
+校对开始前按实际候选批次和序列化请求体登记预计调用量。至少完成两批后，若剩余批次即使按已完成批次的最快速度仍超过本轮 AI 时长预算，暂停为 `AI_BUDGET_EXCEEDED`；请求 timeout 不超过剩余时长。已完成批次保持持久化，不把预计耗时当作真实 Provider 验收。
+
 Whisper.cpp `-oj` JSON 的 `offsets.from/to` 已经是毫秒，适配器必须直接使用，不得再乘以 10。归一化后必须校验 `max(segment.end_ms)` 与 `VideoAsset.duration_ms`：允许片尾静音和平台元数据的小幅误差，但超过视频时长 2 倍必须中止后续 Note/截图物化并记录 `TRANSCRIPT_TIMELINE_INVALID`。已受影响的历史 Transcript 不原地篡改；当末段时间与视频时长比值约为 10 时，从现有 Segment 生成修正后的新 Transcript Version，再基于新版本重建 Note Version 与截图。
 
 
@@ -6977,6 +6986,8 @@ force_regenerate=true
 所有模型：保留每轮总运行时长限制
 Replay：重置本轮预算状态，历史审计只作证据，不消耗新一轮预算
 ```
+
+转写校对按实际候选批次及请求体长度更新软预算预估；至少两批的实测耗时用于判断剩余工作能否在墙钟预算内完成。模型单次请求的 timeout 受本轮剩余时长约束。预估不替代真实调用审计，也不改变本地/远程分账。
 
 只有 `capability=LLM` 且非 Cache Hit 的真实模型尝试进入调用次数；视频解析、字幕、下载、ASR 等外部调用不得混入。预算在 Provider 请求前拒绝时，不记录成 Provider 调用失败，也不得切换备用模型。不得无限 retry。
 

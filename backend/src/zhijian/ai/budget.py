@@ -27,16 +27,30 @@ def _config(db: Session, job: Job | None) -> GeneralConfig:
     return GeneralConfig(**job_setting(db, "app:general", job))
 
 
+def remaining_ai_wall_seconds(db: Session, job: Job) -> float:
+    elapsed = (utc_now() - as_utc(job.started_at)).total_seconds() if job.started_at else 0
+    return _config(db, job).ai_max_wall_time_seconds_per_job - elapsed
+
+
 def _expected_budget(db: Session, job: Job, input_chars: int) -> dict[str, int]:
     stored = job.payload_json.get("ai_soft_budget") if isinstance(job.payload_json, dict) else None
+    planned = job.payload_json.get("ai_planned_workload") if isinstance(job.payload_json, dict) else None
+    planned = planned if isinstance(planned, dict) else {}
     if isinstance(stored, dict) and all(
         key in stored
         for key in ("expected_prompt_tokens", "expected_completion_tokens", "expected_total_calls")
     ):
-        return {
+        expected = {
             key: int(stored.get(key) or 0)
             for key in ("expected_prompt_tokens", "expected_completion_tokens", "expected_total_calls")
         }
+        expected["expected_prompt_tokens"] = max(
+            expected["expected_prompt_tokens"], int(planned.get("prompt_chars") or 0) // 2
+        )
+        expected["expected_total_calls"] = max(
+            expected["expected_total_calls"], int(planned.get("calls") or 0)
+        )
+        return expected
     asset_id = str(job.payload_json.get("video_asset_id") or "")
     transcript_chars = 0
     if asset_id:
@@ -51,9 +65,11 @@ def _expected_budget(db: Session, job: Job, input_chars: int) -> dict[str, int]:
         transcript_chars = max(0, int((asset.duration_ms or 0) / 1000) * 24)
     base_tokens = max(1, max(transcript_chars, input_chars) // 4)
     expected = {
-        "expected_prompt_tokens": base_tokens * 2,
+        "expected_prompt_tokens": max(base_tokens * 2, int(planned.get("prompt_chars") or 0) // 2),
         "expected_completion_tokens": max(256, base_tokens // 5),
-        "expected_total_calls": max(1, (transcript_chars + 11_999) // 12_000 + 1),
+        "expected_total_calls": max(
+            1, (transcript_chars + 11_999) // 12_000 + 1, int(planned.get("calls") or 0)
+        ),
     }
     job.payload_json = {**job.payload_json, "ai_soft_budget": {**expected, "status": "EXPECTED"}}
     return expected
@@ -151,8 +167,7 @@ def ensure_ai_budget(
     if job is None:
         return None
     config = _config(db, job)
-    elapsed = (utc_now() - as_utc(job.started_at)).total_seconds() if job.started_at else 0
-    if elapsed >= config.ai_max_wall_time_seconds_per_job:
+    if remaining_ai_wall_seconds(db, job) <= 0:
         raise AIBudgetExceeded("本轮任务已达到 AI 处理时长上限")
     location = location.upper()
     if location not in {"LOCAL", "REMOTE"}:
@@ -191,9 +206,7 @@ def ensure_ai_budget(
     if location == "REMOTE" and len(target_rows) >= config.ai_max_model_attempts_per_job:
         raise AIBudgetExceeded("本轮该远程模型已达到调用次数上限")
     location_rows = (
-        target_rows
-        if location == "REMOTE"
-        else [row for row in actual if _audit_location(row) == "LOCAL"]
+        target_rows if location == "REMOTE" else [row for row in actual if _audit_location(row) == "LOCAL"]
     )
     prompt_tokens = sum(
         int((row.response_meta_json or {}).get("prompt_tokens") or 0) for row in location_rows

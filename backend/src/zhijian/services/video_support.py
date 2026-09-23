@@ -28,7 +28,7 @@ from zhijian.ai.transcript_quality import correction_candidates, transcript_sour
 from zhijian.core.config import Settings
 from zhijian.core.ids import new_id
 from zhijian.core.secret_store import build_secret_store
-from zhijian.core.time import utc_now
+from zhijian.core.time import as_utc, utc_now
 from zhijian.db.models import (
     AINote,
     AINoteSection,
@@ -1027,8 +1027,15 @@ def materialize_transcript(
         start_ms = int(item.get("start_ms") or 0)
         end_ms = max(start_ms, int(item.get("end_ms") or start_ms))
         if text:
+            locator = item.get("locator") or {}
             normalized.append(
-                {"text": text, "start_ms": start_ms, "end_ms": end_ms, "confidence": item.get("confidence")}
+                {
+                    "text": text,
+                    "start_ms": start_ms,
+                    "end_ms": end_ms,
+                    "confidence": item.get("confidence"),
+                    "alignment_ms": locator.get("alignment_ms") if isinstance(locator, dict) else None,
+                }
             )
     if not normalized:
         raise ValueError("没有可用的带时间码转写片段")
@@ -1093,7 +1100,11 @@ def materialize_transcript(
             correction_status="UNCORRECTED",
             correction_reason="等待模型校对",
             confidence=item["confidence"],
-            locator_json={"start_ms": item["start_ms"], "end_ms": item["end_ms"]},
+            locator_json={
+                "start_ms": item["start_ms"],
+                "end_ms": item["end_ms"],
+                **({"alignment_ms": item["alignment_ms"]} if item["alignment_ms"] else {}),
+            },
         )
         db.add(segment)
         segments.append(segment)
@@ -1597,6 +1608,27 @@ def correct_transcript(
         min(processing.chunk_chars, saved_max_chars) if saved_max_chars else processing.chunk_chars,
         adaptive_batch_size,
     )
+    if job:
+        supplement_chars = sum(
+            len(message["content"])
+            for message in prompt_supplement_messages(db, "transcript_correction", job)
+        )
+        prompt_chars = sum(
+            len(prompt)
+            + supplement_chars
+            + len(
+                json.dumps(
+                    {"video_title": asset.title, "items": [correction_items[item.id] for item in chunk]},
+                    ensure_ascii=False,
+                )
+            )
+            for chunk in chunks
+        )
+        job.payload_json = {
+            **job.payload_json,
+            "ai_planned_workload": {"calls": len(chunks), "prompt_chars": prompt_chars},
+        }
+        db.commit()
 
     corrected_count = 0
 
@@ -1745,6 +1777,7 @@ def correct_transcript(
 
     pending_chunks = list(chunks)
     completed_batches = 0
+    batch_durations: list[float] = []
     while pending_chunks:
         chunk = pending_chunks.pop(0)
         if len(chunk) > adaptive_batch_size:
@@ -1779,6 +1812,7 @@ def correct_transcript(
             db.commit()
         request_batch(chunk, batch_index=batch_index, batch_total=batch_total)
         completed_batches += 1
+        batch_durations.append(perf_counter() - started)
         if job:
             ensure_job_active(db, job)
             job.heartbeat_at = utc_now()
@@ -1798,6 +1832,16 @@ def correct_transcript(
                 commit=False,
             )
             db.commit()
+            if len(batch_durations) >= 2 and pending_chunks and job.started_at:
+                wall_limit = GeneralConfig(
+                    **job_setting(db, "app:general", job)
+                ).ai_max_wall_time_seconds_per_job
+                remaining = wall_limit - (utc_now() - as_utc(job.started_at)).total_seconds()
+                if min(batch_durations) * len(pending_chunks) > remaining:
+                    raise AIProviderError(
+                        "AI_BUDGET_EXCEEDED",
+                        f"剩余 {len(pending_chunks)} 批按已完成批次的最快耗时仍将超过本轮 AI 时长上限",
+                    )
     corrected_count = sum(segment.correction_status == "CORRECTED" for segment in segments)
     unchanged_count = sum(segment.correction_status == "UNCHANGED" for segment in segments)
     transcript.text = "\n".join(segment.corrected_text or segment.text for segment in segments)

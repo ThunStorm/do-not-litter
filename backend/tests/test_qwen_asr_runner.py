@@ -87,3 +87,28 @@ def test_qwen_runner_rejects_missing_or_invalid_alignment(tmp_path: Path) -> Non
             assert "QWEN_ASR_ALIGNMENT_FAILED" in str(exc)
         else:
             raise AssertionError("Qwen 时间码不合法时必须拒绝结果")
+
+
+def test_qwen_runner_groups_character_alignment_without_losing_timing() -> None:
+    runner = _runner()
+    raw = [{"text": "山", "start": index * 0.15, "end": (index + 1) * 0.15} for index in range(3_377)]
+    grouped = runner._segments({"segments": raw}, 600_000, runner.DEFAULT_MODEL_ID)
+
+    assert len(grouped) <= 100
+    assert "".join(item["text"] for item in grouped) == "山" * 3_377
+    assert sum(len(item["locator"]["alignment_ms"]) for item in grouped) == 3_377
+    assert grouped[0]["start_ms"] == 0
+    assert grouped[-1]["end_ms"] == round(3_377 * 150)
+
+
+def test_qwen_runner_keeps_pause_and_punctuation_boundaries() -> None:
+    runner = _runner()
+    raw = [
+        {"text": text, "start": start, "end": start + 0.1}
+        for text, start in zip("大理。古城！", (0.0, 0.1, 0.2, 2.0, 2.1, 2.2), strict=True)
+    ]
+    grouped = runner._segments({"segments": raw}, 3_000, runner.DEFAULT_MODEL_ID)
+
+    assert [item["text"] for item in grouped] == ["大理。", "古城！"]
+    assert [item["start_ms"] for item in grouped] == [0, 2_000]
+    assert [item["end_ms"] for item in grouped] == [300, 2_300]

@@ -1,4 +1,5 @@
 """Run Qwen3-ASR in an isolated MLX process and emit transcript JSON only."""
+
 from __future__ import annotations
 
 import argparse
@@ -78,7 +79,11 @@ def _duration_ms(path: Path) -> int:
 
 
 def _value(item: object, name: str, default: object = None) -> object:
-    return item.get(name, default) if isinstance(item, dict) else getattr(item, name, default)
+    return (
+        item.get(name, default)
+        if isinstance(item, dict)
+        else getattr(item, name, default)
+    )
 
 
 def _segments(result: object, duration_ms: int, model_id: str) -> list[dict[str, Any]]:
@@ -115,7 +120,42 @@ def _segments(result: object, duration_ms: int, model_id: str) -> list[dict[str,
                 "locator": {"method": "qwen3-forced-aligner", "model": model_id},
             }
         )
-    return normalized
+    if (
+        len(normalized) < 2
+        or sum(len(item["text"]) == 1 for item in normalized) < len(normalized) * 0.9
+    ):
+        return normalized
+    grouped: list[dict[str, Any]] = []
+    current: list[dict[str, Any]] = []
+    for item in normalized:
+        if current and item["start_ms"] - current[-1]["end_ms"] > 800:
+            grouped.append(_merge_alignment(current, model_id))
+            current = []
+        current.append(item)
+        if (
+            len("".join(part["text"] for part in current)) >= 48
+            or item["end_ms"] - current[0]["start_ms"] >= 12_000
+            or item["text"] in "。！？!?；;，,"
+        ):
+            grouped.append(_merge_alignment(current, model_id))
+            current = []
+    if current:
+        grouped.append(_merge_alignment(current, model_id))
+    return grouped
+
+
+def _merge_alignment(items: list[dict[str, Any]], model_id: str) -> dict[str, Any]:
+    return {
+        "text": "".join(item["text"] for item in items),
+        "start_ms": items[0]["start_ms"],
+        "end_ms": items[-1]["end_ms"],
+        "confidence": None,
+        "locator": {
+            "method": "qwen3-forced-aligner",
+            "model": model_id,
+            "alignment_ms": [[item["start_ms"], item["end_ms"]] for item in items],
+        },
+    }
 
 
 def _peak_memory_bytes() -> int:
@@ -172,7 +212,9 @@ def transcribe(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="隔离运行 Qwen3-ASR MLX，并只向 stdout 输出 JSON")
+    parser = argparse.ArgumentParser(
+        description="隔离运行 Qwen3-ASR MLX，并只向 stdout 输出 JSON"
+    )
     parser.add_argument("audio", type=Path)
     parser.add_argument("--context", default="")
     parser.add_argument("--language")

@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 import pytest
 
 from zhijian.ai import (
@@ -8,7 +10,7 @@ from zhijian.ai import (
     AIWorkloadGateway,
 )
 from zhijian.ai.reliability import AIProviderError, ModelReliabilityPolicy
-from zhijian.db.models import AICacheEntry, Job
+from zhijian.db.models import AICacheEntry, Job, Setting
 from zhijian.providers.llm import FallbackLLMProvider, LLMResult
 
 
@@ -97,9 +99,7 @@ def test_gateway_runs_budgeted_attempts_against_actual_fallback_provider(
     locations: list[str] = []
     monkeypatch.setattr(
         "zhijian.ai.gateway.ensure_ai_budget",
-        lambda _db, _job, *, location, input_chars, **_target: locations.append(
-            f"{location}:{input_chars}"
-        ),
+        lambda _db, _job, *, location, input_chars, **_target: locations.append(f"{location}:{input_chars}"),
     )
     with factory() as db:
         job = Job(job_type="TRAVEL", status="RUNNING", payload_json={})
@@ -129,6 +129,44 @@ def test_gateway_runs_budgeted_attempts_against_actual_fallback_provider(
     assert result.provider == "remote"
     assert remote.models == ["remote-model"]
     assert locations == ["LOCAL:8", "REMOTE:8"]
+
+
+def test_gateway_caps_model_timeout_to_remaining_job_wall_budget(app_and_session) -> None:
+    class TimedProvider:
+        name = "ollama"
+        timeout = 180.0
+
+        def generate_json(self, _messages, *, model):
+            return LLMResult('{"changes":[]}', self.name, model, {})
+
+    _, factory = app_and_session
+    primary = TimedProvider()
+    with factory() as db:
+        db.add(Setting(key="app:general", value_json={"ai_max_wall_time_seconds_per_job": 60}))
+        job = Job(
+            job_type="TRAVEL",
+            status="RUNNING",
+            payload_json={},
+            started_at=datetime.now(UTC) - timedelta(seconds=40),
+        )
+        db.add(job)
+        db.commit()
+        AIWorkloadGateway().execute_cached_json(
+            db,
+            job=job,
+            stage="TRANSCRIPT_CORRECTION",
+            capability="TRANSCRIPT_CORRECTION",
+            provider=FallbackLLMProvider(
+                primary, "fixture", None, None, retry_count=0, request_interval_seconds=0
+            ),
+            provider_name="ollama",
+            model="fixture",
+            messages=[{"role": "user", "content": "evidence"}],
+            semantic_options={},
+            cache_enabled=False,
+            force_regenerate=False,
+        )
+        assert 0 < primary.timeout < 21
 
 
 def test_invalid_structured_output_is_not_cached(app_and_session) -> None:
