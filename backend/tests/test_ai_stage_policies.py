@@ -73,9 +73,7 @@ def test_stage_policy_api_validates_models_and_job_override(client, app_and_sess
         assert job.payload_json["ai_overrides"]["TRANSCRIPT_CORRECTION"]["execution_mode"] == "LOCAL_ONLY"
 
 
-def test_stage_policy_requires_explicit_override_for_failed_capability(
-    client, app_and_session
-) -> None:
+def test_stage_policy_requires_explicit_override_for_failed_capability(client, app_and_session) -> None:
     _, factory = app_and_session
     created = client.post("/api/settings/model-profiles", json=_profile("不适配", "LOCAL", "failed"))
     profile_id = created.json()["id"]
@@ -128,6 +126,39 @@ def test_stage_policy_changes_actual_provider_route(app_and_session, monkeypatch
         assert provider.request_options and provider.request_options.max_output_tokens == 1200
 
 
+def test_explicit_deepseek_note_route_disables_default_thinking(app_and_session, monkeypatch) -> None:
+    _, factory = app_and_session
+    with factory() as db:
+        profile = {
+            **_profile("DeepSeek Flash", "REMOTE", "deepseek-v4-flash"),
+            "capabilities": ["STRUCTURED_EXTRACTION"],
+            "probe_results": {"GLOBAL_SYNTHESIS": "NOT_TESTED"},
+        }
+        db.add(Setting(key="model-profile:flash", value_json=profile))
+        db.add(
+            Setting(
+                key="ai-stage-policy:NOTE_REDUCE",
+                value_json={
+                    "execution_mode": "REMOTE_ONLY",
+                    "remote_profile_id": "flash",
+                },
+            )
+        )
+        job = Job(job_type="TRAVEL", status="RUNNING", payload_json={"ai_automation_version": "v2"})
+        db.add(job)
+        db.commit()
+        monkeypatch.setattr(
+            "zhijian.services.video_support._provider_from_config",
+            lambda config, *_args: (SimpleNamespace(name="deepseek"), "deepseek", config["model"]),
+        )
+
+        provider, _, model = provider_for_role(
+            db, SimpleNamespace(secret_store="file", data_dir="/tmp"), "note_reduce", job
+        )
+        assert model == "deepseek-v4-flash"
+        assert provider.request_options and provider.request_options.thinking is False
+
+
 def test_model_probe_persists_only_capability_results(client, app_and_session, monkeypatch) -> None:
     _, factory = app_and_session
     created = client.post("/api/settings/model-profiles", json=_profile("探测", "LOCAL", "probe-model"))
@@ -178,9 +209,7 @@ def test_draft_model_probe_returns_results_without_persisting_key(
         assert "draft-key-must-not-persist" not in str(db.query(Setting).all())
 
 
-def test_rate_limited_probe_preserves_previous_capabilities(
-    client, app_and_session, monkeypatch
-) -> None:
+def test_rate_limited_probe_preserves_previous_capabilities(client, app_and_session, monkeypatch) -> None:
     _, factory = app_and_session
     created = client.post("/api/settings/model-profiles", json=_profile("远程探测", "REMOTE", "free"))
     profile_id = created.json()["id"]

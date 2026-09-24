@@ -414,21 +414,22 @@ def test_rejected_place_mention_leaves_review_queue_and_can_be_restored(client, 
 
 
 @pytest.mark.parametrize(
-    ("job_error", "step_status"),
+    ("job_error", "step_status", "job_status"),
     [
-        ("模型暂时不可用", "FAILED"),
-        ("本次模型调用所属的任务执行权已失效", "CANCELLED"),
+        ("模型暂时不可用", "FAILED", "FAILED"),
+        ("本次模型调用所属的任务执行权已失效", "CANCELLED", "FAILED"),
+        (None, "CANCELLED", "CANCELLED"),
     ],
 )
 def test_failed_video_step_replays_only_current_and_downstream(
-    client, app_and_session, job_error: str, step_status: str
+    client, app_and_session, job_error: str | None, step_status: str, job_status: str
 ) -> None:
     _, factory = app_and_session
     replayable_until = datetime.now(UTC) + timedelta(hours=1)
     with factory() as db:
         job = Job(
             job_type="TRAVEL",
-            status="FAILED",
+            status=job_status,
             current_step="CORRECT_TRANSCRIPT",
             payload_json={"title": "续跑测试", "ai_soft_budget": {"status": "HARD_LIMIT"}},
             error=job_error,
@@ -478,8 +479,12 @@ def test_failed_video_step_replays_only_current_and_downstream(
         assert steps["CORRECT_TRANSCRIPT"] == "PENDING"
 
 
+@pytest.mark.parametrize(
+    ("selected_profile_id", "expected_model"),
+    [("pro", "deepseek-v4-pro"), ("flash", "deepseek-v4-flash")],
+)
 def test_note_replay_can_explicitly_use_current_stage_model_without_rewriting_snapshot(
-    client, app_and_session, monkeypatch
+    client, app_and_session, monkeypatch, selected_profile_id: str, expected_model: str
 ) -> None:
     _, factory = app_and_session
     local = {
@@ -528,6 +533,25 @@ def test_note_replay_can_explicitly_use_current_stage_model_without_rewriting_sn
             )
         )
         db.add(Setting(key="model-profile:pro", value_json=remote))
+        db.add(
+            Setting(
+                key="model-profile:flash",
+                value_json={
+                    **remote,
+                    "name": "DeepSeek V4 Flash",
+                    "model": "deepseek-v4-flash",
+                },
+            )
+        )
+        db.add(
+            Setting(
+                key="model-routing",
+                value_json={
+                    "primary_id": "local",
+                    "fallback_id": "flash",
+                },
+            )
+        )
         db.add(
             Setting(
                 key="ai-stage-policy:NOTE_REDUCE",
@@ -604,30 +628,39 @@ def test_note_replay_can_explicitly_use_current_stage_model_without_rewriting_sn
     options = client.get(f"/api/jobs/{job_id}/replay-options").json()
     assert options["note_policy_refresh_available"] is True
     assert options["note_policy_refresh_model"] == "DeepSeek V4 Pro"
+    assert {item["id"] for item in options["note_policy_refresh_candidates"]} == {"pro", "flash"}
     queued = client.post(
         f"/api/jobs/{job_id}/retry-from-step",
-        json={"step_name": "GENERATE_AI_NOTE", "use_current_note_policy": True},
+        json={
+            "step_name": "GENERATE_AI_NOTE",
+            "use_current_note_policy": True,
+            "note_profile_id": selected_profile_id,
+        },
     )
     assert queued.status_code == 200
     with factory() as db:
         job = db.get(Job, job_id)
         assert job and job.status == "QUEUED"
         assert job.payload_json["ai_submission_config"] == snapshot
-        assert job.payload_json["ai_recovery_overrides"]["NOTE_REDUCE"]["remote_profile_id"] == "pro"
+        assert (
+            job.payload_json["ai_recovery_overrides"]["NOTE_REDUCE"]["remote_profile_id"]
+            == selected_profile_id
+        )
+        assert job.payload_json["ai_recovery_overrides"]["NOTE_REDUCE"]["thinking"] is False
         assert "api_key" not in str(job.payload_json["ai_recovery_config"])
         monkeypatch.setattr(
             "zhijian.services.video_support._provider_from_config",
             lambda config, *_args: (object(), "deepseek", str(config["model"])),
         )
         _, _, model = provider_for_role(db, Settings(_env_file=None), "note_reduce", job)
-        assert model == "deepseek-v4-pro"
+        assert model == expected_model
         event = db.scalar(
             select(SystemEvent).where(
                 SystemEvent.entity_id == job_id,
                 SystemEvent.event_type == "job.step_replay.queued",
             )
         )
-        assert event and event.detail_json["note_policy_refresh"]["profile_id"] == "pro"
+        assert event and event.detail_json["note_policy_refresh"]["profile_id"] == selected_profile_id
 
 
 def test_full_replay_stops_active_job_and_requeues_same_job(client, app_and_session) -> None:

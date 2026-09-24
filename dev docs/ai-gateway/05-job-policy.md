@@ -21,6 +21,8 @@ Custom 下允许只覆盖某几个 Stage。
 
 失败在笔记生成步骤时，用户可明确选择“使用当前笔记模型继续”。服务端只把当前笔记阶段策略与所选 Profile 的无密钥字段记为本次 Job 的恢复配置，原提交快照及上游 Artifact 不变，并在 `job.step_replay.queued` 记录模型与探测状态。普通步骤续跑仍使用原提交配置；完整重跑会清除恢复配置。手动选定且探测为 `NOT_TESTED` 的 Profile 可进入原有 JSON、Segment Evidence 与预算门禁；`FAIL` 仍拒绝选路。
 
+恢复卡可从当前笔记阶段模型和通用路由已保存的备用模型中明确选择；选择备用模型只覆盖本 Job，不改全局 Stage Policy。只允许启用、位置匹配、`GLOBAL_SYNTHESIS` 探测不为 `FAIL` 的 Profile。任务恢复配置保存所选模型的无密钥字段和阶段覆盖，审计记录实际模型；不是给模型补造能力 Probe 结果。
+
 例如：
 
 ```text

@@ -93,7 +93,7 @@ Artifact 状态：`AVAILABLE / EXPIRED / INVALIDATED / MISSING`。
 
 步骤级续跑必须同时满足：
 
-1. Job 当前为 `FAILED / NEEDS_USER / PARTIAL_SUCCESS`，且没有活跃 lease；
+1. Job 当前为 `FAILED / NEEDS_USER / PARTIAL_SUCCESS`，或满足下文已运行步骤的 `CANCELLED` 例外，且没有活跃 lease；
 2. ERROR/CRITICAL 事件规范关联该 Job 和失败 Step；
 3. 请求 step_name 等于服务端判定的最早失败/失效步骤；
 4. 该步骤所有上游 Artifact 均 AVAILABLE 且未过期；
@@ -128,7 +128,9 @@ Artifact 状态：`AVAILABLE / EXPIRED / INVALIDATED / MISSING`。
 
 完整重跑是不同动作：从 Pipeline 首个步骤开始，可按缓存策略复用，但不保证跳过任何步骤。
 
-取消不是失败步骤。步骤续跑仍只在有明确失败步骤与有效 Artifact 时可用。完整重跑是独立动作：任何状态下均复用原 Job ID；终态 Job 立即清除步骤执行态并重新 `QUEUED`，运行中的 Job 先协作式取消，Worker 在安全边界释放 lease 后将同一 Job 从首步重新入队。保留 Job ID 与 SystemEvent/ExternalCallAudit，重置 Step 执行态和中间 Artifact，避免生成同标题替代 Job 或两个流程并发写同一结果。
+取消不自动视为失败；通常只有明确失败步骤及有效 Artifact 才能续跑，已运行步骤的协作取消按下述条件例外处理。完整重跑是独立动作：任何状态下均复用原 Job ID；终态 Job 立即清除步骤执行态并重新 `QUEUED`，运行中的 Job 先协作式取消，Worker 在安全边界释放 lease 后将同一 Job 从首步重新入队。保留 Job ID 与 SystemEvent/ExternalCallAudit，重置 Step 执行态和中间 Artifact，避免生成同标题替代 Job 或两个流程并发写同一结果。
+
+已在运行中被协作取消的步骤，若 Job/Step 均为 `CANCELLED`、lease 已释放、上游 Artifact 仍有效且没有等待中的完整重跑，可由用户选择从该步骤继续；重新执行当前步骤，不复用被取消请求的迟到结果。未开始的取消 Job 仍使用完整重跑。
 
 兼容修复：旧 Worker 可能在用户取消步骤续跑后，将 Job 错写为 `FAILED`、当前 Step 保留 `CANCELLED`，且错误为“本次模型调用所属的任务执行权已失效”。仅对此可识别的旧状态，Replay Options 可在上游 Artifact 门禁通过时从原步骤续跑；真正的 `CANCELLED` Job 仍按完整重跑契约处理，原事件与审计不改写。
 

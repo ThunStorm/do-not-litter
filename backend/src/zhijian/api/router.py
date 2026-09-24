@@ -922,6 +922,7 @@ def retry_from_step(
             payload.step_name,
             payload.source_event_id,
             use_current_note_policy=payload.use_current_note_policy,
+            note_profile_id=payload.note_profile_id,
         )
     except ValueError as exc:
         code, _, message = str(exc).partition(":")

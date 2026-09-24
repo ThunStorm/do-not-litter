@@ -35,6 +35,7 @@ class StepReplayRequest(BaseModel):
     step_name: str = Field(min_length=1, max_length=64)
     source_event_id: str | None = Field(default=None, max_length=64)
     use_current_note_policy: bool = False
+    note_profile_id: str | None = Field(default=None, max_length=64)
 
 
 class BulkDeleteRequest(BaseModel):

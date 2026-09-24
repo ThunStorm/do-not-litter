@@ -848,7 +848,8 @@ svg { flex: 0 0 auto; }
 .video-lightbox img { max-width: min(1200px, 90vw); max-height: 88vh; object-fit: contain; box-shadow: 0 22px 60px rgb(0 0 0 / 35%); }
 .task-replay-card { display: flex; align-items: center; justify-content: space-between; gap: 22px; margin-top: 14px; padding: 16px 18px; border: 1px solid #d6b38b; background: #fbf4e9; }
 .task-replay-card > div { display: grid; gap: 5px; }
-.task-replay-card > .task-replay-card__actions { display: flex; align-items: center; gap: 8px; }
+.task-replay-card > .task-replay-card__actions { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
+.task-replay-card__actions .ui-select-menu { min-width: min(100%, 190px); }
 .task-replay-card span { color: var(--muted); font-size: 12px; line-height: 1.5; }
 .task-replay-card--expired { border-color: var(--line); background: #f6f3ed; }
 .task-login-recovery { margin-top: 14px; overflow: hidden; border: 1px solid #d6b38b; border-radius: 8px; background: #fbf8f1; }

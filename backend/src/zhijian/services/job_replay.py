@@ -50,7 +50,7 @@ FULL_REPLAY_CLEARED_PAYLOAD_KEYS = {
 }
 
 
-def _current_note_recovery(db: Session, job: Job) -> dict | None:
+def _current_note_recovery(db: Session, job: Job, requested_profile_id: str | None = None) -> dict | None:
     transcript_id = str(job.payload_json.get("transcript_id") or "")
     has_map = bool(
         transcript_id
@@ -72,12 +72,21 @@ def _current_note_recovery(db: Session, job: Job) -> dict | None:
     profile_id = str(selected_id or "")
     if not profile_id:
         return None
+    routing_setting = db.get(Setting, "model-routing")
+    routing = (
+        routing_setting.value_json if routing_setting and isinstance(routing_setting.value_json, dict) else {}
+    )
+    allowed_ids = {profile_id, str(routing.get("fallback_id") or "")}
+    if requested_profile_id:
+        if requested_profile_id not in allowed_ids:
+            return None
+        profile_id = requested_profile_id
     profile_setting = db.get(Setting, f"model-profile:{profile_id}")
     profile = (
         profile_setting.value_json if profile_setting and isinstance(profile_setting.value_json, dict) else {}
     )
     probe = str((profile.get("probe_results") or {}).get("GLOBAL_SYNTHESIS") or "NOT_TESTED").upper()
-    expected_location = "REMOTE" if mode.startswith("REMOTE") else "LOCAL"
+    expected_location = "REMOTE" if profile_id != str(selected_id) or mode.startswith("REMOTE") else "LOCAL"
     if (
         not profile
         or not profile.get("enabled", True)
@@ -85,11 +94,18 @@ def _current_note_recovery(db: Session, job: Job) -> dict | None:
         or probe == "FAIL"
     ):
         return None
+    recovered_policy = {
+        key: value for key, value in policy.items() if key not in {"stage", "capability", "version"}
+    }
+    if profile_id != str(selected_id):
+        recovered_policy.update(
+            {"execution_mode": "REMOTE_ONLY", "local_profile_id": None, "remote_profile_id": profile_id}
+        )
+    if recovered_policy.get("thinking") is None and str(profile.get("provider") or "").lower() == "deepseek":
+        recovered_policy["thinking"] = False
     return {
         "stage": stage,
-        "policy": {
-            key: value for key, value in policy.items() if key not in {"stage", "capability", "version"}
-        },
+        "policy": recovered_policy,
         "profile_id": profile_id,
         "profile": secret_free_model_profile(profile),
         "profile_name": str(profile.get("name") or profile.get("model") or profile_id),
@@ -211,16 +227,26 @@ def replay_options(db: Session, job: Job) -> dict:
         )
     ):
         failed = steps[job.current_step]
+    if (
+        failed is None
+        and job.status == JobStatus.CANCELLED.value
+        and steps.get(job.current_step)
+        and steps[job.current_step].status == "CANCELLED"
+    ):
+        failed = steps[job.current_step]
     if failed is None or failed.step_name not in VIDEO_STEP_ORDER:
         return _unavailable(job, "REPLAY_STEP_MISMATCH", "没有可续跑的失败步骤")
     if job.status not in {
         JobStatus.FAILED.value,
         JobStatus.NEEDS_USER.value,
         JobStatus.PARTIAL_SUCCESS.value,
+        JobStatus.CANCELLED.value,
     }:
         return _unavailable(job, "REPLAY_JOB_STATE", "当前任务状态不允许步骤续跑")
     if job.lease_owner:
         return _unavailable(job, "REPLAY_LEASE_ACTIVE", "当前执行 lease 尚未释放")
+    if job.payload_json.get(FULL_REPLAY_DEFERRED_KEY):
+        return _unavailable(job, "REPLAY_ALREADY_RUNNING", "完整重跑已等待取消结束")
     index = VIDEO_STEP_ORDER.index(failed.step_name)
     login_audio_resume = job.error_code == "VIDEO_LOGIN_REQUIRED" and failed.step_name == "DOWNLOAD_AUDIO"
     if index < REPLAYABLE_START_INDEX and not login_audio_resume:
@@ -271,6 +297,25 @@ def replay_options(db: Session, job: Job) -> dict:
         return _unavailable(job, "REPLAY_ARTIFACT_EXPIRED", f"中间产物已清理：{expired[0]}")
     deadline = min((as_utc(artifacts[name].replayable_until) for name in required), default=now)
     note_recovery = _current_note_recovery(db, job) if failed.step_name == "GENERATE_AI_NOTE" else None
+    note_candidates = []
+    if note_recovery:
+        routing_setting = db.get(Setting, "model-routing")
+        routing = (
+            routing_setting.value_json
+            if routing_setting and isinstance(routing_setting.value_json, dict)
+            else {}
+        )
+        for profile_id in dict.fromkeys((note_recovery["profile_id"], str(routing.get("fallback_id") or ""))):
+            candidate = _current_note_recovery(db, job, profile_id) if profile_id else None
+            if candidate:
+                note_candidates.append(
+                    {
+                        "id": candidate["profile_id"],
+                        "name": candidate["profile_name"],
+                        "model": candidate["profile"].get("model"),
+                        "probe": candidate["probe"],
+                    }
+                )
     return {
         "step_replay_available": True,
         "replay_from_step": failed.step_name,
@@ -284,6 +329,8 @@ def replay_options(db: Session, job: Job) -> dict:
         "note_policy_refresh_available": note_recovery is not None,
         "note_policy_refresh_model": note_recovery["profile_name"] if note_recovery else None,
         "note_policy_refresh_probe": note_recovery["probe"] if note_recovery else None,
+        "note_policy_refresh_profile_id": note_recovery["profile_id"] if note_recovery else None,
+        "note_policy_refresh_candidates": note_candidates,
         **_login_recovery_options(job, failed.step_name),
         **full_replay_options(job),
     }
@@ -296,6 +343,7 @@ def queue_step_replay(
     source_event_id: str | None = None,
     *,
     use_current_note_policy: bool = False,
+    note_profile_id: str | None = None,
 ) -> dict:
     options = replay_options(db, job)
     if not options["step_replay_available"]:
@@ -304,9 +352,13 @@ def queue_step_replay(
         raise ValueError("REPLAY_STEP_MISMATCH:请求步骤与服务端可续跑步骤不一致")
     note_recovery = None
     if use_current_note_policy:
-        note_recovery = _current_note_recovery(db, job) if step_name == "GENERATE_AI_NOTE" else None
+        note_recovery = (
+            _current_note_recovery(db, job, note_profile_id) if step_name == "GENERATE_AI_NOTE" else None
+        )
         if note_recovery is None:
             raise ValueError("REPLAY_NOTE_POLICY_UNAVAILABLE:当前笔记模型设置不可用于此步骤")
+    elif note_profile_id:
+        raise ValueError("REPLAY_NOTE_POLICY_UNAVAILABLE:选择模型需启用笔记模型恢复")
     if source_event_id:
         event = db.get(SystemEvent, source_event_id)
         if (

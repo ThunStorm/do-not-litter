@@ -511,6 +511,9 @@ def _cached_stage_json(
     if not hasattr(db, "scalar"):
         return provider.generate_json(messages, model=model)
     policy = _resolved_stage_policy(db, stage, job)
+    effective_thinking = policy.thinking
+    if effective_thinking is None and isinstance(provider, FallbackLLMProvider):
+        effective_thinking = getattr(provider.request_options, "thinking", None)
     domain_messages, domain_versions = domain_context_messages(
         db, policy.domain_pack_ids, AICapability(capability), job
     )
@@ -527,7 +530,7 @@ def _cached_stage_json(
         semantic_options={
             "temperature": policy.temperature,
             "max_output_tokens": policy.max_output_tokens,
-            "thinking": policy.thinking,
+            "thinking": effective_thinking,
             "domain": policy.domain,
             "domain_pack_ids": policy.domain_pack_ids,
             "domain_context_hash": domain_context_hash(domain_versions),
@@ -900,10 +903,16 @@ def provider_for_role(
             )
             if not resolved_policy and max_output_tokens is None:
                 return None
+            thinking = resolved_policy.thinking if resolved_policy else None
+            if thinking is None and role in {"note_reduce", "video_note_summary"} and config:
+                provider_name = str(config.get("provider") or "").lower()
+                base_url = str(config.get("base_url") or "").lower()
+                if provider_name == "deepseek" or "api.deepseek.com" in base_url:
+                    thinking = False
             return ProviderRequestOptions(
                 temperature=resolved_policy.temperature if resolved_policy else None,
                 max_output_tokens=max_output_tokens,
-                thinking=resolved_policy.thinking if resolved_policy else None,
+                thinking=thinking,
                 context_window=int((config or {}).get("context_window") or 0) or None,
             )
 
@@ -1288,6 +1297,13 @@ def _place_evidence_index(mentions: list[PlaceMention]) -> list[dict[str, object
         and mention.poi_policy not in {"REFERENCE_ONLY", "SKIP"}
         and mention.quote
     ]
+
+
+def _pack_place_evidence(
+    index: list[dict[str, object]], pack: list[dict[str, object]]
+) -> list[dict[str, object]]:
+    mention_ids = {str(value) for fact in pack for value in fact.get("place_mention_ids", [])}
+    return [item for item in index if str(item["mention_id"]) in mention_ids]
 
 
 def _ground_section(
@@ -2046,7 +2062,8 @@ def generate_note(
     system = Path(__file__).resolve().parents[1] / "prompts" / "video_note.md"
     system_text = system.read_text(encoding="utf-8")
     supplement_messages = prompt_supplement_messages(db, "video_note_summary", job)
-    place_evidence_json = json.dumps(_place_evidence_index(mentions), ensure_ascii=False)
+    place_evidence = _place_evidence_index(mentions)
+    place_evidence_json = json.dumps(place_evidence, ensure_ascii=False)
     valid_ids = {segment.id for segment in segments}
     raw_sections: list[dict[str, object]] = []
     semantic_claims = list(grounded_map.claims_json or []) if grounded_map else []
@@ -2147,13 +2164,12 @@ def generate_note(
         )
         max_facts = min(
             int(saved_hint.get("safe_max_facts") or 40),
-            max(1, (output_tokens - 1024) // 256),
+            max(1, (output_tokens - 1024) // 1024),
         )
         compact_facts = _compact_note_facts(map_facts)
         fixed_chars = (
             len(system_text)
             + sum(len(message.get("content") or "") for message in supplement_messages)
-            + len(place_evidence_json)
             + len(str(render_profile["instruction"]))
             + 500
         )
@@ -2185,6 +2201,10 @@ def generate_note(
                     "AI_PROVIDER_ATTEMPT_BUDGET", "笔记归纳已达到尝试上限", switch_model=False
                 )
             logical_attempts += 1
+            pack_evidence_json = json.dumps(
+                _pack_place_evidence(place_evidence, pack),
+                ensure_ascii=False,
+            )
             messages = [
                 {"role": "system", "content": system_text},
                 *supplement_messages,
@@ -2193,7 +2213,7 @@ def generate_note(
                     "content": (
                         f"Render Profile（{profile_id}）：{render_profile['instruction']}\n"
                         "已验证地点 Evidence Index："
-                        f"{place_evidence_json}\n"
+                        f"{pack_evidence_json}\n"
                         f"Evidence 分包：{pack_index}/{pack_count}（{split_path}）\n"
                         "以下是带逐字 Evidence 的 GroundedEvidencePack。仅据此生成全局笔记：\n"
                     )

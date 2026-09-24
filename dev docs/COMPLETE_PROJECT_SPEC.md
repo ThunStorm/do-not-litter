@@ -247,6 +247,7 @@
 | AI Gateway 质量与上下文 | 干净平台字幕不得无条件全文送模；长转写只传候选或 Facts，不能多阶段重复全文；Domain Context 仅低优先级增强，不能覆盖 Evidence、Schema 或安全契约；text-only Profile 不得绑定视觉 Stage | `ai-gateway/AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md`、`services/video_support.py` |
 | Qwen 逐字对齐与校对预算 | 高比例逐字对齐须在新 Transcript 物化前合并为语句 Segment，保留原始时间码；不得原地修改历史 Segment。校对预算按实际批次预估，实测剩余工作超墙钟上限时提前收口，请求 timeout 受剩余时长约束 | `scripts/qwen_asr_runner.py`、`services/video_support.py`、`ai/budget.py` |
 | 证据地图截断恢复 | `LOCAL_FIRST` 首次本地输出截断后先拆分；存在已配置备用模型时，子块或预计超出剩余阶段预算的后续块走备用路由，保持原 Segment Evidence、Schema 校验、调用审计与缓存，不重复扩大本地慢请求；正文字符 Hint 不得漏算分块结构开销 | `services/grounded_map.py`、`ai/gateway.py` |
+| 笔记归纳恢复 | `GLOBAL_SYNTHESIS` 是内部阶段契约；显式选定且探测 `NOT_TESTED` 的模型可在原 JSON/Evidence/预算门禁下尝试，`FAIL` 仍拦截。DeepSeek 笔记请求默认关闭思考并按输出预算缩小 Evidence Pack；取消后的同一步骤仅在 lease 释放、上游 Artifact 有效且无待执行完整重跑时允许续跑 | `services/video_support.py`、`services/job_replay.py`、`jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md` |
 | AI Gateway 稳定性 | 精确 Cache hit 不重复调用 Provider；`force_regenerate` 绕过命中并保留结果链；本机 ASR/文本/视觉/模型测试必须跨 API/Worker 进程串行；LOCAL/REMOTE Token 分账只依据审计路由位置；Cache hit 不计模型调用或预算；Ollama `keep_alive: 0` 与本地重任务低并发不得回退；未经真实 E2E 与 Benchmark Gate 不得宣称生产验证 | `ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md`、`ai/resource_manager.py`、`ai/budget.py`、`ai-gateway/AI_RUNTIME_AND_PROVIDERS.md` |
 | 任务控制 | 当前标记只属于运行中的当前 JobStep；终态不固定高亮最后一步；时间线按 Pipeline 排序、阶段中文化并显示步骤用时；普通步骤 90 秒、LLM 步骤 500 秒预警，900 秒才终止；取消协作释放 lease，确认前不允许重试 | `jobs/MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md`、`jobs/TASK_SUMMARY_AND_PARTIAL_SUCCESS_SPEC.md`、`jobs/TASK_STATUS_AND_BEIJING_TIME_SPEC.md` |
 | Worker 存活与完整重跑 | 全局 Worker 心跳独立于同步 Pipeline；Job 活动只反映真实阶段/batch；长模型取消在请求边界停止后续批次，429/5xx 不放大请求；取消 lease 释放后 `CANCELLED` 也可完整重跑 | `operations/RUNTIME_MONITOR_AND_PROVIDER_SWITCH_V06_SPEC.md`、`jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md`、ADR-030 |
@@ -418,7 +419,9 @@
 
 - 2026-09-23：真实步骤续跑证实 Ground Map 新分块和自适应备用路由有效，地图 Artifact 已交付；后续 Note Reduce 因 Job 提交快照内主模型无 `GLOBAL_SYNTHESIS` 声明、备用模型该能力 Probe 为 `FAIL`，在模型调用前停止。现有模型能力 Probe 不测试 `GLOBAL_SYNTHESIS`，不能把结构化输出通过外推为笔记综合能力；原 Job 仍需用户明确选择合规模型/路由并保留可审计恢复证据。现场采样见 CURRENT_HANDOFF。
 
-- 2026-09-24：笔记模型恢复链路已在源码修复：任务详情可显式选择“使用当前笔记模型继续”，服务端仅在本 Job 保存当前 Note 阶段策略和所选 Profile 的无密钥恢复配置、保留原提交快照与上游 Artifact，并在排队事件记录模型/Probe 状态；完整重跑会清除恢复配置。显式选定、Probe 为 `NOT_TESTED` 的模型可受 JSON/Evidence/预算门禁约束尝试，`FAIL` 仍被拒绝；步骤续跑的模型不可用错误会进入 `NEEDS_USER/PROVIDER_NOT_CONFIGURED`，页面显示中文业务提示。Note Reduce 每包按 4096 输出上限预留 1024 Token 后估算事实数，已有截断拆分和确定性提纲兜底保留。一条不改变 Job 的 DeepSeek V4 Flash 小样探测用 3 条真实 Evidence 生成 3 个有效 Segment ID 章节，JSON 合格、1055 输出 Token、未截断；这只证明小分包可行，不是整篇笔记验收。待生产加载与原 Job 续跑验证。
+- 2026-09-24：笔记模型恢复链路已在源码修复：任务详情可显式选择“使用当前笔记模型继续”，服务端仅在本 Job 保存当前 Note 阶段策略和所选 Profile 的无密钥恢复配置、保留原提交快照与上游 Artifact，并在排队事件记录模型/Probe 状态；完整重跑会清除恢复配置。显式选定、Probe 为 `NOT_TESTED` 的模型可受 JSON/Evidence/预算门禁约束尝试，`FAIL` 仍被拒绝；步骤续跑的模型不可用错误会进入 `NEEDS_USER/PROVIDER_NOT_CONFIGURED`，页面显示中文业务提示。一条不改变 Job 的 DeepSeek V4 Flash 小样探测用 3 条真实 Evidence 生成 3 个有效 Segment ID 章节，JSON 合格、1055 输出 Token、未截断；这只证明小分包可行，不是整篇笔记验收。生产真实结果见下一条与 CURRENT_HANDOFF。
+
+- 2026-09-24：加载上述恢复链路后，原 Job 明确使用 DeepSeek V4 Pro 的真实笔记归纳在首包连续截断：3 次调用的 4096 输出 Token 全部为 reasoning、正文 0；拆至单条事实后 3349 输出 Token 中仍有 2649 为 reasoning。已协作取消，保留原 Ground Map 与历史审计。源码再补 DeepSeek 笔记请求默认 `thinking=false`、每包输出预算收紧至最多约 3 条事实、只发送分包相关地点 Evidence；恢复卡可在当前 Pro 和已保存的 Flash 备用模型间做任务级选择，不改全局设置。已运行步骤取消后的续跑受 lease、Artifact 和完整重跑门禁约束。目标与完整后端、Ruff、Node 24 前端 18 项/构建、文档一致性和 `diff --check` 通过；待生产加载与真实笔记验收。Flash 的 3 条事实小样合格不外推为整篇成功。
 
 [实施历史](history/IMPLEMENTATION_HISTORY.md) 和 [归档实施计划](history/planning/README.md) 保留旧状态与计划追溯，默认不读。当前页只保留最新结论和未闭环项；完成项不持续追加长叙事。生产现场只更新 CURRENT_HANDOFF.md；冻结约束只更新 REGRESSION_AND_CHANGE_GUARD.md。新增证据必须写明日期、对象与验证层级。
 
@@ -5027,7 +5030,7 @@ Artifact 状态：`AVAILABLE / EXPIRED / INVALIDATED / MISSING`。
 
 步骤级续跑必须同时满足：
 
-1. Job 当前为 `FAILED / NEEDS_USER / PARTIAL_SUCCESS`，且没有活跃 lease；
+1. Job 当前为 `FAILED / NEEDS_USER / PARTIAL_SUCCESS`，或满足下文已运行步骤的 `CANCELLED` 例外，且没有活跃 lease；
 2. ERROR/CRITICAL 事件规范关联该 Job 和失败 Step；
 3. 请求 step_name 等于服务端判定的最早失败/失效步骤；
 4. 该步骤所有上游 Artifact 均 AVAILABLE 且未过期；
@@ -5062,7 +5065,9 @@ Artifact 状态：`AVAILABLE / EXPIRED / INVALIDATED / MISSING`。
 
 完整重跑是不同动作：从 Pipeline 首个步骤开始，可按缓存策略复用，但不保证跳过任何步骤。
 
-取消不是失败步骤。步骤续跑仍只在有明确失败步骤与有效 Artifact 时可用。完整重跑是独立动作：任何状态下均复用原 Job ID；终态 Job 立即清除步骤执行态并重新 `QUEUED`，运行中的 Job 先协作式取消，Worker 在安全边界释放 lease 后将同一 Job 从首步重新入队。保留 Job ID 与 SystemEvent/ExternalCallAudit，重置 Step 执行态和中间 Artifact，避免生成同标题替代 Job 或两个流程并发写同一结果。
+取消不自动视为失败；通常只有明确失败步骤及有效 Artifact 才能续跑，已运行步骤的协作取消按下述条件例外处理。完整重跑是独立动作：任何状态下均复用原 Job ID；终态 Job 立即清除步骤执行态并重新 `QUEUED`，运行中的 Job 先协作式取消，Worker 在安全边界释放 lease 后将同一 Job 从首步重新入队。保留 Job ID 与 SystemEvent/ExternalCallAudit，重置 Step 执行态和中间 Artifact，避免生成同标题替代 Job 或两个流程并发写同一结果。
+
+已在运行中被协作取消的步骤，若 Job/Step 均为 `CANCELLED`、lease 已释放、上游 Artifact 仍有效且没有等待中的完整重跑，可由用户选择从该步骤继续；重新执行当前步骤，不复用被取消请求的迟到结果。未开始的取消 Job 仍使用完整重跑。
 
 兼容修复：旧 Worker 可能在用户取消步骤续跑后，将 Job 错写为 `FAILED`、当前 Step 保留 `CANCELLED`，且错误为“本次模型调用所属的任务执行权已失效”。仅对此可识别的旧状态，Replay Options 可在上游 Artifact 门禁通过时从原步骤续跑；真正的 `CANCELLED` Job 仍按完整重跑契约处理，原事件与审计不改写。
 
@@ -7006,7 +7011,7 @@ Replay：重置本轮预算状态，历史审计只作证据，不消耗新一�
 
 Ground Map 的跨 Job `safe_max_chars` Hint 只统计正文字符；传给通用分块器时须加回每 Segment 的 80 字结构开销，并同时遵守 `safe_max_segments`。不得把 5 段的安全 Hint 错解释成每块 1 段，放大真实模型调用次数。
 
-笔记归纳的 Evidence Pack 同时受输入预算、已学习安全事实数和输出预算限制：每包预留约 1024 输出 Token，其余按每个事实约 256 Token 保守估算。此预分包只减少容易截断的大请求；模型结果仍必须通过 JSON、Segment ID 与逐字 Evidence 校验，截断拆分与确定性提纲兜底保持可用。
+笔记归纳的 Evidence Pack 同时受输入预算、已学习安全事实数和输出预算限制：每包预留约 1024 输出 Token，其余按每个事实约 1024 Token 估算；每包只附带相关地点的 Evidence Index。DeepSeek 在笔记归纳中未显式开启思考时发送 `thinking=false`，避免默认 reasoning 用尽输出预算。此预分包减少容易截断的大请求；模型结果仍必须通过 JSON、Segment ID 与逐字 Evidence 校验，截断拆分与确定性提纲兜底保持可用。
 
 只有 `capability=LLM` 且非 Cache Hit 的真实模型尝试进入调用次数；视频解析、字幕、下载、ASR 等外部调用不得混入。预算在 Provider 请求前拒绝时，不记录成 Provider 调用失败，也不得切换备用模型。不得无限 retry。
 
@@ -8077,6 +8082,8 @@ Custom 下允许只覆盖某几个 Stage。
 没有覆盖的 Stage 使用提交 Job 当时保存的 Stage Policy。Job 同时固定当时的模型路由、Profile 非密钥字段、Prompt 补充、领域包、转写处理参数、AI 通用参数与 ASR/笔记分块选择；排队期间修改设置不影响该 Job 或其完整/步骤重跑。新提交的 Job 使用更新后的设置。API Key 等凭据仍在调用时从 Secret Store 读取，不写入 Job payload。没有历史快照的旧 Job 保持兼容读取行为。
 
 失败在笔记生成步骤时，用户可明确选择“使用当前笔记模型继续”。服务端只把当前笔记阶段策略与所选 Profile 的无密钥字段记为本次 Job 的恢复配置，原提交快照及上游 Artifact 不变，并在 `job.step_replay.queued` 记录模型与探测状态。普通步骤续跑仍使用原提交配置；完整重跑会清除恢复配置。手动选定且探测为 `NOT_TESTED` 的 Profile 可进入原有 JSON、Segment Evidence 与预算门禁；`FAIL` 仍拒绝选路。
+
+恢复卡可从当前笔记阶段模型和通用路由已保存的备用模型中明确选择；选择备用模型只覆盖本 Job，不改全局 Stage Policy。只允许启用、位置匹配、`GLOBAL_SYNTHESIS` 探测不为 `FAIL` 的 Profile。任务恢复配置保存所选模型的无密钥字段和阶段覆盖，审计记录实际模型；不是给模型补造能力 Probe 结果。
 
 例如：
 

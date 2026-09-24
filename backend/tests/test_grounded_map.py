@@ -11,6 +11,7 @@ from zhijian.services.grounded_map import get_or_create_grounded_map
 from zhijian.services.video_support import (
     _compact_note_facts,
     _note_evidence_packs,
+    _pack_place_evidence,
     extract_place_mentions,
     generate_note,
     materialize_transcript,
@@ -30,6 +31,14 @@ def test_note_evidence_pack_is_deduplicated_and_bounded() -> None:
     assert len(compact) == 2
     assert compact[0]["supporting_quotes"] == ["逐字证据"]
     assert [len(pack) for pack in packs] == [1, 1]
+
+
+def test_note_pack_only_receives_related_place_evidence() -> None:
+    index = [
+        {"mention_id": "place-a", "name": "甲", "segment_ids": ["seg-a"]},
+        {"mention_id": "place-b", "name": "乙", "segment_ids": ["seg-b"]},
+    ]
+    assert _pack_place_evidence(index, [{"place_mention_ids": ["place-b"]}]) == [index[1]]
 
 
 class FixtureProvider:
