@@ -4,11 +4,13 @@
 
 ## 任务续接
 
-- 目标：修复 `job_ad0ba062003a492bb9ff62270bcce385` 的证据地图超时，并从 `EXTRACT_TRAVEL_FACTS` 验证步骤续跑；保持原 Transcript/Evidence 和 POI 人工审核边界。
-- 已完成：`7a3488d`、`f85ccd9`、`34a801f` 已提交并经目标/完整后端、Ruff、前端和文档验证。2026-09-23 两次无迁移重载及备份通过；第二次真实步骤续跑按 17 块执行，2 次本地后切备用，Ground Map 已持久化，API/Worker/内容/心跳 READY。
-- 未完成：Job 在 `GENERATE_AI_NOTE` 选路时停下，尚未调用笔记模型。提交快照的本地 Qwen 未声明 `GLOBAL_SYNTHESIS`，备用 DeepSeek Flash 的该能力 Probe 为 `FAIL`；无活跃 Job/lease。下一步按用户选择验证/指定笔记模型并做可审计的任务级恢复，再仅从笔记阶段续跑。保留快照、历史事件和 POI 人工审核；不把地图成功称为整条 Job 成功。
+- 目标：完成 `job_ad0ba062003a492bb9ff62270bcce385` 的笔记归纳恢复，保留原 Transcript/Ground Map/Evidence 与 POI 人工审核边界。
+- 已完成：提交 `8328deb`、`37b771a` 实现显式任务级模型恢复、取消步骤续跑和 DeepSeek 非思考小分包。完整后端、Ruff、Node 24 前端与文档验证通过；2026-09-24 无迁移备份重载后，真实 Job 用 DeepSeek V4 Flash 完成 23/23 分包，Note Version 2、48 章节、75 条有效引文和 9 张 READY 截图已交付，所有步骤完成。桌面/390×844 页面恢复操作与控制台检查通过。
+- 剩余：Job 为 `PARTIAL_SUCCESS`，20 个 `REVIEW`、32 个 `UNRESOLVED` 地点需人工确认；禁止自动确认 POI。下一步由用户审核地点；本条真实视频成功不代表其他模型、视频或 Frozen Benchmark 通过。生产现场与备份见下文。
 
-## 生产快照（最新采样 2026-09-23；下列历史条目保留原日期）
+## 生产快照（最新采样 2026-09-24；下列历史条目保留原日期）
+
+- 2026-09-24 09:07（笔记恢复加载与验收）：重启前 revision=`0025`、`integrity_check=ok`、FK 错误 0、active Job/lease=0；逻辑备份 `data/backups/app-pre-note-nonthinking-20260924-090716.db` 完整性 ok、FK=0、revision=`0025`。无 migration 重启后 API/Worker RUNNING、内容/心跳 READY，Worker PID=`23602`。任务详情页选择 DeepSeek Flash，排队审计记录 `NOTE_REDUCE` 任务级覆盖和 `thinking=false`，原提交快照未改；真实笔记归纳 23 次调用均 COMPLETED，无输出截断。Job `PARTIAL_SUCCESS`、error_code/error 均空，完成摘要为“AI 笔记已生成，52 个地点待确认”；Note `ntv_38fdf4bb64ba48ea8d65064c932cd7f1`（Version 2）含 48 章节、75 条引文且无失效 Segment ID/不归属引文，9 张截图 READY，3 张 REJECTED。桌面与 390×844 恢复卡无溢出，浏览器控制台无错误；POI 未自动确认。
 
 - 2026-09-23 22:08（Hint 与取消修复重载）：重启前 revision=`0025`、`integrity_check=ok`、FK 错误 0、active Job/lease=0；逻辑备份 `data/backups/app-pre-ground-map-hint-reload-20260923-220822.db` 完整性 ok、FK=0、revision=`0025`。无 migration 重启后 API/Worker RUNNING、内容/心跳 READY，Worker PID=`83871`；旧 `FAILED` Job + `CANCELLED` Step 已恢复步骤续跑选项。22:09 再次真实续跑中 Ground Map 17 块，2 次本地完成后因预计耗时切到 DeepSeek，15 次备用完成、1 次备用截断后拆分恢复，地图产物 `gma_22c844fa00aa459e9d255cb1973a6a3f` 已持久化。Job 随后在 `GENERATE_AI_NOTE` 未选到 `GLOBAL_SYNTHESIS` 模型而 `FAILED`，无笔记模型调用；此刻 active Job/lease=0，笔记步骤 Replay Options 可用，有效至 2026-09-24 17:53 北京时间。
 

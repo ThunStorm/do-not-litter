@@ -421,7 +421,9 @@
 
 - 2026-09-24：笔记模型恢复链路已在源码修复：任务详情可显式选择“使用当前笔记模型继续”，服务端仅在本 Job 保存当前 Note 阶段策略和所选 Profile 的无密钥恢复配置、保留原提交快照与上游 Artifact，并在排队事件记录模型/Probe 状态；完整重跑会清除恢复配置。显式选定、Probe 为 `NOT_TESTED` 的模型可受 JSON/Evidence/预算门禁约束尝试，`FAIL` 仍被拒绝；步骤续跑的模型不可用错误会进入 `NEEDS_USER/PROVIDER_NOT_CONFIGURED`，页面显示中文业务提示。一条不改变 Job 的 DeepSeek V4 Flash 小样探测用 3 条真实 Evidence 生成 3 个有效 Segment ID 章节，JSON 合格、1055 输出 Token、未截断；这只证明小分包可行，不是整篇笔记验收。生产真实结果见下一条与 CURRENT_HANDOFF。
 
-- 2026-09-24：加载上述恢复链路后，原 Job 明确使用 DeepSeek V4 Pro 的真实笔记归纳在首包连续截断：3 次调用的 4096 输出 Token 全部为 reasoning、正文 0；拆至单条事实后 3349 输出 Token 中仍有 2649 为 reasoning。已协作取消，保留原 Ground Map 与历史审计。源码再补 DeepSeek 笔记请求默认 `thinking=false`、每包输出预算收紧至最多约 3 条事实、只发送分包相关地点 Evidence；恢复卡可在当前 Pro 和已保存的 Flash 备用模型间做任务级选择，不改全局设置。已运行步骤取消后的续跑受 lease、Artifact 和完整重跑门禁约束。目标与完整后端、Ruff、Node 24 前端 18 项/构建、文档一致性和 `diff --check` 通过；待生产加载与真实笔记验收。Flash 的 3 条事实小样合格不外推为整篇成功。
+- 2026-09-24：加载上述恢复链路后，原 Job 明确使用 DeepSeek V4 Pro 的真实笔记归纳在首包连续截断：3 次调用的 4096 输出 Token 全部为 reasoning、正文 0；拆至单条事实后 3349 输出 Token 中仍有 2649 为 reasoning。已协作取消，保留原 Ground Map 与历史审计。源码再补 DeepSeek 笔记请求默认 `thinking=false`、每包输出预算收紧至最多约 3 条事实、只发送分包相关地点 Evidence；恢复卡可在当前 Pro 和已保存的 Flash 备用模型间做任务级选择，不改全局设置。已运行步骤取消后的续跑受 lease、Artifact 和完整重跑门禁约束。目标与完整后端、Ruff、Node 24 前端 18 项/构建、文档一致性和 `diff --check` 通过；生产真实验收见 CURRENT_HANDOFF。
+
+- 2026-09-24：提交 `37b771a` 已无迁移加载。原 Job 在任务详情页明确选用 DeepSeek V4 Flash 后从 `GENERATE_AI_NOTE` 续跑，23/23 个笔记归纳分包全部完成，无截断或失败；笔记 Version 2 含 48 个章节、75 条逐字引文，Segment ID 与引文归属离线核对均有效，9 张截图 READY。所有 JobStep 完成，Job 为 `PARTIAL_SUCCESS`，剩余 20 个 `REVIEW`、32 个 `UNRESOLVED` 地点需人工确认；该结果证明本条视频的笔记交付，不外推为所有 Profile/视频或 POI 自动确认的质量验收。桌面与 390×844 浏览器恢复交互无溢出、无控制台错误，现场细节见 CURRENT_HANDOFF。
 
 [实施历史](history/IMPLEMENTATION_HISTORY.md) 和 [归档实施计划](history/planning/README.md) 保留旧状态与计划追溯，默认不读。当前页只保留最新结论和未闭环项；完成项不持续追加长叙事。生产现场只更新 CURRENT_HANDOFF.md；冻结约束只更新 REGRESSION_AND_CHANGE_GUARD.md。新增证据必须写明日期、对象与验证层级。
 
