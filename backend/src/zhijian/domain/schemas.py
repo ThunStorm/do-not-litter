@@ -4,7 +4,9 @@ import re
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, HttpUrl, field_validator
+from pydantic import BaseModel, Field, HttpUrl, field_validator, model_validator
+
+from zhijian.ai.interface_contract import InterfaceCapabilities
 
 
 class SessionRequest(BaseModel):
@@ -300,6 +302,14 @@ class ProviderConfig(BaseModel):
     model: str
     timeout_seconds: int = Field(default=300, ge=5, le=900)
     api_key: str | None = None
+    connection_type: Literal["DIRECT", "LOCAL_ROUTER"] = "DIRECT"
+    interface_capabilities: InterfaceCapabilities | None = None
+
+    @model_validator(mode="after")
+    def validate_router_address(self):
+        if self.connection_type == "LOCAL_ROUTER":
+            self.base_url = InterfaceCapabilities.credential_free_url(self.base_url)
+        return self
 
 
 class ModelProfileConfig(ProviderConfig):
@@ -322,10 +332,17 @@ class ModelProfileConfig(ProviderConfig):
     supports_tools: bool = False
     context_window: int = Field(default=32_768, ge=1, le=1_000_000)
     recommended_working_context: int = Field(default=8_192, ge=1, le=1_000_000)
-    max_output_tokens: int = Field(default=4_096, ge=1, le=131_072)
+    max_output_tokens: int | None = Field(default=4_096, ge=1, le=131_072)
     quality_tier: Literal["FAST", "MAIN", "STRONG", "SPECIALIST"] = "MAIN"
     specialties: set[str] = Field(default_factory=set)
     enabled: bool = True
+
+    @field_validator("location")
+    @classmethod
+    def router_is_remote(cls, value, info):
+        if info.data.get("connection_type") == "LOCAL_ROUTER" and value == "LOCAL":
+            raise ValueError("本机路由地址不代表本地推理，请选择远程位置")
+        return value
 
 
 class ModelRoutingConfig(BaseModel):

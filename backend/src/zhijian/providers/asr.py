@@ -1,12 +1,53 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
+import signal
 import subprocess
 import tempfile
+from collections.abc import Callable
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
+from time import monotonic
 from typing import Protocol
+
+
+def _run_process(
+    command: list[str], *, timeout: float, cancel_check: Callable[[], None] | None = None,
+    on_wait: Callable[[int], None] | None = None,
+) -> subprocess.CompletedProcess:
+    if cancel_check is None:
+        return subprocess.run(command, capture_output=True, text=True, timeout=timeout, check=False)
+    cancel_check()
+    started = last_activity = monotonic()
+    with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                          start_new_session=True) as process:
+        try:
+            while True:
+                cancel_check()
+                elapsed = monotonic() - started
+                if elapsed >= timeout:
+                    raise RuntimeError(f"ASR_TIMEOUT: 本机语音处理超过 {timeout:g} 秒")
+                try:
+                    stdout, stderr = process.communicate(timeout=min(0.25, timeout - elapsed))
+                    cancel_check()
+                    return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+                except subprocess.TimeoutExpired:
+                    if on_wait and monotonic() - last_activity >= 30:
+                        on_wait(round(monotonic() - started))
+                        last_activity = monotonic()
+        finally:
+            if process.poll() is None:
+                with suppress(ProcessLookupError):
+                    os.killpg(process.pid, signal.SIGTERM)
+                try:
+                    process.communicate(timeout=2)
+                except subprocess.TimeoutExpired:
+                    with suppress(ProcessLookupError):
+                        os.killpg(process.pid, signal.SIGKILL)
+                    process.communicate()
 
 
 class ASRProvider(Protocol):
@@ -24,6 +65,8 @@ class WhisperCppProvider:
         self.binary = shutil.which(binary) or binary
         self.model = model
         self.no_gpu = no_gpu
+        self.cancel_check: Callable[[], None] | None = None
+        self.on_wait: Callable[[int], None] | None = None
 
     def transcribe(
         self, media: Path, *, context: str | None = None
@@ -41,12 +84,10 @@ class WhisperCppProvider:
             directory = Path(temporary)
             wav = directory / "audio.wav"
             output = directory / "transcript"
-            convert = subprocess.run(
+            convert = _run_process(
                 [ffmpeg, "-y", "-i", str(media), "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", str(wav)],
-                capture_output=True,
-                text=True,
                 timeout=900,
-                check=False,
+                cancel_check=self.cancel_check, on_wait=self.on_wait,
             )
             if convert.returncode != 0:
                 raise RuntimeError(f"音频提取失败：{convert.stderr[-500:]}")
@@ -64,24 +105,20 @@ class WhisperCppProvider:
             ]
             if self.no_gpu:
                 arguments.append("-ng")
-            result = subprocess.run(
+            result = _run_process(
                 arguments,
-                capture_output=True,
-                text=True,
                 timeout=3600,
-                check=False,
+                cancel_check=self.cancel_check, on_wait=self.on_wait,
             )
             if (
                 not self.no_gpu
                 and result.returncode != 0
                 and "failed to allocate buffer" in (result.stderr or "")
             ):
-                result = subprocess.run(
+                result = _run_process(
                     [*arguments, "-ng"],
-                    capture_output=True,
-                    text=True,
                     timeout=3600,
-                    check=False,
+                    cancel_check=self.cancel_check, on_wait=self.on_wait,
                 )
             transcript = output.with_suffix(".json")
             if result.returncode != 0 or not transcript.is_file():
@@ -142,6 +179,8 @@ class Qwen3ASRProvider:
         self.aligner_model = aligner_model
         self.timeout_seconds = timeout_seconds
         self.last_metadata: dict = {}
+        self.cancel_check: Callable[[], None] | None = None
+        self.on_wait: Callable[[int], None] | None = None
 
     def transcribe(
         self, media: Path, *, context: str | None = None
@@ -165,12 +204,10 @@ class Qwen3ASRProvider:
         ]
         if context:
             command.extend(("--context", context))
-        result = subprocess.run(
+        result = _run_process(
             command,
-            capture_output=True,
-            text=True,
             timeout=self.timeout_seconds,
-            check=False,
+            cancel_check=self.cancel_check, on_wait=self.on_wait,
         )
         if result.returncode:
             raise RuntimeError(f"Qwen3-ASR 失败：{(result.stderr or result.stdout)[-500:]}")

@@ -1,4 +1,7 @@
+import type { InterfaceCapabilities } from '../../lib/types'
+
 export const providerPresets = [
+  { id: 'LOCALMUX', label: 'LocalAiMux（本机路由）', provider: 'LocalAiMux', baseUrl: 'http://127.0.0.1:8317/v1', models: ['codebuddy/hy3'] },
   { id: 'DEEPSEEK', label: 'DeepSeek', provider: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', models: ['deepseek-chat', 'deepseek-reasoner'] },
   { id: 'MIMO', label: 'MiMo', provider: 'MiMo', baseUrl: 'https://api.xiaomimimo.com/v1', models: ['mimo-v2-flash', 'mimo-v2-pro'] },
   { id: 'MOONSHOT', label: 'Moonshot / Kimi', provider: 'Moonshot', baseUrl: 'https://api.moonshot.cn/v1', models: ['kimi-k2.6', 'kimi-k2.5'] },
@@ -10,6 +13,7 @@ export const providerPresets = [
 
 export type ModelFormValues = {
   name: string; provider: string; base_url: string; model: string; timeout_seconds: number; request_interval_seconds: number | null; api_key: string
+  connection_type?: 'DIRECT' | 'LOCAL_ROUTER'; interface_capabilities?: InterfaceCapabilities | null; max_output_tokens?: number | null
   reliability_mode?: 'DIRECT' | 'STANDARD' | 'GUARDED' | 'FREE_TIER'; max_concurrency?: number | null; retry_count?: number | null; json_retry_count?: number | null; rate_limit_rpm?: number | null; circuit_breaker_enabled?: boolean | null; circuit_breaker_threshold?: number | null; circuit_breaker_cooldown_seconds?: number | null
   location?: 'LOCAL' | 'REMOTE'; modalities?: string[]; capabilities?: string[]; supports_json_mode?: boolean; supports_thinking?: boolean; quality_tier?: 'FAST' | 'MAIN' | 'STRONG' | 'SPECIALIST'
 }
@@ -26,5 +30,5 @@ export function applyProviderPreset(values: ModelFormValues, presetId: string, m
   const preset = providerPresets.find((item) => item.id === presetId)
   if (!preset) return values
   const model = manual.model ? values.model : preset.models[0]
-  return { ...values, provider: preset.provider, base_url: manual.baseUrl ? values.base_url : preset.baseUrl, model, reliability_mode: recommendedReliabilityMode(preset.provider, model) }
+  return { ...values, provider: preset.provider, base_url: manual.baseUrl ? values.base_url : preset.baseUrl, model, reliability_mode: recommendedReliabilityMode(preset.provider, model), connection_type: preset.id === 'LOCALMUX' ? 'LOCAL_ROUTER' : 'DIRECT', interface_capabilities: null, ...(preset.id === 'LOCALMUX' ? { location: 'REMOTE', max_output_tokens: null } : {}) }
 }

@@ -103,7 +103,7 @@ class AIProviderError(RuntimeError):
         super().__init__(message)
         self.code = code
         self.retryable = retryable
-        self.switch_model = switch_model
+        self.switch_model = switch_model and not code.startswith("AI_PROVIDER_INTERFACE_")
         self.open_circuit = open_circuit
         self.cause = cause
 
@@ -122,6 +122,7 @@ def classify_provider_error(exc: Exception) -> AIProviderError:
     response = getattr(exc, "response", None)
     status = getattr(response, "status_code", None)
     text = str(exc).lower()
+    payload = {}
     try:
         payload = response.json() if response is not None else {}
         error = payload.get("error") if isinstance(payload, dict) else {}
@@ -129,6 +130,26 @@ def classify_provider_error(exc: Exception) -> AIProviderError:
             text = " ".join(str(error.get(key) or "") for key in ("code", "type", "message")).lower()
     except (TypeError, ValueError):
         pass
+    mux_code = (
+        str((payload.get("error") or {}).get("code") or "")
+        if isinstance(payload, dict) and isinstance(payload.get("error"), dict)
+        else ""
+    )
+    mux_errors = {
+        "LMX_PROCESS_TIMEOUT": ("AI_PROVIDER_TIMEOUT", "本机路由调用超时，请核对上游总时限与空闲时限", False),
+        "LMX_QUOTA_EXHAUSTED": (
+            "AI_PROVIDER_QUOTA_EXHAUSTED",
+            "订阅额度已耗尽，请等待恢复或选择已授权备用模型",
+            True,
+        ),
+        "LMX_RATE_LIMITED": ("AI_PROVIDER_THROTTLED", "本机路由连接繁忙或供应商限流，请稍后重试", False),
+        "LMX_AUTH_REQUIRED": ("AI_PROVIDER_AUTH_ERROR", "上游 CLI 需要重新登录", True),
+        "LMX_PROVIDER_COOLDOWN": ("AI_PROVIDER_CIRCUIT_OPEN", "上游连接仍在冷却，请稍后重试", False),
+    }
+    if mux_code in mux_errors:
+        code, message, open_circuit = mux_errors[mux_code]
+        # CLI timeouts may consume usage; prefer a configured fallback over repeating them.
+        return AIProviderError(code, message, retryable=False, open_circuit=open_circuit, cause=exc)
     if status in {400, 404} and re.search(
         r"0 endpoints out of .* available|zdr violation|guardrail restrictions|data policy",
         text,
@@ -162,6 +183,17 @@ def classify_provider_error(exc: Exception) -> AIProviderError:
     if status in {401, 403}:
         return AIProviderError("AI_PROVIDER_AUTH_ERROR", str(exc), open_circuit=True, cause=exc)
     if status == 400:
+        if isinstance(payload, dict) and isinstance(payload.get("error"), dict):
+            mux_code = payload["error"].get("code")
+            if mux_code in {"LMX_UNSUPPORTED_MESSAGES", "LMX_UNSUPPORTED_PARAMETER", "LMX_INVALID_REQUEST"}:
+                messages = {
+                    "LMX_UNSUPPORTED_MESSAGES": "本机路由接口尚未支持本次消息组合，请核对上游桥接能力",
+                    "LMX_UNSUPPORTED_PARAMETER": (
+                        "本机路由接口尚未支持请求参数，请读取接口能力或采用模型默认值"
+                    ),
+                    "LMX_INVALID_REQUEST": "本机路由接口拒绝了请求格式，请核对接口版本和配置",
+                }
+                return AIProviderError("AI_PROVIDER_INTERFACE_INVALID", messages[mux_code], cause=exc)
         return AIProviderError("AI_PROVIDER_BAD_REQUEST", str(exc), switch_model=False, cause=exc)
     if status == 404:
         return AIProviderError("AI_PROVIDER_NOT_FOUND", str(exc), cause=exc)
@@ -273,6 +305,8 @@ class ReliabilityGuards:
 
     @classmethod
     def failure(cls, key: str, policy: ModelReliabilityPolicy, error: AIProviderError) -> str:
+        if error.code == "AI_PROVIDER_BAD_REQUEST" or error.code.startswith("AI_PROVIDER_INTERFACE_"):
+            return "CLOSED"
         if not policy.circuit_breaker_enabled or error.code in {
             "AI_PROVIDER_INVALID_JSON",
             "AI_PROVIDER_SCHEMA_INVALID",

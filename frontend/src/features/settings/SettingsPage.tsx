@@ -687,12 +687,6 @@ function PromptSupplementsPanel() {
           <small>仅影响后续新的 AI 调用</small>
         </div>
         <div className="provider-form__actions">
-          {message && (
-            <span className="provider-message">
-              <CheckCircle2 />
-              {message}
-            </span>
-          )}
           <button
             className="button button--primary"
             onClick={() => save.mutate()}
@@ -702,6 +696,12 @@ function PromptSupplementsPanel() {
           </button>
         </div>
       </div>
+      {message && (
+        <div className="provider-form__feedback" role="status">
+          <CheckCircle2 />
+          <span className="provider-message">{message}</span>
+        </div>
+      )}
       <div className="provider-form__body">
         <p className="settings-note settings-note--inset">
           核心 JSON、字段、ID、顺序与 Schema
@@ -918,12 +918,6 @@ function MapPanel() {
         <div className="provider-form__title">
           <h3>高德地图运行配置</h3>
           <div className="provider-form__actions">
-            {message && (
-              <span className="provider-message">
-                <CheckCircle2 />
-                {message}
-              </span>
-            )}
             <button
               className="button button--outline"
               onClick={() => test.mutate()}
@@ -940,6 +934,12 @@ function MapPanel() {
             </button>
           </div>
         </div>
+        {message && (
+          <div className="provider-form__feedback" role="status">
+            <CheckCircle2 />
+            <span className="provider-message">{message}</span>
+          </div>
+        )}
         <div className="field-grid">
           <label className="field-grid__wide">
             JS API Key
@@ -1554,6 +1554,9 @@ function ModelProfileEditor({
     provider: profile?.provider ?? "",
     base_url: profile?.base_url ?? "",
     model: profile?.model ?? "",
+    connection_type: profile?.connection_type ?? "DIRECT",
+    interface_capabilities: profile?.interface_capabilities ?? null,
+    max_output_tokens: profile?.max_output_tokens ?? null,
     timeout_seconds: profile?.timeout_seconds ?? 300,
     reliability_mode: profile?.reliability_mode ?? "STANDARD",
     request_interval_seconds: profile?.request_interval_seconds ?? null,
@@ -1603,6 +1606,9 @@ function ModelProfileEditor({
         provider: profile.provider,
         base_url: profile.base_url,
         model: profile.model,
+        connection_type: profile.connection_type ?? "DIRECT",
+        interface_capabilities: profile.interface_capabilities ?? null,
+        max_output_tokens: profile.max_output_tokens,
         timeout_seconds: profile.timeout_seconds,
         reliability_mode: profile.reliability_mode,
         request_interval_seconds: profile.request_interval_seconds,
@@ -1661,6 +1667,7 @@ function ModelProfileEditor({
         ...current,
         capabilities: result.capabilities,
         supports_json_mode: result.supports_json_mode,
+        interface_capabilities: result.interface_capabilities,
       }));
       setMessage(result.message);
     },
@@ -1671,6 +1678,15 @@ function ModelProfileEditor({
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["model-profiles"] });
       setMessage("能力探测已完成");
+    },
+    onError: (error) => setMessage(error.message),
+  });
+  const readInterface = useMutation({
+    mutationFn: () => api.readInterfaceCapabilities(profile?.id, values),
+    onSuccess: (result) => {
+      setValues((current) => ({ ...current, interface_capabilities: result,
+        supports_json_mode: result.json_object === "SUPPORTED" }));
+      setMessage("接口能力已读取，保存后用于新任务；未调用模型");
     },
     onError: (error) => setMessage(error.message),
   });
@@ -1686,12 +1702,16 @@ function ModelProfileEditor({
   const update = (
     key: keyof typeof values,
     value: ModelFormValues[keyof ModelFormValues],
-  ) => setValues((current) => ({ ...current, [key]: value }));
+  ) => setValues((current) => ({ ...current, [key]: value,
+    ...(["model", "base_url", "connection_type", "api_key"].includes(key)
+      ? { interface_capabilities: null } : {}),
+    ...(key === "connection_type" && value === "LOCAL_ROUTER" ? { location: "REMOTE" } : {}),
+  }));
   const choosePreset = (id: string) => {
     setPresetId(id);
     setValues((current) => ({
       ...applyProviderPreset(current, id, manual),
-      location: id === "OLLAMA" ? "LOCAL" : current.location,
+      location: id === "OLLAMA" ? "LOCAL" : id === "LOCALMUX" ? "REMOTE" : current.location,
     }));
   };
   const activePreset = providerPreset(values.provider);
@@ -1701,7 +1721,18 @@ function ModelProfileEditor({
     test.isPending ||
     draftProbe.isPending ||
     probe.isPending ||
+    readInterface.isPending ||
     remove.isPending;
+  const pendingMessage = save.isPending
+    ? "正在保存配置…"
+    : readInterface.isPending
+      ? "正在读取接口能力…"
+      : test.isPending || probe.isPending || draftProbe.isPending
+        ? "手动测试已提交，正在等待或执行；重复点击会依次排队。"
+        : remove.isPending
+          ? "正在删除模型…"
+          : "";
+  const feedbackMessage = pendingMessage || message;
   const modelOptionsId = `model-options-${profile?.id ?? "draft"}`;
   const capabilities = profile
     ? Object.entries(profile.probe_results)
@@ -1720,23 +1751,22 @@ function ModelProfileEditor({
             {assigned && <small>当前路由使用中</small>}
           </h3>
           <div className="provider-form__actions">
-            {message && (
-              <span className="provider-message">
-                <CheckCircle2 />
-                {message}
-              </span>
+            {values.connection_type === "LOCAL_ROUTER" && (
+              <button className="button button--outline" disabled={busy} onClick={() => readInterface.mutate()}>
+                读取接口能力
+              </button>
             )}
             <button
               className="button button--outline"
               onClick={() => test.mutate()}
-              disabled={busy}
+              disabled={save.isPending || readInterface.isPending || remove.isPending}
             >
               真实测试
             </button>
             <button
               className="button button--outline"
               onClick={() => (profile ? probe.mutate() : draftProbe.mutate())}
-              disabled={busy}
+              disabled={save.isPending || readInterface.isPending || remove.isPending}
             >
               {profile ? "能力探测" : "草稿能力探测"}
             </button>
@@ -1755,10 +1785,16 @@ function ModelProfileEditor({
               onClick={() => save.mutate()}
               disabled={busy}
             >
-              {busy && <LoaderCircle className="spin" />}保存
+              {save.isPending && <LoaderCircle className="spin" />}保存
             </button>
           </div>
         </div>
+        {feedbackMessage && (
+          <div className="provider-form__feedback" role="status">
+            {pendingMessage ? <LoaderCircle className="spin" /> : <CheckCircle2 />}
+            <span className="provider-message">{feedbackMessage}</span>
+          </div>
+        )}
         <div className="field-grid">
           <label>
             显示名称
@@ -1769,7 +1805,7 @@ function ModelProfileEditor({
             />
           </label>
           <SelectField
-            label="Provider"
+            label="服务来源"
             value={presetId}
             onChange={choosePreset}
           >
@@ -1790,6 +1826,11 @@ function ModelProfileEditor({
               />
             </label>
           )}
+          <SelectField label="接入方式" value={values.connection_type ?? "DIRECT"}
+            onChange={(value) => update("connection_type", value as ModelFormValues["connection_type"])}>
+            <option value="DIRECT">直连接口</option>
+            <option value="LOCAL_ROUTER">本机模型路由（LocalAiMux）</option>
+          </SelectField>
           <SelectField
             label="部署位置"
             value={values.location ?? "REMOTE"}
@@ -1797,7 +1838,7 @@ function ModelProfileEditor({
               update("location", value as ModelFormValues["location"])
             }
           >
-            <option value="LOCAL">本机</option>
+            {values.connection_type !== "LOCAL_ROUTER" && <option value="LOCAL">本机</option>}
             <option value="REMOTE">远程</option>
           </SelectField>
           <SelectField
@@ -1936,6 +1977,27 @@ function ModelProfileEditor({
             </label>
           )}
         </div>
+        {values.connection_type === "LOCAL_ROUTER" && (
+          <div className="provider-form__body settings-note" role="status">
+            <p>本机地址仅表示路由在本机，模型仍按远程调用管理。读取目录不会调用模型；接口能力与业务能力探测分别记录。</p>
+            {values.interface_capabilities ? (
+              <>
+                <p>来源：{values.interface_capabilities.source}；系统指令：{supportLabel(values.interface_capabilities.system)}；
+                  输出限额：{supportLabel(values.interface_capabilities.output.support)}；
+                  原生 JSON 约束：{supportLabel(values.interface_capabilities.json_object)}；
+                  用量计数：{supportLabel(values.interface_capabilities.usage)}。</p>
+                <p>限制层：{({ gateway: "网关协议", adapter: "桥接实现", public_interface: "客户端公开接口", model: "模型", unknown: "接口目录尚未标明" } as Record<string, string>)[values.interface_capabilities.limiting_layer] ?? "接口目录尚未标明"}；以上是接口能力，不代表底层模型能力。</p>
+                {values.interface_capabilities.system !== "SUPPORTED" && <p>当前接口尚未提供系统指令，正式任务会提前提示兼容原因，不会丢弃规则后调用。</p>}
+                <p>不支持或未声明的可选参数采用模型默认值；用量未知时进行预算估算，不能视为零消耗。</p>
+              </>
+            ) : <p>尚未读取当前模型的接口能力。模型、地址、凭据或接入方式变化后需重新读取并保存。</p>}
+          </div>
+        )}
+        <div className="provider-form__body"><div className="field-grid">
+          <NumberPolicyField label="输出长度上限（留空使用模型默认值）"
+            value={values.max_output_tokens ?? null} min="1" max="131072"
+            onChange={(value) => update("max_output_tokens", value)} />
+        </div></div>
         <section className="provider-reliability">
           <div>
             <strong>{reliabilitySummary(values.reliability_mode ?? "STANDARD")}</strong>
@@ -2049,6 +2111,10 @@ function ModelProfileEditor({
       )}
     </>
   );
+}
+
+function supportLabel(value: string) {
+  return ({ SUPPORTED: "已提供", UNSUPPORTED: "接口当前不支持", UNKNOWN: "尚未声明" } as Record<string, string>)[value] ?? "尚未声明";
 }
 
 function reliabilitySummary(mode: NonNullable<ModelFormValues["reliability_mode"]>) {

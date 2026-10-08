@@ -5,10 +5,29 @@ from zhijian.ai.budget import AIBudgetExceeded
 from zhijian.ai.reliability import (
     AIProviderError,
     ModelReliabilityPolicy,
+    classify_provider_error,
     provider_rate_limit_identity,
 )
 from zhijian.ai.structured_output import parse_json_object, validate_structured_output
 from zhijian.providers.llm import FallbackLLMProvider, LLMResult
+
+
+@pytest.mark.parametrize(
+    "status,mux_code,code",
+    [
+        (504, "LMX_PROCESS_TIMEOUT", "AI_PROVIDER_TIMEOUT"),
+        (429, "LMX_QUOTA_EXHAUSTED", "AI_PROVIDER_QUOTA_EXHAUSTED"),
+        (429, "LMX_RATE_LIMITED", "AI_PROVIDER_THROTTLED"),
+        (401, "LMX_AUTH_REQUIRED", "AI_PROVIDER_AUTH_ERROR"),
+        (503, "LMX_PROVIDER_COOLDOWN", "AI_PROVIDER_CIRCUIT_OPEN"),
+    ],
+)
+def test_mux_terminal_errors_do_not_repeat_subscription_calls(status, mux_code, code):
+    request = httpx.Request("POST", "http://127.0.0.1:8317/v1/chat/completions")
+    response = httpx.Response(status, request=request, json={"error": {"code": mux_code}})
+    error = classify_provider_error(httpx.HTTPStatusError("mux failed", request=request, response=response))
+    assert error.code == code and not error.retryable
+    assert error.switch_model
 
 
 def _rate_limited() -> httpx.HTTPStatusError:
@@ -347,12 +366,8 @@ def test_models_with_same_credential_share_rate_limit_identity() -> None:
         def __init__(self, api_key: str) -> None:
             self.api_key = api_key
 
-    assert provider_rate_limit_identity(Provider("same")) == provider_rate_limit_identity(
-        Provider("same")
-    )
-    assert provider_rate_limit_identity(Provider("same")) != provider_rate_limit_identity(
-        Provider("other")
-    )
+    assert provider_rate_limit_identity(Provider("same")) == provider_rate_limit_identity(Provider("same"))
+    assert provider_rate_limit_identity(Provider("same")) != provider_rate_limit_identity(Provider("other"))
 
 
 def test_budget_rejection_does_not_switch_provider_or_record_attempt() -> None:

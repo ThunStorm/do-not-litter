@@ -1,4 +1,5 @@
 import type {
+  InterfaceCapabilities,
   ASRProvider,
   ASRSettingsView,
   ContentView,
@@ -207,7 +208,8 @@ export const api = {
   deleteModelProfile: (id: string) => request<{ status: string; id: string }>(`/api/settings/model-profiles/${id}`, { method: 'DELETE' }),
   testModelProfile: (id: string) => request<{ status: string; message: string }>(`/api/settings/model-profiles/${id}/test`, { method: 'POST' }),
   testModelProfileDraft: (payload: Record<string, unknown>) => request<{ status: string; message: string }>('/api/settings/model-profiles/test-draft', { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) }),
-  probeModelProfileDraft: (payload: Record<string, unknown>) => request<{ status: string; message: string; probe_results: Record<string, string>; capabilities: string[]; supports_json_mode: boolean }>('/api/settings/model-profiles/probe-draft', { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) }),
+  probeModelProfileDraft: (payload: Record<string, unknown>) => request<{ status: string; message: string; probe_results: Record<string, string>; capabilities: string[]; supports_json_mode: boolean; interface_capabilities: InterfaceCapabilities | null }>('/api/settings/model-profiles/probe-draft', { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) }),
+  readInterfaceCapabilities: (id: string | undefined, payload: Record<string, unknown>) => request<InterfaceCapabilities>(id ? `/api/settings/model-profiles/${id}/interface-capabilities` : '/api/settings/model-profiles/interface-capabilities-draft', { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) }),
   probeModelProfile: (id: string) => request<ModelProfileView>(`/api/settings/model-profiles/${id}/probe`, { method: 'POST' }),
   modelRouting: () => request<ModelRoutingView>('/api/settings/model-routing'),
   saveModelRouting: (payload: ModelRoutingView) => request<ModelRoutingView>('/api/settings/model-routing', { method: 'PUT', headers: jsonHeaders, body: JSON.stringify(payload) }),

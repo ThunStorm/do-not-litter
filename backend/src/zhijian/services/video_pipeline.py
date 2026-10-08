@@ -494,6 +494,11 @@ def _download_and_transcribe_audio(
     context = build_asr_context(asset)
 
     def run_provider(active_provider):
+        active_provider.cancel_check = lambda: ensure_job_active(db, job)
+        active_provider.on_wait = lambda seconds: _stage_event(
+            db, job, "asr.waiting", f"本机语音处理仍在运行，已等待 {seconds} 秒；转写结果尚未返回",
+            provider=active_provider.provider_id, elapsed_seconds=seconds,
+        )
         return audited_call(
             db,
             job_id=job.id,
@@ -511,11 +516,14 @@ def _download_and_transcribe_audio(
                     audio_path,
                     context=context["text"] if active_provider.provider_id == "QWEN3_ASR" else None,
                 ),
+                cancel_check=lambda: ensure_job_active(db, job),
             ),
         )
 
     try:
         text, raw_segments = run_provider(provider)
+    except JobCancelled:
+        raise
     except RuntimeError as exc:
         if provider.provider_id != "QWEN3_ASR":
             raise NeedsUser("ASR_UNAVAILABLE", str(exc)) from exc

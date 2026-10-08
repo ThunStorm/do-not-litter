@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -8,6 +9,7 @@ from typing import Any, Protocol
 
 import httpx
 
+from zhijian.ai.interface_contract import InterfaceCapabilities, normalize_messages, router_payload
 from zhijian.ai.reliability import (
     AIProviderError,
     ModelReliabilityPolicy,
@@ -18,6 +20,7 @@ from zhijian.ai.reliability import (
     retry_after_seconds,
     retry_wait_seconds,
 )
+from zhijian.ai.token_usage import estimate_tokens
 
 AttemptCallback = Callable[
     [str, str, str, int, int, "LLMResult | None", "Exception | None", int, dict[str, Any]], None
@@ -28,6 +31,29 @@ FallbackDecider = Callable[[AIProviderError], bool]
 AttemptRunner = Callable[
     ["LLMProvider", str, list[dict[str, str]], str, "ProviderRequestOptions | None"], "LLMResult"
 ]
+
+
+def _post(url: str, *, cancel_check: Callable[[], None] | None = None, **kwargs) -> httpx.Response:
+    if cancel_check is None:
+        return httpx.post(url, **kwargs)
+
+    async def request() -> httpx.Response:
+        timeout = kwargs.pop("timeout", 120)
+        trust_env = kwargs.pop("trust_env", True)
+        async with httpx.AsyncClient(timeout=timeout, trust_env=trust_env) as client:
+            task = asyncio.create_task(client.post(url, **kwargs))
+            try:
+                while not task.done():
+                    cancel_check()
+                    await asyncio.wait({task}, timeout=0.25)
+                cancel_check()
+                return await task
+            finally:
+                if not task.done():
+                    task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+
+    return asyncio.run(request())
 
 
 @dataclass(slots=True)
@@ -109,6 +135,7 @@ class OllamaProvider:
     def __init__(self, base_url: str, timeout: float = 120) -> None:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self.cancel_check: Callable[[], None] | None = None
 
     def _generate(
         self,
@@ -125,8 +152,9 @@ class OllamaProvider:
             runtime_options["num_predict"] = options.max_output_tokens
         if options and options.context_window is not None:
             runtime_options["num_ctx"] = options.context_window
-        response = httpx.post(
+        response = _post(
             f"{self.base_url}/api/chat",
+            cancel_check=self.cancel_check,
             json={
                 "model": model,
                 "messages": messages,
@@ -172,13 +200,26 @@ class OllamaProvider:
 
 class OpenAICompatibleProvider:
     def __init__(
-        self, name: str, base_url: str, api_key: str, timeout: float = 120, *, supports_json_mode: bool = True
+        self,
+        name: str,
+        base_url: str,
+        api_key: str,
+        timeout: float = 120,
+        *,
+        supports_json_mode: bool = True,
+        connection_type: str = "DIRECT",
+        interface_capabilities: dict | InterfaceCapabilities | None = None,
     ) -> None:
         self.name = name
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.timeout = timeout
+        self.cancel_check: Callable[[], None] | None = None
         self.supports_json_mode = supports_json_mode
+        self.connection_type = connection_type
+        self.interface_capabilities = (
+            InterfaceCapabilities.model_validate(interface_capabilities) if interface_capabilities else None
+        )
 
     def _generate(
         self,
@@ -188,26 +229,45 @@ class OpenAICompatibleProvider:
         json_mode: bool,
         options: ProviderRequestOptions | None = None,
     ) -> LLMResult:
-        payload: dict[str, Any] = {"model": model, "messages": messages}
-        if json_mode and self.supports_json_mode:
+        contract_metadata: dict[str, Any] = {}
+        if self.connection_type == "LOCAL_ROUTER":
+            payload, contract_metadata = router_payload(
+                self.interface_capabilities,
+                self.base_url,
+                model,
+                messages,
+                json_mode=json_mode,
+                temperature=options.temperature if options else None,
+                max_output_tokens=options.max_output_tokens if options else None,
+            )
+            if options and options.thinking is not None:
+                contract_metadata["omitted_parameters"].append("thinking")
+        else:
+            payload = {"model": model, "messages": messages}
+        if self.connection_type != "LOCAL_ROUTER" and json_mode and self.supports_json_mode:
             payload["response_format"] = {"type": "json_object"}
-        if options and options.temperature is not None:
+        if self.connection_type != "LOCAL_ROUTER" and options and options.temperature is not None:
             payload["temperature"] = options.temperature
-        if options and options.max_output_tokens is not None:
+        if self.connection_type != "LOCAL_ROUTER" and options and options.max_output_tokens is not None:
             payload["max_tokens"] = options.max_output_tokens
         if (
             options
+            and self.connection_type != "LOCAL_ROUTER"
             and options.thinking is not None
             and (self.name.lower() == "deepseek" or "api.deepseek.com" in self.base_url.lower())
         ):
             payload["thinking"] = {"type": "enabled" if options.thinking else "disabled"}
-        response = httpx.post(
+        response = _post(
             f"{self.base_url}/chat/completions",
+            cancel_check=self.cancel_check,
             headers={"Authorization": f"Bearer {self.api_key}"},
             json=payload,
             timeout=self.timeout,
+            **({"trust_env": False} if self.connection_type == "LOCAL_ROUTER" else {}),
         )
         response.raise_for_status()
+        if self.connection_type == "LOCAL_ROUTER" and len(response.content) > 1_000_000:
+            raise AIProviderError("AI_PROVIDER_OUTPUT_TOO_LARGE", "接口响应超过本机接收上限")
         try:
             data = response.json()
             choice = (data.get("choices") or [])[0]
@@ -217,13 +277,44 @@ class OpenAICompatibleProvider:
             raise AIProviderError(
                 "AI_PROVIDER_EMPTY_RESPONSE", "Provider 未返回可用 choices", retryable=True, cause=exc
             ) from exc
+        usage = data.get("usage") or {}
+        if not isinstance(usage, dict):
+            usage = {}
+        if self.connection_type == "LOCAL_ROUTER":
+            usage = {
+                key: value
+                for key, value in usage.items()
+                if key in {"prompt_tokens", "completion_tokens", "total_tokens", "cached_tokens"}
+                and isinstance(value, int)
+                and not isinstance(value, bool)
+                and value >= 0
+            }
+        usage_source = "REPORTED" if usage else "UNKNOWN"
+        if self.connection_type == "LOCAL_ROUTER" and (
+            not self.interface_capabilities
+            or self.interface_capabilities.usage != "SUPPORTED"
+            or not any(usage.get(key) for key in ("prompt_tokens", "completion_tokens"))
+        ):
+            usage, usage_source = {}, "UNKNOWN"
         return LLMResult(
             content=str(content or ""),
             provider=self.name,
             model=str(data.get("model") or model),
-            usage=data.get("usage", {}),
+            usage=usage,
             metadata={
-                "finish_reason": choice.get("finish_reason"),
+                **contract_metadata,
+                "usage_source": usage_source,
+                "estimated_prompt_tokens": estimate_tokens(
+                    sum(len(str(m.get("content") or "")) for m in messages)
+                )
+                if usage_source == "UNKNOWN"
+                else None,
+                "finish_reason": choice.get("finish_reason")
+                if self.connection_type != "LOCAL_ROUTER"
+                or (self.interface_capabilities and self.interface_capabilities.finish_reason == "SUPPORTED")
+                or choice.get("finish_reason") in {"length", "max_tokens"}
+                else None,
+                "reported_finish_reason": choice.get("finish_reason"),
                 "response_id": data.get("id"),
                 "request_id": response.headers.get("x-request-id") or response.headers.get("request-id"),
                 "content_length": len(str(content or "")),
@@ -244,6 +335,18 @@ class OpenAICompatibleProvider:
         self, messages: list[dict[str, str]], *, model: str, options: ProviderRequestOptions | None = None
     ) -> LLMResult:
         return self.generate_json(messages, model=model, options=options)
+
+
+def interface_signature(provider: LLMProvider) -> dict:
+    if getattr(provider, "connection_type", None) == "LOCAL_ROUTER":
+        capabilities = getattr(provider, "interface_capabilities", None)
+        return {"local_router": capabilities.fingerprint() if capabilities else "NOT_CHECKED"}
+    return {
+        name: signature
+        for name in ("primary", "fallback")
+        if (target := getattr(provider, name, None)) is not None
+        and (signature := interface_signature(target))
+    }
 
 
 class FallbackLLMProvider:
@@ -308,9 +411,22 @@ class FallbackLLMProvider:
         self.result_validator = result_validator
         self.fallback_decider = fallback_decider
         self.max_attempts = max_attempts
+        self.cancel_check: Callable[[], None] | None = None
         self._legacy_reliability = primary_reliability is None and fallback_reliability is None
         self._remaining_attempts = 0
         self._attempt_context: dict[str, Any] = {}
+
+    def _sleep(self, seconds: float) -> None:
+        if self.cancel_check is None:
+            self.sleeper(seconds)
+            return
+        remaining = seconds
+        while remaining > 0:
+            self.cancel_check()
+            interval = min(remaining, 0.25)
+            self.sleeper(interval)
+            remaining -= interval
+        self.cancel_check()
 
     @staticmethod
     def _same_target(
@@ -322,6 +438,8 @@ class FallbackLLMProvider:
         if self._legacy_reliability:
             return dict(self.attempt_metadata)
         metadata = {**self.attempt_metadata, **self._attempt_context, "reliability_mode": policy.mode}
+        if signature := interface_signature(provider):
+            metadata["interface_contract"] = signature
         timeout = getattr(provider, "timeout", None)
         if timeout is not None:
             metadata["timeout_seconds"] = timeout
@@ -357,14 +475,14 @@ class FallbackLLMProvider:
             attempt_id: str | None = None
             try:
                 if self._legacy_reliability and policy.request_interval_seconds:
-                    self.sleeper(policy.request_interval_seconds)
+                    self._sleep(policy.request_interval_seconds)
                 semaphore, wait_before, circuit_state = ReliabilityGuards.acquire(
                     key,
                     policy,
                     limiter_key=provider_rate_limit_identity(provider),
                 )
                 if wait_before:
-                    self.sleeper(wait_before)
+                    self._sleep(wait_before)
                 if route == "fallback" and self.before_fallback:
                     self.before_fallback()
                 if self.before_attempt:
@@ -415,20 +533,25 @@ class FallbackLLMProvider:
                     raise error from exc
                 is_json_error = error.code in {"AI_PROVIDER_INVALID_JSON", "AI_PROVIDER_SCHEMA_INVALID"}
                 retry_json = is_json_error and json_retries < policy.json_retry_count
-                retry_http = not is_json_error and error.retryable and http_retries < policy.retry_count
+                retry_http = (
+                    not is_json_error and error.retryable
+                    and error.code not in {"AI_PROVIDER_TIMEOUT", "AI_PROVIDER_READ_TIMEOUT"}
+                    and http_retries < policy.retry_count
+                )
                 retry = retry_json or retry_http
                 if retry_json:
                     json_retries += 1
-                    call_messages = [
-                        *messages,
-                        {
-                            "role": "system",
-                            "content": (
-                                "上一次响应无法被解析。只返回合法 JSON 对象，不要 Markdown、"
-                                "解释或代码块，并保持原字段契约。"
-                            ),
-                        },
-                    ]
+                    repair = {
+                        "role": "system",
+                        "content": (
+                            "上一次响应无法被解析。只返回合法 JSON 对象，不要 Markdown、"
+                            "解释或代码块，并保持原字段契约。"
+                        ),
+                    }
+                    prefix = 0
+                    while prefix < len(messages) and messages[prefix].get("role") == "system":
+                        prefix += 1
+                    call_messages = normalize_messages([*messages[:prefix], repair, *messages[prefix:]])
                 elif retry_http:
                     http_retries += 1
                 circuit_state = ReliabilityGuards.failure(key, policy, error)
@@ -471,7 +594,7 @@ class FallbackLLMProvider:
                 if self.on_retry:
                     self.on_retry(attempt, error)
                 if wait_seconds:
-                    self.sleeper(wait_seconds)
+                    self._sleep(wait_seconds)
             else:
                 ReliabilityGuards.success(key)
                 result.metadata = {

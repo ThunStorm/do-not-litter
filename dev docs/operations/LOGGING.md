@@ -39,6 +39,12 @@ API 生成或接受 X-Request-ID 并在响应头返回；业务动作关联 syst
 
 只读示例：GET /api/logs?level=ERROR&component=worker&query=Whisper&limit=20。带 `job_id` 时响应还包含该任务脱敏的 LLM 尝试、耗时、路由、模型、分块和 Provider 错误摘要。先限定 Job、时间和数量，不导出全部日志。批量 CSV/JSONL、筛选链接复制、低水位告警和完整性哈希不因本次合并而列为已实现。
 
+### 4.1 Token 口径（2026-10-08）
+
+`GET /api/jobs/{job_id}/ai-usage` 的 input_tokens/output_tokens 保持上游可信实测口径，新增 estimated_input_tokens/estimated_output_tokens、estimated_input_calls/estimated_output_calls、unknown_input_calls/unknown_output_calls。输入和输出分别判断：可信 0 是 0，缺省或路由占位用量是未知；优先使用已有估算，否则按请求字符数或可见输出长度以约 2 字符/Token 本地估算，向上取整。估算不含未知思考/隐藏 Token，不等于账单或精确 tokenizer。
+
+任务页显示“约 数值”及“部分未知”；失败/取消且没有返回输出的调用不补造输出 Token。历史 Audit 在读取时推导，不回填或改写；Cache hit 不重复计入真实调用/消耗。已发起调用的输入估算参与原有预算及重试/备用/重复输入比例，表示保守的请求输入估算，不能据此断言上游确已消费。实际消耗是否包含失败请求仍须上游证据。
+
 ## 5. 错误事件与 Replay
 
 日志页是操作入口，不拥有 Job 状态机。ERROR/CRITICAL 事件关联仍存在的 Job 与失败 Step 时，先查 GET /api/jobs/{job_id}/replay-options；服务端检查 lease、source_event_id、失败步骤与上游 Artifact 的输入/版本和有效期。

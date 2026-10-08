@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from zhijian.ai.job_config import job_setting
+from zhijian.ai.token_usage import token_usage
 from zhijian.core.time import as_utc, utc_now
 from zhijian.db.models import ExternalCallAudit, Job, Transcript, VideoAsset
 from zhijian.domain.schemas import GeneralConfig
@@ -12,6 +13,14 @@ from zhijian.services.audit import record_event
 
 class AIBudgetExceeded(RuntimeError):
     code = "AI_BUDGET_EXCEEDED"
+
+
+def _budget_tokens(row: ExternalCallAudit, kind: str) -> int:
+    side = "input" if kind == "prompt" else "output"
+    counts = token_usage(
+        row.response_meta_json or {}, int((row.request_meta_json or {}).get("input_chars") or 0)
+    )
+    return counts[f"{side}_tokens"] + counts[f"estimated_{side}_tokens"]
 
 
 @dataclass(frozen=True)
@@ -110,11 +119,7 @@ def soft_budget_state(
                 profile_id=profile_id,
             )
         ]
-    prompt_tokens = sum(
-        int((row.response_meta_json or {}).get("prompt_tokens") or 0)
-        for row in actual
-        if _audit_location(row) == location
-    )
+    prompt_tokens = sum(_budget_tokens(row, "prompt") for row in actual if _audit_location(row) == location)
     estimate = max(1, input_chars // 4)
     limit = (
         config.ai_max_remote_prompt_tokens_per_job
@@ -208,12 +213,8 @@ def ensure_ai_budget(
     location_rows = (
         target_rows if location == "REMOTE" else [row for row in actual if _audit_location(row) == "LOCAL"]
     )
-    prompt_tokens = sum(
-        int((row.response_meta_json or {}).get("prompt_tokens") or 0) for row in location_rows
-    )
-    completion_tokens = sum(
-        int((row.response_meta_json or {}).get("completion_tokens") or 0) for row in location_rows
-    )
+    prompt_tokens = sum(_budget_tokens(row, "prompt") for row in location_rows)
+    completion_tokens = sum(_budget_tokens(row, "completion") for row in location_rows)
     estimate = max(1, input_chars // 4)
     remote = location == "REMOTE"
     prompt_limit = (

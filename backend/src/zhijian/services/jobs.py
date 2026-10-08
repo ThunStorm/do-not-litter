@@ -34,11 +34,17 @@ def purge_expired_step_artifacts(db: Session) -> int:
 
 
 def ensure_job_active(db: Session, job: Job) -> None:
-    persisted_status = db.execute(
-        select(Job.status).where(Job.id == job.id), execution_options={"autoflush": False}
-    ).scalar_one_or_none()
-    if persisted_status == JobStatus.CANCELLED.value or (
-        job.lease_owner and persisted_status != JobStatus.RUNNING.value
+    persisted = db.execute(
+        select(Job.status, Job.lease_owner, Job.retry_count, Job.started_at).where(Job.id == job.id),
+        execution_options={"autoflush": False},
+    ).one_or_none()
+    if persisted and persisted.status == JobStatus.CANCELLED.value or (
+        job.lease_owner and (
+            persisted is None or persisted.status != JobStatus.RUNNING.value
+            or persisted.lease_owner != job.lease_owner or persisted.retry_count != job.retry_count
+            or (as_utc(persisted.started_at) if persisted.started_at else None)
+            != (as_utc(job.started_at) if job.started_at else None)
+        )
     ):
         raise JobCancelled("任务已取消或本次执行权已失效")
 

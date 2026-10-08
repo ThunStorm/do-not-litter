@@ -1,3 +1,14 @@
+import type { AIUsageBucket } from '../../lib/types'
+
+export function formatTokenUsage(usage: AIUsageBucket, side: 'input' | 'output') {
+  const reported = usage[`${side}_tokens`]
+  const estimated = usage[`estimated_${side}_tokens`] ?? 0
+  const unknown = usage[`unknown_${side}_calls`] ?? 0
+  const estimateCalls = usage[`estimated_${side}_calls`] ?? 0
+  if (reported === 0 && estimateCalls === 0 && unknown > 0) return '未知'
+  return `${estimateCalls > 0 ? '约 ' : ''}${reported + estimated}${unknown > 0 ? '（部分未知）' : ''}`
+}
+
 const STEP_LABELS: Record<string, string> = {
   RECEIVED: '已接收',
   NORMALIZE_CAPTURE_INPUT: '识别粘贴内容',
@@ -40,7 +51,7 @@ export function replayActionState(
   if (jobStatus === 'CANCELLED' && !fullReplayAvailable) {
     return { label: '正在停止当前步骤', enabled: false }
   }
-  return { label: '从头重新运行', enabled: fullReplayAvailable }
+  return { label: '以原配置重跑', enabled: fullReplayAvailable }
 }
 
 export function formatStepDuration(startedAt: string | null, finishedAt: string | null) {

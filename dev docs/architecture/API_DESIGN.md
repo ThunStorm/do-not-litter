@@ -3,6 +3,19 @@
 > API 风格：REST + WebSocket
 > 第一版单用户，本地使用，但仍保持明确资源边界。
 
+## 当前运行接口与设计名称（2026-10-09 核对）
+
+本文件后文保留早期资源设计名称（如 `/api/inbox`、`/api/admin/jobs`），它们不能单独证明运行时提供了同名路由。当前入口以 `backend/src/zhijian/api/router.py` 与运行时 `/openapi.json` 为准：Capture 使用 `POST /api/capture`、`POST /api/capture/file`；任务使用 `/api/jobs`，设置使用 `/api/settings`。新增接口或行为须同时核对源码/Schema 与下列专项，不从规划接口推导已实现。
+
+| 当前接口 | 行为与边界 |
+| --- | --- |
+| `GET/POST /api/settings/model-profiles`、`PUT/DELETE /api/settings/model-profiles/{profile_id}` | 已保存模型配置；接入类型 `DIRECT / LOCAL_ROUTER`，接口快照保存在 Setting JSON，凭据进 Secret Store |
+| `POST /api/settings/model-profiles/{profile_id}/interface-capabilities`、`POST /api/settings/model-profiles/interface-capabilities-draft` | 使用当前输入和已有/草稿凭据读取路由目录，不推理、不保存；保存配置后快照才对新任务生效 |
+| `POST /api/settings/model-profiles/{profile_id}/test`、`.../{profile_id}/probe`、`.../test-draft`、`.../probe-draft` | 用户显式发起真实连通/能力小样，共用 API 进程内 FIFO 与凭据节流；不影响生产熔断，不自动重试或换模型 |
+| `GET /api/jobs/{job_id}/ai-usage` | 返回 total/local/remote、by_stage/by_model、retry/fallback/waste、cache/ratios/budget；数据由历史审计只读推导，不改旧账本 |
+
+用量聚合中的 `input_tokens/output_tokens` 保留可信实测；`estimated_input_tokens/estimated_output_tokens` 与对应 `estimated_*_calls` 表示本地估算，`unknown_input_calls/unknown_output_calls` 表示没有可信值或可用估算。输入和输出独立判定，可信 0 不等于缺省，路由占位 0 不当成实测；Cache hit 不重复计耗。估算参与预算但不证明账单、思考 Token 或取消后消费已经终止。详见 [日志口径](../operations/LOGGING.md#41-token-口径2026-10-08)与 [LocalAiMux 契约](../ai-gateway/LOCAL_ROUTER_PROVIDER_COMPATIBILITY_SPEC.md)。
+
 ---
 
 # 1. Capture API

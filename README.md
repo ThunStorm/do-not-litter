@@ -8,7 +8,8 @@
 - URL、正文、DOCX、PDF、XLSX、图片和音视频投递入口；图片使用 macOS Vision OCR，音视频使用 FFmpeg + Whisper.cpp；
 - 北京公务员/事业单位招聘的首批结构化规则及 Claim/Evidence；
 - 旅行地点、高德 GCJ-02 坐标、独立地图总览、POI 审核/改名、点选附近 POI 与手动路线清单；
-- Ollama、DeepSeek、MiMo/OpenAI-compatible Provider，macOS Keychain 保存密钥；
+- Ollama、DeepSeek、MiMo/OpenAI-compatible 与 LocalAiMux 接口能力协商，macOS Keychain 保存密钥；
+- 任务提交时冻结模型配置，步骤续跑复用有效产物；Token 实测/估算/未知分开展示，模型等待与 ASR 支持协作取消；
 - PC CMS 与移动端共性导航、4 位局域网配对码→Session、失败限流与会话撤销；
 - 真实 Mac mini 硬件/服务/模型检测、JSONL 运行日志与 SQLite 审计事件；
 - Mac mini `launchd` API/Worker 双服务部署。

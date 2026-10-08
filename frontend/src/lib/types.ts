@@ -206,12 +206,29 @@ export interface LogAttemptView {
   provider_error: Record<string, unknown> | null
 }
 
+export interface InterfaceCapabilities {
+  model: string
+  base_url: string
+  sampled_at: string
+  source: string
+  version: string
+  system: 'SUPPORTED' | 'UNSUPPORTED' | 'UNKNOWN'
+  history: 'SUPPORTED' | 'UNSUPPORTED' | 'UNKNOWN'
+  json_object: 'SUPPORTED' | 'UNSUPPORTED' | 'UNKNOWN'
+  usage: 'SUPPORTED' | 'UNSUPPORTED' | 'UNKNOWN'
+  output: { support: 'SUPPORTED' | 'UNSUPPORTED' | 'UNKNOWN'; minimum: number | null; maximum: number | null }
+  temperature: { support: 'SUPPORTED' | 'UNSUPPORTED' | 'UNKNOWN'; minimum: number | null; maximum: number | null }
+  limiting_layer: string
+}
+
 export interface ModelProfileView {
   id: string
   name: string
   provider: string
   base_url: string
   model: string
+  connection_type: 'DIRECT' | 'LOCAL_ROUTER'
+  interface_capabilities: InterfaceCapabilities | null
   timeout_seconds: number
   reliability_mode: 'DIRECT' | 'STANDARD' | 'GUARDED' | 'FREE_TIER'
   request_interval_seconds: number | null
@@ -232,7 +249,7 @@ export interface ModelProfileView {
   supports_tools: boolean
   context_window: number
   recommended_working_context: number
-  max_output_tokens: number
+  max_output_tokens: number | null
   quality_tier: 'FAST' | 'MAIN' | 'STRONG' | 'SPECIALIST'
   specialties: string[]
   enabled: boolean
@@ -296,6 +313,12 @@ export interface AIUsageBucket {
   attempt_count?: number
   input_tokens: number
   output_tokens: number
+  estimated_input_tokens?: number
+  estimated_output_tokens?: number
+  estimated_input_calls?: number
+  estimated_output_calls?: number
+  unknown_input_calls?: number
+  unknown_output_calls?: number
   cached_tokens: number
   input_chars?: number
   cache_hit_count?: number

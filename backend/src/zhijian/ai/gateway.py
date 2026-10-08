@@ -13,7 +13,16 @@ from zhijian.ai.resource_manager import local_ai_resource_manager
 from zhijian.ai.schemas import AIRequest, AIResult
 from zhijian.ai.structured_output import validate_structured_output
 from zhijian.db.models import Job
-from zhijian.providers.llm import FallbackLLMProvider, LLMProvider, LLMResult, ProviderRequestOptions
+from zhijian.providers.llm import (
+    FallbackLLMProvider,
+    LLMProvider,
+    LLMResult,
+    OllamaProvider,
+    OpenAICompatibleProvider,
+    ProviderRequestOptions,
+    interface_signature,
+)
+from zhijian.services.jobs import ensure_job_active
 
 
 class AIWorkloadGateway:
@@ -83,6 +92,8 @@ class AIWorkloadGateway:
                     attempt_model: str,
                     attempt_messages: list[dict[str, str]],
                 ) -> None:
+                    if job:
+                        ensure_job_active(db, job)
                     provider_name = str(getattr(attempt_provider, "name", "ollama"))
                     ensure_ai_budget(
                         db,
@@ -100,15 +111,21 @@ class AIWorkloadGateway:
                         )
 
                 provider.before_attempt = ensure_attempt_budget
+                provider.cancel_check = (lambda: ensure_job_active(db, job)) if job else None
                 provider.attempt_runner = run_attempt
                 provider.result_validator = validate_result if not provider._legacy_reliability else None
-                return (
-                    provider.generate_fallback_json(messages)
-                    if fallback_only
-                    else provider.generate_json(messages, model=model)
-                )
+                try:
+                    return (
+                        provider.generate_fallback_json(messages)
+                        if fallback_only
+                        else provider.generate_json(messages, model=model)
+                    )
+                finally:
+                    provider.cancel_check = None
             return self._execute_attempt(db, job, provider, "generate_json", messages, model, None)
 
+        if signature := interface_signature(provider):
+            semantic_options = {**semantic_options, "interface_contract": signature}
         return cached_json_result(
             db,
             job=job,
@@ -154,11 +171,23 @@ class AIWorkloadGateway:
                 provider.timeout = min(float(timeout), max(1.0, remaining_ai_wall_seconds(db, job)))
 
         def invoke() -> LLMResult:
+            if job:
+                ensure_job_active(db, job)
+            if job and isinstance(provider, (OllamaProvider, OpenAICompatibleProvider)):
+                provider.cancel_check = lambda: ensure_job_active(db, job)
             if options is None:
                 return getattr(provider, method)(messages, model=model)
             return getattr(provider, method)(messages, model=model, options=options)
 
-        return local_ai_resource_manager.run("TEXT_LLM", invoke) if location == "LOCAL" else invoke()
+        try:
+            if location == "LOCAL":
+                return local_ai_resource_manager.run(
+                    "TEXT_LLM", invoke, cancel_check=(lambda: ensure_job_active(db, job)) if job else None
+                )
+            return invoke()
+        finally:
+            if isinstance(provider, (OllamaProvider, OpenAICompatibleProvider)):
+                provider.cancel_check = None
 
     def execute(
         self,

@@ -219,9 +219,9 @@ P0 已能可靠阻断同类污染；只有实际数据证明全量 ASR 的延迟
 
 ## 9. 相关契约
 
-- [输入、登录、字幕与转写](../../video/02-input-transcript.md)
-- [笔记、地点、截图与物化](../../video/03-generation-materialization.md)
-- [回归与变更冻结清单](../../REGRESSION_AND_CHANGE_GUARD.md)
-- [Bilibili Resolver](../../../backend/src/zhijian/resolvers/video/bilibili.py)
-- [Video Pipeline](../../../backend/src/zhijian/services/video_pipeline.py)
-- [Transcript Quality](../../../backend/src/zhijian/ai/transcript_quality.py)
+- [输入、登录、字幕与转写](../video/02-input-transcript.md)
+- [笔记、地点、截图与物化](../video/03-generation-materialization.md)
+- [回归与变更冻结清单](../REGRESSION_AND_CHANGE_GUARD.md)
+- [Bilibili Resolver](../../backend/src/zhijian/resolvers/video/bilibili.py)
+- [Video Pipeline](../../backend/src/zhijian/services/video_pipeline.py)
+- [Transcript Quality](../../backend/src/zhijian/ai/transcript_quality.py)

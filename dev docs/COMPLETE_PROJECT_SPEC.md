@@ -10,7 +10,7 @@
 
 # 文档目录与维护规则
 
-> 按需目录，不是必读清单。外部读者先看 [项目概览](../README.md)，开发 Agent 先看 [CODEX_CONTEXT.md](CODEX_CONTEXT.md)。2026-09-03 完成入口去重、主题分篇和历史隔离；本次不重新评定业务验收。
+> 目录核对日期：2026-10-09。外部读者先看 [项目概览](../README.md)，开发 Agent 先看 [CODEX_CONTEXT.md](CODEX_CONTEXT.md)。本次同步文档清单、源码契约与历史归档，不重新授予业务验收。
 
 ## 1. 谁读什么，读到哪里停止
 
@@ -66,6 +66,7 @@
 | 任务表达 / 时间 | [摘要与部分成功](jobs/TASK_SUMMARY_AND_PARTIAL_SUCCESS_SPEC.md)、[状态与北京时间](jobs/TASK_STATUS_AND_BEIJING_TIME_SPEC.md) |
 | AI Gateway | [AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2](ai-gateway/AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md) 六篇索引：模型边界、公共能力、Pipeline/Provider、阶段参数、单任务策略、历史工作包/验收 |
 | AI 运行 / 生产验收 | [AI_RUNTIME_AND_PROVIDERS](ai-gateway/AI_RUNTIME_AND_PROVIDERS.md) 运行配置；[AI_GATEWAY_PRODUCTION_ACCEPTANCE](ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md) 真实验收门禁 |
+| 本机路由 Provider | [LocalAiMux 客户端接入](ai-gateway/LOCAL_ROUTER_PROVIDER_COMPATIBILITY_SPEC.md) 至简已实现的参数/消息协商与上游边界；[2026-10-06 参数及 55 型号调查](history/LOCALMUX_PARAMETER_SURVEY_20261006.md) 为有日期的证据快照，不代表真实模型验收 |
 | 模型 / Prompt / 来源保留 | [模型与历史删除](ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md)、[补充 Prompt](ai-gateway/PROMPT_SUPPLEMENTS_V045_SPEC.md)、[转写路由与来源保留](ai-gateway/AI_ROUTING_SOURCE_RETENTION_V046_SPEC.md) |
 | 控制台 / 运维 | [CONTROL_CENTER](product/CONTROL_CENTER.md) 信息结构；[OPERATIONS_UI_SPEC](operations/OPERATIONS_UI_SPEC.md) 工作台交互；[LOGGING](operations/LOGGING.md) 日志契约与维护 |
 | 运行监控 / Provider | [监控与预设](operations/RUNTIME_MONITOR_AND_MODEL_PRESETS_SPEC.md)、[内存口径与预设切换](operations/RUNTIME_MONITOR_AND_PROVIDER_SWITCH_V06_SPEC.md) |
@@ -114,6 +115,7 @@
 - 新增/移动文档时更新本目录与必要的 CODEX_CONTEXT 路由；有独立导航价值的主题索引保留，纯跳转页更新引用后删除。契约只保留一个正文源；不复制到状态页、临时交接或新版本文件。
 - history/ 默认不读，不因未来工作包在文档中出现而执行。实施历史只在追溯时定位相关日期/标题。
 - 合订本由 scripts/build_complete_project_spec.py 的显式清单生成；不含交接快照、history/ 正文、旧 PROJECT_PLAN、未来路线或未冻结草案。Gateway 分篇中的原验收设计仍作为契约保留，不代表新的执行授权。清单或清单内源文件变化时重建；不要为同步生成物读取它。
+- manifest.json 的 documents 列举现有 Markdown/JSON 文档及验收样本，generated_documents 单独列生成物；历史 repository_snapshot_date/commit 只说明当时冻结，documentation_inventory_date 表示本次清单核对日期。LocalAiMux 专项的跨仓链接依赖相邻 local-ai-mux checkout，远程单独克隆本仓时需同时取得该仓库；不把这些外部文档当成本仓的冻结正文。
 - 文档交付检查链接、分篇正文完整性、生成可重复性和 git diff --check；可运行 .venv/bin/python scripts/test_build_complete_project_spec.py 检查生成物、来源清单与分篇链接重定位。不重启、不迁移、不调用真实 Provider、不跑业务全量。
 
 ## 6. Codex 设置说明
@@ -159,6 +161,8 @@
 | Bilibili、登录、字幕、ASR、转写 | [视频输入与转写](video/02-input-transcript.md) |
 | 视频笔记、地点抽取、截图 | [视频生成与物化](video/03-generation-materialization.md)；Gateway 优化才读下行 |
 | Gateway、Map/Reduce、Provider、Usage | [Pipeline 与 Provider](ai-gateway/03-pipeline-providers.md) |
+| LocalAiMux、本地路由、接口能力、手动测试队列 | [本地路由接入](ai-gateway/LOCAL_ROUTER_PROVIDER_COMPATIBILITY_SPEC.md)；`trust_env` 定位 providers/llm.py，目录能力不等于真实模型质量 |
+| Token 实测/估算/未知、取消响应 | [日志 Token 口径](operations/LOGGING.md#41-token-口径2026-10-08)；取消选 jobs/MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md，本地模型释放选 ai-gateway/AI_RUNTIME_AND_PROVIDERS.md |
 | Profile、模型能力、硬件限制 | [架构与模型边界](ai-gateway/01-architecture-models.md)；运行命令才读 ai-gateway/AI_RUNTIME_AND_PROVIDERS.md |
 | 路由、AUTO、阶段参数、设置 | [Stage Policy](ai-gateway/04-stage-policy.md)；实际语义须核对 ai/policies.py 与 backend/tests/test_ai_stage_policies.py |
 | 单任务覆盖、Policy API、Cache Key | [任务策略覆盖](ai-gateway/05-job-policy.md) |
@@ -249,7 +253,9 @@
 | 证据地图截断恢复 | `LOCAL_FIRST` 首次本地输出截断后先拆分；存在已配置备用模型时，子块或预计超出剩余阶段预算的后续块走备用路由，保持原 Segment Evidence、Schema 校验、调用审计与缓存，不重复扩大本地慢请求；正文字符 Hint 不得漏算分块结构开销 | `services/grounded_map.py`、`ai/gateway.py` |
 | 笔记归纳恢复 | `GLOBAL_SYNTHESIS` 是内部阶段契约；显式选定且探测 `NOT_TESTED` 的模型可在原 JSON/Evidence/预算门禁下尝试，`FAIL` 仍拦截。DeepSeek 笔记请求默认关闭思考并按输出预算缩小 Evidence Pack；取消后的同一步骤仅在 lease 释放、上游 Artifact 有效且无待执行完整重跑时允许续跑 | `services/video_support.py`、`services/job_replay.py`、`jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md` |
 | AI Gateway 稳定性 | 精确 Cache hit 不重复调用 Provider；`force_regenerate` 绕过命中并保留结果链；本机 ASR/文本/视觉/模型测试必须跨 API/Worker 进程串行；LOCAL/REMOTE Token 分账只依据审计路由位置；Cache hit 不计模型调用或预算；Ollama `keep_alive: 0` 与本地重任务低并发不得回退；未经真实 E2E 与 Benchmark Gate 不得宣称生产验证 | `ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md`、`ai/resource_manager.py`、`ai/budget.py`、`ai-gateway/AI_RUNTIME_AND_PROVIDERS.md` |
-| 任务控制 | 当前标记只属于运行中的当前 JobStep；终态不固定高亮最后一步；时间线按 Pipeline 排序、阶段中文化并显示步骤用时；普通步骤 90 秒、LLM 步骤 500 秒预警，900 秒才终止；取消协作释放 lease，确认前不允许重试 | `jobs/MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md`、`jobs/TASK_SUMMARY_AND_PARTIAL_SUCCESS_SPEC.md`、`jobs/TASK_STATUS_AND_BEIJING_TIME_SPEC.md` |
+| 可取消本地路由 HTTP | LOCAL_ROUTER 的 `trust_env=False` 在异步路径必须配置到 AsyncClient 构造函数；成功请求和 DIRECT/LOCAL_ROUTER 取消均须通过离线回归。客户端取消不等于上游停止，Ollama 显式清理缺口不得被健康或 Mock 测试抹掉 | `providers/llm.py`、`tests/test_local_router_contract.py`、`tests/test_job_runtime_optimization.py`、`ai-gateway/AI_RUNTIME_AND_PROVIDERS.md` |
+| 任务控制 | 当前标记只属于运行中的当前 JobStep；终态不固定高亮最后一步；时间线按 Pipeline 排序、阶段中文化并显示步骤用时；普通步骤 90 秒、LLM 步骤 500 秒预警，900 秒才终止；模型/重试/资源锁等待与 ASR 每 250ms 观察取消，ASR 每 30 秒报告等待，确认停止前不开始重跑 | `jobs/MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md`、`jobs/TASK_SUMMARY_AND_PARTIAL_SUCCESS_SPEC.md`、`jobs/TASK_STATUS_AND_BEIJING_TIME_SPEC.md` |
+| Token 用量 | 实测字段与本地字符估算/未知独立；缺省不冒充 0，失败输出不编造、Cache 不重复计消耗；估算参与预算，历史 Audit 只读推导不回填；超时不重复相同模型请求，备用受路由/能力/预算门禁约束 | `ai/token_usage.py`、`operations/LOGGING.md#41-token-口径2026-10-08` |
 | Worker 存活与完整重跑 | 全局 Worker 心跳独立于同步 Pipeline；Job 活动只反映真实阶段/batch；长模型取消在请求边界停止后续批次，429/5xx 不放大请求；取消 lease 释放后 `CANCELLED` 也可完整重跑 | `operations/RUNTIME_MONITOR_AND_PROVIDER_SWITCH_V06_SPEC.md`、`jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md`、ADR-030 |
 | 终态与时间 | 终态不显示预估；展示层强制北京时间，持久化 ISO 时间仍保持 UTC | `jobs/TASK_STATUS_AND_BEIJING_TIME_SPEC.md` |
 | 运维 | CPU/内存/磁盘与 Worker 心跳为 SQLite 持久化快照；内存百分比使用可回收页口径；日志支持筛选、关联 Job、分页与脱敏 | `operations/OPERATIONS_UI_SPEC.md`、`operations/LOGGING.md` |
@@ -329,14 +335,14 @@
 
 # 当前实施状态
 
-> 状态记录日期：2026-09-23。本文唯一记录当前源码能力与自动验证；生产状态只见 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
+> 状态记录日期：2026-10-09。本文唯一记录当前源码能力与自动验证；生产状态只见带原采样日期的 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
 
-## Current repository freeze
+## 当前冻结范围
 
-- 当前工作分支为 `codex/mac-mini-implementation`；提交前仍须用 git 状态核对，保护同批文档拆分与地图改动。
-- 仓库 migration head 为 Alembic 0025；生产版本见 CURRENT_HANDOFF 的实际采样，不由仓库推断。
-- 唯一支持的后端为 Mac mini；FastAPI、SQLite/WAL、独立 Worker；其他平台不在当前支持范围。
-- 真实验收与自动回归分开记录；规格中的“待实施”、历史 Work Package、未来规划均不得单独认定为当前缺口。
+- 当前分支为 `codex/mac-mini-implementation`；本轮远程交付包含已验证的本地路由、Token/取消响应及 `trust_env` 修复，不实施未来路线。
+- 仓库 Alembic head 为 0025；生产版本由交接现场证明，不由仓库推断。本轮文档更新不迁移、不重启、不运行真实模型。
+- 唯一支持的后端为 Mac mini，FastAPI、SQLite/WAL 与独立 Worker；单用户通过可信局域网访问。
+- 源码实现、离线验证、生产加载与真实业务验收分别记录。规格中的待实施项、历史工作包和新草案不自动成为已授权任务。
 
 ## 当前能力
 
@@ -346,86 +352,33 @@
 | 招聘 / 旅行 | 首批招聘结构化与证据；Place Insight、POI Review、全国交互地图、Marker 生命周期、地点管理/人工路线；POI Resolver Golden、事实归一化、跨来源共识/冲突、地点知识 API/证据跳转；月份/日期 Visit Window 状态、可重算 Preference Event 与确定性可解释推荐；Visual Fact 实验性截图任务、Vision Profile Skip 与离线 Golden | product/TRAVEL_FOOD_PIPELINE.md、ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md |
 | 视频 | 字幕优先、ASR、校对、Semantic Map v3（ContentUnit、实体角色、关系、Atomic Claim）、同链接每次提交独立 Note/Content/Transcript Version、共享规范 Place、自适应笔记/章节、地点、Destination、截图、列表封面、保留式删除 | video/VIDEO_AI_NOTE_PIPELINE.md（分篇索引） |
 | Bilibili 登录恢复 | 站内扫码、nav 账号验证、Keychain 保存；登录失败进入 NEEDS_USER；核心恢复与非核心截图显式跳过；字幕多轨与官方 CDN Host Policy | video/02-input-transcript.md |
-| Job / Replay | 独立 Worker 心跳、协作取消、租约门禁、终态表达、步骤续跑和完整重跑；新任务提交时冻结 AI 配置，重跑复用快照；后端决定 Replay Options | jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md |
-| Gateway | 显式 Profile/Stage Policy、路由、Usage、转写质量门禁、Map/Reduce Facts、Cache、Budget、Domain Context、Vision Profile 边界；凭据仍从 Secret Store 读取 | ai-gateway/AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md（分篇索引） |
-| 稳定性 | Gateway 按每次实际 Provider 尝试（含重试/fallback）执行预算与本地 OS flock；LOCAL/REMOTE 分账，Cache hit 不计真实模型尝试或预算 | ai-gateway/02-gateway-context.md、ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md |
+| Job / Replay | 独立 Worker 心跳、协作取消、租约门禁、终态表达、步骤续跑和完整重跑；新任务冻结 AI 配置、重跑复用原配置；HTTP/间隔/资源锁等待协作取消，ASR 进程组回收与活动提示；Replay Options 由后端决定 | jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md |
+| Gateway | 显式 Profile/Stage Policy、接口能力协商、LocalAiMux 接入与手动测试 FIFO；Map/Reduce、Cache、Budget、Domain Context、Vision 边界；凭据从 Secret Store 读取 | ai-gateway/AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md（分篇索引） |
+| 稳定性 | 每次实际 Provider 尝试执行预算与本地 OS flock；LOCAL/REMOTE 分账，可信 Token、字符估算和未知分开，Cache hit 不重复计耗；超时不重复同模型请求 | ai-gateway/02-gateway-context.md、ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md |
 | 产品 / 运维 | PC/手机 Web、真实状态快照、自定义模型/补充 Prompt、JSONL + SQLite 审计、运维工作台 | product/CONTROL_CENTER.md、operations/LOGGING.md |
 | 部署 | Mac mini LaunchAgent 双服务、外置生产 venv Python 3.14、健康内容与 Worker 心跳门禁 | operations/DEPLOYMENT_OPTIONS.md、CURRENT_HANDOFF.md |
 
-## 自动验证记录
+## 最新自动验证
 
-2026-09-09：后端完整 `pytest backend/tests -q`、POI Resolver Golden、Plan C 目标测试、目标 Ruff 与 `git diff --check` 通过；Node 22.21.0 下前端 ESLint、Vitest 15 项、TypeScript 与 Vite build 通过。Plan C 在空 SQLite 成功升级至 0019：12 个月/日期状态、Preference Event、确定性推荐与 Visual Fact Golden 均为离线验证；无 Vision Profile 时截图 Job 以 `SKIPPED_UNSUPPORTED` 进入 `PARTIAL_SUCCESS`，不调用 Provider。桌面浏览器已检查地图 Toolbar 的月份、适宜度与推荐筛选；当前工具无法设为 390px，移动视觉验收未执行。以上不替代真实高德、Vision 或视频验收；实际生产采样见 CURRENT_HANDOFF。
+2026-10-08 最终源码：生产 Python 3.14 `pytest backend/tests -q` 全量 279 项、完整源码与测试 Ruff、Node 24 前端 `pnpm verify` 的 19 项 Vitest/ESLint/TypeScript/Vite 均通过。`trust_env` 的本地路由成功与取消回归在修复前复现同一 TypeError，修复后与相关目标回归共 34 项通过；异步客户端构造参数与请求参数分离，保留绕过环境代理及普通连接默认行为。
+
+本地路由已按实际接口能力处理消息/可选参数，手动测试 FIFO 不改变生产熔断，CLI 安全错误分流保持原预算；Token 读取区分可信实测、估算、未知，历史审计不回填。Job HTTP 等待、间隔与重试可协作取消；ASR 回收进程组，旧执行结果仍受 run fence 约束。上述功能在 2026-10-08 已分批受控加载，生产与 Browser 证据仅在交接和相关历史记录判定；此处的通过数量不替代真实模型验收。
+
+2026-10-09 本轮为文档和远程交付：补齐文档清单、接口入口、当前状态及取消边界，迁移旧验证过程；仅检查链接、迁移完整性、合订生成与格式，不重复业务全量测试。
 
 ## 未闭环与外部条件
 
-- Plan C C1–C5 已进入源码：时间状态与推荐仅由可追溯事实/行为确定，Visual Fact 保持实验性并且不覆盖 Transcript；未进行真实高德、Vision 或视频验收，也未在本轮验证后重启加载新增源码。390px 视觉验收待具备可设定视口的 Browser/Playwright 时补做。
-- Gateway 真实 Local/Remote Provider、真实视频、fallback、cache/force-regenerate、预算、取消/Replay 与 Benchmark 仍需按 [生产验收门禁](ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md) 取证；本次未执行。
-- VIDEO_SEMANTIC_POI_NOTE 优化已完成源码与离线 Golden；真实视频的 ContentUnit/Remote Escalation、真实高德 POI、Token/延迟基线和 PC/Mobile Browser 视觉验收仍未执行。不得用 Fixture、构建或数据库 revision 替代这些验收。
-- 提交时 AI 配置快照与同视频多笔记的 0025 已于 2026-09-23 加载到本机服务；真实 Bilibili 双提交、模型切换、Place 复用与浏览器列表验收未执行。旧 Job 不具有提交时快照，不可追溯地补造当时设置；现场采样见 CURRENT_HANDOFF。
-- 2026-09-08 已对本机 `qwen2.5:7b`、`qwen3:8b`、`qwen3.5:9b` 运行 Capability Probe：分类、结构化抽取、实体抽取与转写校对通过。其他 Stage 的 `FAIL` 只是该基础 Probe 未覆盖，不能视为模型能力否定；未更改默认模型或删除模型。
-- Bilibili 扫码、nav 验证和 Keychain 保存已有真实验收记录；曾暴露 VIDEO_HOST_BLOCKED 的现场 Job 未自动重跑，不把修复等同于该 Job 成功。
-- 高德、远程 Provider 等需要用户合法提供外部配置；不在文档保存 Secret，不通过编造状态代替配置/验收。
-- Vision Profile 绑定边界已实现，不代表已自动运行视觉理解。视频 Fixture Golden（18 个冻结文本/POI 场景）现覆盖访期、知识、POI 候选排名、错误 AI 字幕、时间轴异常、快速多地点、长转写尾部地点和非地点事实；Plan C Visual Fact Golden 覆盖菜单、店招、营业时间与路牌，并对严重幻觉设为 0 门禁。Harness 在缺少合法视频、远程 Key 或 Vision Profile 时标记 `BLOCKED_EXTERNAL`；真实模型比较与可选 Vision 尚未执行。已有 Job/Replay 的只读采集器保持可用。自动行程等其他规划项仍不自动实施。
+- **本地推理取消未闭环**：Ollama 请求含 `keep_alive: 0`，但客户端取消后没有显式模型停止/卸载；观察到 llama-server 继续生成。释放客户端等待和本地锁不证明推理停止；需独立修复及真实取消验收，不能由 `trust_env` 修复推导为已完成。
+- 本地路由的单模型小样、目录能力及一次视频续跑不代表全型号/全阶段质量；厂商额度、思考 Token、远端取消/计费以及完整 Provider/fallback/cache/预算矩阵仍按 [生产验收门禁](ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md) 取证。
+- 视频语义/POI 与 Visual Fact 已有离线 Golden，真实高德质量、Vision、代表性长视频、Token/延迟基线与性能毕业门禁仍未整体闭环。REVIEW/UNRESOLVED 保持人工处理，Fixture、构建和数据库版本不替代真实验收。
+- 提交配置快照及同链接多 Note 身份已实现；真实双提交、模型切换和 Place 复用矩阵仍需独立验证。旧 Job 没有提交快照时，不补造当时设置或改写历史业务结果。
+- Qwen3-ASR 运行资产及 Forced Aligner 已安装并有真实 smoke；默认仍为 Whisper。六类人工 Ground Truth、15–30 分钟 LONG_FORM、Replay 及 Benchmark Gate 未完成前不得晋级默认或改变生产 Registry。
+- Bilibili 登录/nav/Keychain 与部分视频已有真实记录；受阻对象不自动重跑。高德和远程 Provider 必须使用合法配置；Secret 不进文档、SQLite 明文或日志。
+- 已完成的 PC/390px 验收仅覆盖相应设置/任务控件，未验收的地图、Vision 或真实视频体验不自动外推；具体范围以带日期记录为准。
 
-## 历史与维护
+## 追溯与维护
 
-- 2026-09-10：视频字幕 P0 一致性门禁已进入源码。`ai-zh` 等生成字幕只保留非敏感来源哈希并强制走 Whisper ASR；人工中文字幕仍可通过来源/时间轴门禁直通。生成 Note 前验证 Transcript 的 VideoAsset、Source、BV/CID、Snapshot 与状态，长 ASR 校对在 Ollama 下每批最多 32 段。目标 Ruff、视频相关 36 项与后端全量 117 项通过；前端 verify 在可用 Node 24 通过。真实结果和未完成非核心截图不在本页判定，见当前任务证据。
-- 2026-09-10：已保存模型可选保存 `request_interval_seconds`（0–300 秒，留空继承全局设置），并分别作用于主/备用 Profile 的每次调用。该字段不保存 Key、不新增 Schema migration；后端全量与前端 verify 通过，未调用真实 Provider。
-- 2026-09-10：视频质量总计划 WP0–22 的源码实现已完成：统一转写结构/时间轴门禁；所有模式独立分块扫描完整校对稿后再写入逐字 Evidence 地点候选；Pipeline/Replay 改为先地点后 Note；`0020` 保存地点化章节类型、关联 Mention 与引文；Note Map/Reduce 和最终章节只接收服务端 Grounded Evidence；全局和笔记页审核共用 `PlaceReviewCard` 与上下文 API，审核后同步刷新地点、笔记和地图缓存。后端完整 122 项、前端 verify、`git diff --check` 通过；`0020` 已在隔离的 0019 状态成功升级。WP23 仍按性能证据条件性延期；真实 Provider/视频重放、生产迁移/重启和历史截图补全本轮未执行。零库升级仍在既有 0019 历史 migration 重复创建 `preference_events` 处失败，未修改该已发布 migration。
-- 2026-09-11：视频笔记的确认态地点候选以当前绑定 `Place` 为唯一展示来源，显示最新名称/地址并跳转地点详情；不再携带该视频的时间码或 Insight 行注释。未确认的 `REVIEW` 与 `UNRESOLVED` 保留 Evidence，并可进入手动 POI 搜索/确认。前端 verify 与已部署页面验收通过，未自动确认真实 POI。
-- 2026-09-11：未确认地点候选及 Review Evidence 上下文的时间戳均为新窗口 Bilibili 链接，保留原 URL 参数并追加秒级 `t` 定位；纯函数单测覆盖分 P 参数保留，已部署页面核验 `2:32 → t=152`。
-- 2026-09-12：Provider/Job 日志补齐脱敏 HTTP 错误、可行动错误码、实际耗时、输入哈希、分块与主备调用链；Profile 默认 `max_output_tokens` 实际生效；`/api/logs?job_id=` 与日志页展示 LLM 尝试；Worker 每日按 `data_retention_days` 清理系统事件和外部调用审计。后端全量测试、Ruff、前端 verify 通过；未重启生产服务、未调用真实 Provider。
-- 2026-09-12：下一阶段计划 WP1 已完成：Place Type→高德 typecode 的单一映射覆盖街区、步行街、村落、城镇、地标等类型，并区分强匹配、弱兼容、不兼容与未映射；Review API 返回稳定 reason code 与可读原因。POI Golden 从 10 例扩至 17 例，Top-1/Top-3、自动确认精度均为 1.0，错误确认 0，Review 率由 0.30 降至 0.2353；后端全量 126 项、Ruff、Node 24 前端 verify 与 `git diff --check` 通过。未调用真实高德/Provider，WP2–WP15 未实施。
-- 2026-09-13：UI/视频/POI V2 的 WP2–WP15 源码实施完成：POI V2 为 Shadow Mode、Geo Session、上下文候选/负证据、确认来源保护与纠错草稿导出；共享 UI primitives 已迁移设置、审核、视频、投递/任务与地图搜索入口；Bilibili 经 Adapter Registry 保持兼容，本地文件和 YouTube 复用同一 Pipeline；ASR Registry 保持 Whisper.cpp 默认并提供 CPU fallback 与离线 Benchmark；Note Render Profile 生成新 ntv，0021 记录 Profile，0022 建立 SQLite FTS5 正文搜索和幂等回填。后端全量、Ruff、Node 24 前端 verify、`git diff --check` 均通过；隔离 SQLite 已从可信 0020 升至 0022。未调用真实高德/YouTube/Provider/视频，未迁移或重启生产；Browser/390px 视觉验收因现有运行实例不可中断且 Browser/Playwright 不可用而未执行。
-- 2026-09-13：已授权生产迁移 `0020→0022`、受控重启和真实验证；迁移前 active Job/lease=0、`integrity_check=ok`，备份 `app-pre-ui-video-poi-v2-20260913-125600.db` 完整性 ok，API/Worker/心跳 READY。真实 YouTube Job 在元数据/字幕后因媒体不可用进入 `NEEDS_USER`；Bilibili Job 完成下载/Whisper/归一化后远程校对模型空响应，任务级 Local 重试被 Source/VideoAsset 复用导致的 `TRANSCRIPT_SOURCE_MISMATCH` 安全拒绝。不得把本轮描述为成功真实 E2E；修复复用缺陷后才可重试。
-- 2026-09-13：重复 Capture 的 Source/VideoAsset 身份复用已修复，异常审计的 SQLite naive/UTC aware 时间比较已统一；全量回归通过并生产重启。用户样本 `BV19sbV6eExE` 的真实下载、Whisper、归一化与本地校对成功，Source/Asset 绑定一致且空 Source 已清理；地点抽取在多个已存 Profile 上分别遇到 OpenRouter 400、缺 `content`、非法 JSON 和超时，故未生成 Note/POI/截图，仍不能宣称成功 E2E。
-- 2026-09-13：用户切换 Key 后，`BV19sbV6eExE` 从地点抽取步骤 Replay 成功并以 `PARTIAL_SUCCESS` 交付：Note version 2、9 张 READY 截图、FTS 新 Note 命中、45 个 POI 全部 REVIEW/UNRESOLVED、confirmed=0；步骤无失败/跳过。此为真实 Bilibili+ASR+校对+抽取+Note+POI Review+截图验收，不代表 Vision、Profile 切换、fallback、缓存/强制再生或移动浏览器验收。
-- 2026-09-14：Note Evidence Index 按 Mention ID 稳定排序，避免同语义 Replay 因数据库读取顺序漂移 Cache Key。真实 COMPACT Profile 生成 current version 7，所有章节保留 Evidence；同 Profile 二次 Replay 的分块 Cache Hit 为 0ms，force-regenerate 真实调用并建立 Cache result chain。Local Video 文件上传、Adapter 与 ASR 通过，后续本地校对超时。Vision 无 image-capable Profile，备用 ASR 六类 corpus、可控 fallback、POI 人审晋级和 Browser/390px 仍未验证。
-- 2026-09-14：LLM Token 与自动化计划第一阶段（WP0–WP5、WP8、WP11）已进入源码：`0023` 持久化 Profile 无关的 Grounded Map，默认链路只进行一次主语义扫描；`EXTRACT_TRAVEL_FACTS` 只从该 Artifact 确定性物化并记录 0 LLM Prompt Token；Profile 重生成从 `NOTE_REDUCE` 开始，复用 Transcript、Grounded Map 和 PlaceMention。`/api/jobs/{id}/ai-usage` 现按 Stage/模型/位置提供 Token、缓存、重试/fallback/重复输入浪费及自动化决策；每次 Map 记录 RUN/REUSE/SKIP 原因。完整后端回归、完整 Ruff、Node 24 前端 verify、`diff --check` 通过；均为离线验证，未调用真实 Provider/视频或做 Browser/390px 验收。第二、三阶段未实施。
-- 2026-09-14：LLM Token 与自动化计划第二阶段（WP6、WP7、WP9、WP10）已进入源码。Whisper 只发送确定性语义候选及有界邻段；人工字幕直接 PASS，来源不明的旧 ASR 保持保守全量校对。长 Prompt 与 Map/Reduce 默认不 Retry；仅带 `Retry-After` 的 429、超时/连接或临时 4xx/5xx 重试，JSON 包裹/尾逗号先本地修复。标记为 `ai_automation_version=v2` 的新任务在 AUTO 下按 Stage capability、Profile location/tier、Quality preset 与软预算压力决定 LOCAL/REMOTE；软预算会在 Job payload 和 AI Usage API 记录 EXPECTED/WARNING/HARD_LIMIT，WARNING 时优先 Local、取消 fallback 与 Retry。完整后端回归、完整 Ruff、Node 24 前端 verify、`diff --check` 通过；未调用真实 Provider/视频。历史性能、价格和 Benchmark 数据未编造，仍待第三阶段取证。
-- 2026-09-14：第三阶段离线能力已进入源码：POI V2 只允许满足全部 Evidence、类型、地域、候选差距、坐标、负证据与 chain-risk 门禁的 `AUTO_STRONG` 创建 Confirmed Place；`AUTO_CONTEXTUAL` 自动完成详情二次核验后仍进 Review，人工确认/拒绝写入可供离线 Golden 使用的 feedback，未在线调阈值。`AI_TOKEN_ANOMALY` 检测重复输入、连续 fallback、异常 Chunk 尝试和超预算 Prompt，默认只记录不重跑。Benchmark 现包含 Token 增长超过 15% 且无质量收益的回归 Gate；毕业检查脚本要求 Fixture、10/30/60 分钟真实视频、Replay 及 Provider 全部证据才会 PASS。离线 Golden 将有 chain risk 的“角楼咖啡”从 Confirmed 收紧为 Review；完整后端回归、Ruff、Node 24 前端 verify、`diff --check` 通过。未调用真实高德/Provider/视频，故未达到生产毕业。
-- 2026-09-14：已受控部署 `09e4c6a` 与启动环境修复 `4226541`。部署前 revision `0023`、`integrity_check=ok`、active Job/lease=0；已备份 `data/backups/app-pre-llm-token-automation-20260914-143324.db`（完整性 ok），不重复迁移。API/Worker/首页/心跳 READY，`grounded_map_artifacts` 表和新 API 路由可读。LaunchAgent 改传配置别名 `ENV=production`，清理了此前错误 development 启动生成的 2 条无来源演示 Job；修复后未再生成。真实本地 `qwen3.5:9b` 最小 JSON 连通测试通过；当前主远程 Profile 返回 HTTP 429，未重试。没有合规 10/30/60 分钟样本，未重跑既有媒体/ASR/校对，故仍不宣称真实 Pipeline/Provider/fallback/毕业通过。
-- 2026-09-14：内容、视频笔记、任务和来源列表均加入统一的当前列表全选、逐项选择、数量确认与批量删除工具条。后端批删先验证全部目标：任务仅终态可删；内容删除专属 Claim/Evidence 后才孤立来源清理；视频笔记批删保留地点/路线。来源批删只删除孤立来源并逐项返回关联内容/笔记/活跃任务跳过原因，不触碰关联内容；来源证据链删除必须 `confirm=true`，确认后同步删除关联内容、视频笔记、快照和分段，保留地点/路线。选择工具已移入各列表标题栏；复选框与类型图标分离，长标题/路径单行省略。内容批删路由的回归覆盖成功删除与孤立来源清理，响应中的来源 ID 顺序稳定。后端 162 项、Ruff、Node 24 前端 verify、`diff --check` 通过；Browser 在 1047×886 验收来源与任务标题栏、逐项选择和删除确认弹窗，在 390×844 验收来源列表，控制台无 warning/error，未执行真实删除。
-- 2026-09-15：设置页 `SelectField` 将 option 的多段 React 子节点按空字符串合并，不再使用数组默认的逗号连接；模型选择器正确显示“名称 · 模型名”。Node 24 前端 lint、17 项 Vitest、TypeScript、Vite build 与 `diff --check` 通过。
-- 2026-09-15：设置页 AI 阶段标题仅显示中文业务名，`GROUND_MAP` 显示“证据地图”，不再展示英文名称或技术 capability 枚举。Node 24 前端 lint、17 项 Vitest、TypeScript、Vite build 与 `diff --check` 通过。
-- 2026-09-16：模型可靠调用计划已进入源码。Profile JSON Setting 以兼容字段保存 DIRECT/STANDARD/GUARDED/FREE_TIER 及限速、并发、重试、熔断参数，无新 migration；可靠层按 provider/credential/model 维护单进程 limiter 与 circuit，429 无 `Retry-After` 也按指数退避，quota 不重试，主备各自执行 Policy，OpenRouter 同 endpoint 不同 model 可切换。结构化输出仅在安全恢复及 Stage 最小契约通过后写 Cache，Audit 保留 attempt/error/recovery 的脱敏 metadata。后端完整 `pytest backend/tests -q`、完整 Ruff、Node 24 `pnpm verify`、`diff --check` 通过；设置页在本地桌面与 390×844 预览通过且控制台无 warning/error。未调用真实 Provider/视频，未迁移或重启服务。
-- 2026-09-16：历史坏 Cache 循环失败已修复。现场 Job 的 `GROUND_MAP` 两次均以 0ms 命中同一条截断 v1 Cache，故 Replay 没有新 LLM Attempt 并重复报“模型没有返回 JSON 对象”。Gateway 现在对新结果和 Cache Hit 使用同一 JSON/Stage 契约；非法旧项记录 `SKIPPED / AI_CACHE_INVALID` 与 `cache_entry_id` 后绕过，合法 v1 Cache 继续复用，新写入使用 v2 Key 并保留替代链。完整后端回归、Ruff、`diff --check` 通过；未删除历史记录、未调用 Provider、未部署或 Replay。
-- 2026-09-16：部署复核发现 Worker 启动时 `providers.llm` 导入 `ai.reliability` 会触发 `ai.__init__` 预加载 Gateway/Cache，反向导入部分初始化的 Provider。`AIWorkloadGateway` 改为惰性包导出，新增 Worker import 回归；生产解释器 import、完整后端回归与 Ruff 通过。第二次受控重启后 API/Worker 均 RUNNING、内容/心跳 READY；无 migration、Provider 调用或视频 Replay。
-- 2026-09-16：转写校对对 `AI_PROVIDER_OUTPUT_TRUNCATED` 增加批次二分恢复：不原样重试被截断的大批次，而是递归拆分后串行校对，并记录 `transcript.correction.batch.split`。目标视频表明 32 Segment/4047 字符仍可能令 GLM 达到输出长度上限，生产默认已收紧至 4000 字符/16 Segment；目标与完整后端回归、Ruff、`diff --check` 通过。修复已受控部署，未自动 Replay。
-- 2026-09-16：模型不稳定流程与付费 API 已进一步隔离。结构化错误只占 JSON retry；转写拆分子批完成即持久化，未变更段记为 `UNCHANGED`，后续 Replay 跳过完成段；截断学习到的 model 级安全批量保存在 Job runtime hint。TPM/RPM 临时上限使用 `AI_PROVIDER_THROTTLED`，仅打开对应 provider/credential/model circuit，DIRECT 付费 Profile 不等待、不加锁、不重试且不受该 circuit 影响；Replay 遇到 Provider 阻塞进入 `NEEDS_USER`。完整后端 180 项与 Ruff 通过；已无 migration 受控重启，未调用真实 Provider 或自动 Replay。
-- 2026-09-16：OpenRouter `openrouter/free` 在账户/Guardrail ZDR 策略排除全部端点时现分类为 `AI_PROVIDER_POLICY_BLOCKED`，不再把首个 404 当网络错误重试成泛化 400；转写 Job 保留具体 Provider 错误码，取消仍保持取消语义。日志事件抽屉新增“复制日志”，复制当前脱敏事件 JSON 并显示成功反馈。后端 181 项、Ruff、前端 18 项测试/TypeScript/Vite build、`diff --check` 通过；桌面及 390×844 Browser 交互与控制台通过。已无 migration 受控重启，未重跑 Job 或调用真实 Provider；账户级 ZDR 仍需用户在 OpenRouter Privacy/Guardrail 调整，或改用支持 ZDR 的模型。
-- 2026-09-16：完整重跑改为复用原 Job ID，终态任务直接重置并从首步入队；运行中任务先协作式取消，再由 Worker 在释放 lease 后以同一 Job 入队，保留 Job ID 与审计记录、重置 Step 执行态/中间 Artifact，且不会创建替代任务。任务列表运行态右侧显示“正在〈实际阶段〉”，不再以泛化“处理中”掩盖当前 Step。失败卡长 Provider URL 在 390px 下改为可换行单列，无横向溢出。后端 182 项、Ruff、前端 verify 与 `diff --check` 通过；已无 migration 受控重启，桌面/390×844 Browser 与控制台通过；未自动重跑或调用 Provider。
-- 2026-09-16：任务列表改为真实的固定选择列，不再以条件 class 和行 margin 模拟占位；可删除任务显示复选框，运行中任务保留同宽空槽，标题、阶段、进度与状态列在桌面和 390×844 下对齐。列表改为复用任务详情的统一阶段词典，`CORRECT_TRANSCRIPT` 显示“AI 校对转写”，状态小字增加越界省略保护。Node 24 前端 verify（10 个文件、18 项）、`diff --check` 通过；本机生产页面 970×886/390×844 Browser 无横向溢出、控制台无 warning/error，勾选后工具条正确显示 `已选 1/1`。仅更新同源前端静态产物，无 migration、无服务重启、未触发真实任务或 Provider。
-- 2026-09-17：AI 预算与模型探测边界已修正。远程调用次数/Token 按本轮及 Provider Profile 分账，本地不受固定调用次数限制；非 LLM 审计与 Cache Hit 不计次数，Replay 清理旧预算状态，预算前置拒绝不再形成 Provider 失败审计或触发 fallback。设置页测试/探测按凭据共享节流，远程请求至少间隔 4 秒、单并发、输出最多 64 Token；429/配额进入冷却并返回明确错误，不覆盖已有能力，未覆盖项记录 `NOT_TESTED`。完整后端 186 项、完整 Ruff、Node 24 前端 verify、文档生成一致性和 `diff --check` 通过；应用内浏览器状态读取连续两次超时，故本轮新增设置标签未完成 Browser 视觉验收。未调用真实 Provider、未 Replay、未重启服务。
-- 2026-09-17：模型截断链路已修复并部署。生产审计确认截断只发生在转写校对与 Grounded Map：Ollama Profile 的上下文窗口现传入 `num_ctx`；DeepSeek 官方接口按 Stage Policy 发送 thinking 开关；空正文且 `finish_reason=length/max_tokens` 统一分类为 `AI_PROVIDER_OUTPUT_TRUNCATED`，使转写既有二分恢复生效；Grounded Map 也会按 Segment 递归二分，不再因单个长块阻塞整条视频任务。Note Chunk/Reduce 保持已有确定性兜底，默认地点物化不调用模型。后端 189 项、完整 Ruff、Node 24 前端 verify 与 `diff --check` 通过；部署前 active Job/lease=0、`integrity_check=ok`、revision=`0023`，备份 `data/backups/app-pre-truncation-chain-fix-20260917-235300.db` 完整性 ok。无 migration 重启后 API/Worker/内容/心跳 READY。现场 `job_8711f9326c474cae87a3d3c083401c55` 的 24 小时步骤续跑 Artifact 已过期，因此未绕过门禁调用真实 Provider；仍需新任务或用户明确授权完整重跑做生产 E2E。
-- 2026-09-18：现场 `job_f3f791474c464126b78e6d98306eb934` 证明 Ground Map 的递归截断恢复仍可能被本地模型耗时拖垮：Qwen 3.5 9B 与 DeepSeek Flash 均多次达到 4096 输出上限，任务在第二个大块继续拆分前耗尽 1800 秒墙钟预算。Ground Map v2 针对默认 Ollama 路由预先收紧为每块最多 6000 字符/64 Segment，并要求模型省略地点空字段、合并同地点、限制事实与证据冗余；显式 Stage `chunk_size` 仍优先，截断递归兜底和全部地点候选契约不变。目标任务的 314 个 Segment 会直接分为 64/64/64/64/58，而非先发送 132 Segment 大块。全链路 16 个阶段审查后未删除阶段：条件性字幕/ASR/校对/POI/截图已有跳过或零调用路径，Normalize、Materialize、Clean Cache 保留 Transcript/Content/Replay 身份与生命周期门禁。后端 190 项、源码/测试 Ruff、Node 24 前端 18 项与生产构建、`diff --check` 通过；部署前 active Job/lease=0、`integrity_check=ok`、revision=`0023`，备份 `data/backups/app-pre-local-ground-map-v2-20260919-105010.db` 完整性 ok。无 migration 重启后 API/Worker/内容/心跳 READY；未自动调用 Provider，目标任务的步骤续跑材料随后过期。
-- 2026-09-16：ASR Benchmark 第一阶段的可执行框架已进入源码：`run_asr_benchmark.py` 强制人工核对 manifest、六类场景、两条完整视频回放证据，并隔离运行 Whisper Base/Turbo 与显式本地 SenseVoice/Qwen Adapter；Qwen 自动生成无/有 Context 对照，统一评分输出 CER、coverage、时间码、RTF、内存、alignment 与候选建议。`benchmark_asr_providers.py` 仅做离线评分，始终 `production_eligible=false`，未改 `WHISPER_CPP` 默认值、Video Pipeline 或 Settings。当前没有合规语料、人工 Ground Truth、SenseVoice/Qwen Runtime 或真实回放证据，故未实际运行四引擎、未生成真实报告，不能宣称 Benchmark/生产接入完成。
-- 2026-09-22：Pipeline 性能 / Token / Qwen-ASR 主计划的 WP0+WP1 开发支撑已完成：现有 Video Benchmark 导出新增 Pipeline wall time、First Useful Note、Correction coverage/input、Ground Map chunk/input/retry、AMap 请求、截图子进程及分 Stage Token/attempt/retry/fallback 指标；新增 Benchmark/后续 Production 共用的隔离 `qwen_asr_runner.py`，固定 `mlx-qwen3-asr==0.4.4`，stdout 仅输出统一 Transcript JSON，并强制真实 Forced Aligner 时间码单调与时长边界。ASR manifest 现要求至少 20 个已人工核对 clip、六类场景、至少一个 15 分钟 LONG_FORM 和两条完整视频回放证据；隔离 Runtime 已安装并通过模块 smoke，但权重、合规语料和真实 Benchmark 仍缺失，因此未进入 WP2、未注册生产 Qwen Provider、未修改 Whisper 默认值、未调用真实模型或视频。
-- 2026-09-22：主计划 WP3 已完成源码实现。Transcript Quality 现统一归类人工字幕、平台生成字幕、有/无置信度本地 ASR，不再以 Whisper 名称决定策略；Whisper/Qwen/未知本地 ASR 都只把确定性异常或语义关键段作为 target，邻段只进入只读 context。校对输出强制为 Delta `changes`，未返回 target 视为 UNCHANGED，旧 `segments` 契约、重复/未知/context Segment ID 在缓存前拒绝；Segment ID、时间码和分段边界不由模型修改。Step/Baseline 同步记录 source class、target/context chars、coverage 与 input ratio。完整后端 195 项、完整源码 Ruff 与 `diff --check` 通过；未调用真实 Provider、未 Replay、未部署，WP2 仍等待真实 Qwen Benchmark Gate。
-- 2026-09-22：经用户明确允许在 Benchmark 前以非默认备用方式部署，主计划 WP2、WP4–WP8 的源码实现已完成：`QWEN3_ASR` 通过隔离 Runner/本地模型路径进入 Registry，Capture 可显式选择，可信 Context 仅来自标题、平台标签和人工核对词，运行/对齐失败独立审计后回退 Whisper，默认仍为 `WHISPER_CPP`；Correction/Ground Map 的安全 chars/segments hint 按模型跨 Job 持久化，成功子块继续由 Request Cache checkpoint；Canonical Grounded Map key 不再绑定 provider/model；AMap 增加 TTL cache、同查询合并和 2 路有界并发；每个截图计划由 3 次降为 1 次 ffmpeg，核心 Note/POI/Evidence 在截图前先物化；统一 Graduation Gate 现同时检查 ASR、质量、Token 和性能。完整后端 201 项、完整源码 Ruff 与 `diff --check` 通过；Qwen 权重与真实 Frozen Benchmark 仍由用户后续执行，因此未切默认、未宣称真实毕业。
-- 2026-09-22：Qwen3-ASR 运行资产已安装并启用：官方 0.6B ASR 与 Forced Aligner 权重固定在 `/Volumes/D/Projects/ollama-models/ASR/`，SHA-256 分别为 `79d6cbd4c98c7bbffe9db2edac07f56cd6637d0d5944b27f6c2b8353840323ea`、`47831d0e82f96b20e9034dba01a075ee06436654719f6a68289e49f1b65ce0e7`，生产配置已指向该目录。离线普通话 TTS smoke 真实加载 `mlx-qwen3-asr 0.4.4` 并正确识别“大理古城”，Forced Aligner 返回 7 个单调时间码；模型加载约 1.9 秒、转写/对齐约 4.8 秒、峰值内存约 1.19 GiB，生产 Provider 封装复测同样通过。完整后端 201 项、Ruff 与 `diff --check` 通过；默认仍为 Whisper，Frozen Benchmark 和默认晋级仍待用户执行。
-- 2026-09-22：Pipeline 运行韧性与实时进度升级已完成并部署。真实模型请求在发出前写入同一条 `RUNNING` Audit，独立 heartbeat 续期 Job lease，Worker watchdog 可按 deadline / stale Job 收口，run fence 拒绝超时或重跑后的迟到写入；任务/API/日志页显示 active attempt、主备路由、分块、elapsed 与 deadline。Correction、Ground Map、Note Reduce 对截断先同模型拆分，最小单元才允许 fallback；Note Reduce 使用有界 Evidence Pack、跨包 checkpoint、Stage wall/attempt budget 与 Evidence-backed 确定性降级。AUTO 路由排除 capability Probe 明确失败的 Profile，人工覆盖需显式允许并审计。后端 209 项、完整 Ruff、前端 18 项/TypeScript/Vite、文档与 `diff --check` 通过；桌面及 390×844 Browser 无溢出/控制台错误。无 migration 重启后 API/Worker/首页/heartbeat READY，OpenAPI 已加载新字段；未调用真实 Provider、未重跑视频，Frozen Benchmark/真实 fallback 仍是外部验收门禁。
-- 2026-09-22：VIDEO_SEMANTIC_POI_NOTE 优化已进入源码。Grounded Map 同次 Local-first 调用保存 Semantic Map v3 的 ContentUnit、Entity 角色/意图/POI Policy、Relation 与 Evidence-bound Atomic Claim；歧义只以目标段及邻段做 Remote Escalation，失败保留本地结果并走保守 Review。`REFERENCE_ONLY`/`SKIP` 不进入 AMap、Review 或手动确认；AREA 物化为 Destination，已确认 Place 才创建同 Unit 的 Destination Link。Resolver v3 在既有精度门禁上区分 `AUTO_EXACT`/`AUTO_NORMALIZED`；Note 保留模型 heading、以 Claim 驱动并去除低信息/重复 bullet。新增 12 个语义 Golden、API Gate 和迁移 0024；目标后端 108 项、Ruff 与 Node 24 前端 verify 通过。未调用真实 Provider/高德/视频，Browser 插件与项目 Playwright 均不可用，故未做渲染验收。
-- 2026-09-23：视频 Job 在 `FETCH_METADATA` 完成时立即将解析标题写回 payload，运行详情刷新后显示视频标题；Job API 另返回仅限 HTTP(S) 的来源地址，任务详情页提供仅本页可见的复制按钮。API 回归、完整后端测试、Ruff、Node 24 前端 18 项/Vite/TypeScript verify 与 `diff --check` 通过。当前运行服务未重启加载这项 UI/API 变更，真实浏览器渲染未验收。
-- 2026-09-23：新 Job 提交时保存无密钥 AI 配置快照，路由、Profile、Stage Policy、Prompt/Domain、转写参数、预算/重试、默认 ASR 与笔记分块在排队和重跑期间保持提交值；后续新任务使用后来设置。Alembic 0025 允许同一 VideoAsset 对应多个 Note，每次提交独立 Note/Content/Transcript，完整重跑只给所属 Note 增版本；POI 依高德 ID 复用 Place，笔记页和搜索按 Note 读 Evidence，单篇删除保留另一篇。A→B→C 离线时序、双 Note/单 Place/重跑与删除回归、隔离 0024→0025 迁移（旧 Note/Version 保留、FK/integrity ok）、完整后端、Ruff、Node 24 前端 verify 和 `diff --check` 通过；已受控加载到本机服务，未调用真实 Provider/视频。现场采样见 CURRENT_HANDOFF。
-
-- 2026-09-23：Settings「语音与 OCR」新增可保存的默认 ASR 选择和 Qwen3-ASR 运行资产状态；仅允许在当前节点资产就绪时选择对应引擎。视频链接、本地视频及音频文件在提交时把选定 Provider 写入 Job 与无密钥配置快照，排队与完整重跑保持原值；任务详情显示提交时选择。视频 Qwen 转写失败时回退 Whisper，可信字幕仍跳过 ASR；普通音频文件失败则保留任务错误。OCR 仍由 macOS Vision 处理，尚无可切换的第二个 OCR Provider。修复 LaunchAgent 从用户主目录启动时 Qwen Runtime/Runner 相对路径失效，默认路径改为仓库绝对路径。隔离 API/Job 测试验证先 Qwen 后 Whisper 的两次提交与重跑不串设置；完整后端、Ruff、Node 24 前端验证通过。隔离浏览器桌面端验证选择、保存与刷新持久化；生产服务已加载并在桌面浏览器显示新控件，Qwen 资产探测 READY，默认仍为 Whisper。移动端浏览器与真实媒体/Provider 尚未验收，生产现场见 CURRENT_HANDOFF。
-
-- 2026-09-23：针对 `job_ad0ba062003a492bb9ff62270bcce385` 的逐字 Qwen 对齐与校对超时，Runner 对高比例逐字输出在入库前合并语句 Segment，并在 `alignment_ms` 保留原时间码；校对按真实批次数/请求体预估预算，至少两批后用实测最快耗时判断是否应提前暂停，模型 timeout 受 Job 剩余时长约束。对该 Job 的已存片段做纯离线重放：3377 个原片段 → 71 个语句 Segment、48 个校对候选、2 批，文本及 3377 条对齐时间全部保留。目标回归、完整后端、完整源码 Ruff、Node 24 前端 18 项/TypeScript/Vite 和 `diff --check` 通过。仅完成源码与离线验证；本机服务未加载新代码，原 Job 未真实重跑，旧逐字 Transcript 需完整重跑才会得到新分段。
-
-- 2026-09-23：该 Job 后续实际完整重跑生成 71 个 Qwen Segment，校对约 5 分钟完成，但 `EXTRACT_TRAVEL_FACTS` 的 Ground Map 第二块在本地 4096 输出上限连续截断，递归拆分使 Job 耗尽时长预算；当时 Worker 仍是 11:40 启动的旧进程，上一提交的预算/timeout 改动尚未加载。源码现让已配置备用的 `LOCAL_FIRST` 在首次截断并拆分后对子块使用备用模型；至少两个本地块证明剩余工作无法保留下游 600 秒时，后续块也切备用，保持缓存、审计和原 Evidence 契约。生产加载与真实续跑结果见 CURRENT_HANDOFF。
-
-- 2026-09-23：已修复 Ground Map Runtime Hint 的正文字符/分块开销单位不一致；该 Job 的既有 `safe_max_chars=240`、`safe_max_segments=5` 在旧 Worker 下形成 70 块，按校对后真实 Segment 离线重算现为 17 块、每块不超过 5 段。步骤续跑中协作取消的 `JobCancelled` 现保持 `CANCELLED` 并释放 lease；对旧 Worker 已写成 `FAILED` Job + `CANCELLED` Step + 指定 run-fence 错误的状态，仅在 Replay Artifact 门禁通过时恢复原步骤续跑选项。目标与完整后端、Ruff、Node 24 前端 18 项/构建、文档生成检查和 `diff --check` 通过；生产续跑与再次加载新代码的状态见 CURRENT_HANDOFF。
-
-- 2026-09-23：真实步骤续跑证实 Ground Map 新分块和自适应备用路由有效，地图 Artifact 已交付；后续 Note Reduce 因 Job 提交快照内主模型无 `GLOBAL_SYNTHESIS` 声明、备用模型该能力 Probe 为 `FAIL`，在模型调用前停止。现有模型能力 Probe 不测试 `GLOBAL_SYNTHESIS`，不能把结构化输出通过外推为笔记综合能力；原 Job 仍需用户明确选择合规模型/路由并保留可审计恢复证据。现场采样见 CURRENT_HANDOFF。
-
-- 2026-09-24：笔记模型恢复链路已在源码修复：任务详情可显式选择“使用当前笔记模型继续”，服务端仅在本 Job 保存当前 Note 阶段策略和所选 Profile 的无密钥恢复配置、保留原提交快照与上游 Artifact，并在排队事件记录模型/Probe 状态；完整重跑会清除恢复配置。显式选定、Probe 为 `NOT_TESTED` 的模型可受 JSON/Evidence/预算门禁约束尝试，`FAIL` 仍被拒绝；步骤续跑的模型不可用错误会进入 `NEEDS_USER/PROVIDER_NOT_CONFIGURED`，页面显示中文业务提示。一条不改变 Job 的 DeepSeek V4 Flash 小样探测用 3 条真实 Evidence 生成 3 个有效 Segment ID 章节，JSON 合格、1055 输出 Token、未截断；这只证明小分包可行，不是整篇笔记验收。生产真实结果见下一条与 CURRENT_HANDOFF。
-
-- 2026-09-24：加载上述恢复链路后，原 Job 明确使用 DeepSeek V4 Pro 的真实笔记归纳在首包连续截断：3 次调用的 4096 输出 Token 全部为 reasoning、正文 0；拆至单条事实后 3349 输出 Token 中仍有 2649 为 reasoning。已协作取消，保留原 Ground Map 与历史审计。源码再补 DeepSeek 笔记请求默认 `thinking=false`、每包输出预算收紧至最多约 3 条事实、只发送分包相关地点 Evidence；恢复卡可在当前 Pro 和已保存的 Flash 备用模型间做任务级选择，不改全局设置。已运行步骤取消后的续跑受 lease、Artifact 和完整重跑门禁约束。目标与完整后端、Ruff、Node 24 前端 18 项/构建、文档一致性和 `diff --check` 通过；生产真实验收见 CURRENT_HANDOFF。
-
-- 2026-09-24：提交 `37b771a` 已无迁移加载。原 Job 在任务详情页明确选用 DeepSeek V4 Flash 后从 `GENERATE_AI_NOTE` 续跑，23/23 个笔记归纳分包全部完成，无截断或失败；笔记 Version 2 含 48 个章节、75 条逐字引文，Segment ID 与引文归属离线核对均有效，9 张截图 READY。所有 JobStep 完成，Job 为 `PARTIAL_SUCCESS`，剩余 20 个 `REVIEW`、32 个 `UNRESOLVED` 地点需人工确认；该结果证明本条视频的笔记交付，不外推为所有 Profile/视频或 POI 自动确认的质量验收。桌面与 390×844 浏览器恢复交互无溢出、无控制台错误，现场细节见 CURRENT_HANDOFF。
-
-[实施历史](history/IMPLEMENTATION_HISTORY.md) 和 [归档实施计划](history/planning/README.md) 保留旧状态与计划追溯，默认不读。当前页只保留最新结论和未闭环项；完成项不持续追加长叙事。生产现场只更新 CURRENT_HANDOFF.md；冻结约束只更新 REGRESSION_AND_CHANGE_GUARD.md。新增证据必须写明日期、对象与验证层级。
+旧验证数量、按日实施过程已原文迁入 [实施历史](history/IMPLEMENTATION_HISTORY.md#2026-10-09-当前状态页历史归档)。已覆盖计划在 [历史计划目录](history/planning/README.md)，未来候选仍在 planning/；专项只说明契约，不证明部署。生产现场更新既有交接，合订本由源文档生成，不直接编辑。
 
 
 ---
@@ -5406,9 +5359,11 @@ Worker 启动时及最多每 24 小时执行幂等清理：正文、Segment 文�
 
 ### 4.1 长模型步骤的取消观察与完整重跑（已实施）
 
-`CORRECT_TRANSCRIPT`、长字幕总结、地点提取等会连续发出多批模型请求。每一批请求开始前、请求返回后、递归拆分前和数据库物化前都读取持久 Job 状态；发现 `CANCELLED` 即抛出统一取消信号，停止尚未开始的批次、释放 lease 并写入 `job.cancel.observed`。已经发出的单次 HTTP 请求不能被 SQLite 状态反向中断，因此转写校对单批超时上限为 90 秒，不沿用模型配置的 300 秒上限。
+`CORRECT_TRANSCRIPT`、长字幕总结、地点提取等会连续发出多批模型请求。每一批请求开始前、请求返回后、递归拆分前和数据库物化前都读取持久 Job 状态；发现 `CANCELLED` 即抛出统一取消信号，停止尚未开始的批次、释放 lease 并写入 `job.cancel.observed`。2026-10-08 起，Job 的模型 HTTP 等待和重试/请求间隔每 250 毫秒检查取消及执行身份，取消时关闭客户端等待，不等待完整请求超时；这不证明上游已停止生成或消费。校对超时取提交时转写处理参数与阶段/预算上限，当前默认 180 秒，不改旧 Job 快照。
 
-429、5xx、网络错误和超时不再通过递归二分放大外部调用；只有响应结构校验失败才缩小批次。校对按最多 2400 字符、16 段组织批次，每一批开始和结束写入 `batch_index / batch_total / provider / duration_ms` 的脱敏活动事件。
+429、5xx、网络错误和超时不再通过递归二分放大外部调用；只有响应结构校验失败才缩小批次。模型超时不重试相同请求，允许的备用路由仍受原策略、能力与预算门禁约束。校对按任务提交时的分块参数组织批次，每一批开始和结束写入 `batch_index / batch_total / provider / duration_ms` 的脱敏活动事件。
+
+ASR 的 FFmpeg/Whisper/Qwen 子进程每 250 毫秒观察取消；取消时先终止进程组，最多等待 2 秒后强制回收，取消不触发 Whisper 备用。运行期间每 30 秒写入“仍在运行、结果尚未返回”的本任务活动，不伪造处理百分比；ASR 自身超时仍有效。晚到结果仍受 run fence 门禁保护。
 
 取消中的页面状态必须是“正在停止当前步骤；确认停止后可从头重新运行”，而不是把禁用的“从头重新运行”伪装成可点击操作。`CANCELLED` 且 lease 已释放时允许完整重跑；仍持有 lease 时后端返回不可用原因。前端不得硬编码终态名单，而应读取服务端返回的操作能力。
 
@@ -5709,11 +5664,13 @@ class LLMProvider:
 
 外部模型是增强，不是核心依赖。
 
-## 4.1 Ollama 模型释放契约（已实施）
+## 4.1 Ollama 响应后的释放契约与取消边界
 
 Mac mini 只有 16 GB 统一内存，本地模型调用不得依赖 Ollama 默认的 5 分钟驻留。`OllamaProvider` 对 `/api/chat` 的每次非流式请求都必须发送 `keep_alive: 0`，让模型在响应完成后立即卸载；任务推理、备用模型调用和设置页“真实测试”遵守同一规则。该参数是 Ollama 官方 API 对 `ollama stop <model>` 的等价能力，优先于为每次 HTTP 请求另起 CLI 子进程。
 
 若兼容旧 Ollama 而保留 CLI 兜底，必须记录本次实际使用的本地模型，并在调用边界的 `finally` 中限时执行 `ollama stop <model>`；推理失败、JSON 解析失败、备用模型切换和用户取消也必须进入清理。停止失败只记录脱敏告警，不能把已成功的业务结果改成失败，也不能停止未由本次调用触发的其他模型。验收以响应返回后 `ollama ps` 在短时间内不再列出该模型为准。
+
+当前源码仅实现请求中的 `keep_alive: 0` 与客户端等待取消，没有上述显式停止兜底。2026-10-08 诊断确认，转写校对的本地备用 `qwen3.5:9b` 由 Ollama 拉起 llama-server；取消后业务审计已为 CANCELLED，Ollama 仍继续生成并处理已提交的另一请求。因此本地锁释放与客户端连接关闭不证明统一内存已释放；取消后的本地清理仍是独立缺口，不能把响应后卸载契约描述为全路径已实施。补全时须针对本次实际模型限时清理，保持本地资源串行，真实验收确认推理/进程退出后才放行后续本地重任务。
 
 ---
 
@@ -6304,6 +6261,10 @@ REMOTE_STRONG = 用户配置的 OpenAI-compatible 模型
 任何本地模型进入 Router 前必须通过 Capability Probe。
 
 Capability Probe 只对实际执行的项目给出 `PASS` 或 `FAIL`，未覆盖能力保持 `NOT_TESTED`。Provider 返回 429、配额不足、网络错误或熔断冷却时属于“本次无法判定”，不得写成能力失败或覆盖上一次成功结果。设置页真实测试与能力探测必须按同一 Provider 凭据共享节流，远程探测串行执行并限制输出长度。
+
+输出限额仅在接口支持时传入；不强制所有型号接受 64 Token 或关闭思考。显式本机路由的接口能力目录与业务 Probe 分开，非必要参数采用模型默认值，system/消息、JSON/Evidence 和总预算继续校验。协议不兼容属于配置错误，不作为临时故障累计熔断；完整契约与本轮实现见 [LocalAiMux 客户端接入](ai-gateway/LOCAL_ROUTER_PROVIDER_COMPATIBILITY_SPEC.md)。
+
+手动连通/能力测试共用先进先出队列，不受生产熔断冷却拦截，也不更改生产熔断状态；保留凭据节流，实际限流/配额/鉴权错误仍返回。重复点击可提交后排队，失败必须释放队列；不自动批量测模型或回退到其他账号。
 
 最低要求：
 
@@ -7009,6 +6970,8 @@ Replay：重置本轮预算状态，历史审计只作证据，不消耗新一�
 
 转写校对按实际候选批次及请求体长度更新软预算预估；至少两批的实测耗时用于判断剩余工作能否在墙钟预算内完成。模型单次请求的 timeout 受本轮剩余时长约束。预估不替代真实调用审计，也不改变本地/远程分账。
 
+预算对输入/输出分别优先使用可信实测，缺省时使用本地估算；已发起但失败/取消的调用保守计入已知请求输入估算，未返回输出时保持未知。历史审计只读推导，不补写旧 Token；精确 Cache hit 不重复计入真实尝试或消耗。展示字段与约 2 字符/Token 的估算口径只维护在 [日志契约](operations/LOGGING.md#41-token-口径2026-10-08)，不把它当成供应商精确账单。
+
 证据地图的 `LOCAL_FIRST` 路由遇到本地输出截断时先二分；已配置备用模型的子块改由备用模型处理，备用结果仍经过相同 Schema/Evidence 校验、调用审计和 Request Cache。完成至少两个本地块后，若按已观察到的最快速度也无法在扣除 600 秒下游预留后的 Job 时长内处理剩余块，后续块改走备用模型，并记录路由升级事件；无备用模型时保留本地拆分与原错误边界。
 
 Ground Map 的跨 Job `safe_max_chars` Hint 只统计正文字符；传给通用分块器时须加回每 Segment 的 80 字结构开销，并同时遵守 `safe_max_segments`。不得把 5 段的安全 Hint 错解释成每块 1 段，放大真实模型调用次数。
@@ -7038,6 +7001,8 @@ ASR / Text LLM / Vision LLM 排他
 ```
 
 当前 `keep_alive: 0` 第一阶段继续保持。
+
+资源锁只保证受管理的客户端调用区间串行；取消 HTTP 等待后锁释放，不能据此证明 Ollama 上游推理或 llama-server 已退出。当前未实现取消后的显式模型清理，契约与真实退出验收见 [Ollama 释放边界](ai-gateway/AI_RUNTIME_AND_PROVIDERS.md#41-ollama-响应后的释放契约与取消边界)。
 
 不要把改长 keep_alive 混入 Token 优化。
 
@@ -7614,6 +7579,192 @@ FAST_LOCAL_TEXT = MAIN_LOCAL_TEXT = qwen2.5:7b
 
 ---
 
+# FILE: ai-gateway/LOCAL_ROUTER_PROVIDER_COMPATIBILITY_SPEC.md
+
+# 本地路由 Provider 接入规格（LocalAiMux）
+
+状态核对：2026-10-09。至简 Z1–Z4、手动队列、订阅 CLI 错误分流与可取消本地路由调用已进入源码并加载；验证数量只在 [实施状态](IMPLEMENTATION_STATUS.md)，生产和已观测的视频续跑只在 [交接](CURRENT_HANDOFF.md) 按采样日期判定，不外推全型号质量。LocalAiMux 上游改造是独立仓库工作包。请求参数、厂商对照及 55 个模型的历史目录见[参数与模型调查](history/LOCALMUX_PARAMETER_SURVEY_20261006.md)。
+
+同日修订：此前的“不支持”只适用于 Mux 当时的有效接口，不能归因为 CLI 或底层模型不支持。只读调查发现部分公开能力未被 Mux 映射；完整归因和公共边界见 [LocalAiMux 通用设计](../../local-ai-mux/docs/architecture/CAPABILITY_NEGOTIATION_DESIGN.md)及[逐型号盘点](../../local-ai-mux/docs/architecture/CAPABILITY_AUDIT_2026-10-06.md)。至简实施结果见第 10 节，不代表 Mux 也已实施或既有总预算已调整。
+
+## 1. 范围与目标
+
+至简通过本机 HTTP Gateway 调用远程或本地推理模型时，必须按“该连接下、该实际模型、该协议”的能力构造请求。LocalAiMux、厂商原生 API 与 OpenAI-compatible 服务不能仅凭相同的模型名字共用全部参数。目标是让测试、正式 Stage、主备切换、JSON 修复和 Replay 使用同一份能力规则，避免只修测试而正式任务仍报 400。
+
+本规格覆盖文本分类、转写校对、地点/实体抽取、证据地图和笔记 Map/Reduce；视觉作为独立门禁。ASR、OCR、媒体下载以及交互聊天产品不在本次范围。现有 Source/Snapshot/Segment/Claim/Evidence、Job/Step/Artifact、raw/corrected Transcript、note/ntv 身份边界与 POI 人工审核保持现有冻结契约。
+
+## 2. 至简是否需要多轮对话与历史消息
+
+**当前核心流程不以用户聊天或跨请求会话历史为前提，但需要同一次请求保留多条消息的语义。**调查范围内的生产 services/ai 调用没有构建 assistant 历史消息，也没有使用 `conversation_id`、`previous_response_id` 或 Chat history。以下概念必须分别处理：
+
+| 概念 | 至简当前需要 | 规格要求 |
+| --- | --- | --- |
+| 同一次请求中的 system + user | 是 | 保留核心规则与业务材料的角色、顺序及优先级；不能只取最后一条 user |
+| 同一次请求中的多个 system / 领域上下文 | 是 | 核心 JSON/Schema/Evidence 契约优先，表达偏好和领域包低优先级；保留全部必要材料 |
+| JSON 修复后的再次请求 | 是 | 重发完整消息，将修复指令与前置 system 合并，业务 user 材料保持；不是接续上次 assistant 答案 |
+| Map → Reduce 的阶段关系 | 是 | 下一阶段显式传入已验证 Facts/Evidence，不依赖模型记住上一阶段 |
+| Job 完整/步骤续跑 | 是 | 复用冻结配置和有效 Artifact；不能依赖 Mux 内存会话才能恢复 |
+| 用户连续提问的 user/assistant 历史 | 当前核心流程无此要求 | 不为接入 Mux 新建聊天会话系统；不把历史支持设为所有 Stage 的必要条件 |
+| 上游状态会话 / Responses 续接 | 当前无此依赖 | 当前方案保持请求自包含，不发送 previous_response_id；若将来引入，另行冻结会话与持久化契约 |
+
+因此 `history=UNSUPPORTED` 本身不应阻止无状态 Stage；当前 Mux 的 `system=UNSUPPORTED` 和“只能一条 user”才是直接兼容障碍。`system`、`multiple_messages`、`history`、`stateful_resume` 四项不能合并为一个“支持对话”。依据：[消息组装](../backend/src/zhijian/services/video_support.py)、[JSON 重试](../backend/src/zhijian/providers/llm.py)、[任务快照与恢复](ai-gateway/05-job-policy.md)。
+
+未来如果增加真正的多轮交互，须独立定义：历史归属和隔离、消息版本及顺序、Token 窗口/压缩、保留和删除、权限、模型切换行为、tool/reasoning 历史的原样回写以及会话失效后的恢复；不能从本规格推导出该功能已获实施授权。
+
+## 3. 连接、模型及能力描述
+
+1. 分开记录接入类型、协议、HTTP 地址、实际推理位置与实际模型身份。本机 `127.0.0.1` 只证明 Gateway 在本机，不证明推理本地、免费或不外传。Mux 当前云端桥接应继续遵守远程调用及预算边界，不把它改成 LOCAL 以绕过保护。
+2. 不用空 provider 名称或端口号推断产品能力。实现时应为本地路由 Gateway 设置明确的接入类型，沿用现有 Profile/Stage Policy 选择边界；不为此重写 Pipeline。若确需 Schema 改动，追加 Alembic migration，不改历史 migration。
+3. 目录读取为无推理操作：标准 `GET /v1/models` 获取模型 ID；Mux 扩展 `GET /api/chat/models` 获取接口能力。按当前 Key 的可见范围检查两个目录一致性，不把不可见模型判成已断开。记录采样时间；参数能力不由模型名称或厂商官网覆盖。
+4. 能力按模型与连接保存，状态至少为 `SUPPORTED / UNSUPPORTED / UNKNOWN`，同时保存来源、采样时间和 Adapter/Gateway 版本。可选参数还需范围、默认值、线缆字段名、预算口径及“接收但忽略”的说明；声明支持与真实业务 Probe 状态分别存储。
+5. 完整描述至少包含：system、多条消息、历史消息、会话续接、纯文本/图片等输入、非流式/SSE、JSON object/JSON Schema、tools、temperature/top_p、输出上限字段及范围、thinking 开关/强度、上下文/输入上限、usage 与结束原因可信度、取消能力。目录没有的字段记 UNKNOWN，不补造型号能力。
+6. 请求选择显式型号；`Auto/Ultimate/Performance/Efficient` 及 free/cheap/balanced/best 等动态路由应标注动态性。要满足可复核任务，需返回实际上游型号/连接；若无法确定，不得声明已固定某个底层模型。
+
+## 4. 参数协商与消息适配
+
+| 参数/语义 | 支持时 | 不支持或未知时 |
+| --- | --- | --- |
+| model、业务输入 | 使用目录中的精确 ID，保留大小写、材料与证据身份 | 阻止请求并说明；不能换为同名厂商型号 |
+| 输出上限（可选） | 将内部 max_output_tokens 映射为该接口支持的 max_tokens / max_completion_tokens / num_predict 等；注明是否含思考 | 默认采用模型默认值，不发送被拒字段；标明上游 Token 上限不可控，继续已有总预算/分包/尝试/耗时保护；不设为所有 Stage 的共同必需参数 |
+| temperature / top_p | 只发经过该型号范围校验的参数 | 默认值偏好可显式选择“采用模型默认值”并审计省略；业务必需参数不静默丢弃 |
+| thinking（可选） | 按型号映射其字段、开关和合法值 | 默认采用模型默认模式，不把所有 Stage 设置为必须关闭；不能把 low 档声称为关闭。个别严格预算任务仍按其实际门禁选型号 |
+| JSON object / Schema（原生参数可选） | 使用原生约束并继续做服务端校验 | 使用明确业务 Prompt + 原有 JSON/Evidence 校验；原生 JSON mode/Schema 不是全型号准入前提，但业务落库质量门禁保持 |
+| system / 多条消息 | 原样传角色与顺序 | 默认拦截正式 Stage；仅在显式启用且验收后的单轮文本适配模式下编译消息 |
+| 历史 / stateful resume | 仅在业务确实使用时启用 | 当前无状态流程无需历史；不得为了适配丢失其他必需角色 |
+| image / tools | 仅在声明支持且 Stage 获授权时发送 | 明确阻止；不能把图片改成文本描述来冒充视觉验收 |
+
+输出上限不是唯一的预算机制。省略 max_tokens 后，本地响应字节上限、超时、最多尝试次数和停止接收只能保护本机；不能保证上游已停止生成或消费。硬 Token 上限、已知输出能力或关闭思考是某个 Stage 的必需条件时，当前不支持的 Mux 桥接模型必须保持不适用，不能只删除参数放行。
+
+消息适配存在两个可评审方案，默认选择 A：
+
+- A：完整消息模式，要求 Gateway/Adapter 真正支持至简需要的 system 与多条消息；缺能力时提前提示不兼容。
+- B：显式单轮文本模式，把核心指令、低优先级上下文、业务材料和修复指令按有版本的模板编译为一条 user。不能删段、重排证据、改 Segment ID 或引用归属；不能视为保留原生 system 层级。须把转换方式、有效参数和转换后输入哈希写入审计/缓存，并单独验证指令冲突和资料注入。该模式是否用于核心抽取与笔记，需要用户评审后冻结；本次没有默认启用它。
+
+至简内部的预算、拆包、Schema/Evidence 验证保持独立，不能把兼容选择塞进业务 Prompt 或让模型决定是否校验。主备模型各自协商参数；切换后不能直接沿用主模型的已序列化请求。新增能力版本与适配方式必须进入 Job 非密钥快照和 Cache Key；排队、Replay 不受后续全局配置变更影响。
+
+## 5. 响应、审计与稳定性
+
+1. 至简当前读取非流式 `choices[0].message.content`。Gateway 对外需提供相同的非流式形状；内部 SSE 聚合不得把思考文本、CLI 状态或工具事件混入业务答案。若未来至简主动消费 SSE，按完整结束标志判断成功。
+2. 结束状态区分正常结束、输出/上下文截断、超时、取消、错误、空答案。不能固定填 stop 抹掉异常；JSON 合法且 Evidence 有效才可落业务产物。
+3. usage 必须区分“上游实测”“估算”“未知”。占位 0 不能当作免费或零 Token；未知值不计为实测，不绕过预算。若现有字段无法表达未知，需另加可信度元数据，不破坏旧账本。
+4. 审计保存至简请求 ID、Stage、主备链、Profile/实际模型、Adapter、能力版本、有效参数及省略原因、结束状态、耗时、usage 来源；不保存完整请求、Key 或模型原始错误正文。Mux 自己的路由切换也需可见，不能暗中换收费模型。
+5. 保留安全的 Mux 错误码与中文可行动提示。参数/消息不兼容属于配置错误，不自动重复原请求，也不作为供应商暂时故障累计触发冷却；鉴权、配额、429、5xx、网络与超时分别处理。Probe 无法完成时保留原结果；“请求不兼容”与“模型业务能力 FAIL”分开。
+6. 测试、Probe 和正式 Worker 使用同一凭据/连接的节流规则。Mux 可能把多个型号映射到同一上游账号，要按真实连接串行并遵守 Retry-After；本地资源锁与远程限流分别处理，不因为本地 HTTP 就占用 Ollama 的重任务身份。
+7. 取消或客户端断开只在已证实能终止上游时声明停止消费；否则标注“停止接收，上游是否停止未知”。不得叠加无界自动重试或跨账户回退。
+8. CLI/App Server 桥接必须提供纯模型执行边界：禁止读取至简项目文件、执行 shell、修改文件和启动不在任务授权范围内的工具；不使用开发助手的隐含系统提示代替至简规则。隔离工作目录、关闭 tools/MCP 或可证明的同等控制要纳入 Adapter 验收。
+
+## 6. 能力 Probe 与阶段准入
+
+| 层级 | 验收内容 | 能证明什么 |
+| --- | --- | --- |
+| 目录/配置检查 | 模型存在、权限、能力来源/版本、参数范围与冲突 | 接入前提；不调用推理、不写业务能力 PASS |
+| 单轮连通测试 | 对不支持输出上限的桥省略该字段；已知支持关闭思考时才关闭；单 user 小样 | 可返回文本；不证明正式 Stage 可用 |
+| 消息契约 Probe | 实际 Stage 所需 system、多消息、补充优先级及 JSON 修复路径；或经过授权的编译模式 | 消息传递符合选定适配方案 |
+| 结构化与 Evidence Probe | JSON/Pydantic、字段和 ID、逐字引用归属、截断/空响应/非法输出 | 该专项能力的可用证据；未覆盖项保留 NOT_TESTED |
+| Stage 准入 | 必需消息语义、业务 JSON/Evidence 校验和已有总预算满足；输出限额、采样、思考、原生格式、精确 usage 分别标可选/未知 | 允许该 Profile 用于该 Stage，不以非必要参数全支持作为共同门禁；不扩推为其他能力 |
+| 真实业务验收 | 授权小样→代表性长文本/分包→完整视频及 Replay；保留主备、Cache、预算证据 | 才能声明对应生产场景成立 |
+
+目录中 55 个型号不是 55 次真实模型测试。先按能力模板及 Adapter 完成离线覆盖，真实请求必须用户明确授权、串行、受小样预算限制；禁止借规格调查批量调用模型。Probe 只修改真实覆盖的能力，不用“回复了 PONG”自动授予转写校对、实体抽取或完整笔记能力。
+
+## 7. 开发验收条件
+
+1. 参数矩阵覆盖 2 种现有 Provider 实现、已保存的 12 个模型 Profile、7 类前端预设以及旧 Provider 测试入口；配置字段与线缆参数分开。
+2. 对当前 4 个 Mux Adapter / 55 个精确模型 ID，分别保留完整目录和一致性校验；共同能力可以共享模板，但不能漏掉型号、替换大小写或推导未声明参数。
+3. 离线证明：可选不支持参数按明示策略省略；严格必需参数提前拒绝；JSON/Schema/多消息/图像等冲突都有独立错误；主备、修复重试和快照采用正确能力版本。
+4. 离线证明：400 配置错误不反复发起/触发临时故障冷却；UNKNOWN usage 不变成真实 0；截断、空回复、取消和未知实际上游身份不误报成功。
+5. 现有 DeepSeek、Ollama 与其他 OpenAI-compatible 路径保留各自映射及质量门禁。不得全局删除 max_tokens，或仅因 Profile supports_json_mode=true 就忽略不支持的接口契约。
+6. 若设置页面增加能力/默认值/不兼容提示，沿用[前端视觉体系](design/FRONTEND_VISUAL_DESIGN_SYSTEM.md)，中文业务标签，PC/Mobile Browser 验收；长能力测试应受 Worker 或现有获批准的有界交互测试契约管理，不能扩成 API 请求内长任务。
+7. 开发按仓库验证策略跑目标与完整验证；新增修复/失败证据才重复相关验证。真实 Provider、视频、迁移/重启分别授权，不能用 Fixture/构建替代生产验收。
+
+## 8. 当前建议与待评审项
+
+至简保留 model、业务指令和材料、答案文本、JSON/Evidence/身份校验及已有总预算。取消“每次强制输出限额、Probe 固定 64、所有型号关闭思考、固定温度、所有型号原生 JSON Schema”的普遍要求；context_window/num_ctx 只保留其本地语义，远程不强迫透传。top_p、history/previous_response_id、SSE、tools 和全型号视觉不进入本次接入要求。用量未知不能当 0，输出上限未知不能冒充硬限制；可选参数省略不等于取消业务/总预算门禁。
+
+优先让 Mux 通过通用公开接口支持 system + 单 user；至简把当前完整指令明确组织为前置 system，JSON 重试不再在 user 后隐式追加另一层消息。若通用桥仍无法保持语义，提前诊断；B 单 user 编译只能是至简显式版本化选择，不能要求 Mux 增加至简特判。真正多轮聊天和上游会话不进入当前范围。
+
+## 9. 至简实施工作包（源码已完成，外部验收保留）
+
+| 包 | 方法与文件 | 验收 |
+| --- | --- | --- |
+| Z1 参数和测试 | providers/llm.py、ai/model_registry.py：生成选项可空；按接口能力选择输出字段/省略偏好，取消 Probe 无条件 64；旧 provider test 同样不强制 response_format | 保留 DeepSeek/Ollama 的正确映射，单轮连通成功不自动授予业务能力 |
+| Z2 无状态消息 | services/video_support.py、JSON 修复：保持规则/资料/证据优先级，组织为前置 system + user；必要编译由至简显式管理 | 依赖 Mux 最小通用角色映射；不丢材料、不增加聊天历史/会话服务 |
+| Z3 错误/预算/快照 | ai/reliability.py、ai/gateway.py 与审计/Cache/Job 非密钥配置：400 不兼容不计暂时熔断；未知 usage 估算/标未知；能力/规范化版本入快照与缓存，主备分别协商 | 原有总预算、Replay/Artifact/身份门禁保持，不改历史结果 |
+| Z4 产品与授权验收 | 设置页中文显示限制所在层、默认参数/未知用量；PC/Mobile Browser 后，授权串行小样及代表性视频 | 不重启、不批量调用 55 型号、不自动 POI 确认；源码实施、部署、真实验收分开报告 |
+
+Mux 的 M1–M5 和两项目边界由[通用设计说明书](../../local-ai-mux/docs/architecture/CAPABILITY_NEGOTIATION_DESIGN.md)定义：Mux 负责标准协议/公开映射，至简负责业务 Prompt、预算、Schema/Evidence、Job 与缓存，不为一个客户端新增特殊服务端接口。需要改变既有冻结总预算的部分仍须评审，不由本文件自动放行。
+
+## 10. 已实现的使用方式与验证入口
+
+- 模型设置提供 LocalAiMux 预设和 `DIRECT / LOCAL_ROUTER` 接入方式；未登记接入类型的旧 Profile，仅在明确命名为 Local Ai Mux/LocalMux 且使用回环地址时识别本机路由，不凭端口猜测，也不覆盖显式 DIRECT。读取能力并保存后使用绑定模型/地址的快照；地址、模型、凭据或接入方式变化后，界面清除旧能力。快照沿用 Setting JSON，无数据库结构变更。
+- 已保存配置通过 `POST /api/settings/model-profiles/{id}/interface-capabilities` 使用当前输入和既存 Key 读取；草稿使用 `/api/settings/model-profiles/interface-capabilities-draft`。这两条路由只读取 `/v1/models` 与 `/api/chat/models` 并核对目录，响应有大小/数量、读取超时和总时长限制，不跟随重定向、不经环境代理、不写配置、不调用模型。用户保存后快照才用于新任务。
+- 测试不再强制 64 Token，连通测试使用文本调用；输出长度可空。正式调用和主备分别按冻结快照省略不可用的输出/温度/原生 JSON 参数，范围已声明时校验；路由模式采用默认思考行为。缺 system/历史/文本能力、快照未读取或绑定过期时在推理前拒绝，不启动单 user 业务编译。
+- 前置 system 合并保持内容和顺序；JSON 修复指令组织到业务 user 前。能力指纹、客户端规范化版本及上游报告的 schema_version（若有）进入缓存语义与审计，现有 Job 提交/恢复快照自动保存新增非密钥字段；不改历史任务或已有业务 Probe 结果。
+- 配置类 400 / 接口不兼容不再计入临时故障熔断，也不自动换模型。未知用量保留为未知，输入/可见输出估算参与原有预算；上游占位 stop 不能当可靠结束原因，保留 reported_finish_reason，明确 length 仍拦截。没有证据保证上游思考 Token 已计入估算或断开已停止消费。
+- 自动验收入口：`backend/tests/test_local_router_contract.py`、`backend/tests/test_job_runtime_optimization.py`，以及既有 Provider/缓存/Job/预算/API 回归和前端 `pnpm verify`。浏览器使用 Edge 在隔离响应下验证 PC 1440×1000、Mobile 390×844 的选预设、读能力、默认参数、保存、修改模型后的能力失效及无溢出/控制台错误；这些 Fixture 不代表真实 Mux 推理。
+
+2026-10-06 初次验证：后端全量 256 项通过（含本工作包 19 项），前端 18 项、ESLint、TypeScript、Vite build、后端 Ruff/格式检查通过；合订构建脚本 5 项、文档链接/生成一致性和 git diff --check 通过。Browser 插件不可用，按测试技能采用已安装 Edge 的 Playwright；隔离 PC/Mobile 控件流程无框架覆盖、控制台错误或水平溢出，保存 payload 和修改模型后的旧能力失效已核对。截图/测试脚本放在仓库外，不作为真实业务验收。
+
+2026-10-06 初次只读访问 Mux 目录两次遇到 ReadTimeout 后停止；当时尚未部署或提交。后续目录时限、单模型真实准出和受控加载见第 11–12 节及带日期交接，不把这次旧阻塞当成当前状态。正式 Stage 仍按已保存快照验证 system 等必需能力，不通过放弃 Evidence/规则绕过。
+
+## 11. 手动测试队列与冷却（2026-10-08 修订）
+
+已保存/草稿连通测试、已保存/草稿能力探测及旧 Provider 测试共用 API 进程内 FIFO 队列。整个手动操作（含能力探测的多个调用）串行；失败也释放队列，重复点击和跨模型请求顺序执行。界面允许再次提交并显示等待/执行状态，保存/删除等配置动作在当前测试完成前保持保护。
+
+手动调用不检查、不创建冷却失败，也不通过成功清除生产熔断；生产任务的熔断策略保持。按同一凭据保留请求间隔/RPM 节流；供应商实际 429/额度/鉴权错误仍如实返回，不自动重试或换模型。API 重启后内存队列不保留；这不是新增持久后台 Job 或聊天历史。
+
+旧 Local Ai Mux 的 400 已定位到缺少接入类型导致参数协商未启用；修复从当前目录读取有效能力，省略不支持的输出限额及原生 JSON 字段。schema_version=2 的 details 仅使用 effective_support，不把 native/public_interface 声明当有效能力。验收以该已保存模型的真实连通测试及能力探测均通过为准；源码回归/隔离 UI 通过不替代真实准出。
+
+目录元数据先读能力接口、再核对标准模型目录；已观测到 Mux 冷目录刷新约 7.3 秒，因此读取超时从 5 秒调为 20 秒，增加 30 秒总耗时检查，仍限制响应大小/数量、禁止重定向和环境代理。
+
+2026-10-08 真实准出（隔离进程、直接读取现有配置与 Keychain，未写生产设置）：`model_9840af90390a42ac8e4f9b19a37a3d37 / codebuddy/hy3` 连通 PASS（5.02 秒，非空响应，实际省略 max_tokens）；既有能力 Probe PASS（12.11 秒，CLASSIFICATION/STRUCTURED_EXTRACTION/ENTITY_EXTRACTION/TRANSCRIPT_CORRECTION 为 PASS，其他 NOT_TESTED，无 FAIL）。共 4 次小样推理，无自动重试/备用模型/视频/POI 操作，不外推为整篇笔记或业务质量 Benchmark。隔离 PC/Mobile 验证重复提交可用、保存保护与排队提示。后端完整 259 项、前端 18 项/完整 verify、Ruff、合订脚本与 diff 检查通过。
+
+2026-10-08 用户随后授权生产重载，已无迁移加载当前修复并核对新 OpenAPI。通过运行中的保存模型 HTTP 端点混合提交 test/probe，两项真实准出均 PASS，按提交顺序完成，无 400 或本地熔断拦截；Probe 保存接口快照、LOCAL_ROUTER 和原生 JSON=false。服务/备份/门禁与带日期现场唯一记录见 [CURRENT_HANDOFF](CURRENT_HANDOFF.md)。隔离样例与生产端点小样均不外推为整篇视频或未知能力验收。
+
+
+## 12. 订阅 CLI 稳定性实施与验收（2026-10-08）
+
+目标：修复 `job_d8e17638fff7485fa6483accbf734865` 揭示的非流式 120 秒截断和偏好路由备用丢失；调整新任务参数，完成两仓离线验证、至简无迁移部署及文档收敛。用户明确选择仅离线回归与部署验证，不进行真实小样、视频重跑、POI 自动确认、登录或权限扩展。原 Job 的配置快照、业务数据与失败证据保留。厂商套餐额度仍 UNKNOWN；以下参数是本项目保护值，不是厂商承诺的额度或许可。
+
+### 12.1 参数与理由
+
+| 层/阶段 | 参数 | 依据与边界 |
+| --- | --- | --- |
+| Mux Gateway | 非流式/流式总执行期限 600 秒；流空闲 180 秒；Adapter 启动 30 秒 | 原校对成功用时 106/109 秒；总期限与空闲期分开，连续输出也不能无限运行。队列、目录核对不计执行期限 |
+| Mux Agent 连接 | 并发 1、启动间隔 5 秒、锁等待最多 30 秒 | Chat/Responses/显式模型验证共用连接锁；排队超时返回 429 与 Retry-After=5，不启动新 CLI。同一 Adapter 下模型与客户端 Key 共用；不能限制 Mux 外独立 CLI/官方应用 |
+| CLI 接收 | 无 stdout 事件 180 秒；工具禁用、单轮 1、隔离目录 | 无输出超时与进程错误分开；错误 result 只在内存分类，不保存供应商正文或凭据；取消/期限释放句柄，不证明远端立即停止计费 |
+| 至简 Mux Profile | timeout=660；GUARDED；interval=5；concurrency=1；RPM=12；HTTP retry=0；JSON retry=1；熔断阈值 2、冷却 300 秒 | 660 覆盖 Mux 600、锁等待 30、节流与冷目录余量；额度/鉴权/限流/Mux 超时不重复消耗。RPM=12 为主动保护值，厂商真实限额未知 |
+| 转写校对 | timeout=300；chunk_chars=3000；batch_size=16；邻段=1；Stage retry=0；max_attempts=4 | 降低每包 target/context 与重复 Prompt 输入；只读邻段和原 Segment ID/时间码不改变；更小分包可能增加调用次数 |
+| GROUND_MAP | timeout=660；chunk_size=5000；max_input_tokens=6000；max_output_tokens=4096；retry=0；wall=1200；max_attempts=12 | 在保留 Evidence/实体关系的前提下降低单包工作量；截断走已有拆分，非截断故障才走已配置且适配的备用 |
+| NOTE_REDUCE / GENERATE_AI_NOTE | timeout=660；chunk_size=5000；max_input_tokens=4000；max_output_tokens=4096；retry=0；wall=1200；max_attempts=20；thinking=false | 收紧输入/分包；max_output/thinking 仅在接口有效支持时发送，CLI 不支持时不伪装生效。未声明/探测失败的备用不被自动升级为可用 |
+| 全 Job | 保持现有 48 次实际尝试、1800 秒以及 Local/Remote Token 总预算 | 不为容忍慢 CLI 放大整任务消费；达到预算会暂停/失败或按已有笔记降级规则收口，不承诺任何长度视频都能完成 |
+
+阶段 wall 参数在包间检查，单次调用仍受请求/Job 总预算限制；它不是供应商端的硬消费上限。以上校对大小使用既有 transcript-processing 设置；它会影响后续所有校对任务。Stage 参数和 Profile 通过已有 Settings 保存，仅新提交捕获新值。旧 Job/排队任务/完整重跑继续使用提交快照；用户如要应用新参数须新投递或走明确授权的任务级恢复。
+
+### 12.2 工作包与验收
+
+1. **Mux 超时/并发**：Chat 非流式改用总期限；Responses 非流式/续接补同样期限；两类 SSE 同时限制总期与空闲期。Agent 按当前 Adapter 连接串行并覆盖显式验证入口，失败/断流/取消均释放锁。离线虚拟时钟验收 130 秒响应成功、601 秒失败、持续增量到总期失败、跨模型/Key/协议阻塞与断流释放；不真实等待十分钟或发起推理。
+2. **至简错误/备用**：根据安全 LMX 码分别识别超时、额度、鉴权、限流、冷却，禁用这些错误的同模型自动 HTTP 重试；允许既有预算内的适配备用。LOCAL_FIRST/REMOTE_FIRST 没有相反位置候选时保留已保存的全局备用，必须不同于主模型、启用、满足能力且未探测 FAIL；*_ONLY 与语义 escalation 保持不回退。验证超时一次后备用接管以及禁用/ONLY 边界。
+3. **参数落地**：生产空闲后做逻辑备份，校验 Profile/Stage/Transcript 配置，单事务更新上述 Settings 并记录无密钥审计；旧 Job payload 不写入。新配置与旧快照的离线路由均核对。全局主备、模型能力、Key/接口快照、默认 ASR 和历史业务数据不改。
+4. **完整验证/部署**：至简完整后端、Ruff/格式、Node 24 前端 verify；Mux fmt、workspace tests、Clippy、前端类型/测试/构建。无需 UI 改动，本轮不新增 UI/Browser 验收。部署前两库 integrity/FK/版本与活跃 Job/lease、Mux active_tasks=0；备份并保留安装包回滚。Mux 按原生脚本构建安装重启，至简按 manage.py 无迁移重载；核对二进制 SHA、Key 身份、API/Worker/首页/heartbeat、只读模型目录和新配置。
+5. **文档收敛**：本节维护参数/契约/计划，IMPLEMENTATION_STATUS 维护完成度与自动验证，CURRENT_HANDOFF 维护任务续接与带日期生产采样；Mux 更新 API/Streaming/Adapter 契约、CHANGELOG 与 HANDOFF。源文档变化后重建合订本、核对链接及 diff。未执行真实推理与完整视频验收，不把 fixture、构建或健康状态解释为业务质量完成。
+
+### 12.3 当前验证与部署结果
+
+至简：目标回归（含提交快照）57 项通过；在合并后的当前源码上使用生产 Python 3.14 完整验证 277 项通过，Node 24 前端 19 项/ESLint/TypeScript/Vite 通过，完整源码 Ruff 与本轮文件格式检查通过。6 项 Settings 在私有数据库副本上验证，再于 2026-10-08 18:08–18:09 单事务保存并记录无密钥审计；Job payload 全量哈希保持一致。无迁移重载后 API/Worker RUNNING、首页/heartbeat READY，OpenAPI 控件已加载，生产 6/6 参数匹配、integrity=ok、FK=0、revision=0025、active/leased=0。备份与现场唯一记录见 CURRENT_HANDOFF；原失败 Job 未重跑。
+
+Mux：本轮独立基线完整验证 Rust 87 passed / 2 ignored、前端 7 passed、类型/构建与 Clippy 通过；随后叠加并行调用记录扩展，整合后的 Rust 95 passed / 2 ignored、前端 7 passed、Clippy、官方 Python/TypeScript SDK smoke 通过。记录表的虚拟时钟调度失败由该包以关闭虚拟时钟 fixture 保存、独立真实时钟 fixture 验证落库收口。安装版 API 只读 health 已报告 600/180 秒、并发 1、间隔 5 秒、排队 30 秒；安装/release SHA 一致，Key ID/哈希/权限/路由限制全量摘要未变。以至简生产 Keychain 既有凭据只读 `/v1/models` 返回 200 且包含 codebuddy/hy3，没有发起生成。Mux 当前 schema=11，新增表属于并行调用记录包，本工作包未新增 Schema；该包保留独立 UI 收尾与生产采样。最终安装后的 Mux 超时/队列专项 5 项再次通过；两库 integrity/FK 通过，active Job/lease 与 Mux active_tasks=0。
+
+上述 2026-10-08 CLI 工作包当时只做离线回归与部署验证，未运行真实小样、重跑视频、确认 POI 或提交/推送；后续视频只读证据和本轮远程交付见带日期交接，不能外推厂商排队、账户限额、业务质量或远端取消/计费。
+
+## 13. 可取消 HTTP 请求参数（2026-10-08 修复）
+
+LOCAL_ROUTER 请求设置 `trust_env=False`，避免回环 Gateway 被环境代理接管。同步顶层 `httpx.post` 可接收该参数；Job 的可取消路径使用 `httpx.AsyncClient` 时必须把它传入客户端构造函数，不能传给 `.post()`。普通 DIRECT/Ollama 请求保持 httpx 的默认环境策略。取消检查和客户端等待回收不等于上游已停止生成；Ollama 清理缺口见 [模型释放边界](ai-gateway/AI_RUNTIME_AND_PROVIDERS.md#41-ollama-响应后的释放契约与取消边界)。
+
+离线回归同时覆盖本地路由成功请求、环境代理禁用和 DIRECT/LOCAL_ROUTER 等待取消；真实 Job 的原 TypeError 修复后步骤续跑结果见交接，不在本规格复制生产状态。
+
+
+---
+
 # FILE: ai-gateway/04-stage-policy.md
 
 # Stage Policy 与参数设置
@@ -8056,6 +8207,11 @@ cache
 默认折叠 Advanced。
 
 ---
+
+
+## 偏好模式与已保存备用（2026-10-08）
+
+LOCAL_FIRST/REMOTE_FIRST 优先使用相反位置候选作为备用；没有相反位置候选时，保留全局 model-routing 已保存且符合当前阶段能力的 fallback_id。候选须启用、不同于主模型且能力 Probe 不为 FAIL；不自动扩大未声明的能力。LOCAL_ONLY/REMOTE_ONLY 和 Ground Map semantic escalation 不采用此回退。Job 使用提交时快照中的全局备用，修改当前 Settings 不改旧 Job 的备用。参数与验收见[订阅 CLI 稳定性](ai-gateway/LOCAL_ROUTER_PROVIDER_COMPATIBILITY_SPEC.md#12-订阅-cli-稳定性实施与验收2026-10-08)。
 
 
 ---
@@ -9241,6 +9397,19 @@ Claim
 > API 风格：REST + WebSocket
 > 第一版单用户，本地使用，但仍保持明确资源边界。
 
+## 当前运行接口与设计名称（2026-10-09 核对）
+
+本文件后文保留早期资源设计名称（如 `/api/inbox`、`/api/admin/jobs`），它们不能单独证明运行时提供了同名路由。当前入口以 `backend/src/zhijian/api/router.py` 与运行时 `/openapi.json` 为准：Capture 使用 `POST /api/capture`、`POST /api/capture/file`；任务使用 `/api/jobs`，设置使用 `/api/settings`。新增接口或行为须同时核对源码/Schema 与下列专项，不从规划接口推导已实现。
+
+| 当前接口 | 行为与边界 |
+| --- | --- |
+| `GET/POST /api/settings/model-profiles`、`PUT/DELETE /api/settings/model-profiles/{profile_id}` | 已保存模型配置；接入类型 `DIRECT / LOCAL_ROUTER`，接口快照保存在 Setting JSON，凭据进 Secret Store |
+| `POST /api/settings/model-profiles/{profile_id}/interface-capabilities`、`POST /api/settings/model-profiles/interface-capabilities-draft` | 使用当前输入和已有/草稿凭据读取路由目录，不推理、不保存；保存配置后快照才对新任务生效 |
+| `POST /api/settings/model-profiles/{profile_id}/test`、`.../{profile_id}/probe`、`.../test-draft`、`.../probe-draft` | 用户显式发起真实连通/能力小样，共用 API 进程内 FIFO 与凭据节流；不影响生产熔断，不自动重试或换模型 |
+| `GET /api/jobs/{job_id}/ai-usage` | 返回 total/local/remote、by_stage/by_model、retry/fallback/waste、cache/ratios/budget；数据由历史审计只读推导，不改旧账本 |
+
+用量聚合中的 `input_tokens/output_tokens` 保留可信实测；`estimated_input_tokens/estimated_output_tokens` 与对应 `estimated_*_calls` 表示本地估算，`unknown_input_calls/unknown_output_calls` 表示没有可信值或可用估算。输入和输出独立判定，可信 0 不等于缺省，路由占位 0 不当成实测；Cache hit 不重复计耗。估算参与预算但不证明账单、思考 Token 或取消后消费已经终止。详见 [日志口径](operations/LOGGING.md#41-token-口径2026-10-08)与 [LocalAiMux 契约](ai-gateway/LOCAL_ROUTER_PROVIDER_COMPATIBILITY_SPEC.md)。
+
 ---
 
 # 1. Capture API
@@ -10252,6 +10421,12 @@ API 生成或接受 X-Request-ID 并在响应头返回；业务动作关联 syst
 既有实施记录包含健康摘要、组合筛选、Job/Request 深链、游标分页、实时跟随暂停、结构化详情与单条脱敏导出。时间范围支持快捷项和自定义，服务端支持 from/to、cursor、asc/desc。UI 契约按需读 [operations/OPERATIONS_UI_SPEC.md](operations/OPERATIONS_UI_SPEC.md) 第 5 节，精确参数以 API schema 为准。
 
 只读示例：GET /api/logs?level=ERROR&component=worker&query=Whisper&limit=20。带 `job_id` 时响应还包含该任务脱敏的 LLM 尝试、耗时、路由、模型、分块和 Provider 错误摘要。先限定 Job、时间和数量，不导出全部日志。批量 CSV/JSONL、筛选链接复制、低水位告警和完整性哈希不因本次合并而列为已实现。
+
+### 4.1 Token 口径（2026-10-08）
+
+`GET /api/jobs/{job_id}/ai-usage` 的 input_tokens/output_tokens 保持上游可信实测口径，新增 estimated_input_tokens/estimated_output_tokens、estimated_input_calls/estimated_output_calls、unknown_input_calls/unknown_output_calls。输入和输出分别判断：可信 0 是 0，缺省或路由占位用量是未知；优先使用已有估算，否则按请求字符数或可见输出长度以约 2 字符/Token 本地估算，向上取整。估算不含未知思考/隐藏 Token，不等于账单或精确 tokenizer。
+
+任务页显示“约 数值”及“部分未知”；失败/取消且没有返回输出的调用不补造输出 Token。历史 Audit 在读取时推导，不回填或改写；Cache hit 不重复计入真实调用/消耗。已发起调用的输入估算参与原有预算及重试/备用/重复输入比例，表示保守的请求输入估算，不能据此断言上游确已消费。实际消耗是否包含失败请求仍须上游证据。
 
 ## 5. 错误事件与 Replay
 

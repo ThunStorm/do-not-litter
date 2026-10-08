@@ -30,14 +30,17 @@ from zhijian.ai.domain_context import DOMAIN_PACK_PREFIX, DomainPack
 from zhijian.ai.job_config import ASR_DEFAULT_KEY, default_asr_provider, job_setting, job_stage_override
 from zhijian.ai.model_registry import (
     invoke_profile_model,
+    model_connection_type,
     model_profile_from_value,
     probe_model_profile,
+    queued_model_test,
 )
 from zhijian.ai.policies import resolve_stage_policy, validate_stage_policy
 from zhijian.ai.reliability import AIProviderError
 from zhijian.ai.resource_manager import local_ai_resource_manager
 from zhijian.ai.schemas import AIStagePolicy
 from zhijian.ai.stages import STAGE_SPECS, stage_spec
+from zhijian.ai.token_usage import token_usage
 from zhijian.core.config import Settings, get_settings
 from zhijian.core.ids import new_id
 from zhijian.core.secret_store import SecretStore
@@ -682,6 +685,12 @@ def job_ai_usage(job_id: str, _: Protected, db: Session = Depends(get_db)) -> di
             "attempt_count": 0,
             "input_tokens": 0,
             "output_tokens": 0,
+            "estimated_input_tokens": 0,
+            "estimated_output_tokens": 0,
+            "estimated_input_calls": 0,
+            "estimated_output_calls": 0,
+            "unknown_input_calls": 0,
+            "unknown_output_calls": 0,
             "cached_tokens": 0,
             "input_chars": 0,
             "cache_hit_count": 0,
@@ -708,8 +717,9 @@ def job_ai_usage(job_id: str, _: Protected, db: Session = Depends(get_db)) -> di
         values = {
             "calls": 0 if cache_hit else 1,
             "attempt_count": 0 if cache_hit else 1,
-            "input_tokens": 0 if cache_hit else int(response_meta.get("prompt_tokens") or 0),
-            "output_tokens": 0 if cache_hit else int(response_meta.get("completion_tokens") or 0),
+            **({key: 0 for key in token_usage({})} if cache_hit else token_usage(
+                response_meta, int(request_meta.get("input_chars") or 0)
+            )),
             "cached_tokens": int(response_meta.get("cached_tokens") or 0),
             "input_chars": 0 if cache_hit else int(request_meta.get("input_chars") or 0),
             "cache_hit_count": int(cache_hit),
@@ -737,7 +747,7 @@ def job_ai_usage(job_id: str, _: Protected, db: Session = Depends(get_db)) -> di
         input_hash = str(request_meta.get("input_hash") or "")
         if input_hash and not cache_hit:
             if input_hash in seen_input_hashes:
-                repeated_input_tokens += values["input_tokens"]
+                repeated_input_tokens += values["input_tokens"] + values["estimated_input_tokens"]
             seen_input_hashes.add(input_hash)
         cache_hits += int(bool(request_meta.get("cache_hit")))
         escalations += int(bool(request_meta.get("escalated")))
@@ -763,7 +773,12 @@ def job_ai_usage(job_id: str, _: Protected, db: Session = Depends(get_db)) -> di
         )
         if isinstance(event.detail_json, dict)
     ]
-    total_tokens = total["input_tokens"] + total["output_tokens"]
+    def effective_tokens(bucket: dict) -> int:
+        return sum(bucket[key] for key in (
+            "input_tokens", "output_tokens", "estimated_input_tokens", "estimated_output_tokens"
+        ))
+
+    total_tokens = effective_tokens(total)
     return {
         "total": total,
         "local": local,
@@ -787,10 +802,11 @@ def job_ai_usage(job_id: str, _: Protected, db: Session = Depends(get_db)) -> di
         },
         "ratios": {
             "cache_hit_ratio": cache_hits / max(1, len(rows)),
-            "retry_token_ratio": (retry["input_tokens"] + retry["output_tokens"]) / max(1, total_tokens),
-            "fallback_token_ratio": (fallback["input_tokens"] + fallback["output_tokens"])
-            / max(1, total_tokens),
-            "repeated_input_ratio": repeated_input_tokens / max(1, total["input_tokens"]),
+            "retry_token_ratio": effective_tokens(retry) / max(1, total_tokens),
+            "fallback_token_ratio": effective_tokens(fallback) / max(1, total_tokens),
+            "repeated_input_ratio": repeated_input_tokens / max(
+                1, total["input_tokens"] + total["estimated_input_tokens"]
+            ),
         },
         "budget": job.payload_json.get("ai_soft_budget") or {"status": "EXPECTED"},
         "anomalies": anomalies,
@@ -3506,6 +3522,10 @@ def _model_profile_view(setting: Setting) -> dict:
         "provider": str(value.get("provider") or ""),
         "base_url": str(value.get("base_url") or ""),
         "model": str(value.get("model") or ""),
+        "connection_type": profile.connection_type,
+        "interface_capabilities": profile.interface_capabilities.model_dump(mode="json")
+        if profile.interface_capabilities
+        else None,
         "timeout_seconds": int(value.get("timeout_seconds") or 60),
         "reliability_mode": profile.reliability_mode,
         "request_interval_seconds": value.get("request_interval_seconds"),
@@ -3564,7 +3584,9 @@ def _routing_profile_summary(db: Session, profile_id: str | None) -> dict[str, s
     }
 
 
+@queued_model_test()
 def _test_model_connection(value: dict, api_key: str | None) -> object:
+    value = _interactive_interface_config(value, api_key)
     provider = _model_profile_provider(value, api_key)
     profile = model_profile_from_value("test", value)
 
@@ -3572,7 +3594,7 @@ def _test_model_connection(value: dict, api_key: str | None) -> object:
         return invoke_profile_model(
             provider,
             profile,
-            "generate",
+            "generate_text",
             [{"role": "user", "content": '仅返回 JSON：{"ok":true}'}],
         )
 
@@ -3589,6 +3611,8 @@ def _model_test_http_error(label: str, exc: AIProviderError) -> HTTPException:
             "AI_PROVIDER_QUOTA_EXHAUSTED",
             "AI_PROVIDER_CIRCUIT_OPEN",
         }
+        else 400
+        if exc.code.startswith("AI_PROVIDER_INTERFACE_")
         else 502
     )
     return HTTPException(status_code=status, detail=f"{label}：{exc.code}：{str(exc)[:200]}")
@@ -3607,7 +3631,51 @@ def _model_profile_provider(value: dict, api_key: str | None) -> LLMProvider:
         api_key,
         timeout,
         supports_json_mode=bool(value.get("supports_json_mode")),
+        connection_type=model_connection_type(value),
+        interface_capabilities=value.get("interface_capabilities"),
     )
+
+
+def _interactive_interface_config(value: dict, api_key: str | None) -> dict:
+    if model_connection_type(value) != "LOCAL_ROUTER":
+        return value
+    if not api_key:
+        raise HTTPException(status_code=422, detail="请填写接口凭据后读取能力")
+    from zhijian.ai.interface_contract import read_interface_capabilities
+
+    capabilities = read_interface_capabilities(str(value.get("base_url") or ""), value["model"], api_key)
+    return {
+        **value,
+        "connection_type": "LOCAL_ROUTER",
+        "interface_capabilities": capabilities.model_dump(mode="json"),
+    }
+
+
+@router.post("/api/settings/model-profiles/interface-capabilities-draft")
+def read_draft_interface_capabilities(payload: ProviderConfig, _: Protected) -> dict:
+    if payload.connection_type != "LOCAL_ROUTER":
+        raise HTTPException(status_code=422, detail="请先选择本机模型路由接入方式")
+    try:
+        value = _interactive_interface_config(payload.model_dump(exclude={"api_key"}), payload.api_key)
+    except AIProviderError as exc:
+        raise _model_test_http_error("接口能力读取未完成", exc) from exc
+    if not value.get("interface_capabilities"):
+        raise HTTPException(status_code=422, detail="请先选择本机模型路由接入方式")
+    return value["interface_capabilities"]
+
+
+@router.post("/api/settings/model-profiles/{profile_id}/interface-capabilities")
+def read_saved_interface_capabilities(
+    profile_id: str,
+    payload: ProviderConfig,
+    _: Protected,
+    db: Session = Depends(get_db),
+    store: SecretStore = Depends(get_secret_store),
+) -> dict:
+    if db.get(Setting, f"model-profile:{profile_id}") is None:
+        raise HTTPException(status_code=404, detail="模型配置不存在")
+    key = payload.api_key or store.get(f"model-profile:{profile_id}:api-key")
+    return read_draft_interface_capabilities(payload.model_copy(update={"api_key": key}), _)
 
 
 @router.get("/api/settings/model-profiles")
@@ -3959,6 +4027,7 @@ def save_prompt_supplements(
 
 
 @router.post("/api/settings/model-profiles/{profile_id}/test")
+@queued_model_test()
 def test_model_profile(
     profile_id: str,
     _: Protected,
@@ -3987,6 +4056,7 @@ def test_model_profile(
 
 
 @router.post("/api/settings/model-profiles/test-draft")
+@queued_model_test()
 def test_model_profile_draft(payload: ModelProfileConfig, _: Protected) -> dict:
     """Run a transient model connectivity test without persisting the draft or its secret."""
     value = payload.model_dump(mode="json", exclude={"api_key"})
@@ -4006,6 +4076,7 @@ def test_model_profile_draft(payload: ModelProfileConfig, _: Protected) -> dict:
 
 
 @router.post("/api/settings/model-profiles/{profile_id}/probe")
+@queued_model_test()
 def probe_saved_model_profile(
     profile_id: str,
     _: Protected,
@@ -4017,8 +4088,10 @@ def probe_saved_model_profile(
         raise HTTPException(status_code=404, detail="模型配置不存在")
     value = dict(setting.value_json)
     try:
+        api_key = store.get(f"model-profile:{profile_id}:api-key")
+        value = _interactive_interface_config(value, api_key)
         profile = model_profile_from_value(profile_id, value)
-        provider = _model_profile_provider(value, store.get(f"model-profile:{profile_id}:api-key"))
+        provider = _model_profile_provider(value, api_key)
 
         def call() -> dict[str, str]:
             return probe_model_profile(provider, profile)
@@ -4032,7 +4105,11 @@ def probe_saved_model_profile(
         raise HTTPException(status_code=502, detail=f"模型能力探测失败：{str(exc)[:240]}") from exc
     value["probe_results"] = results
     value["capabilities"] = [key for key, status in results.items() if status == "PASS"]
-    value["supports_json_mode"] = results.get("STRUCTURED_EXTRACTION") == "PASS"
+    value["supports_json_mode"] = (
+        profile.interface_capabilities.json_object == "SUPPORTED"
+        if profile.connection_type == "LOCAL_ROUTER" and profile.interface_capabilities
+        else results.get("STRUCTURED_EXTRACTION") == "PASS"
+    )
     setting.value_json = value
     record_event(
         db,
@@ -4046,10 +4123,12 @@ def probe_saved_model_profile(
 
 
 @router.post("/api/settings/model-profiles/probe-draft")
+@queued_model_test()
 def probe_model_profile_draft(payload: ModelProfileConfig, _: Protected) -> dict:
     """Probe a draft without persisting its profile or API key."""
     value = payload.model_dump(mode="json", exclude={"api_key"})
     try:
+        value = _interactive_interface_config(value, payload.api_key)
         profile = model_profile_from_value("draft", value)
         provider = _model_profile_provider(value, payload.api_key)
 
@@ -4072,7 +4151,10 @@ def probe_model_profile_draft(payload: ModelProfileConfig, _: Protected) -> dict
         "message": "草稿能力探测已完成，保存后才会写入模型配置。",
         "probe_results": results,
         "capabilities": capabilities,
-        "supports_json_mode": "STRUCTURED_EXTRACTION" in capabilities,
+        "supports_json_mode": profile.interface_capabilities.json_object == "SUPPORTED"
+        if profile.connection_type == "LOCAL_ROUTER" and profile.interface_capabilities
+        else "STRUCTURED_EXTRACTION" in capabilities,
+        "interface_capabilities": value.get("interface_capabilities"),
     }
 
 
@@ -4126,7 +4208,7 @@ def save_provider(
         "place_note_summary",
     }:
         raise HTTPException(status_code=404, detail="未知 Provider 角色")
-    value = {"provider": payload.provider, "base_url": payload.base_url, "model": payload.model}
+    value = payload.model_dump(mode="json", exclude={"api_key"})
     setting = db.get(Setting, f"provider:{role}")
     if setting is None:
         setting = Setting(key=f"provider:{role}", value_json=value)
@@ -4141,6 +4223,7 @@ def save_provider(
 
 
 @router.post("/api/settings/providers/{role}/test")
+@queued_model_test()
 def test_provider(
     role: str,
     payload: ProviderConfig,
@@ -4156,26 +4239,10 @@ def test_provider(
         "place_note_summary",
     }:
         raise HTTPException(status_code=404, detail="未知 Provider 角色")
-    provider_name = payload.provider.lower()
     try:
-        if provider_name == "ollama":
-            result = OllamaProvider(payload.base_url, payload.timeout_seconds).generate(
-                [{"role": "user", "content": '仅返回 JSON：{"ok":true}'}],
-                model=payload.model,
-            )
-        else:
-            api_key = payload.api_key or store.get(f"provider:{role}:api-key")
-            if not api_key:
-                raise HTTPException(status_code=422, detail="尚未保存 API Key")
-            result = OpenAICompatibleProvider(
-                provider_name,
-                payload.base_url,
-                api_key,
-                payload.timeout_seconds,
-            ).generate(
-                [{"role": "user", "content": '仅返回 JSON：{"ok":true}'}],
-                model=payload.model,
-            )
+        api_key = payload.api_key or store.get(f"provider:{role}:api-key")
+        value = payload.model_dump(mode="json", exclude={"api_key"}, exclude_unset=True)
+        result = _test_model_connection(value, api_key)
     except HTTPException:
         raise
     except Exception as exc:

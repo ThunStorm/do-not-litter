@@ -54,15 +54,23 @@ def validate_stage_policy(
         profile = model_profile_from_value(profile_id, value)
         if not profile.enabled or profile.location != expected_location:
             raise ValueError(f"{field.removesuffix('_profile_id')} 模型的位置或启用状态无效")
-        if spec.capability in {
-            AICapability.VISION,
-            AICapability.DOCUMENT_VISION,
-            AICapability.SCREENSHOT_UNDERSTANDING,
-        } and "image" not in profile.modalities:
+        if (
+            spec.capability
+            in {
+                AICapability.VISION,
+                AICapability.DOCUMENT_VISION,
+                AICapability.SCREENSHOT_UNDERSTANDING,
+            }
+            and "image" not in profile.modalities
+        ):
             raise ValueError("视觉阶段不能选择 text-only 模型")
         if policy.thinking and not profile.supports_thinking:
             raise ValueError("所选模型未声明支持 thinking，不能保存 thinking=true")
-        if policy.max_output_tokens and policy.max_output_tokens > profile.max_output_tokens:
+        if (
+            policy.max_output_tokens
+            and profile.max_output_tokens
+            and policy.max_output_tokens > profile.max_output_tokens
+        ):
             raise ValueError("阶段最大输出超过模型 Profile 上限")
         probe = str((value.get("probe_results") or {}).get(spec.capability.value) or "NOT_TESTED").upper()
         if probe == "FAIL" and not policy.allow_unverified_model:

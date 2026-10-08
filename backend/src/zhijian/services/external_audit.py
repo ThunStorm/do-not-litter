@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from zhijian.db.models import ExternalCallAudit
+from zhijian.services.jobs import JobCancelled
 
 
 def audited_call[T](
@@ -30,7 +31,7 @@ def audited_call[T](
                 capability=capability,
                 provider=provider,
                 operation=operation,
-                status="FAILED",
+                status="CANCELLED" if isinstance(exc, JobCancelled) else "FAILED",
                 duration_ms=round((perf_counter() - started) * 1000),
                 request_meta_json=request_meta,
                 error_code=getattr(exc, "code", None),

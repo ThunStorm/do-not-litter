@@ -4,11 +4,27 @@
 
 ## 任务续接
 
-- 目标：完成 `job_ad0ba062003a492bb9ff62270bcce385` 的笔记归纳恢复，保留原 Transcript/Ground Map/Evidence 与 POI 人工审核边界。
-- 已完成：提交 `8328deb`、`37b771a` 实现显式任务级模型恢复、取消步骤续跑和 DeepSeek 非思考小分包。完整后端、Ruff、Node 24 前端与文档验证通过；2026-09-24 无迁移备份重载后，真实 Job 用 DeepSeek V4 Flash 完成 23/23 分包，Note Version 2、48 章节、75 条有效引文和 9 张 READY 截图已交付，所有步骤完成。桌面/390×844 页面恢复操作与控制台检查通过。
-- 剩余：Job 为 `PARTIAL_SUCCESS`，20 个 `REVIEW`、32 个 `UNRESOLVED` 地点需人工确认；禁止自动确认 POI。下一步由用户审核地点；本条真实视频成功不代表其他模型、视频或 Frozen Benchmark 通过。生产现场与备份见下文。
+- 目标与范围：全局文档同步与当前分支远程交付，包含已验证的本地路由/CLI、Token/取消响应及 trust_env 修复；不扩展未来路线。
+- 完成与验证：源码后端 279/前端 19、Ruff/类型/构建通过；2026-10-08 23:47 已无迁移加载，服务原快照见下。本轮仅文档链接、历史迁移、清单及合订一致性检查；代码和文档随本轮提交交付，准确提交以分支 Git 记录为准。
+- 当前只读复核：job_d3fc3507…于 2026-10-09 00:16 从校对续跑至 PARTIAL_SUCCESS，复用 ASR，产出笔记/截图；地点 3 REVIEW、12 UNRESOLVED。此前两条旧阻塞 Job 已不在库中。本轮没有发起真实调用或续跑。
+- 未完成：Ollama 客户端取消后上游继续推理；全型号/长视频/厂商额度、远端取消计费和质量 Benchmark 未闭环。当前仅有有界真实样本，不能外推全矩阵。
+- 下一步一项：经用户授权处理 Ollama 取消后的限时清理及真实退出验收。相关文件：providers/llm.py、ai/resource_manager.py、ai-gateway/AI_RUNTIME_AND_PROVIDERS.md。禁止自动重跑、改历史审计/提交快照、自动确认 POI；本轮不重启/迁移，旧服务健康采样未复核。
 
-## 生产快照（最新采样 2026-09-24；下列历史条目保留原日期）
+## 生产快照（最新数据库采样 2026-10-09；服务健康采样仍为 2026-10-08，下列旧条目保留原日期）
+
+- 2026-10-09（文档任务的数据库只读复核）：`job_d3fc3507d995425eb6d1fe01a76b0311` 在 2026-10-08 23:50:36 至 2026-10-09 00:16:08 从 CORRECT_TRANSCRIPT 续跑，终态 PARTIAL_SUCCESS/CLEAN_CACHE，生成 `cnt_c48ba4c1f95d4013bbe82269041e58d0` 与 `note_0e1dbcfa3148455db77e5146f8ffa12c`；上游含 ASR 的 6 步 REUSED，校对、Ground Map、Note、地点/截图/物化均 COMPLETED。地点 confirmed=0、REVIEW=3、UNRESOLVED=12，保留人审；调用审计仍保留原 trust_env 失败及后续 Ground Map 失败，不能因步骤完成改写历史。此前 job_d8e17638…/job_f4495f14…均已不在当前库中。本轮仅采集上述证据，没有发起推理/重跑/迁移/重启，也未重新采样 API/Worker 健康；23:47 的服务状态继续保留原日期，不当作本次健康结果。
+
+- 2026-10-08 23:47（trust_env 修复加载）：用户授权无迁移重载 API/Worker；重载前 active Job/lease=0、integrity=ok、FK=0、revision=0025，逻辑备份 `data/backups/app-pre-trust-env-fix-20261008-234654.db` 的完整性/FK/revision 均通过。生产解释器 manage.py restart/status 确认 API/Worker RUNNING、首页/health READY，Worker 新心跳 PID=65568 与进程一致；OpenAPI HTTP 200（104 条路径），重载后 integrity=ok、revision=0025、active/lease=0。后端 279 项、前端 19 项及 Lint/类型/构建通过；原 `job_d3fc3507d995425eb6d1fe01a76b0311` 保持 NEEDS_USER/CORRECT_TRANSCRIPT，ASR 已完成，未自动续跑、改历史审计或调用真实模型。取消后 Ollama 侧停止推理仍为独立未闭环项；本轮未提交/推送，以下旧现场保留原采样日期。
+
+- 2026-10-08 22:22（Mux 安装版 CLI 保护值核对）：本轮通过只读 `/api/health` 确认 API=ok、active_tasks=0、总期 600/流空闲 180/Agent 并发 1/间隔 5/锁等待 30 秒；以至简 LaunchAgent 的既有 Keychain 凭据 GET `/v1/models` 返回 200，codebuddy/hy3 可见，无生成。安装版/release SHA 均为 `58575bf15a7ec24154d439bb76f172066dcdcadb35515884aec9dcf53981e39e`；Mux Key ID/哈希/scopes/限制/角色/RPM 的聚合摘要与 18:08 备份一致，DB integrity=ok、FK=0。Mux schema=11 由并行调用记录包部署，本包无 Schema 改动；本次已在最终 CSS 安装后重新核对二进制与运行保护值；原生 API 页显示运行中，本轮没有点击模型测试、复制 Key 或修改权限。至简 API/Worker/首页/心跳复核 READY（PID=93666），新参数 6/6 匹配，原失败 Job 9 条历史 Audit 与备份逐字段一致；未调用真实模型、重跑视频或确认 POI。
+
+- 2026-10-08 18:08–18:10（订阅 CLI 参数与至简加载）：两库逻辑备份 `data/backups/zhijian-pre-cli-reliability-20261008-180852.db`、`~/Library/Application Support/LocalMux/backups/localmux-pre-cli-reliability-20261008-180852.db` 均 integrity/FK 通过；版本分别为 0025、10。生产 6 项非密钥 Settings 校验后单事务保存，Job payload 哈希未变，配置审计为 settings.cli_reliability.updated；只影响新提交。生产解释器 manage.py 无迁移重载后 API/Worker RUNNING、首页/heartbeat READY（PID=93666），OpenAPI 与 6/6 参数匹配；integrity=ok、FK=0、revision=0025、active/lease=0。原 job_d8e17638fff7485fa6483accbf734865 仍 FAILED/AI_PROVIDER_HTTP_5XX，未重跑。Mux 安装版仍为旧期限，本轮此时未重启它，待并行调用记录改造的最终验证与部署；真实推理、视频和 POI 未操作。此前带日期采样保留原现场，不视为本次状态。
+
+- 2026-10-08 18:11（收尾复核）：API/Worker/页面/心跳仍 READY，当前 Worker PID=93666；active Job/lease=0，用量 HTTP 仍返回估算 88864/659 和 9 次输出未知。18:09 现场另有 API/Worker 正常重新启动记录，本轮仅在 18:02 发起一次重载；不把较早 PID 作为当前运行进程。
+
+- 2026-10-08 18:02–18:08（Token 与任务响应部署）：active Job/lease=0、integrity=ok、FK=0、revision=0025；逻辑备份 `data/backups/app-pre-token-responsive-20261008-180203.db` 完整性/FK/revision 已验证。生产解释器 manage.py restart 无迁移重载；API/Worker RUNNING、页面/心跳 READY，Worker PID=91660。实际 `/api/jobs/job_f4495f14062f4ed097e32692298b9f64/ai-usage` 返回实测 0/0、累计请求输入估算 88864、可见输出估算 659、9 次输出未知；PC/390px 显示“约 88864 / 约 659（部分未知）”，无横向溢出/控制台错误。该 Job 的 22 条历史 Audit 与部署前备份逐字段一致；未执行真实 Provider 测试、视频重跑、配置改写、历史结果改写、提交或推送。以下旧现场保留原采样日期，本次未逐项复核。
+
+- 2026-10-08 16:07–16:10（手动测试队列与 Mux 修复加载）：用户明确授权无迁移重载。重载前 integrity=ok、FK=0、active/leased Job=0、revision=0025；逻辑备份 `data/backups/app-pre-manual-test-reload-20261008-160711.db` 已验证完整性/FK/revision。通过生产解释器执行 manage.py restart，API/Worker RUNNING、页面与心跳 READY（Worker PID=48539）；OpenAPI 已有接口能力读取路由，旧 Local Ai Mux 配置正确解析 LOCAL_ROUTER。对同一已保存 `model_9840af90390a42ac8e4f9b19a37a3d37 / codebuddy/hy3` 连续提交真实 test 与 probe：test PASS 15.64 秒先完成，probe 排队后完成（提交起 27.63 秒），既有四项小样 PASS、其余 NOT_TESTED，无 FAIL；两条审计先后为 tested/probed。Probe 已保存本机路由类型、接口快照与原生 JSON=false。复核 integrity=ok、active/leased Job=0；没有视频重跑、迁移、POI 确认或 Mux 重启。此为该模型连通/小样能力和混合队列验收，不是完整业务 Benchmark；未提交/推送。旧任务续接的 POI 人审边界仍有效。
 
 - 2026-09-24 09:07（笔记恢复加载与验收）：重启前 revision=`0025`、`integrity_check=ok`、FK 错误 0、active Job/lease=0；逻辑备份 `data/backups/app-pre-note-nonthinking-20260924-090716.db` 完整性 ok、FK=0、revision=`0025`。无 migration 重启后 API/Worker RUNNING、内容/心跳 READY，Worker PID=`23602`。任务详情页选择 DeepSeek Flash，排队审计记录 `NOTE_REDUCE` 任务级覆盖和 `thinking=false`，原提交快照未改；真实笔记归纳 23 次调用均 COMPLETED，无输出截断。Job `PARTIAL_SUCCESS`、error_code/error 均空，完成摘要为“AI 笔记已生成，52 个地点待确认”；Note `ntv_38fdf4bb64ba48ea8d65064c932cd7f1`（Version 2）含 48 章节、75 条引文且无失效 Segment ID/不归属引文，9 张截图 READY，3 张 REJECTED。桌面与 390×844 恢复卡无溢出，浏览器控制台无错误；POI 未自动确认。
 

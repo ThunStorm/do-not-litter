@@ -9,6 +9,7 @@ from zhijian.ai.capabilities import (
     AIPrivacyPolicy,
     AIQualityTarget,
 )
+from zhijian.ai.interface_contract import InterfaceCapabilities
 
 
 class AIEvidenceSegment(BaseModel):
@@ -64,6 +65,8 @@ class ModelProfile(BaseModel):
     id: str
     provider: str
     model: str
+    connection_type: Literal["DIRECT", "LOCAL_ROUTER"] = "DIRECT"
+    interface_capabilities: InterfaceCapabilities | None = None
     reliability_mode: Literal["DIRECT", "STANDARD", "GUARDED", "FREE_TIER"] = "STANDARD"
     request_interval_seconds: float | None = Field(default=None, ge=0, le=300)
     max_concurrency: int | None = Field(default=None, ge=1, le=16)
@@ -82,7 +85,7 @@ class ModelProfile(BaseModel):
     supports_tools: bool = False
     context_window: int = Field(default=32_768, ge=1)
     recommended_working_context: int = Field(default=8_192, ge=1)
-    max_output_tokens: int = Field(default=4_096, ge=1)
+    max_output_tokens: int | None = Field(default=4_096, ge=1)
     quality_tier: Literal["FAST", "MAIN", "STRONG", "SPECIALIST"] = "MAIN"
     specialties: set[str] = Field(default_factory=set)
     enabled: bool = True

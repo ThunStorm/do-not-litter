@@ -1,11 +1,67 @@
 from types import SimpleNamespace
 
 import httpx
+import pytest
 from sqlalchemy import select
 
 from zhijian.db.models import ExternalCallAudit, Job, Setting
 from zhijian.providers.llm import LLMResult
 from zhijian.services.video_support import provider_for_role
+
+
+@pytest.mark.parametrize(
+    "mode,backup_enabled,expected",
+    [("REMOTE_FIRST", True, "backup"), ("REMOTE_ONLY", True, None), ("REMOTE_FIRST", False, None)],
+)
+def test_remote_first_keeps_eligible_global_backup(
+    app_and_session, monkeypatch, mode, backup_enabled, expected
+):
+    _, factory = app_and_session
+    with factory() as db:
+        db.add(Setting(key="model-profile:primary", value_json=_profile("主", "REMOTE", "cli")))
+        db.add(
+            Setting(
+                key="model-profile:backup",
+                value_json={**_profile("备", "REMOTE", "backup"), "enabled": backup_enabled},
+            )
+        )
+        db.add(Setting(key="model-routing", value_json={"primary_id": "primary", "fallback_id": "backup"}))
+        db.add(
+            Setting(
+                key="ai-stage-policy:GROUND_MAP",
+                value_json={
+                    "stage": "GROUND_MAP",
+                    "capability": "STRUCTURED_EXTRACTION",
+                    "execution_mode": mode,
+                    "remote_profile_id": "primary",
+                    "retry_count": 0,
+                },
+            )
+        )
+        db.commit()
+
+        def fake_provider(config, *_args):
+            def generate_json(*_args, **_kwargs):
+                if config["model"] == "cli":
+                    request = httpx.Request("POST", "http://fixture.test")
+                    raise httpx.HTTPStatusError(
+                        "timeout",
+                        request=request,
+                        response=httpx.Response(
+                            504, request=request, json={"error": {"code": "LMX_PROCESS_TIMEOUT"}}
+                        ),
+                    )
+                return LLMResult('{"places":[]}', "fake", config["model"], {})
+
+            return SimpleNamespace(generate_json=generate_json), "fake", config["model"]
+
+        monkeypatch.setattr("zhijian.services.video_support._provider_from_config", fake_provider)
+        provider, _, _ = provider_for_role(
+            db, SimpleNamespace(secret_store="file", data_dir="/tmp"), "grounded_map"
+        )
+        assert provider.fallback_model == expected
+        if expected:
+            assert provider.generate_json([], model="ignored").model == "backup"
 
 
 def _profile(name: str, location: str, model: str) -> dict[str, object]:

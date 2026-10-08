@@ -1,6 +1,6 @@
 # 文档目录与维护规则
 
-> 按需目录，不是必读清单。外部读者先看 [项目概览](../README.md)，开发 Agent 先看 [CODEX_CONTEXT.md](CODEX_CONTEXT.md)。2026-09-03 完成入口去重、主题分篇和历史隔离；本次不重新评定业务验收。
+> 目录核对日期：2026-10-09。外部读者先看 [项目概览](../README.md)，开发 Agent 先看 [CODEX_CONTEXT.md](CODEX_CONTEXT.md)。本次同步文档清单、源码契约与历史归档，不重新授予业务验收。
 
 ## 1. 谁读什么，读到哪里停止
 
@@ -56,6 +56,7 @@
 | 任务表达 / 时间 | [摘要与部分成功](jobs/TASK_SUMMARY_AND_PARTIAL_SUCCESS_SPEC.md)、[状态与北京时间](jobs/TASK_STATUS_AND_BEIJING_TIME_SPEC.md) |
 | AI Gateway | [AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2](ai-gateway/AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md) 六篇索引：模型边界、公共能力、Pipeline/Provider、阶段参数、单任务策略、历史工作包/验收 |
 | AI 运行 / 生产验收 | [AI_RUNTIME_AND_PROVIDERS](ai-gateway/AI_RUNTIME_AND_PROVIDERS.md) 运行配置；[AI_GATEWAY_PRODUCTION_ACCEPTANCE](ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md) 真实验收门禁 |
+| 本机路由 Provider | [LocalAiMux 客户端接入](ai-gateway/LOCAL_ROUTER_PROVIDER_COMPATIBILITY_SPEC.md) 至简已实现的参数/消息协商与上游边界；[2026-10-06 参数及 55 型号调查](history/LOCALMUX_PARAMETER_SURVEY_20261006.md) 为有日期的证据快照，不代表真实模型验收 |
 | 模型 / Prompt / 来源保留 | [模型与历史删除](ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md)、[补充 Prompt](ai-gateway/PROMPT_SUPPLEMENTS_V045_SPEC.md)、[转写路由与来源保留](ai-gateway/AI_ROUTING_SOURCE_RETENTION_V046_SPEC.md) |
 | 控制台 / 运维 | [CONTROL_CENTER](product/CONTROL_CENTER.md) 信息结构；[OPERATIONS_UI_SPEC](operations/OPERATIONS_UI_SPEC.md) 工作台交互；[LOGGING](operations/LOGGING.md) 日志契约与维护 |
 | 运行监控 / Provider | [监控与预设](operations/RUNTIME_MONITOR_AND_MODEL_PRESETS_SPEC.md)、[内存口径与预设切换](operations/RUNTIME_MONITOR_AND_PROVIDER_SWITCH_V06_SPEC.md) |
@@ -104,6 +105,7 @@
 - 新增/移动文档时更新本目录与必要的 CODEX_CONTEXT 路由；有独立导航价值的主题索引保留，纯跳转页更新引用后删除。契约只保留一个正文源；不复制到状态页、临时交接或新版本文件。
 - history/ 默认不读，不因未来工作包在文档中出现而执行。实施历史只在追溯时定位相关日期/标题。
 - 合订本由 scripts/build_complete_project_spec.py 的显式清单生成；不含交接快照、history/ 正文、旧 PROJECT_PLAN、未来路线或未冻结草案。Gateway 分篇中的原验收设计仍作为契约保留，不代表新的执行授权。清单或清单内源文件变化时重建；不要为同步生成物读取它。
+- manifest.json 的 documents 列举现有 Markdown/JSON 文档及验收样本，generated_documents 单独列生成物；历史 repository_snapshot_date/commit 只说明当时冻结，documentation_inventory_date 表示本次清单核对日期。LocalAiMux 专项的跨仓链接依赖相邻 local-ai-mux checkout，远程单独克隆本仓时需同时取得该仓库；不把这些外部文档当成本仓的冻结正文。
 - 文档交付检查链接、分篇正文完整性、生成可重复性和 git diff --check；可运行 .venv/bin/python scripts/test_build_complete_project_spec.py 检查生成物、来源清单与分篇链接重定位。不重启、不迁移、不调用真实 Provider、不跑业务全量。
 
 ## 6. Codex 设置说明

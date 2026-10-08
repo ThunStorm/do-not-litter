@@ -47,6 +47,7 @@ ORDER = [
     "ai-gateway/01-architecture-models.md",
     "ai-gateway/02-gateway-context.md",
     "ai-gateway/03-pipeline-providers.md",
+    "ai-gateway/LOCAL_ROUTER_PROVIDER_COMPATIBILITY_SPEC.md",
     "ai-gateway/04-stage-policy.md",
     "ai-gateway/05-job-policy.md",
     "ai-gateway/06-rollout-acceptance.md",

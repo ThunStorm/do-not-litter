@@ -333,7 +333,9 @@ def test_grounded_map_switches_remaining_chunks_when_local_cannot_fit_wall_budge
 def test_grounded_map_prechunks_for_local_models(app_and_session, monkeypatch) -> None:
     _, factory = app_and_session
     batch_sizes: list[int] = []
-    monkeypatch.setattr("zhijian.ai.gateway.local_ai_resource_manager.run", lambda _kind, call: call())
+    monkeypatch.setattr(
+        "zhijian.ai.gateway.local_ai_resource_manager.run", lambda _kind, call, **kwargs: call()
+    )
 
     class Provider:
         def generate_json(self, messages, *, model):

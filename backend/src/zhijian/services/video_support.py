@@ -20,10 +20,12 @@ from zhijian.ai.cost_router import RouteDecision, choose_auto_route
 from zhijian.ai.domain_context import domain_context_hash, domain_context_messages
 from zhijian.ai.gateway import AIWorkloadGateway
 from zhijian.ai.job_config import SNAPSHOT_KEY, job_setting, job_stage_override, job_video_note_chunk_chars
+from zhijian.ai.model_registry import model_connection_type
 from zhijian.ai.policies import resolve_stage_policy
 from zhijian.ai.reliability import AIProviderError, ModelReliabilityPolicy, resolve_reliability_policy
 from zhijian.ai.runtime_hints import read_runtime_hint, tighten_note_reduce_hint, tighten_runtime_hint
 from zhijian.ai.stage_decision import decide_stage, record_stage_decision
+from zhijian.ai.token_usage import estimate_tokens
 from zhijian.ai.transcript_quality import correction_candidates, transcript_source_class
 from zhijian.core.config import Settings
 from zhijian.core.ids import new_id
@@ -655,6 +657,8 @@ def _provider_from_config(
         api_key,
         timeout,
         supports_json_mode=bool(config.get("supports_json_mode")),
+        connection_type=model_connection_type(config),
+        interface_capabilities=config.get("interface_capabilities"),
     )
     provider.profile_id = profile_id
     return provider, name or "openai-compatible", model
@@ -731,6 +735,13 @@ def provider_for_role(
             )
             if route_decision:
                 primary_id, fallback_id = route_decision.primary_id, route_decision.fallback_id
+        if mode in {"LOCAL_FIRST", "REMOTE_FIRST"} and primary_id and not fallback_id:
+            # Keep an eligible saved backup when there is no opposite-location candidate.
+            configured_fallback = configured_profile_ids[1]
+            if configured_fallback != primary_id and any(
+                item_id == configured_fallback for item_id, _config in candidates
+            ):
+                fallback_id = configured_fallback
         if role == "grounded_map_escalation":
             primary_id, fallback_id = remote_id, ""
         primary_config = _profile_config(db, primary_id, job)
@@ -812,14 +823,34 @@ def provider_for_role(
         if cached is None:
             cached = (usage.get("prompt_tokens_details") or {}).get("cached_tokens")
         attempt_id = str(attempt_metadata.pop("attempt_id", ""))
+        result_metadata = result.metadata if result else {}
+        attempt_metadata.update(
+            {
+                key: result_metadata[key]
+                for key in (
+                    "interface_fingerprint",
+                    "normalization_version",
+                    "effective_input_hash",
+                    "effective_parameters",
+                    "omitted_parameters",
+                )
+                if key in result_metadata
+            }
+        )
         response_meta = {
             "prompt_tokens": usage.get("prompt_tokens", usage.get("prompt_eval_count")),
             "completion_tokens": usage.get("completion_tokens", usage.get("eval_count")),
             "cached_tokens": cached,
             "usage": usage,
+            "usage_source": result_metadata.get("usage_source"),
+            "estimated_prompt_tokens": result_metadata.get("estimated_prompt_tokens"),
+            "estimated_completion_tokens": estimate_tokens(len(result.content))
+            if result and result_metadata.get("usage_source") == "UNKNOWN"
+            else None,
             "status_code": status_code,
             "provider_error": error or None,
             "finish_reason": (result.metadata if result else {}).get("finish_reason"),
+            "reported_finish_reason": result_metadata.get("reported_finish_reason"),
             "response_id": (result.metadata if result else {}).get("response_id"),
             "content_length": (result.metadata if result else {}).get("content_length"),
         }

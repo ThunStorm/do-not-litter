@@ -32,6 +32,8 @@
 | Bilibili、登录、字幕、ASR、转写 | [视频输入与转写](video/02-input-transcript.md) |
 | 视频笔记、地点抽取、截图 | [视频生成与物化](video/03-generation-materialization.md)；Gateway 优化才读下行 |
 | Gateway、Map/Reduce、Provider、Usage | [Pipeline 与 Provider](ai-gateway/03-pipeline-providers.md) |
+| LocalAiMux、本地路由、接口能力、手动测试队列 | [本地路由接入](ai-gateway/LOCAL_ROUTER_PROVIDER_COMPATIBILITY_SPEC.md)；`trust_env` 定位 providers/llm.py，目录能力不等于真实模型质量 |
+| Token 实测/估算/未知、取消响应 | [日志 Token 口径](operations/LOGGING.md#41-token-口径2026-10-08)；取消选 jobs/MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md，本地模型释放选 ai-gateway/AI_RUNTIME_AND_PROVIDERS.md |
 | Profile、模型能力、硬件限制 | [架构与模型边界](ai-gateway/01-architecture-models.md)；运行命令才读 ai-gateway/AI_RUNTIME_AND_PROVIDERS.md |
 | 路由、AUTO、阶段参数、设置 | [Stage Policy](ai-gateway/04-stage-policy.md)；实际语义须核对 ai/policies.py 与 backend/tests/test_ai_stage_policies.py |
 | 单任务覆盖、Policy API、Cache Key | [任务策略覆盖](ai-gateway/05-job-policy.md) |
