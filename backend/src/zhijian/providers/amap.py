@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import fcntl
+import hashlib
 import json
 from concurrent.futures import Future
 from dataclasses import dataclass, field, replace
 from threading import Lock
-from time import monotonic
+from time import monotonic, sleep
 from typing import ClassVar
 
 import httpx
+
+from zhijian.core.config import get_settings
 
 
 @dataclass(slots=True)
@@ -32,6 +36,8 @@ class AMapPOIProvider:
     _cache: ClassVar[dict[str, tuple[float, list[POICandidate]]]] = {}
     _inflight: ClassVar[dict[str, Future[list[POICandidate]]]] = {}
     _lock: ClassVar[Lock] = Lock()
+    _request_interval_seconds = 1.1
+    _qps_cooldown_seconds = 5.0
 
     def __init__(self, api_key: str, timeout: float = 20, *, cache_ttl_seconds: int = 86400) -> None:
         self.api_key = api_key
@@ -66,7 +72,10 @@ class AMapPOIProvider:
     def _request(self, operation: str, params: dict[str, object]) -> list[POICandidate]:
         if not self.api_key:
             raise RuntimeError("尚未配置高德 Web 服务 API Key")
-        key = f"{self.endpoint}/{operation}:" + json.dumps(params, ensure_ascii=False, sort_keys=True)
+        credential_id = hashlib.sha256(self.api_key.encode()).hexdigest()
+        key = f"{credential_id}:{self.endpoint}/{operation}:" + json.dumps(
+            params, ensure_ascii=False, sort_keys=True
+        )
         now = monotonic()
         with self._lock:
             cached = self._cache.get(key)
@@ -81,16 +90,7 @@ class AMapPOIProvider:
             self.cache_hit_count += 1
             return self._clones(future.result(timeout=self.timeout + 5))
         try:
-            self.request_count += 1
-            response = httpx.get(
-                f"{self.endpoint}/{operation}",
-                params={"key": self.api_key, **params},
-                timeout=self.timeout,
-            )
-            response.raise_for_status()
-            data = response.json()
-            if str(data.get("status")) != "1":
-                raise RuntimeError(data.get("info") or "高德 POI 查询失败")
+            data = self._get(operation, params)
             values = [candidate for poi in data.get("pois", []) if (candidate := self._candidate(poi))]
             with self._lock:
                 self._cache[key] = (monotonic(), values)
@@ -102,6 +102,45 @@ class AMapPOIProvider:
         finally:
             with self._lock:
                 self._inflight.pop(key, None)
+
+    def _get(self, operation: str, params: dict[str, object]) -> dict:
+        # Account quota is shared by API/Worker and all keys; keep one local gate.
+        path = get_settings().data_dir / "runtime" / "amap-requests.lock"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a+") as handle:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            handle.seek(0)
+            try:
+                next_start = float(handle.read() or "0")
+            except ValueError:
+                next_start = 0.0
+            # Bound stale monotonic timestamps after a machine reboot.
+            sleep(min(self._qps_cooldown_seconds, max(0.0, next_start - monotonic())))
+
+            def reserve(delay: float) -> None:
+                handle.seek(0)
+                handle.truncate()
+                handle.write(str(monotonic() + delay))
+                handle.flush()
+
+            reserve(self._request_interval_seconds)
+            self.request_count += 1
+            response = httpx.get(
+                f"{self.endpoint}/{operation}",
+                params={"key": self.api_key, **params},
+                timeout=self.timeout,
+            )
+            if response.status_code == 429:
+                reserve(self._qps_cooldown_seconds)
+            if not 200 <= response.status_code < 300:
+                raise RuntimeError(f"高德 POI 查询 HTTP {response.status_code}")
+            data = response.json()
+            if str(data.get("status")) != "1":
+                info = str(data.get("info") or "高德 POI 查询失败")
+                if "QPS" in info:
+                    reserve(self._qps_cooldown_seconds)
+                raise RuntimeError(info)
+            return data
 
     @staticmethod
     def _clones(values: list[POICandidate]) -> list[POICandidate]:

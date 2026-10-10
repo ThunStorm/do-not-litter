@@ -25,6 +25,8 @@
 
 ## 最新自动验证
 
+2026-10-10 高德QPS补修：指定视频5项UNRESOLVED只读归因为账号接口QPS超限；Provider统一API/Worker跨进程请求间隔1.1秒、QPS/HTTP429后5秒冷却、不自动重试，缓存/同查询合并按Key哈希隔离，HTTP错误不带请求URL。新增跨进程/不同Key/失败冷却测试，后端全量326、目标11及HTTP错误补测5、Ruff通过，前端19/ESLint/TypeScript/隔离Vite构建通过。未改变前端行为或重复Browser，未增加真实Provider请求/改历史地点。6项地点及12个校对段的本机人审清单已生成；仍须人工核对与实机账号配额验收。
+
 2026-10-10 指定视频真实验收：BV11Ao7BYE1V（479秒）达到PARTIAL_SUCCESS，Note v2有14章节和12截图，0确认/1REVIEW/5UNRESOLVED/5AREA_RESOLVED/6SKIPPED。AI字幕拒绝后使用当前用户已保存的Qwen3-ASR；50段/12校对，Source/BV/CID/时轴及当前实体17/Claim33/章节quote16的引用与逐字校验通过。阶段0重试补修43f42ff加载后只续跑笔记，上游8步REUSED；全任务实际尝试10（含旧失败/修复/取消），保留审计，未超12次。原有Job/Note/Segment/Transcript与模型配置不改；PC/390px阅读/截图弹层通过。人审词准率/地名/现实POI、上游精确型号、计费Token和完整矩阵未证明，见 [视频验收](benchmark/VIDEO_E2E_BV11Ao7BYE1V_REPORT.md)。
 
 2026-10-10 视频实测补修：显式 Stage retry_count 同时限制 HTTP 与 JSON 修复重试，0 不再继承 Profile 的 JSON 重发；完整 JSON 对象后的最多两个多余闭合括号受控修复，规则、quote 与全量验证保留；输出字符估算取原始响应 content_length，避免短 ID 解码后的 canonical 字符膨胀。后端全量 322、前端19及静态/类型/隔离构建通过；首次视频执行的失败/修复/取消审计保留，部署与续跑结果另见交接。

@@ -31,3 +31,5 @@ Ollama 生命周期依据：[generate keep_alive](https://docs.ollama.com/api/ge
 ## 指定真实视频（2026-10-10）
 
 用户提供 BV11Ao7BYE1V 后已执行独立视频任务；异常补修、限定次数与从笔记续跑的结果见 [视频验收](VIDEO_E2E_BV11Ao7BYE1V_REPORT.md)。10次核心尝试（含旧失败、1次修复及取消），原模型不变，无人工POI确认。0确认/1REVIEW/5UNRESOLVED；已有步骤与历史审计不因后续成功而改写。该8分钟ASR路径不能补成人工字幕、长视频、真实Token或Ollama退出矩阵。
+
+后续只读归因明确5项UNRESOLVED均为高德账号QPS超限，剩余1项为评分/地域不足。跨进程节流补修只经Mock请求验证，不增加真实调用或改变历史POI结果；本视频POI生产门禁仍为PARTIAL。人审时间码清单在本机忽略目录，详见视频报告。

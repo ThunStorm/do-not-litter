@@ -168,5 +168,15 @@
     "offline_only": true,
     "historical_audit_unchanged": true
   },
-  "historical_output_estimate_basis": "修复前部分成功输出按canonical解码字符串估算；保留旧值，新调用采用原始wire字符，不能将混合合计用于Token收益对比"
+  "historical_output_estimate_basis": "修复前部分成功输出按canonical解码字符串估算；保留旧值，新调用采用原始wire字符，不能将混合合计用于Token收益对比",
+  "poi_diagnosis": {
+    "sampled_at": "2026-10-10T22:26:48+08:00",
+    "pending_mentions": 6,
+    "qps_exceeded": 5,
+    "candidate_score_or_context_review": 1,
+    "historical_rows_updated": false,
+    "real_poi_retry_performed": false,
+    "human_review_status": "NOT_VERIFIED",
+    "private_review_packet": "data/benchmarks/video-bv11ao7bye1v-20261010-162544/HUMAN_REVIEW.md"
+  }
 }

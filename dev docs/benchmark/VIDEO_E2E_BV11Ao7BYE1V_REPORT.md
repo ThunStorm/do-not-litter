@@ -21,4 +21,6 @@
 
 详细脱敏统计：[机器记录](VIDEO_E2E_BV11Ao7BYE1V.json)。本机原始阶段数据仍在SQLite/受控data目录，未提交字幕、Prompt、Cookie、密钥或模型正文。人工字幕、真实长视频、真实Ollama退出、全路由/缓存/强制生成矩阵与实际Token A/B仍开放；不宣称完整Production Proven，不改变模型/ASR Benchmark毕业门禁。
 
+2026-10-10 后续只读归因：5个UNRESOLVED全部保存`CUQPS_HAS_EXCEEDED_THE_LIMIT`，1个REVIEW为`SCORE_BELOW_THRESHOLD`/`GEO_CONTEXT_MISSING`；不应把前5项计算成POI识别错误。高德[官方错误码](https://developer.amap.com/api/web-service/tools/info)说明10021为账号接口QPS超限。Provider已补入API/Worker跨进程统一1.1秒间隔、QPS/HTTP429后5秒冷却且不重试、按Key哈希隔离缓存及不含请求URL的HTTP错误。两个独立进程/不同Key的Mock请求间隔与冷却回归通过；实际账号配额和外部应用流量未验证，未重跑真实查询或改旧候选。供人审的6项地点与12段原始/校对转写、时间码清单保存在本机忽略目录 `data/benchmarks/video-bv11ao7bye1v-20261010-162544/HUMAN_REVIEW.md`，不提交转写原文，不自动确认POI。
+
 历史输出估算保留修复前口径（部分曾按解码后的canonical字符计算），不回填；上述合计估算不能用于新旧Token收益对照。当前规范Source/共享Asset被复用，Capture临时Source按既有去重规则归并；BV/CID及当前Snapshot已核对，原有任务/笔记/转写行保持不变。人工字幕路径、15–30分钟长视频、源站实际播放跳时和真实人审精度均未外推。
