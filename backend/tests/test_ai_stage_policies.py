@@ -18,7 +18,12 @@ def test_remote_first_keeps_eligible_global_backup(
 ):
     _, factory = app_and_session
     with factory() as db:
-        db.add(Setting(key="model-profile:primary", value_json=_profile("主", "REMOTE", "cli")))
+        db.add(
+            Setting(
+                key="model-profile:primary",
+                value_json={**_profile("主", "REMOTE", "cli"), "json_retry_count": 1},
+            )
+        )
         db.add(
             Setting(
                 key="model-profile:backup",
@@ -60,6 +65,7 @@ def test_remote_first_keeps_eligible_global_backup(
             db, SimpleNamespace(secret_store="file", data_dir="/tmp"), "grounded_map"
         )
         assert provider.fallback_model == expected
+        assert provider.primary_reliability.json_retry_count == 0
         if expected:
             assert provider.generate_json([], model="ignored").model == "backup"
 
@@ -75,6 +81,35 @@ def _profile(name: str, location: str, model: str) -> dict[str, object]:
         "modalities": ["text"],
         "max_output_tokens": 4096,
     }
+
+
+def test_unknown_output_estimate_uses_wire_length(app_and_session, monkeypatch):
+    _, factory = app_and_session
+    with factory() as db:
+        db.add(Setting(key="model-profile:wire", value_json=_profile("wire", "REMOTE", "wire-model")))
+        db.add(Setting(key="model-routing", value_json={"primary_id": "wire"}))
+        db.commit()
+
+        class Provider:
+            def generate_json(self, *args, **kwargs):
+                return LLMResult(
+                    '{"canonical":"seg_' + "a" * 32 + '"}',
+                    "fixture",
+                    "wire-model",
+                    {},
+                    {"usage_source": "UNKNOWN", "content_length": 10},
+                )
+
+        monkeypatch.setattr(
+            "zhijian.services.video_support._provider_from_config",
+            lambda *args: (Provider(), "fixture", "wire-model"),
+        )
+        provider, _, _ = provider_for_role(
+            db, SimpleNamespace(secret_store="file", data_dir="/tmp"), "grounded_map"
+        )
+        provider.generate_json([], model="ignored")
+        row = db.scalar(select(ExternalCallAudit).order_by(ExternalCallAudit.created_at.desc()))
+        assert row.response_meta_json["estimated_completion_tokens"] == 5
 
 
 def _policy(local_id: str, remote_id: str, **values: object) -> dict[str, object]:

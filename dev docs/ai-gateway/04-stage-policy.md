@@ -443,3 +443,7 @@ cache
 ## 偏好模式与已保存备用（2026-10-08）
 
 LOCAL_FIRST/REMOTE_FIRST 优先使用相反位置候选作为备用；没有相反位置候选时，保留全局 model-routing 已保存且符合当前阶段能力的 fallback_id。候选须启用、不同于主模型且能力 Probe 不为 FAIL；不自动扩大未声明的能力。LOCAL_ONLY/REMOTE_ONLY 和 Ground Map semantic escalation 不采用此回退。Job 使用提交时快照中的全局备用，修改当前 Settings 不改旧 Job 的备用。参数与验收见[订阅 CLI 稳定性](LOCAL_ROUTER_PROVIDER_COMPATIBILITY_SPEC.md#12-订阅-cli-稳定性实施与验收2026-10-08)。
+
+## 阶段重试上限补充（2026-10-10）
+
+显式 Stage `retry_count` 优先于 Model Profile：同时限制 HTTP 重试及 JSON 修复重试，JSON 上限取 Profile 与 Stage 的较小值。因此 `retry_count=0` 禁止两类模型重发；没有阶段覆盖时沿用 Profile。确定性 JSON 规范化不算模型重试，最多两个多余尾部闭合括号只在完整对象已经可解析时移除；不丢弃第二个文档或额外字段，修复后继续完整 Schema/Evidence 校验并记录规则。历史失败/修复审计不回填。

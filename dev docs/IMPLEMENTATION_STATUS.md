@@ -25,6 +25,10 @@
 
 ## 最新自动验证
 
+2026-10-10 视频实测补修：显式 Stage retry_count 同时限制 HTTP 与 JSON 修复重试，0 不再继承 Profile 的 JSON 重发；完整 JSON 对象后的最多两个多余闭合括号受控修复，规则、quote 与全量验证保留；输出字符估算取原始响应 content_length，避免短 ID 解码后的 canonical 字符膨胀。后端全量 322、前端19及静态/类型/隔离构建通过；首次视频执行的失败/修复/取消审计保留，部署与续跑结果另见交接。
+
+2026-10-10 真实模型小样：在现有 Mux 标准接口上串行执行 1 次 Text 与 2 次 Ground Map JSON（代码3bebb50、请求型号codebuddy/glm-5.3），两次 JSON DIRECT_VALID、短 ID 还原与逐字 Evidence 通过；两处景点、参考政策和价格/月季/否定/推荐食物/排队事实检查通过。输入为六段自建合成文本，N=1、请求字节3534→3330，不代表真实视频人审质量；实际型号、Token、finish_reason仍UNKNOWN，原生JSON/温度/输出上限不支持。未保存模型能力标记或改配置/历史结果；当前真实验收范围与风险见 [真实小样](benchmark/AI_REQUEST_OPTIMIZATION_LIVE_SAMPLE.json)、[A/B 记录](benchmark/AI_REQUEST_OPTIMIZATION_AB_REPORT.md)。本轮只写验收文档，不重复业务测试或部署。
+
 2026-10-10 请求优化核心：请求编译器仅在模型边界短 ID 化，按 Snapshot/内容/版本/映射绑定 Cache；校对去重上下文、限制 targets，Ground Map 局部事实 ID 按来源区间命名，笔记仅去除可由事实包恢复的重复 quote，完整上下文不静默截尾。格式 smoke 与四类业务小样分开，旧 smoke PASS/过期小样不证明质量，AUTO 未验证路由显式审计；统一等待/请求期限与实际尝试门禁，模型 JSON 修复默认关闭，结果解析质量与执行路径分型。复用 JobStep/Fence，附加 Attempt 状态与数值/哈希诊断；LocalMux 遥测白名单，任务调用明细中文化，旧审计可读。来源/空 quote/越界 Segment 阻止 POI 自动确认，复用现有 Review 与严格 resolver。后端全量 320 项通过，末次诊断目标 74 项与 Ruff 通过；前端 19 项及 ESLint/TypeScript/Vite 通过，隔离 PC/390px 调用明细验收无溢出/错误。18 场景合成请求字节减少 36.77%，只证明表示与往返门禁；真实 Token/POI 质量未验证。入口：[实施计划](planning/ZHIJIAN_AI_OPTIMIZATION_AND_E2E_PLAN.md)、[A/B 报告](benchmark/AI_REQUEST_OPTIMIZATION_AB_REPORT.md)、[E2E 矩阵](benchmark/CROSS_PROJECT_E2E_REPORT.md)、[发布门禁](benchmark/RELEASE_ACCEPTANCE.md)。
 
 2026-10-09 同模型保存检查与重跑配置：LocalAiMux 保存前自动核对接口目录，失败保留旧配置/凭据；视频提交在创建任务前检查核心文本阶段接口。普通重试、步骤续跑及完整重跑自动刷新同模型必要配置，保持语义/路由/预算上限和原提交快照；执行版本/历史与延迟重跑配置可追溯，身份变更/删除/禁用安全拒绝，Token/远程调用按同 Job 的现存审计累计。最终生产 Python 全量 300 项、完整源码/测试 Ruff 通过；Node 24 前端全量 19 项与 ESLint/TypeScript/Vite 隔离构建通过，末次文字更新后目标 8 项通过。内置 Browser 在隔离 SQLite/模拟目录上验证 1440×1000 与 390×844 的自动保存、目录失败保留原配置、同模型步骤续跑/ASR 复用及无溢出/相关控制台错误，推理请求 0。详尽计划已归档至 [实施计划与验收记录](history/planning/SAME_MODEL_REPLAY_CONFIG_IMPLEMENTATION_PLAN.md)。源码验收阶段未提交/部署或重跑真实视频；后续 2026-10-09 统一重载的生产证据仅见 [交接生产快照](CURRENT_HANDOFF.md)。

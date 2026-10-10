@@ -142,6 +142,15 @@ def test_repair_does_not_change_literal_quote():
     )
 
 
+def test_extra_closers_are_repaired_without_discarding_another_document():
+    value, quality, rules = parse_json_with_quality('{"quote":"原文中的} ]不改"}]}')
+    assert value["quote"] == "原文中的} ]不改"
+    assert quality == "DETERMINISTIC_REPAIRED" and rules == ["extra_closing_delimiters"]
+    for text in ('{"ok":true}{"other":1}', '{"ok":true},"other":1}', '{"ok":true}}}}'):
+        with pytest.raises(AIProviderError):
+            parse_json_with_quality(text)
+
+
 def test_cache_is_scoped_and_replay_reads_canonical_result(app_and_session):
     values = segments()
     compiler = compile_request("GROUND_MAP", request(values), values, "snapshot-a")

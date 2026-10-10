@@ -886,7 +886,9 @@ def provider_for_role(
             "usage": usage,
             "usage_source": result_metadata.get("usage_source"),
             "estimated_prompt_tokens": result_metadata.get("estimated_prompt_tokens"),
-            "estimated_completion_tokens": estimate_tokens(len(result.content))
+            "estimated_completion_tokens": estimate_tokens(
+                result_metadata.get("content_length") or len(result.content)
+            )
             if result and result_metadata.get("usage_source") == "UNKNOWN"
             else None,
             "status_code": status_code,
@@ -962,7 +964,11 @@ def provider_for_role(
         def reliability_for(config: dict[str, Any] | None) -> ModelReliabilityPolicy:
             resolved = resolve_reliability_policy(config)
             if resolved_policy and resolved_policy.retry_count is not None:
-                resolved = replace(resolved, retry_count=resolved_policy.retry_count)
+                resolved = replace(
+                    resolved,
+                    retry_count=resolved_policy.retry_count,
+                    json_retry_count=min(resolved.json_retry_count, resolved_policy.retry_count),
+                )
             if budget_pressure:
                 resolved = replace(resolved, retry_count=0, json_retry_count=0)
             return resolved

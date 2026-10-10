@@ -33,14 +33,22 @@ def parse_json_with_quality(content: str) -> tuple[dict[str, Any], str, list[str
     try:
         value = json.loads(candidate)
     except json.JSONDecodeError as exc:
-        candidate = re.sub(r'("(?:[^"\\]|\\.)*")|,\s*(?=[}\]])', lambda match: match[1] or "", candidate)
+        repaired = re.sub(r'("(?:[^"\\]|\\.)*")|,\s*(?=[}\]])', lambda match: match[1] or "", candidate)
+        if repaired != candidate:
+            rules.append("trailing_comma")
         try:
-            value = json.loads(candidate)
+            value = json.loads(repaired)
         except json.JSONDecodeError:
-            raise AIProviderError(
-                "AI_PROVIDER_INVALID_JSON", "模型返回的 JSON 无法解析", retryable=True, cause=exc
-            ) from exc
-        rules.append("trailing_comma")
+            try:
+                value, consumed = json.JSONDecoder().raw_decode(repaired)
+                suffix = repaired[consumed:].strip()
+                if not isinstance(value, dict) or not 1 <= len(suffix) <= 2 or set(suffix) - {"}", "]"}:
+                    raise ValueError("suffix is not an extra closing delimiter")
+            except (json.JSONDecodeError, ValueError) as repair_exc:
+                raise AIProviderError(
+                    "AI_PROVIDER_INVALID_JSON", "模型返回的 JSON 无法解析", retryable=True, cause=exc
+                ) from repair_exc
+            rules.append("extra_closing_delimiters")
     if not isinstance(value, dict):
         raise AIProviderError("AI_PROVIDER_SCHEMA_INVALID", "模型返回的 JSON 顶层必须是对象", retryable=True)
     quality = (
