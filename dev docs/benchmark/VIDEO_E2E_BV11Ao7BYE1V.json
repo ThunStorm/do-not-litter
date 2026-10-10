@@ -1,0 +1,172 @@
+{
+  "sampled_at": "2026-10-10 17:31",
+  "job_id": "job_64e7b17ff08a4c838cd9a9292760ff84",
+  "source_video": "https://www.bilibili.com/video/BV11Ao7BYE1V/",
+  "duration_seconds": 479,
+  "status": "PARTIAL_SUCCESS",
+  "note_id": "note_dd2d238c6ec74bddb73a0e7616711456",
+  "note_version_id": "ntv_b9b5d931625c41caad4fd01124d731e7",
+  "submission_code_sha": "3bebb50",
+  "resume_code_sha": "43f42ff",
+  "calls": 10,
+  "call_budget": 12,
+  "historical_json_retry_count": 1,
+  "fallback_count": 0,
+  "cache_hits": 0,
+  "replay_from": "GENERATE_AI_NOTE",
+  "asr": {
+    "provider": "QWEN3_ASR",
+    "model": "Qwen3-ASR-0.6B",
+    "backend": "mlx-qwen3-asr",
+    "runtime_version": "0.4.4",
+    "segments": 50,
+    "corrected": 12,
+    "unchanged": 38,
+    "model_load_ms": 1890,
+    "asr_runtime_ms": 62250,
+    "peak_memory_bytes": 1286144000
+  },
+  "identity": {
+    "asset_id": "vid_2b55cc30485e4ca29f6399ce52fdde97",
+    "asset_source_id": "src_be88592108ea495eaddebaf8892764ed",
+    "effective_job_source_id": "src_be88592108ea495eaddebaf8892764ed",
+    "bvid": "BV11Ao7BYE1V",
+    "cid": "37783145219",
+    "duration_ms": 479000,
+    "corrected_transcript_id": "trn_1eb36f074f664fd48b7d84921554b626",
+    "snapshot_id": "snap_3474a21b54bc4625bc882885729ad88a",
+    "snapshot_matches_asset_source": true,
+    "segment_count": 50,
+    "timeline_start_end_ms": [
+      0.0,
+      477871.0
+    ],
+    "note_sections": 14,
+    "section_refs_valid": true,
+    "claim_refs_valid": true,
+    "entity_refs_valid": true,
+    "mention_refs_valid": true,
+    "versions": [
+      {
+        "version": 1,
+        "provider": "openai-compatible",
+        "model": "codebuddy/glm-5.3",
+        "markdown_chars": 1058,
+        "warning_count": 15
+      },
+      {
+        "version": 2,
+        "provider": "openai-compatible",
+        "model": "codebuddy/glm-5.3",
+        "markdown_chars": 3540,
+        "warning_count": 12
+      }
+    ],
+    "asr_output_keys": [
+      "segments",
+      "provider",
+      "model",
+      "backend",
+      "runtime_version",
+      "aligner_model",
+      "language",
+      "metrics"
+    ]
+  },
+  "evidence": {
+    "entity_evidence_validity": [
+      17,
+      17
+    ],
+    "claim_evidence_validity": [
+      33,
+      33
+    ],
+    "section_evidence_validity": [
+      16,
+      16
+    ],
+    "corrected_segment_statuses": [
+      [
+        "CORRECTED",
+        12
+      ],
+      [
+        "UNCHANGED",
+        38
+      ]
+    ],
+    "raw_audio_word_accuracy": "NOT_VERIFIED",
+    "manual_poi_precision_recall": "NOT_VERIFIED"
+  },
+  "poi": {
+    "CONFIRMED": 0,
+    "REVIEW": 1,
+    "UNRESOLVED": 5,
+    "AREA_RESOLVED": 5,
+    "SKIPPED": 6
+  },
+  "screenshots_ready": 12,
+  "note_sections": 14,
+  "historical_rows_unchanged": {
+    "jobs": true,
+    "ai_notes": true,
+    "ai_note_versions": true,
+    "segments": true,
+    "transcripts": true
+  },
+  "browser": {
+    "engine": "Edge/Playwright",
+    "rows": [
+      {
+        "viewport": {
+          "width": 1440,
+          "height": 1000
+        },
+        "meaningful": true,
+        "overflow": false,
+        "source_links": 18,
+        "lightbox_open_close": true
+      },
+      {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "meaningful": true,
+        "overflow": false,
+        "source_links": 18,
+        "lightbox_open_close": true
+      }
+    ],
+    "console_errors": []
+  },
+  "input_tokens_reported": null,
+  "output_tokens_reported": null,
+  "estimated_input_tokens": 15957,
+  "estimated_output_tokens": 27533,
+  "unknown_output_calls": 1,
+  "manual_gt_provided": false,
+  "production_proven": false,
+  "known_limits": [
+    "实际上游型号与计费 Token 未知",
+    "人工字幕未覆盖，自动字幕被拒绝后运行 ASR",
+    "8分钟视频不覆盖15–30分钟长视频",
+    "未执行真实Ollama取消/跨路由矩阵/实机缓存命中/真实视频成对Token对照",
+    "修复前1次JSON失败、1次模型修复与取消审计保持原样，不回填新规则"
+  ],
+  "failure_repair_offline_check": {
+    "parse_quality": "DETERMINISTIC_REPAIRED",
+    "repair_rules": [
+      "extra_closing_delimiters"
+    ],
+    "schema_and_id_decode": true,
+    "accepted_entities": 13,
+    "returned_entities": 15,
+    "accepted_claims": 21,
+    "returned_claims": 26,
+    "offline_only": true,
+    "historical_audit_unchanged": true
+  },
+  "historical_output_estimate_basis": "修复前部分成功输出按canonical解码字符串估算；保留旧值，新调用采用原始wire字符，不能将混合合计用于Token收益对比"
+}

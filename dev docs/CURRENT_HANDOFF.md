@@ -4,14 +4,17 @@
 
 ## 任务续接
 
-- 范围：完成 Z0–Z7 请求优化核心开发/离线验证，连同已存在的同模型保存/Replay 改动无迁移部署；Z8 保留独立 backlog，未修改 Mux。
-- 已完成：后端全量 320、末次诊断目标 74、前端 19 与静态检查通过；隔离及生产 PC/390px 调用明细验收通过。API/Worker/页面/新心跳 READY，Job 与 549 条 LLM Audit 不变。本轮已部署并提交（提交号见 git log -1），未推送。
-- 未完成：真实保存/同模型续跑、字幕/ASR/长视频/Token A/B 与 Ollama 实际退出未复验。现有 Mux 健康/目录连接失败，BLOCKED_EXTERNAL；合成字节降幅 36.77% 不证明模型用量或业务质量。
-- 下一步一项：Mux 恢复后，明确一个模型/任务与低额度真实 E2E 授权，再按矩阵取证。
-- 文件：[实施计划](planning/ZHIJIAN_AI_OPTIMIZATION_AND_E2E_PLAN.md)、[发布门禁](benchmark/RELEASE_ACCEPTANCE.md)、ai/request_compiler.py。
-- 禁止：不自动调用/续跑、不改提交快照或历史结果、不自动确认 POI；旧生产条目保留原采样日期，本次未逐项复核。
+- 范围：Z0–Z7核心+指定视频真实验收；Z8不实施，Mux只启动已有本机API，未改仓库/Key/权限。
+- 已完成：代码补修43f42ff已无迁移加载；322后端/19前端与静态检查通过。BV11Ao7BYE1V新Job64e7…达到PARTIAL_SUCCESS，当前Note v2、14章节/12截图，10次尝试未超12；校对/转写/Ground Map在续跑中REUSED，旧失败/修复/取消记录保留。PC/390px通过，本轮提交，未推送。
+- 未完成：1REVIEW/5UNRESOLVED待人审，confirmed=0；音频/地名GT、精确上游型号/Token、人工字幕/长视频/Ollama退出与全路由/缓存矩阵仍未证明。
+- 下一步一项：用户按时间码核对6个待处理地点及关键转写，再决定扩大真实矩阵。
+- 入口：[视频验收](benchmark/VIDEO_E2E_BV11Ao7BYE1V_REPORT.md)、[总矩阵](benchmark/CROSS_PROJECT_E2E_REPORT.md)。
+- 禁止：不自动确认POI、不改原提交快照/历史、不扩大调用预算/切换模型/晋级ASR；仍未知的内容不写成通过。旧现场保留原日期，未逐项复核。
 
-## 生产快照（最新数据库/服务健康采样 2026-10-10 11:04 北京时间；下列旧条目保留原日期，本次未逐项复核）
+## 生产快照（最新数据库/服务健康采样 2026-10-10 17:34 北京时间；下列旧条目保留原日期，本次未逐项复核）
+
+- 2026-10-10 17:34（指定视频验收与补修）：用户指定 BV11Ao7BYE1V（479秒）。测试前逻辑备份 `data/backups/app-pre-bv11ao7bye1v-e2e-20261010-162544.db`；独立Job `job_64e7b17ff08a4c838cd9a9292760ff84`，每核心阶段max_attempts=4、retry_count=0，保存默认Qwen-ASR及模型不变。此前App运行但Mux API未启动，已仅启动既有本机API；schema=2、GLM-5.3请求别名可见，3次隔离Text/JSON小样通过（实际型号/Token未知）。视频音频/ASR/两批校对/Ground Map完成；首个JSON尾部多 ]} 导致失败并被Profile JSON=1修复，阶段0仅覆盖HTTP的缺口已发现。停止后lease/Mux active=0，逻辑备份 `data/backups/app-pre-retry-fix-20261010-165737.db` 验证integrity/FK后无迁移重载43f42ff；API/Worker/页面/心跳READY，Worker94467。仅从GENERATE_AI_NOTE续跑，8个上游步骤REUSED；10次尝试（含旧失败/修复/取消）、无fallback/缓存命中，不回填旧审计。终态PARTIAL_SUCCESS/CLEAN_CACHE、v2 `ntv_b9b5d931625c41caad4fd01124d731e7`、14章节/12READY截图；CONFIRMED0、REVIEW1、UNRESOLVED5、AREA_RESOLVED5、SKIPPED6，无人工确认。当前50段/BV/CID/Snapshot校验通过，实体17/Claim33/章节quote16均有逐字转写依据；人审音频/地名真实性未评分。PC1440/390阅读/18来源链接/截图弹层通过，无溢出/相关错误。最终0025、integrity=ok、FK0、active/lease0；LLM Audit559条，包含该Job10条；测试前原有Job/Note/版本/Segment/Transcript逐字段不变。历史输出估算口径保留，新调用按wire字符估算；真实Token仍UNKNOWN。原提交快照及配置不改，提交后未推送；完整矩阵仍见视频报告。
+
 
 - 2026-10-10 11:04（请求优化核心无迁移部署）：重载前 active Job/lease/RUNNING LLM=0，integrity=ok、FK=0、revision=0025。SQLite 逻辑备份 `data/backups/app-pre-ai-optimization-20261010-110232.db`、旧静态包 `data/backups/frontend-pre-ai-optimization-20261010-110232.tar.gz` 已验证；当前候选源码归档 `data/backups/source-ai-optimization-candidate-20261010-110232.tar.gz` 保留接手与新增更改（非 10-09 原未提交源码快照，回退边界见发布门禁）。将 Node 24 验收构建切换到 frontend/dist 并保留旧哈希资源，生产 Python manage.py restart/status 确认 API/Worker RUNNING、首页/health/新心跳 READY，Worker PID=12182。OpenAPI 104 路径，实机 AI Usage 有新 call_details（24 条旧审计）；首页及 JS `index-3FtGH5U4.js`、CSS `index-BGA9mjX8.css` 的 HTTP 内容哈希与部署文件一致。生产 Edge/Playwright 在 1440×1000、390×844 只读展开/收起调用明细，24 条结果一致，无溢出/相关控制台错误。重载后 integrity=ok、FK=0、0025、active/lease=0；Job 状态/配置/重试/错误 hash、全部 549 条 LLM Audit 的逐字段 hash 与备份前一致。未迁移、未改模型配置、未触发真实模型/视频/POI；本轮提交并保留全部接手改动，未推送。当前 Mux 只读健康/目录 ConnectError / AI_PROVIDER_INTERFACE_UNAVAILABLE，实机 E2E 保持开放。
 

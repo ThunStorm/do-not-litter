@@ -25,6 +25,8 @@
 
 ## 最新自动验证
 
+2026-10-10 指定视频真实验收：BV11Ao7BYE1V（479秒）达到PARTIAL_SUCCESS，Note v2有14章节和12截图，0确认/1REVIEW/5UNRESOLVED/5AREA_RESOLVED/6SKIPPED。AI字幕拒绝后使用当前用户已保存的Qwen3-ASR；50段/12校对，Source/BV/CID/时轴及当前实体17/Claim33/章节quote16的引用与逐字校验通过。阶段0重试补修43f42ff加载后只续跑笔记，上游8步REUSED；全任务实际尝试10（含旧失败/修复/取消），保留审计，未超12次。原有Job/Note/Segment/Transcript与模型配置不改；PC/390px阅读/截图弹层通过。人审词准率/地名/现实POI、上游精确型号、计费Token和完整矩阵未证明，见 [视频验收](benchmark/VIDEO_E2E_BV11Ao7BYE1V_REPORT.md)。
+
 2026-10-10 视频实测补修：显式 Stage retry_count 同时限制 HTTP 与 JSON 修复重试，0 不再继承 Profile 的 JSON 重发；完整 JSON 对象后的最多两个多余闭合括号受控修复，规则、quote 与全量验证保留；输出字符估算取原始响应 content_length，避免短 ID 解码后的 canonical 字符膨胀。后端全量 322、前端19及静态/类型/隔离构建通过；首次视频执行的失败/修复/取消审计保留，部署与续跑结果另见交接。
 
 2026-10-10 真实模型小样：在现有 Mux 标准接口上串行执行 1 次 Text 与 2 次 Ground Map JSON（代码3bebb50、请求型号codebuddy/glm-5.3），两次 JSON DIRECT_VALID、短 ID 还原与逐字 Evidence 通过；两处景点、参考政策和价格/月季/否定/推荐食物/排队事实检查通过。输入为六段自建合成文本，N=1、请求字节3534→3330，不代表真实视频人审质量；实际型号、Token、finish_reason仍UNKNOWN，原生JSON/温度/输出上限不支持。未保存模型能力标记或改配置/历史结果；当前真实验收范围与风险见 [真实小样](benchmark/AI_REQUEST_OPTIMIZATION_LIVE_SAMPLE.json)、[A/B 记录](benchmark/AI_REQUEST_OPTIMIZATION_AB_REPORT.md)。本轮只写验收文档，不重复业务测试或部署。
@@ -47,7 +49,7 @@
 - 本地路由的单模型小样、目录能力及一次视频续跑不代表全型号/全阶段质量；厂商额度、思考 Token、远端取消/计费以及完整 Provider/fallback/cache/预算矩阵仍按 [生产验收门禁](ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md) 取证。
 - 视频语义/POI 与 Visual Fact 已有离线 Golden，真实高德质量、Vision、代表性长视频、Token/延迟基线与性能毕业门禁仍未整体闭环。REVIEW/UNRESOLVED 保持人工处理，Fixture、构建和数据库版本不替代真实验收。
 - 提交配置快照及同链接多 Note 身份已实现；真实双提交、模型切换和 Place 复用矩阵仍需独立验证。旧 Job 没有提交快照时，不补造当时设置或改写历史业务结果。
-- Qwen3-ASR 运行资产及 Forced Aligner 已安装并有真实 smoke；默认仍为 Whisper。六类人工 Ground Truth、15–30 分钟 LONG_FORM、Replay 及 Benchmark Gate 未完成前不得晋级默认或改变生产 Registry。
+- Qwen3-ASR 运行资产及 Forced Aligner 已安装并有真实 smoke；系统注册基线为 Whisper；本次沿用用户已保存的 QWEN3_ASR 选择，不将单条视频视为 Benchmark 毕业或默认推荐。六类人工 Ground Truth、15–30 分钟 LONG_FORM、Replay 及 Benchmark Gate 未完成前不得晋级默认或改变生产 Registry。
 - Bilibili 登录/nav/Keychain 与部分视频已有真实记录；受阻对象不自动重跑。高德和远程 Provider 必须使用合法配置；Secret 不进文档、SQLite 明文或日志。
 - 已完成的 PC/390px 验收仅覆盖相应设置/任务控件，未验收的地图、Vision 或真实视频体验不自动外推；具体范围以带日期记录为准。
 

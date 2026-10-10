@@ -20,3 +20,19 @@
 ```
 
 真实配对 A/B：`NOT_RUN`。本工作包的 20%–30% 实测输入 Token 目标未验收；原 Gateway 毕业门禁的远程 Token 目标仍独立保留，没有用字节收益替代。
+
+## 2026-10-10 15:56–15:57 真实模型调用小样（N=1）
+
+代码 SHA `3bebb50`，请求型号 `codebuddy/glm-5.3`，实际上游型号 UNKNOWN。输入为本轮撰写的六段合成旅行说明，不是真实视频。保留当前 Prompt 与标准 OpenAI 路由；串行 1 次 Text、1 次原引用 JSON、1 次短 ID JSON，无重试或备用切换。
+
+| 请求 | 耗时 | 请求 JSON 字节 | 输入 Token 估算 | 输出字符 | 解析 | 合法实体 / Claim / 单元 |
+| --- | ---: | ---: | ---: | ---: | --- | --- |
+| Text smoke | 13.9s | 46 | 8 | 4 | PONG | 不适用 |
+| 原引用基线 | 37.8s | 3534 | 1173 | 4371 | DIRECT_VALID | 5 / 8 / 3 |
+| 编译短 ID | 30.4s | 3330 | 1071 | 3655 | DIRECT_VALID | 5 / 7 / 2 |
+
+两次 JSON 的实体及 Claim 逐字 quote 有效率均为 1，全部六段发送。两个明确景点的语义召回、天津仅作参考的政策检查通过；实际 Claim 文本保留两处价格、月份、否定、春季、两道推荐食物和下午排队。基线另写一条天津参考说明 Claim/补充单元；候选保留该实体、逐字来源与参考政策，未单列该 Claim。分组与 claim_type 仍有生成差异，不能仅按条数宣称无损或真实视频质量通过。
+
+本对 Ground Map 请求字节减少 5.77%，输入 Token 字符估算减少 8.70%；模型未上报可信 Token，20%–30% 实测目标仍 NOT_VERIFIED。temperature、max_tokens、response_format 被按目录省略，原生 JSON 模式/输出上限不支持；这次普通文本生成恰好直接返回了合格 JSON。N=1 且温度不受控，37.8→30.4 秒是观测，不是稳定性能结论。
+
+脱敏结果与对应 Mux call_id/response_id 见 [真实小样记录](AI_REQUEST_OPTIMIZATION_LIVE_SAMPLE.json)。本机完整数值/哈希记录为 `data/benchmarks/request-live-20261010-155619/capture.json`，0600 权限，已被 Git 忽略；未提交 Prompt、密钥或原始模型正文。生产 Job、模型配置与 549 条 LLM Audit 的逐字段 hash 保持不变。该独立请求验收不替代 Worker/Replay/Note/POI 全流程。

@@ -1,0 +1,300 @@
+{
+  "recorded_at": "2026-10-10T16:14:36.303080+08:00",
+  "code_sha": "3bebb50c8f8a6b5c0505e5bbeda6f210e0412d39",
+  "dataset": "AUTHORED_SYNTHETIC_SIX_SEGMENTS",
+  "source_kind": "SYNTHETIC_NOT_REAL_VIDEO",
+  "requested_model": "codebuddy/glm-5.3",
+  "actual_model": null,
+  "sample_pairs": 1,
+  "calls": [
+    {
+      "label": "TEXT_SMOKE",
+      "status": "PASS",
+      "duration_ms": 13859,
+      "content_length": 4,
+      "parse_quality": null,
+      "repair_rules": null,
+      "proof_checks": null,
+      "claim_semantic_checks": null,
+      "reference_review": null,
+      "claim_text_review": null,
+      "mux_record": {
+        "call_id": "call_d7e7decda5e3450787f43ef2b5da53bd",
+        "status": "completed",
+        "actual_model": null,
+        "finish_reason": "unknown",
+        "input_tokens": null,
+        "output_tokens": null
+      },
+      "input_hash": "c14144b0265543c17ad322304f805302f736ca34b9f3c67d0a3120aadef2a41c",
+      "output_hash": "95784973cc639977bff93619700168505cb8f7855e44fa643d34622a43706c87",
+      "effective_request_metrics": null,
+      "response_id": "chatcmpl-e6935e85a8934052bde34855ebdf3149",
+      "usage_source": "UNKNOWN",
+      "reported_input_tokens": null,
+      "reported_output_tokens": null,
+      "omitted_parameters": [
+        "max_tokens"
+      ]
+    },
+    {
+      "label": "BASELINE",
+      "status": "PASS",
+      "duration_ms": 37764,
+      "content_length": 4371,
+      "parse_quality": "DIRECT_VALID",
+      "repair_rules": [],
+      "proof_checks": {
+        "valid_entities": 5,
+        "valid_claims": 8,
+        "content_units": 3,
+        "actionable_recall": 1.0,
+        "reference_safe": true,
+        "entity_quote_validity": 1.0,
+        "claim_quote_validity": 1.0,
+        "expected_fact_coverage": 1.0,
+        "source_segments_sent": 6,
+        "source_coverage": 1.0,
+        "expected_fact_coverage_basis": "verified_claim_text_semantics_and_literal_quotes"
+      },
+      "claim_semantic_checks": {
+        "price_20": true,
+        "price_90": true,
+        "month_10": true,
+        "negative_weekend": true,
+        "spring": true,
+        "mi_pi": true,
+        "hu_la_tang": true,
+        "afternoon_queue": true
+      },
+      "reference_review": {
+        "retained": true,
+        "policies": [
+          "SKIP"
+        ],
+        "source_segment_ids": [
+          [
+            "seg_b4160336325bc94e6d9831a561fdb582"
+          ]
+        ]
+      },
+      "claim_text_review": {
+        "label": "BASELINE",
+        "claim_count": 8,
+        "terms_present_in_claim_text": {
+          "20元": true,
+          "90元": true,
+          "10月": true,
+          "不推荐周末": true,
+          "春季": true,
+          "米皮": true,
+          "胡辣汤": true,
+          "下午排队": false
+        },
+        "claim_types": [
+          "HIGHLIGHT",
+          "SEASONAL_TIP",
+          "FOOD",
+          "HIGHLIGHT",
+          "SEASONAL_TIP",
+          "FOOD",
+          "TIP",
+          "HIGHLIGHT"
+        ]
+      },
+      "mux_record": {
+        "call_id": "call_d9226d70a3b348319585c26f1575285a",
+        "status": "completed",
+        "actual_model": null,
+        "finish_reason": "unknown",
+        "input_tokens": null,
+        "output_tokens": null
+      },
+      "input_hash": "2d507e889082d4c235012a9240fbe0f970f5985f1287815e4226a9e1a09ecb5f",
+      "output_hash": "c76b1c35f1ec083926e05621ee525f60213886dffa478dae814c62848568d821",
+      "effective_request_metrics": {
+        "system_chars": 1836,
+        "domain_chars": 0,
+        "user_body_chars": 510,
+        "unique_transcript_chars": 121,
+        "duplicate_context_chars": 0,
+        "evidence_quote_chars": 13,
+        "id_chars": 216,
+        "json_key_chars": 376,
+        "json_bytes": 3534,
+        "model_input_chars": 2346,
+        "estimated_input_tokens": 1173,
+        "request_count": 1
+      },
+      "response_id": "chatcmpl-fe6c6051250d4954ab94735fd70ef17d",
+      "usage_source": "UNKNOWN",
+      "reported_input_tokens": null,
+      "reported_output_tokens": null,
+      "omitted_parameters": [
+        "temperature",
+        "max_tokens",
+        "response_format"
+      ]
+    },
+    {
+      "label": "COMPILED",
+      "status": "PASS",
+      "duration_ms": 30402,
+      "content_length": 3655,
+      "parse_quality": "DIRECT_VALID",
+      "repair_rules": [],
+      "proof_checks": {
+        "valid_entities": 5,
+        "valid_claims": 7,
+        "content_units": 2,
+        "actionable_recall": 1.0,
+        "reference_safe": true,
+        "entity_quote_validity": 1.0,
+        "claim_quote_validity": 1.0,
+        "expected_fact_coverage": 1.0,
+        "source_segments_sent": 6,
+        "source_coverage": 1.0,
+        "expected_fact_coverage_basis": "verified_claim_text_semantics_and_literal_quotes"
+      },
+      "claim_semantic_checks": {
+        "price_20": true,
+        "price_90": true,
+        "month_10": true,
+        "negative_weekend": true,
+        "spring": true,
+        "mi_pi": true,
+        "hu_la_tang": true,
+        "afternoon_queue": true
+      },
+      "reference_review": {
+        "retained": true,
+        "policies": [
+          "REFERENCE_ONLY"
+        ],
+        "source_segment_ids": [
+          [
+            "s5"
+          ]
+        ]
+      },
+      "claim_text_review": {
+        "label": "COMPILED",
+        "claim_count": 7,
+        "terms_present_in_claim_text": {
+          "20元": true,
+          "90元": true,
+          "10月": true,
+          "不推荐周末": true,
+          "春季": true,
+          "米皮": true,
+          "胡辣汤": true,
+          "下午排队": false
+        },
+        "claim_types": [
+          "HIGHLIGHT",
+          "HIGHLIGHT",
+          "FOOD",
+          "HIGHLIGHT",
+          "HIGHLIGHT",
+          "FOOD",
+          "CAUTION"
+        ]
+      },
+      "mux_record": {
+        "call_id": "call_b3c286f150324d0d8d883a7ca21cf19a",
+        "status": "completed",
+        "actual_model": null,
+        "finish_reason": "unknown",
+        "input_tokens": null,
+        "output_tokens": null
+      },
+      "input_hash": "ba2603e22957cbfb3a169d8268f6c5f613a7d2728f509b915f05d952bdfdbaf6",
+      "output_hash": "d73a488dcc3ca209e47302fc10277f50849102a2f382bf38823859eae0b4a323",
+      "effective_request_metrics": {
+        "system_chars": 1836,
+        "domain_chars": 0,
+        "user_body_chars": 306,
+        "unique_transcript_chars": 121,
+        "duplicate_context_chars": 0,
+        "evidence_quote_chars": 13,
+        "id_chars": 12,
+        "json_key_chars": 376,
+        "json_bytes": 3330,
+        "model_input_chars": 2142,
+        "estimated_input_tokens": 1071,
+        "request_count": 1
+      },
+      "response_id": "chatcmpl-395b3e86e1a54918b245a45e4d889bbc",
+      "usage_source": "UNKNOWN",
+      "reported_input_tokens": null,
+      "reported_output_tokens": null,
+      "omitted_parameters": [
+        "temperature",
+        "max_tokens",
+        "response_format"
+      ]
+    }
+  ],
+  "interface": {
+    "model": "codebuddy/glm-5.3",
+    "base_url": "http://127.0.0.1:8317/v1",
+    "sampled_at": "2026-10-10T07:51:45.173304+00:00",
+    "source": "LocalAiMux 接口目录",
+    "version": "zhijian-stateless-v1",
+    "gateway_schema_version": 2,
+    "system": "SUPPORTED",
+    "history": "UNSUPPORTED",
+    "multiple_messages": "UNKNOWN",
+    "json_object": "UNSUPPORTED",
+    "thinking": "UNKNOWN",
+    "usage": "UNKNOWN",
+    "finish_reason": "UNKNOWN",
+    "temperature": {
+      "support": "UNSUPPORTED",
+      "minimum": 0.0,
+      "maximum": null
+    },
+    "output": {
+      "support": "UNSUPPORTED",
+      "minimum": 0.0,
+      "maximum": null
+    },
+    "output_field": "max_tokens",
+    "limiting_layer": "unknown"
+  },
+  "execution_limits": {
+    "agent_max_concurrency": 1,
+    "agent_queue_timeout_seconds": 30,
+    "agent_request_interval_seconds": 5,
+    "request_timeout_seconds": 600,
+    "stream_idle_timeout_seconds": 180
+  },
+  "installed_binary_sha256": "84300fd4babfb0fcee3bdc8bb8ed57ea86f9a9daaed40db53a38d10e55dc9e03",
+  "installed_app_version": "0.1.0",
+  "production_proven": false,
+  "reported_token_reduction": null,
+  "byte_reduction_percent": 5.77,
+  "production_state_unchanged": {
+    "jobs": {
+      "unchanged_since_predeploy_backup": true,
+      "hash": "2712877cc07395f7be1432f52bb1dd873fbc948616ce97b2e40ff93e1067a20a"
+    },
+    "llm_audits": {
+      "unchanged_since_predeploy_backup": true,
+      "hash": "cc32c966c4071826d1750350a34ab350a7d87c6625b7326aacb3d52919ae21cf"
+    },
+    "model_profiles": {
+      "unchanged_since_predeploy_backup": true,
+      "hash": "7611592032beb1520782a8ba8bc15b2a8f739c9e0697c0acc9b60ac7b1215270"
+    }
+  },
+  "authorization": "2026-10-10 用户在核心开发/部署/提交报告后要求继续执行；本轮声明沿用现有模型串行最多3次小样，不重跑生产视频。",
+  "review_note": "基线额外输出一条天津参考说明 Claim 和一个补充单元；候选未单列该 Claim，但保留天津实体、逐字来源及 REFERENCE_ONLY/SKIP。其余价格、月份、否定、季节、推荐菜、排队事实在实际 Claim 文本中均可核对。分组/类型变化仍只作为单样本观察，不等于真实视频人工质量通过。",
+  "limitations": [
+    "实际上游型号、finish_reason 和 Token 用量 UNKNOWN",
+    "温度/输出上限/原生 JSON 均不支持，已省略参数",
+    "N=1，不能把时长差异外推为稳定优化收益",
+    "未生成 Note/POI/Map，未重跑生产视频，未验证真实人审 Ground Truth",
+    "低额度边界为串行最多3次调用，无自动重试/模型切换"
+  ]
+}
