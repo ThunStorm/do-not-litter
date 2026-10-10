@@ -4,6 +4,7 @@
 
 | 归档计划 | 覆盖证据 | 未进入本轮的后续方向 |
 | --- | --- | --- |
+| [同模型保存检查与重跑配置](SAME_MODEL_REPLAY_CONFIG_IMPLEMENTATION_PLAN.md) | 2026-10-09：保存自动检查、同模型执行快照/历史、三类重跑、累计预算；后端 300 项与隔离双端 Browser 通过 | 未部署、未运行真实模型/视频；无提交快照旧任务兼容及已清理 Audit 无法追补。 |
 | [Token 用量与任务响应](TOKEN_USAGE_AND_JOB_RESPONSIVENESS_PLAN.md) | 2026-10-08：估算/未知、取消/ASR/超时回归与无迁移部署完成 | 精确账单、上游取消与真实 Provider/视频不外推。 |
 | [Place Intelligence + Interactive Map V2](PLACE_INTELLIGENCE_MAP_V2_IMPLEMENTATION_PLAN.md) | `8a6484b`、`77e37eb`、`161d320` | 推荐评分、自动行程；已转入 [Future Roadmap](../../planning/FUTURE_ROADMAP.md)。 |
 | [地图稳定化、地点管理与旅行决策](PLACE_MAP_STABILIZATION_AND_TRAVEL_DECISION_PLAN.md) | `77e37eb`、`161d320` | 地点比较托盘、推荐与自动路线；已转入 Future Roadmap。 |

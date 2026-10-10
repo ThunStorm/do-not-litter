@@ -30,13 +30,13 @@ class ModelReliabilityPolicy:
 
 _PRESETS: dict[ReliabilityMode, ModelReliabilityPolicy] = {
     "DIRECT": ModelReliabilityPolicy("DIRECT"),
-    "STANDARD": ModelReliabilityPolicy("STANDARD", retry_count=1, json_retry_count=1),
+    "STANDARD": ModelReliabilityPolicy("STANDARD", retry_count=1),
     "GUARDED": ModelReliabilityPolicy(
         "GUARDED",
         request_interval_seconds=2,
         max_concurrency=1,
         retry_count=2,
-        json_retry_count=1,
+        json_retry_count=0,
         circuit_breaker_enabled=True,
         circuit_breaker_cooldown_seconds=60,
     ),
@@ -45,7 +45,7 @@ _PRESETS: dict[ReliabilityMode, ModelReliabilityPolicy] = {
         request_interval_seconds=4,
         max_concurrency=1,
         retry_count=2,
-        json_retry_count=1,
+        json_retry_count=0,
         circuit_breaker_enabled=True,
         circuit_breaker_cooldown_seconds=120,
     ),
@@ -163,6 +163,12 @@ def classify_provider_error(exc: Exception) -> AIProviderError:
             cause=exc,
         )
     if status == 429:
+        if "busy_queue" in text:
+            return AIProviderError(
+                "AI_PROVIDER_BUSY_QUEUE", "网关队列繁忙，请稍后重试", retryable=True, cause=exc
+            )
+        if "cooldown" in text:
+            return AIProviderError("AI_PROVIDER_CIRCUIT_OPEN", "供应商仍在冷却", retryable=False, cause=exc)
         throttled = bool(re.search(r"\b(?:tpm|rpm)\b|inference exceeds", text))
         if throttled:
             return AIProviderError(
@@ -267,6 +273,7 @@ class ReliabilityGuards:
         policy: ModelReliabilityPolicy,
         *,
         limiter_key: str | None = None,
+        cancel_check: Any = None,
     ) -> tuple[Semaphore | None, float, str]:
         if policy.mode == "DIRECT":
             return None, 0.0, "CLOSED"
@@ -277,7 +284,11 @@ class ReliabilityGuards:
                 semaphore = cls._semaphores.setdefault(
                     (limiter_key, policy.max_concurrency), Semaphore(policy.max_concurrency)
                 )
-            semaphore.acquire()
+            if cancel_check:
+                while not semaphore.acquire(timeout=0.25):
+                    cancel_check()
+            else:
+                semaphore.acquire()
         with cls._lock:
             circuit = cls._circuits.setdefault(key, _Circuit())
             now = monotonic()

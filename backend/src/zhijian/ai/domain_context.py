@@ -30,7 +30,11 @@ class DomainPack(BaseModel):
 
 
 def domain_context_messages(
-    db: Session, pack_ids: list[str], capability: AICapability, job: Job | None = None
+    db: Session,
+    pack_ids: list[str],
+    capability: AICapability,
+    job: Job | None = None,
+    context_text: str | None = None,
 ) -> tuple[list[dict[str, str]], dict[str, str]]:
     selected = []
     versions = {}
@@ -48,10 +52,26 @@ def domain_context_messages(
     blocks = []
     for pack in selected:
         lines = [f"领域包：{pack.name}（{pack.version}）"]
-        lines.extend(f"术语：{term} = {meaning}" for term, meaning in pack.glossary.items())
-        lines.extend(f"别名：{term} = {' / '.join(values)}" for term, values in pack.aliases.items())
+        relevant = {
+            term
+            for term in set(pack.glossary) | set(pack.aliases)
+            if context_text is None
+            or any(word.lower() in context_text.lower() for word in [term, *pack.aliases.get(term, [])])
+        }
+        lines.extend(
+            f"术语：{term} = {meaning}" for term, meaning in pack.glossary.items() if term in relevant
+        )
+        lines.extend(
+            f"别名：{term} = {' / '.join(values)}"
+            for term, values in pack.aliases.items()
+            if term in relevant
+        )
         lines.extend(f"规则：{rule}" for rule in pack.rules)
-        lines.extend(f"示例：{item.input} → {item.output}" for item in pack.examples)
+        lines.extend(
+            f"示例：{item.input} → {item.output}"
+            for item in pack.examples
+            if context_text is None or any(term in item.input for term in relevant)
+        )
         if pack.prompt_supplement:
             lines.append(f"补充：{pack.prompt_supplement}")
         blocks.append("\n".join(lines))

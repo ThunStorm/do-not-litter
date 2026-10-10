@@ -292,6 +292,10 @@ export interface AIStageView {
 }
 
 export interface AIUsageView {
+  call_details?: Array<{ id: string; stage: string; status: string; model: string; attempt_state?: string | null;
+    parse_quality: string | null; execution_path: string | null; usage_source: string;
+    queue_ms: number | null; provider_ms: number | null; duration_ms: number | null;
+    error_code: string | null; rejected_items: number | null; acceptance: string | null }>
   total: AIUsageBucket
   local: AIUsageBucket
   remote: AIUsageBucket

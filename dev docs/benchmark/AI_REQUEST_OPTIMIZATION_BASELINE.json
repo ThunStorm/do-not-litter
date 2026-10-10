@@ -1,0 +1,2693 @@
+{
+  "benchmark_version": "request-synthetic-v1",
+  "rows": [
+    {
+      "sample_id": "G-001",
+      "source": "SYNTHETIC",
+      "request_metrics": [
+        {
+          "stage": "GROUND_MAP",
+          "baseline": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 205,
+            "unique_transcript_chars": 21,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 108,
+            "json_key_chars": 0,
+            "json_bytes": 376,
+            "model_input_chars": 227,
+            "estimated_input_tokens": 114,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 103,
+            "unique_transcript_chars": 21,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 6,
+            "json_key_chars": 0,
+            "json_bytes": 274,
+            "model_input_chars": 125,
+            "estimated_input_tokens": 63,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "GROUND_MAP-v1",
+            "snapshot_identity": "synthetic:G-001",
+            "source_content_hash": "2cb43e3ffa9ae3381c1712526389106e988321c911b70dbbf2b059fee0f202e8",
+            "short_id_map_fingerprint": "86b5f964cb4f6e28c87bd32bec5b3491750ab723b389abc578e0c06e49fcc215"
+          }
+        },
+        {
+          "stage": "TRANSCRIPT_CORRECTION",
+          "baseline": {
+            "system_chars": 21,
+            "domain_chars": 0,
+            "user_body_chars": 603,
+            "unique_transcript_chars": 21,
+            "duplicate_context_chars": 33,
+            "evidence_quote_chars": 0,
+            "id_chars": 252,
+            "json_key_chars": 146,
+            "json_bytes": 911,
+            "model_input_chars": 624,
+            "estimated_input_tokens": 312,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 73,
+            "domain_chars": 0,
+            "user_body_chars": 155,
+            "unique_transcript_chars": 21,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 12,
+            "json_key_chars": 60,
+            "json_bytes": 446,
+            "model_input_chars": 228,
+            "estimated_input_tokens": 114,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "TRANSCRIPT_CORRECTION-v1",
+            "snapshot_identity": "synthetic:G-001",
+            "source_content_hash": "2cb43e3ffa9ae3381c1712526389106e988321c911b70dbbf2b059fee0f202e8",
+            "short_id_map_fingerprint": "86b5f964cb4f6e28c87bd32bec5b3491750ab723b389abc578e0c06e49fcc215"
+          }
+        },
+        {
+          "stage": "NOTE_REDUCE",
+          "baseline": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 724,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 216,
+            "json_key_chars": 217,
+            "json_bytes": 1109,
+            "model_input_chars": 750,
+            "estimated_input_tokens": 375,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 524,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 8,
+            "json_key_chars": 211,
+            "json_bytes": 897,
+            "model_input_chars": 550,
+            "estimated_input_tokens": 275,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "NOTE_REDUCE-v1",
+            "snapshot_identity": "synthetic:G-001",
+            "source_content_hash": "2cb43e3ffa9ae3381c1712526389106e988321c911b70dbbf2b059fee0f202e8",
+            "short_id_map_fingerprint": "35bc6444d6d9f31787557f39a5cdbd6f5266d0d4407849a864f82b4a20516726"
+          }
+        }
+      ],
+      "source_coverage": 1.0,
+      "claim_evidence_validity": 1.0,
+      "lossless_roundtrip": true,
+      "expected_actionable": [
+        "故宫",
+        "天坛",
+        "颐和园"
+      ],
+      "expected_reference": [],
+      "actionable_poi_precision": null,
+      "actionable_poi_recall": null,
+      "manual_review_rate": null,
+      "review_reasons": [],
+      "model_quality": "NOT_VERIFIED",
+      "reported_input_tokens": null,
+      "reported_output_tokens": null,
+      "usage_source": "UNKNOWN",
+      "provider_calls": 0
+    },
+    {
+      "sample_id": "G-002",
+      "source": "SYNTHETIC",
+      "request_metrics": [
+        {
+          "stage": "GROUND_MAP",
+          "baseline": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 213,
+            "unique_transcript_chars": 29,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 108,
+            "json_key_chars": 0,
+            "json_bytes": 400,
+            "model_input_chars": 235,
+            "estimated_input_tokens": 118,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 111,
+            "unique_transcript_chars": 29,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 6,
+            "json_key_chars": 0,
+            "json_bytes": 298,
+            "model_input_chars": 133,
+            "estimated_input_tokens": 67,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "GROUND_MAP-v1",
+            "snapshot_identity": "synthetic:G-002",
+            "source_content_hash": "692030fb0ba7ca808d8e417a388dab6a3caf84b9627774cdfa561c7b3872bfe5",
+            "short_id_map_fingerprint": "9edfde5509ca04a0caa459613d0a6e419746f1e2daa13c9a2205031e24c85cad"
+          }
+        },
+        {
+          "stage": "TRANSCRIPT_CORRECTION",
+          "baseline": {
+            "system_chars": 21,
+            "domain_chars": 0,
+            "user_body_chars": 621,
+            "unique_transcript_chars": 29,
+            "duplicate_context_chars": 43,
+            "evidence_quote_chars": 0,
+            "id_chars": 252,
+            "json_key_chars": 146,
+            "json_bytes": 965,
+            "model_input_chars": 642,
+            "estimated_input_tokens": 321,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 73,
+            "domain_chars": 0,
+            "user_body_chars": 163,
+            "unique_transcript_chars": 29,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 12,
+            "json_key_chars": 60,
+            "json_bytes": 470,
+            "model_input_chars": 236,
+            "estimated_input_tokens": 118,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "TRANSCRIPT_CORRECTION-v1",
+            "snapshot_identity": "synthetic:G-002",
+            "source_content_hash": "692030fb0ba7ca808d8e417a388dab6a3caf84b9627774cdfa561c7b3872bfe5",
+            "short_id_map_fingerprint": "9edfde5509ca04a0caa459613d0a6e419746f1e2daa13c9a2205031e24c85cad"
+          }
+        },
+        {
+          "stage": "NOTE_REDUCE",
+          "baseline": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 760,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 216,
+            "json_key_chars": 217,
+            "json_bytes": 1217,
+            "model_input_chars": 786,
+            "estimated_input_tokens": 393,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 554,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 8,
+            "json_key_chars": 211,
+            "json_bytes": 987,
+            "model_input_chars": 580,
+            "estimated_input_tokens": 290,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "NOTE_REDUCE-v1",
+            "snapshot_identity": "synthetic:G-002",
+            "source_content_hash": "692030fb0ba7ca808d8e417a388dab6a3caf84b9627774cdfa561c7b3872bfe5",
+            "short_id_map_fingerprint": "a20b73b8f986a544dabcc59a94ee8028923636da7887fa5e66d5cf76fc0f74fd"
+          }
+        }
+      ],
+      "source_coverage": 1.0,
+      "claim_evidence_validity": 1.0,
+      "lossless_roundtrip": true,
+      "expected_actionable": [
+        "故宫",
+        "五大道",
+        "避暑山庄"
+      ],
+      "expected_reference": [],
+      "actionable_poi_precision": null,
+      "actionable_poi_recall": null,
+      "manual_review_rate": null,
+      "review_reasons": [],
+      "model_quality": "NOT_VERIFIED",
+      "reported_input_tokens": null,
+      "reported_output_tokens": null,
+      "usage_source": "UNKNOWN",
+      "provider_calls": 0
+    },
+    {
+      "sample_id": "G-003",
+      "source": "SYNTHETIC",
+      "request_metrics": [
+        {
+          "stage": "GROUND_MAP",
+          "baseline": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 198,
+            "unique_transcript_chars": 14,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 108,
+            "json_key_chars": 0,
+            "json_bytes": 355,
+            "model_input_chars": 220,
+            "estimated_input_tokens": 110,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 96,
+            "unique_transcript_chars": 14,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 6,
+            "json_key_chars": 0,
+            "json_bytes": 253,
+            "model_input_chars": 118,
+            "estimated_input_tokens": 59,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "GROUND_MAP-v1",
+            "snapshot_identity": "synthetic:G-003",
+            "source_content_hash": "aa3ec4262c19cba2969bc0dbce820ee8186306aa478943a0ba09eec181576c66",
+            "short_id_map_fingerprint": "a00dfe102b460f8c94d6673f000c3fed000b4b7f3ef2a8be15aa21fcf963f21b"
+          }
+        },
+        {
+          "stage": "TRANSCRIPT_CORRECTION",
+          "baseline": {
+            "system_chars": 21,
+            "domain_chars": 0,
+            "user_body_chars": 582,
+            "unique_transcript_chars": 14,
+            "duplicate_context_chars": 19,
+            "evidence_quote_chars": 0,
+            "id_chars": 252,
+            "json_key_chars": 146,
+            "json_bytes": 848,
+            "model_input_chars": 603,
+            "estimated_input_tokens": 302,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 73,
+            "domain_chars": 0,
+            "user_body_chars": 148,
+            "unique_transcript_chars": 14,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 12,
+            "json_key_chars": 60,
+            "json_bytes": 425,
+            "model_input_chars": 221,
+            "estimated_input_tokens": 111,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "TRANSCRIPT_CORRECTION-v1",
+            "snapshot_identity": "synthetic:G-003",
+            "source_content_hash": "aa3ec4262c19cba2969bc0dbce820ee8186306aa478943a0ba09eec181576c66",
+            "short_id_map_fingerprint": "a00dfe102b460f8c94d6673f000c3fed000b4b7f3ef2a8be15aa21fcf963f21b"
+          }
+        },
+        {
+          "stage": "NOTE_REDUCE",
+          "baseline": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 703,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 216,
+            "json_key_chars": 217,
+            "json_bytes": 1046,
+            "model_input_chars": 729,
+            "estimated_input_tokens": 365,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 503,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 8,
+            "json_key_chars": 211,
+            "json_bytes": 834,
+            "model_input_chars": 529,
+            "estimated_input_tokens": 265,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "NOTE_REDUCE-v1",
+            "snapshot_identity": "synthetic:G-003",
+            "source_content_hash": "aa3ec4262c19cba2969bc0dbce820ee8186306aa478943a0ba09eec181576c66",
+            "short_id_map_fingerprint": "e9ac3e90ed39f467e155a060d358c8d5283dae8653b1d264fbf76dfd025b2593"
+          }
+        }
+      ],
+      "source_coverage": 1.0,
+      "claim_evidence_validity": 1.0,
+      "lossless_roundtrip": true,
+      "expected_actionable": [
+        "黄山"
+      ],
+      "expected_reference": [],
+      "actionable_poi_precision": null,
+      "actionable_poi_recall": null,
+      "manual_review_rate": null,
+      "review_reasons": [],
+      "model_quality": "NOT_VERIFIED",
+      "reported_input_tokens": null,
+      "reported_output_tokens": null,
+      "usage_source": "UNKNOWN",
+      "provider_calls": 0
+    },
+    {
+      "sample_id": "G-004",
+      "source": "SYNTHETIC",
+      "request_metrics": [
+        {
+          "stage": "GROUND_MAP",
+          "baseline": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 204,
+            "unique_transcript_chars": 20,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 108,
+            "json_key_chars": 0,
+            "json_bytes": 373,
+            "model_input_chars": 226,
+            "estimated_input_tokens": 113,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 102,
+            "unique_transcript_chars": 20,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 6,
+            "json_key_chars": 0,
+            "json_bytes": 271,
+            "model_input_chars": 124,
+            "estimated_input_tokens": 62,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "GROUND_MAP-v1",
+            "snapshot_identity": "synthetic:G-004",
+            "source_content_hash": "850fe034cd6cb614a120de51b582d040d136b04b97112c38face034a6588b051",
+            "short_id_map_fingerprint": "7d063ab32ed9dec1b12f261d97a2487c00a13a20ac334931e6eac90e58e0d79d"
+          }
+        },
+        {
+          "stage": "TRANSCRIPT_CORRECTION",
+          "baseline": {
+            "system_chars": 21,
+            "domain_chars": 0,
+            "user_body_chars": 598,
+            "unique_transcript_chars": 20,
+            "duplicate_context_chars": 29,
+            "evidence_quote_chars": 0,
+            "id_chars": 252,
+            "json_key_chars": 146,
+            "json_bytes": 896,
+            "model_input_chars": 619,
+            "estimated_input_tokens": 310,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 73,
+            "domain_chars": 0,
+            "user_body_chars": 154,
+            "unique_transcript_chars": 20,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 12,
+            "json_key_chars": 60,
+            "json_bytes": 443,
+            "model_input_chars": 227,
+            "estimated_input_tokens": 114,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "TRANSCRIPT_CORRECTION-v1",
+            "snapshot_identity": "synthetic:G-004",
+            "source_content_hash": "850fe034cd6cb614a120de51b582d040d136b04b97112c38face034a6588b051",
+            "short_id_map_fingerprint": "7d063ab32ed9dec1b12f261d97a2487c00a13a20ac334931e6eac90e58e0d79d"
+          }
+        },
+        {
+          "stage": "NOTE_REDUCE",
+          "baseline": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 725,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 216,
+            "json_key_chars": 217,
+            "json_bytes": 1112,
+            "model_input_chars": 751,
+            "estimated_input_tokens": 376,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 523,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 8,
+            "json_key_chars": 211,
+            "json_bytes": 894,
+            "model_input_chars": 549,
+            "estimated_input_tokens": 275,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "NOTE_REDUCE-v1",
+            "snapshot_identity": "synthetic:G-004",
+            "source_content_hash": "850fe034cd6cb614a120de51b582d040d136b04b97112c38face034a6588b051",
+            "short_id_map_fingerprint": "c7da48387ce7163ddefc836c033f1fb15d9e793b38ac303b9efa5c0f8a87938c"
+          }
+        }
+      ],
+      "source_coverage": 1.0,
+      "claim_evidence_validity": 1.0,
+      "lossless_roundtrip": true,
+      "expected_actionable": [
+        "额尔古纳湿地"
+      ],
+      "expected_reference": [],
+      "actionable_poi_precision": null,
+      "actionable_poi_recall": null,
+      "manual_review_rate": null,
+      "review_reasons": [],
+      "model_quality": "NOT_VERIFIED",
+      "reported_input_tokens": null,
+      "reported_output_tokens": null,
+      "usage_source": "UNKNOWN",
+      "provider_calls": 0
+    },
+    {
+      "sample_id": "G-005",
+      "source": "SYNTHETIC",
+      "request_metrics": [
+        {
+          "stage": "GROUND_MAP",
+          "baseline": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 210,
+            "unique_transcript_chars": 26,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 108,
+            "json_key_chars": 0,
+            "json_bytes": 391,
+            "model_input_chars": 232,
+            "estimated_input_tokens": 116,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 108,
+            "unique_transcript_chars": 26,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 6,
+            "json_key_chars": 0,
+            "json_bytes": 289,
+            "model_input_chars": 130,
+            "estimated_input_tokens": 65,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "GROUND_MAP-v1",
+            "snapshot_identity": "synthetic:G-005",
+            "source_content_hash": "484f7e8fe53cb53b5c9f86c7643dc2a609ec1f7d4c00f2c51a61058df040feac",
+            "short_id_map_fingerprint": "abb6d06e5582d027e17f2688649ab285e949d9608596454ea9b80374fae85abf"
+          }
+        },
+        {
+          "stage": "TRANSCRIPT_CORRECTION",
+          "baseline": {
+            "system_chars": 21,
+            "domain_chars": 0,
+            "user_body_chars": 608,
+            "unique_transcript_chars": 26,
+            "duplicate_context_chars": 33,
+            "evidence_quote_chars": 0,
+            "id_chars": 252,
+            "json_key_chars": 146,
+            "json_bytes": 926,
+            "model_input_chars": 629,
+            "estimated_input_tokens": 315,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 73,
+            "domain_chars": 0,
+            "user_body_chars": 160,
+            "unique_transcript_chars": 26,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 12,
+            "json_key_chars": 60,
+            "json_bytes": 461,
+            "model_input_chars": 233,
+            "estimated_input_tokens": 117,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "TRANSCRIPT_CORRECTION-v1",
+            "snapshot_identity": "synthetic:G-005",
+            "source_content_hash": "484f7e8fe53cb53b5c9f86c7643dc2a609ec1f7d4c00f2c51a61058df040feac",
+            "short_id_map_fingerprint": "abb6d06e5582d027e17f2688649ab285e949d9608596454ea9b80374fae85abf"
+          }
+        },
+        {
+          "stage": "NOTE_REDUCE",
+          "baseline": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 751,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 216,
+            "json_key_chars": 217,
+            "json_bytes": 1190,
+            "model_input_chars": 777,
+            "estimated_input_tokens": 389,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 545,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 8,
+            "json_key_chars": 211,
+            "json_bytes": 960,
+            "model_input_chars": 571,
+            "estimated_input_tokens": 286,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "NOTE_REDUCE-v1",
+            "snapshot_identity": "synthetic:G-005",
+            "source_content_hash": "484f7e8fe53cb53b5c9f86c7643dc2a609ec1f7d4c00f2c51a61058df040feac",
+            "short_id_map_fingerprint": "fa61bfeea56c1310dcfd4d85289b53006a53ec83c73d62fadcfe44110ee809fb"
+          }
+        }
+      ],
+      "source_coverage": 1.0,
+      "claim_evidence_validity": 1.0,
+      "lossless_roundtrip": true,
+      "expected_actionable": [
+        "北京故宫"
+      ],
+      "expected_reference": [
+        "沈阳故宫"
+      ],
+      "actionable_poi_precision": null,
+      "actionable_poi_recall": null,
+      "manual_review_rate": null,
+      "review_reasons": [],
+      "model_quality": "NOT_VERIFIED",
+      "reported_input_tokens": null,
+      "reported_output_tokens": null,
+      "usage_source": "UNKNOWN",
+      "provider_calls": 0
+    },
+    {
+      "sample_id": "G-006",
+      "source": "SYNTHETIC",
+      "request_metrics": [
+        {
+          "stage": "GROUND_MAP",
+          "baseline": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 213,
+            "unique_transcript_chars": 29,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 108,
+            "json_key_chars": 0,
+            "json_bytes": 392,
+            "model_input_chars": 235,
+            "estimated_input_tokens": 118,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 111,
+            "unique_transcript_chars": 29,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 6,
+            "json_key_chars": 0,
+            "json_bytes": 290,
+            "model_input_chars": 133,
+            "estimated_input_tokens": 67,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "GROUND_MAP-v1",
+            "snapshot_identity": "synthetic:G-006",
+            "source_content_hash": "861ec185a94a4c9be5f1ebdec444c15583b948fd6ac2c2d94262ef4d62d00a1d",
+            "short_id_map_fingerprint": "4f1fcb32124d4b6824178dd1a50dc9e540bdd1a1619cde726ce9ec60f958cb7e"
+          }
+        },
+        {
+          "stage": "TRANSCRIPT_CORRECTION",
+          "baseline": {
+            "system_chars": 21,
+            "domain_chars": 0,
+            "user_body_chars": 619,
+            "unique_transcript_chars": 29,
+            "duplicate_context_chars": 41,
+            "evidence_quote_chars": 0,
+            "id_chars": 252,
+            "json_key_chars": 146,
+            "json_bytes": 943,
+            "model_input_chars": 640,
+            "estimated_input_tokens": 320,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 73,
+            "domain_chars": 0,
+            "user_body_chars": 163,
+            "unique_transcript_chars": 29,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 12,
+            "json_key_chars": 60,
+            "json_bytes": 462,
+            "model_input_chars": 236,
+            "estimated_input_tokens": 118,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "TRANSCRIPT_CORRECTION-v1",
+            "snapshot_identity": "synthetic:G-006",
+            "source_content_hash": "861ec185a94a4c9be5f1ebdec444c15583b948fd6ac2c2d94262ef4d62d00a1d",
+            "short_id_map_fingerprint": "4f1fcb32124d4b6824178dd1a50dc9e540bdd1a1619cde726ce9ec60f958cb7e"
+          }
+        },
+        {
+          "stage": "NOTE_REDUCE",
+          "baseline": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 764,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 216,
+            "json_key_chars": 217,
+            "json_bytes": 1189,
+            "model_input_chars": 790,
+            "estimated_input_tokens": 395,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 556,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 8,
+            "json_key_chars": 211,
+            "json_bytes": 961,
+            "model_input_chars": 582,
+            "estimated_input_tokens": 291,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "NOTE_REDUCE-v1",
+            "snapshot_identity": "synthetic:G-006",
+            "source_content_hash": "861ec185a94a4c9be5f1ebdec444c15583b948fd6ac2c2d94262ef4d62d00a1d",
+            "short_id_map_fingerprint": "fe0a0b5befae615b7599ef360a85f00b0cb55c1e1a1372c639e9f0fbc52c9ca4"
+          }
+        }
+      ],
+      "source_coverage": 1.0,
+      "claim_evidence_validity": 1.0,
+      "lossless_roundtrip": true,
+      "expected_actionable": [
+        "北京故宫",
+        "沈阳故宫"
+      ],
+      "expected_reference": [],
+      "actionable_poi_precision": null,
+      "actionable_poi_recall": null,
+      "manual_review_rate": null,
+      "review_reasons": [],
+      "model_quality": "NOT_VERIFIED",
+      "reported_input_tokens": null,
+      "reported_output_tokens": null,
+      "usage_source": "UNKNOWN",
+      "provider_calls": 0
+    },
+    {
+      "sample_id": "G-007",
+      "source": "SYNTHETIC",
+      "request_metrics": [
+        {
+          "stage": "GROUND_MAP",
+          "baseline": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 198,
+            "unique_transcript_chars": 14,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 108,
+            "json_key_chars": 0,
+            "json_bytes": 355,
+            "model_input_chars": 220,
+            "estimated_input_tokens": 110,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 96,
+            "unique_transcript_chars": 14,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 6,
+            "json_key_chars": 0,
+            "json_bytes": 253,
+            "model_input_chars": 118,
+            "estimated_input_tokens": 59,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "GROUND_MAP-v1",
+            "snapshot_identity": "synthetic:G-007",
+            "source_content_hash": "27b3609f02744adeac9c6255b3e1dba404daba82c1e3ba757c5291755a3c81de",
+            "short_id_map_fingerprint": "be60b83603259fe2d27a8d841c55397ec54e29e8e94cb922c816d6c851677aec"
+          }
+        },
+        {
+          "stage": "TRANSCRIPT_CORRECTION",
+          "baseline": {
+            "system_chars": 21,
+            "domain_chars": 0,
+            "user_body_chars": 583,
+            "unique_transcript_chars": 14,
+            "duplicate_context_chars": 20,
+            "evidence_quote_chars": 0,
+            "id_chars": 252,
+            "json_key_chars": 146,
+            "json_bytes": 851,
+            "model_input_chars": 604,
+            "estimated_input_tokens": 302,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 73,
+            "domain_chars": 0,
+            "user_body_chars": 148,
+            "unique_transcript_chars": 14,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 12,
+            "json_key_chars": 60,
+            "json_bytes": 425,
+            "model_input_chars": 221,
+            "estimated_input_tokens": 111,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "TRANSCRIPT_CORRECTION-v1",
+            "snapshot_identity": "synthetic:G-007",
+            "source_content_hash": "27b3609f02744adeac9c6255b3e1dba404daba82c1e3ba757c5291755a3c81de",
+            "short_id_map_fingerprint": "be60b83603259fe2d27a8d841c55397ec54e29e8e94cb922c816d6c851677aec"
+          }
+        },
+        {
+          "stage": "NOTE_REDUCE",
+          "baseline": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 701,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 216,
+            "json_key_chars": 217,
+            "json_bytes": 1040,
+            "model_input_chars": 727,
+            "estimated_input_tokens": 364,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 502,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 8,
+            "json_key_chars": 211,
+            "json_bytes": 831,
+            "model_input_chars": 528,
+            "estimated_input_tokens": 264,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "NOTE_REDUCE-v1",
+            "snapshot_identity": "synthetic:G-007",
+            "source_content_hash": "27b3609f02744adeac9c6255b3e1dba404daba82c1e3ba757c5291755a3c81de",
+            "short_id_map_fingerprint": "594c56d0230d5578c8576b468ba82a779a1bbc13624901f9eab4754151de3038"
+          }
+        }
+      ],
+      "source_coverage": 1.0,
+      "claim_evidence_validity": 1.0,
+      "lossless_roundtrip": true,
+      "expected_actionable": [
+        "妙峰山"
+      ],
+      "expected_reference": [],
+      "actionable_poi_precision": null,
+      "actionable_poi_recall": null,
+      "manual_review_rate": null,
+      "review_reasons": [],
+      "model_quality": "NOT_VERIFIED",
+      "reported_input_tokens": null,
+      "reported_output_tokens": null,
+      "usage_source": "UNKNOWN",
+      "provider_calls": 0
+    },
+    {
+      "sample_id": "G-008",
+      "source": "SYNTHETIC",
+      "request_metrics": [
+        {
+          "stage": "GROUND_MAP",
+          "baseline": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 204,
+            "unique_transcript_chars": 20,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 108,
+            "json_key_chars": 0,
+            "json_bytes": 373,
+            "model_input_chars": 226,
+            "estimated_input_tokens": 113,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 102,
+            "unique_transcript_chars": 20,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 6,
+            "json_key_chars": 0,
+            "json_bytes": 271,
+            "model_input_chars": 124,
+            "estimated_input_tokens": 62,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "GROUND_MAP-v1",
+            "snapshot_identity": "synthetic:G-008",
+            "source_content_hash": "b02cf7f547ccedff7056bac45efc98a628b60cb1d47a8c7ccc62dd2bcc4dc6f9",
+            "short_id_map_fingerprint": "5f64b774f365c1806a5f10d6382679e0a185702f0cb5f3331f02722583054a94"
+          }
+        },
+        {
+          "stage": "TRANSCRIPT_CORRECTION",
+          "baseline": {
+            "system_chars": 21,
+            "domain_chars": 0,
+            "user_body_chars": 598,
+            "unique_transcript_chars": 20,
+            "duplicate_context_chars": 29,
+            "evidence_quote_chars": 0,
+            "id_chars": 252,
+            "json_key_chars": 146,
+            "json_bytes": 896,
+            "model_input_chars": 619,
+            "estimated_input_tokens": 310,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 73,
+            "domain_chars": 0,
+            "user_body_chars": 154,
+            "unique_transcript_chars": 20,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 12,
+            "json_key_chars": 60,
+            "json_bytes": 443,
+            "model_input_chars": 227,
+            "estimated_input_tokens": 114,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "TRANSCRIPT_CORRECTION-v1",
+            "snapshot_identity": "synthetic:G-008",
+            "source_content_hash": "b02cf7f547ccedff7056bac45efc98a628b60cb1d47a8c7ccc62dd2bcc4dc6f9",
+            "short_id_map_fingerprint": "5f64b774f365c1806a5f10d6382679e0a185702f0cb5f3331f02722583054a94"
+          }
+        },
+        {
+          "stage": "NOTE_REDUCE",
+          "baseline": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 725,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 216,
+            "json_key_chars": 217,
+            "json_bytes": 1112,
+            "model_input_chars": 751,
+            "estimated_input_tokens": 376,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 523,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 8,
+            "json_key_chars": 211,
+            "json_bytes": 894,
+            "model_input_chars": 549,
+            "estimated_input_tokens": 275,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "NOTE_REDUCE-v1",
+            "snapshot_identity": "synthetic:G-008",
+            "source_content_hash": "b02cf7f547ccedff7056bac45efc98a628b60cb1d47a8c7ccc62dd2bcc4dc6f9",
+            "short_id_map_fingerprint": "ab7d4f39e307688111bf23bb845eb003d2eff50109d57c983d1d898be70deab1"
+          }
+        }
+      ],
+      "source_coverage": 1.0,
+      "claim_evidence_validity": 1.0,
+      "lossless_roundtrip": true,
+      "expected_actionable": [
+        "额尔古纳湿地"
+      ],
+      "expected_reference": [],
+      "actionable_poi_precision": null,
+      "actionable_poi_recall": null,
+      "manual_review_rate": null,
+      "review_reasons": [],
+      "model_quality": "NOT_VERIFIED",
+      "reported_input_tokens": null,
+      "reported_output_tokens": null,
+      "usage_source": "UNKNOWN",
+      "provider_calls": 0
+    },
+    {
+      "sample_id": "G-009",
+      "source": "SYNTHETIC",
+      "request_metrics": [
+        {
+          "stage": "GROUND_MAP",
+          "baseline": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 197,
+            "unique_transcript_chars": 13,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 108,
+            "json_key_chars": 0,
+            "json_bytes": 352,
+            "model_input_chars": 219,
+            "estimated_input_tokens": 110,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 95,
+            "unique_transcript_chars": 13,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 6,
+            "json_key_chars": 0,
+            "json_bytes": 250,
+            "model_input_chars": 117,
+            "estimated_input_tokens": 59,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "GROUND_MAP-v1",
+            "snapshot_identity": "synthetic:G-009",
+            "source_content_hash": "e5470ac3e53c6f06b63140ee92d02f2df680376c1db6354e31bdacef8e97b3e9",
+            "short_id_map_fingerprint": "97c85edfb067d32d5360f022f65d4671a3ddec0539ed621ba53cd6ffb27a5df1"
+          }
+        },
+        {
+          "stage": "TRANSCRIPT_CORRECTION",
+          "baseline": {
+            "system_chars": 21,
+            "domain_chars": 0,
+            "user_body_chars": 578,
+            "unique_transcript_chars": 13,
+            "duplicate_context_chars": 16,
+            "evidence_quote_chars": 0,
+            "id_chars": 252,
+            "json_key_chars": 146,
+            "json_bytes": 836,
+            "model_input_chars": 599,
+            "estimated_input_tokens": 300,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 73,
+            "domain_chars": 0,
+            "user_body_chars": 147,
+            "unique_transcript_chars": 13,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 12,
+            "json_key_chars": 60,
+            "json_bytes": 422,
+            "model_input_chars": 220,
+            "estimated_input_tokens": 110,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "TRANSCRIPT_CORRECTION-v1",
+            "snapshot_identity": "synthetic:G-009",
+            "source_content_hash": "e5470ac3e53c6f06b63140ee92d02f2df680376c1db6354e31bdacef8e97b3e9",
+            "short_id_map_fingerprint": "97c85edfb067d32d5360f022f65d4671a3ddec0539ed621ba53cd6ffb27a5df1"
+          }
+        },
+        {
+          "stage": "NOTE_REDUCE",
+          "baseline": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 702,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 216,
+            "json_key_chars": 217,
+            "json_bytes": 1043,
+            "model_input_chars": 728,
+            "estimated_input_tokens": 364,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 501,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 8,
+            "json_key_chars": 211,
+            "json_bytes": 828,
+            "model_input_chars": 527,
+            "estimated_input_tokens": 264,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "NOTE_REDUCE-v1",
+            "snapshot_identity": "synthetic:G-009",
+            "source_content_hash": "e5470ac3e53c6f06b63140ee92d02f2df680376c1db6354e31bdacef8e97b3e9",
+            "short_id_map_fingerprint": "da3398af14983f8c2f4620975fe092a53c7216bd64096d53fea59b4dfeb71486"
+          }
+        }
+      ],
+      "source_coverage": 1.0,
+      "claim_evidence_validity": 1.0,
+      "lossless_roundtrip": true,
+      "expected_actionable": [],
+      "expected_reference": [],
+      "actionable_poi_precision": null,
+      "actionable_poi_recall": null,
+      "manual_review_rate": null,
+      "review_reasons": [],
+      "model_quality": "NOT_VERIFIED",
+      "reported_input_tokens": null,
+      "reported_output_tokens": null,
+      "usage_source": "UNKNOWN",
+      "provider_calls": 0
+    },
+    {
+      "sample_id": "G-010",
+      "source": "SYNTHETIC",
+      "request_metrics": [
+        {
+          "stage": "GROUND_MAP",
+          "baseline": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 198,
+            "unique_transcript_chars": 14,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 108,
+            "json_key_chars": 0,
+            "json_bytes": 355,
+            "model_input_chars": 220,
+            "estimated_input_tokens": 110,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 96,
+            "unique_transcript_chars": 14,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 6,
+            "json_key_chars": 0,
+            "json_bytes": 253,
+            "model_input_chars": 118,
+            "estimated_input_tokens": 59,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "GROUND_MAP-v1",
+            "snapshot_identity": "synthetic:G-010",
+            "source_content_hash": "5aa21bdf95ad13af7b8e7324d37277a0f4b5bd7a8457f24a87cc2a90e8edd81a",
+            "short_id_map_fingerprint": "bb00c1f30b55d73f666e1cd5a4ef47141fda521bc952ffdade0c94f0a18d024b"
+          }
+        },
+        {
+          "stage": "TRANSCRIPT_CORRECTION",
+          "baseline": {
+            "system_chars": 21,
+            "domain_chars": 0,
+            "user_body_chars": 583,
+            "unique_transcript_chars": 14,
+            "duplicate_context_chars": 20,
+            "evidence_quote_chars": 0,
+            "id_chars": 252,
+            "json_key_chars": 146,
+            "json_bytes": 851,
+            "model_input_chars": 604,
+            "estimated_input_tokens": 302,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 73,
+            "domain_chars": 0,
+            "user_body_chars": 148,
+            "unique_transcript_chars": 14,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 12,
+            "json_key_chars": 60,
+            "json_bytes": 425,
+            "model_input_chars": 221,
+            "estimated_input_tokens": 111,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "TRANSCRIPT_CORRECTION-v1",
+            "snapshot_identity": "synthetic:G-010",
+            "source_content_hash": "5aa21bdf95ad13af7b8e7324d37277a0f4b5bd7a8457f24a87cc2a90e8edd81a",
+            "short_id_map_fingerprint": "bb00c1f30b55d73f666e1cd5a4ef47141fda521bc952ffdade0c94f0a18d024b"
+          }
+        },
+        {
+          "stage": "NOTE_REDUCE",
+          "baseline": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 701,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 216,
+            "json_key_chars": 217,
+            "json_bytes": 1040,
+            "model_input_chars": 727,
+            "estimated_input_tokens": 364,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 502,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 8,
+            "json_key_chars": 211,
+            "json_bytes": 831,
+            "model_input_chars": 528,
+            "estimated_input_tokens": 264,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "NOTE_REDUCE-v1",
+            "snapshot_identity": "synthetic:G-010",
+            "source_content_hash": "5aa21bdf95ad13af7b8e7324d37277a0f4b5bd7a8457f24a87cc2a90e8edd81a",
+            "short_id_map_fingerprint": "d4f710e88e4c8c3b39e41a83428d92a4da41244e477cd38c312cd7f2a18d46a6"
+          }
+        }
+      ],
+      "source_coverage": 1.0,
+      "claim_evidence_validity": 1.0,
+      "lossless_roundtrip": true,
+      "expected_actionable": [
+        "凤凰山"
+      ],
+      "expected_reference": [],
+      "actionable_poi_precision": null,
+      "actionable_poi_recall": null,
+      "manual_review_rate": null,
+      "review_reasons": [],
+      "model_quality": "NOT_VERIFIED",
+      "reported_input_tokens": null,
+      "reported_output_tokens": null,
+      "usage_source": "UNKNOWN",
+      "provider_calls": 0
+    },
+    {
+      "sample_id": "G-011",
+      "source": "SYNTHETIC",
+      "request_metrics": [
+        {
+          "stage": "GROUND_MAP",
+          "baseline": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 196,
+            "unique_transcript_chars": 12,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 108,
+            "json_key_chars": 0,
+            "json_bytes": 349,
+            "model_input_chars": 218,
+            "estimated_input_tokens": 109,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 94,
+            "unique_transcript_chars": 12,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 6,
+            "json_key_chars": 0,
+            "json_bytes": 247,
+            "model_input_chars": 116,
+            "estimated_input_tokens": 58,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "GROUND_MAP-v1",
+            "snapshot_identity": "synthetic:G-011",
+            "source_content_hash": "b5afb7a093c86724b951ce39cd4dea6354eb0504ca3c02ac830489b783cb54da",
+            "short_id_map_fingerprint": "f554724d16ef6b03e7ba5e65e5bb5a867f9e6a2de25d5a5557d2d3e7f7086576"
+          }
+        },
+        {
+          "stage": "TRANSCRIPT_CORRECTION",
+          "baseline": {
+            "system_chars": 21,
+            "domain_chars": 0,
+            "user_body_chars": 578,
+            "unique_transcript_chars": 12,
+            "duplicate_context_chars": 17,
+            "evidence_quote_chars": 0,
+            "id_chars": 252,
+            "json_key_chars": 146,
+            "json_bytes": 836,
+            "model_input_chars": 599,
+            "estimated_input_tokens": 300,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 73,
+            "domain_chars": 0,
+            "user_body_chars": 146,
+            "unique_transcript_chars": 12,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 12,
+            "json_key_chars": 60,
+            "json_bytes": 419,
+            "model_input_chars": 219,
+            "estimated_input_tokens": 110,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "TRANSCRIPT_CORRECTION-v1",
+            "snapshot_identity": "synthetic:G-011",
+            "source_content_hash": "b5afb7a093c86724b951ce39cd4dea6354eb0504ca3c02ac830489b783cb54da",
+            "short_id_map_fingerprint": "f554724d16ef6b03e7ba5e65e5bb5a867f9e6a2de25d5a5557d2d3e7f7086576"
+          }
+        },
+        {
+          "stage": "NOTE_REDUCE",
+          "baseline": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 693,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 216,
+            "json_key_chars": 217,
+            "json_bytes": 1016,
+            "model_input_chars": 719,
+            "estimated_input_tokens": 360,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 495,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 8,
+            "json_key_chars": 211,
+            "json_bytes": 810,
+            "model_input_chars": 521,
+            "estimated_input_tokens": 261,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "NOTE_REDUCE-v1",
+            "snapshot_identity": "synthetic:G-011",
+            "source_content_hash": "b5afb7a093c86724b951ce39cd4dea6354eb0504ca3c02ac830489b783cb54da",
+            "short_id_map_fingerprint": "526bc1000382837869f1dd90a673dc14dff0706f176bc7ce6c055c388031c32f"
+          }
+        }
+      ],
+      "source_coverage": 1.0,
+      "claim_evidence_validity": 1.0,
+      "lossless_roundtrip": true,
+      "expected_actionable": [
+        "喜茶"
+      ],
+      "expected_reference": [],
+      "actionable_poi_precision": null,
+      "actionable_poi_recall": null,
+      "manual_review_rate": null,
+      "review_reasons": [],
+      "model_quality": "NOT_VERIFIED",
+      "reported_input_tokens": null,
+      "reported_output_tokens": null,
+      "usage_source": "UNKNOWN",
+      "provider_calls": 0
+    },
+    {
+      "sample_id": "G-012",
+      "source": "SYNTHETIC",
+      "request_metrics": [
+        {
+          "stage": "GROUND_MAP",
+          "baseline": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 205,
+            "unique_transcript_chars": 21,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 108,
+            "json_key_chars": 0,
+            "json_bytes": 366,
+            "model_input_chars": 227,
+            "estimated_input_tokens": 114,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 103,
+            "unique_transcript_chars": 21,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 6,
+            "json_key_chars": 0,
+            "json_bytes": 264,
+            "model_input_chars": 125,
+            "estimated_input_tokens": 63,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "GROUND_MAP-v1",
+            "snapshot_identity": "synthetic:G-012",
+            "source_content_hash": "e39bf65bda40df8328351799129261e604c44a9636576427412659737d791423",
+            "short_id_map_fingerprint": "a78bc5741bbd1bb1d6711610d4f1a3b2d1199cc2a8f4c367901992b8822b6ac0"
+          }
+        },
+        {
+          "stage": "TRANSCRIPT_CORRECTION",
+          "baseline": {
+            "system_chars": 21,
+            "domain_chars": 0,
+            "user_body_chars": 597,
+            "unique_transcript_chars": 21,
+            "duplicate_context_chars": 27,
+            "evidence_quote_chars": 0,
+            "id_chars": 252,
+            "json_key_chars": 146,
+            "json_bytes": 873,
+            "model_input_chars": 618,
+            "estimated_input_tokens": 309,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 73,
+            "domain_chars": 0,
+            "user_body_chars": 155,
+            "unique_transcript_chars": 21,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 12,
+            "json_key_chars": 60,
+            "json_bytes": 436,
+            "model_input_chars": 228,
+            "estimated_input_tokens": 114,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "TRANSCRIPT_CORRECTION-v1",
+            "snapshot_identity": "synthetic:G-012",
+            "source_content_hash": "e39bf65bda40df8328351799129261e604c44a9636576427412659737d791423",
+            "short_id_map_fingerprint": "a78bc5741bbd1bb1d6711610d4f1a3b2d1199cc2a8f4c367901992b8822b6ac0"
+          }
+        },
+        {
+          "stage": "NOTE_REDUCE",
+          "baseline": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 730,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 216,
+            "json_key_chars": 217,
+            "json_bytes": 1077,
+            "model_input_chars": 756,
+            "estimated_input_tokens": 378,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 527,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 8,
+            "json_key_chars": 211,
+            "json_bytes": 866,
+            "model_input_chars": 553,
+            "estimated_input_tokens": 277,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "NOTE_REDUCE-v1",
+            "snapshot_identity": "synthetic:G-012",
+            "source_content_hash": "e39bf65bda40df8328351799129261e604c44a9636576427412659737d791423",
+            "short_id_map_fingerprint": "b716b6099eb30b99d583f3c333691ba8848164917d3fd6ecbe5d6c3cf408c21f"
+          }
+        }
+      ],
+      "source_coverage": 1.0,
+      "claim_evidence_validity": 1.0,
+      "lossless_roundtrip": true,
+      "expected_actionable": [
+        "五大道"
+      ],
+      "expected_reference": [
+        "北京站"
+      ],
+      "actionable_poi_precision": null,
+      "actionable_poi_recall": null,
+      "manual_review_rate": null,
+      "review_reasons": [],
+      "model_quality": "NOT_VERIFIED",
+      "reported_input_tokens": null,
+      "reported_output_tokens": null,
+      "usage_source": "UNKNOWN",
+      "provider_calls": 0
+    },
+    {
+      "sample_id": "S-PRICE",
+      "source": "SYNTHETIC",
+      "request_metrics": [
+        {
+          "stage": "GROUND_MAP",
+          "baseline": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 211,
+            "unique_transcript_chars": 27,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 108,
+            "json_key_chars": 0,
+            "json_bytes": 386,
+            "model_input_chars": 233,
+            "estimated_input_tokens": 117,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 109,
+            "unique_transcript_chars": 27,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 6,
+            "json_key_chars": 0,
+            "json_bytes": 284,
+            "model_input_chars": 131,
+            "estimated_input_tokens": 66,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "GROUND_MAP-v1",
+            "snapshot_identity": "synthetic:S-PRICE",
+            "source_content_hash": "7aa4e4251b9b6d4c3b0edb571e21eba6f36d8fc29695ccd0797a0cf059135cf0",
+            "short_id_map_fingerprint": "e90090f8474542c62b254ce3cf18e5197415acc2d7bd6ae8e30195d7fe78180b"
+          }
+        },
+        {
+          "stage": "TRANSCRIPT_CORRECTION",
+          "baseline": {
+            "system_chars": 21,
+            "domain_chars": 0,
+            "user_body_chars": 606,
+            "unique_transcript_chars": 27,
+            "duplicate_context_chars": 30,
+            "evidence_quote_chars": 0,
+            "id_chars": 252,
+            "json_key_chars": 146,
+            "json_bytes": 904,
+            "model_input_chars": 627,
+            "estimated_input_tokens": 314,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 73,
+            "domain_chars": 0,
+            "user_body_chars": 161,
+            "unique_transcript_chars": 27,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 12,
+            "json_key_chars": 60,
+            "json_bytes": 456,
+            "model_input_chars": 234,
+            "estimated_input_tokens": 117,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "TRANSCRIPT_CORRECTION-v1",
+            "snapshot_identity": "synthetic:S-PRICE",
+            "source_content_hash": "7aa4e4251b9b6d4c3b0edb571e21eba6f36d8fc29695ccd0797a0cf059135cf0",
+            "short_id_map_fingerprint": "e90090f8474542c62b254ce3cf18e5197415acc2d7bd6ae8e30195d7fe78180b"
+          }
+        },
+        {
+          "stage": "NOTE_REDUCE",
+          "baseline": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 772,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 216,
+            "json_key_chars": 217,
+            "json_bytes": 1213,
+            "model_input_chars": 798,
+            "estimated_input_tokens": 399,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 557,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 8,
+            "json_key_chars": 211,
+            "json_bytes": 964,
+            "model_input_chars": 583,
+            "estimated_input_tokens": 292,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "NOTE_REDUCE-v1",
+            "snapshot_identity": "synthetic:S-PRICE",
+            "source_content_hash": "7aa4e4251b9b6d4c3b0edb571e21eba6f36d8fc29695ccd0797a0cf059135cf0",
+            "short_id_map_fingerprint": "93e71f1da27ce36724e5302c254ab98dbe53b3ac0b6778ed71260192323e7c7e"
+          }
+        }
+      ],
+      "source_coverage": 1.0,
+      "claim_evidence_validity": 1.0,
+      "lossless_roundtrip": true,
+      "expected_actionable": [],
+      "expected_reference": [],
+      "actionable_poi_precision": null,
+      "actionable_poi_recall": null,
+      "manual_review_rate": null,
+      "review_reasons": [],
+      "model_quality": "NOT_VERIFIED",
+      "reported_input_tokens": null,
+      "reported_output_tokens": null,
+      "usage_source": "UNKNOWN",
+      "provider_calls": 0
+    },
+    {
+      "sample_id": "S-SEASON",
+      "source": "SYNTHETIC",
+      "request_metrics": [
+        {
+          "stage": "GROUND_MAP",
+          "baseline": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 212,
+            "unique_transcript_chars": 28,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 108,
+            "json_key_chars": 0,
+            "json_bytes": 393,
+            "model_input_chars": 234,
+            "estimated_input_tokens": 117,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 110,
+            "unique_transcript_chars": 28,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 6,
+            "json_key_chars": 0,
+            "json_bytes": 291,
+            "model_input_chars": 132,
+            "estimated_input_tokens": 66,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "GROUND_MAP-v1",
+            "snapshot_identity": "synthetic:S-SEASON",
+            "source_content_hash": "b94f34817aa84258ada694adbe7d96d58652974a4f159daef2f783e236d49902",
+            "short_id_map_fingerprint": "8fce59824908c6859b22b6f8bb27202b714dfc1d7712448ce85811a797ba8ead"
+          }
+        },
+        {
+          "stage": "TRANSCRIPT_CORRECTION",
+          "baseline": {
+            "system_chars": 21,
+            "domain_chars": 0,
+            "user_body_chars": 608,
+            "unique_transcript_chars": 28,
+            "duplicate_context_chars": 31,
+            "evidence_quote_chars": 0,
+            "id_chars": 252,
+            "json_key_chars": 146,
+            "json_bytes": 918,
+            "model_input_chars": 629,
+            "estimated_input_tokens": 315,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 73,
+            "domain_chars": 0,
+            "user_body_chars": 162,
+            "unique_transcript_chars": 28,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 12,
+            "json_key_chars": 60,
+            "json_bytes": 463,
+            "model_input_chars": 235,
+            "estimated_input_tokens": 118,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "TRANSCRIPT_CORRECTION-v1",
+            "snapshot_identity": "synthetic:S-SEASON",
+            "source_content_hash": "b94f34817aa84258ada694adbe7d96d58652974a4f159daef2f783e236d49902",
+            "short_id_map_fingerprint": "8fce59824908c6859b22b6f8bb27202b714dfc1d7712448ce85811a797ba8ead"
+          }
+        },
+        {
+          "stage": "NOTE_REDUCE",
+          "baseline": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 777,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 216,
+            "json_key_chars": 217,
+            "json_bytes": 1248,
+            "model_input_chars": 803,
+            "estimated_input_tokens": 402,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 561,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 8,
+            "json_key_chars": 211,
+            "json_bytes": 992,
+            "model_input_chars": 587,
+            "estimated_input_tokens": 294,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "NOTE_REDUCE-v1",
+            "snapshot_identity": "synthetic:S-SEASON",
+            "source_content_hash": "b94f34817aa84258ada694adbe7d96d58652974a4f159daef2f783e236d49902",
+            "short_id_map_fingerprint": "bcea5d30b3c61a08751610a0c5d18d6e3863207da0b32861a1360dc5ef31faf6"
+          }
+        }
+      ],
+      "source_coverage": 1.0,
+      "claim_evidence_validity": 1.0,
+      "lossless_roundtrip": true,
+      "expected_actionable": [],
+      "expected_reference": [],
+      "actionable_poi_precision": null,
+      "actionable_poi_recall": null,
+      "manual_review_rate": null,
+      "review_reasons": [],
+      "model_quality": "NOT_VERIFIED",
+      "reported_input_tokens": null,
+      "reported_output_tokens": null,
+      "usage_source": "UNKNOWN",
+      "provider_calls": 0
+    },
+    {
+      "sample_id": "S-NO-PLACE",
+      "source": "SYNTHETIC",
+      "request_metrics": [
+        {
+          "stage": "GROUND_MAP",
+          "baseline": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 207,
+            "unique_transcript_chars": 23,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 108,
+            "json_key_chars": 0,
+            "json_bytes": 382,
+            "model_input_chars": 229,
+            "estimated_input_tokens": 115,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 105,
+            "unique_transcript_chars": 23,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 6,
+            "json_key_chars": 0,
+            "json_bytes": 280,
+            "model_input_chars": 127,
+            "estimated_input_tokens": 64,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "GROUND_MAP-v1",
+            "snapshot_identity": "synthetic:S-NO-PLACE",
+            "source_content_hash": "ab7f69766c72d5f6cca4c85237ddf110d9fb5272bc98b79770176bb48cf27af3",
+            "short_id_map_fingerprint": "2a9a98edac23ba16e28f7e2b1c2a287b12bc4647ba3964f8362144b888a071e7"
+          }
+        },
+        {
+          "stage": "TRANSCRIPT_CORRECTION",
+          "baseline": {
+            "system_chars": 21,
+            "domain_chars": 0,
+            "user_body_chars": 598,
+            "unique_transcript_chars": 23,
+            "duplicate_context_chars": 26,
+            "evidence_quote_chars": 0,
+            "id_chars": 252,
+            "json_key_chars": 146,
+            "json_bytes": 896,
+            "model_input_chars": 619,
+            "estimated_input_tokens": 310,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 73,
+            "domain_chars": 0,
+            "user_body_chars": 157,
+            "unique_transcript_chars": 23,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 12,
+            "json_key_chars": 60,
+            "json_bytes": 452,
+            "model_input_chars": 230,
+            "estimated_input_tokens": 115,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "TRANSCRIPT_CORRECTION-v1",
+            "snapshot_identity": "synthetic:S-NO-PLACE",
+            "source_content_hash": "ab7f69766c72d5f6cca4c85237ddf110d9fb5272bc98b79770176bb48cf27af3",
+            "short_id_map_fingerprint": "2a9a98edac23ba16e28f7e2b1c2a287b12bc4647ba3964f8362144b888a071e7"
+          }
+        },
+        {
+          "stage": "NOTE_REDUCE",
+          "baseline": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 752,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 216,
+            "json_key_chars": 217,
+            "json_bytes": 1193,
+            "model_input_chars": 778,
+            "estimated_input_tokens": 389,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 541,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 8,
+            "json_key_chars": 211,
+            "json_bytes": 948,
+            "model_input_chars": 567,
+            "estimated_input_tokens": 284,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "NOTE_REDUCE-v1",
+            "snapshot_identity": "synthetic:S-NO-PLACE",
+            "source_content_hash": "ab7f69766c72d5f6cca4c85237ddf110d9fb5272bc98b79770176bb48cf27af3",
+            "short_id_map_fingerprint": "8d8cf666280833d1e690ff14d0c636c0362e534523452c21cb2e246d52014dff"
+          }
+        }
+      ],
+      "source_coverage": 1.0,
+      "claim_evidence_validity": 1.0,
+      "lossless_roundtrip": true,
+      "expected_actionable": [],
+      "expected_reference": [],
+      "actionable_poi_precision": null,
+      "actionable_poi_recall": null,
+      "manual_review_rate": null,
+      "review_reasons": [],
+      "model_quality": "NOT_VERIFIED",
+      "reported_input_tokens": null,
+      "reported_output_tokens": null,
+      "usage_source": "UNKNOWN",
+      "provider_calls": 0
+    },
+    {
+      "sample_id": "S-ASR",
+      "source": "SYNTHETIC",
+      "request_metrics": [
+        {
+          "stage": "GROUND_MAP",
+          "baseline": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 213,
+            "unique_transcript_chars": 29,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 108,
+            "json_key_chars": 0,
+            "json_bytes": 394,
+            "model_input_chars": 235,
+            "estimated_input_tokens": 118,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 111,
+            "unique_transcript_chars": 29,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 6,
+            "json_key_chars": 0,
+            "json_bytes": 292,
+            "model_input_chars": 133,
+            "estimated_input_tokens": 67,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "GROUND_MAP-v1",
+            "snapshot_identity": "synthetic:S-ASR",
+            "source_content_hash": "533a8a6cdfc17ca011d6ae0f44dbb2b7522fcaec75949e0ea55e2f0e7ad5bfc2",
+            "short_id_map_fingerprint": "d0d362e31ba11cbe95f0bc14034056b9e7d608dc064e1f7ac945800a814474aa"
+          }
+        },
+        {
+          "stage": "TRANSCRIPT_CORRECTION",
+          "baseline": {
+            "system_chars": 21,
+            "domain_chars": 0,
+            "user_body_chars": 613,
+            "unique_transcript_chars": 29,
+            "duplicate_context_chars": 35,
+            "evidence_quote_chars": 0,
+            "id_chars": 252,
+            "json_key_chars": 146,
+            "json_bytes": 929,
+            "model_input_chars": 634,
+            "estimated_input_tokens": 317,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 73,
+            "domain_chars": 0,
+            "user_body_chars": 163,
+            "unique_transcript_chars": 29,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 12,
+            "json_key_chars": 60,
+            "json_bytes": 464,
+            "model_input_chars": 236,
+            "estimated_input_tokens": 118,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "TRANSCRIPT_CORRECTION-v1",
+            "snapshot_identity": "synthetic:S-ASR",
+            "source_content_hash": "533a8a6cdfc17ca011d6ae0f44dbb2b7522fcaec75949e0ea55e2f0e7ad5bfc2",
+            "short_id_map_fingerprint": "d0d362e31ba11cbe95f0bc14034056b9e7d608dc064e1f7ac945800a814474aa"
+          }
+        },
+        {
+          "stage": "NOTE_REDUCE",
+          "baseline": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 776,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 216,
+            "json_key_chars": 217,
+            "json_bytes": 1235,
+            "model_input_chars": 802,
+            "estimated_input_tokens": 401,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 562,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 8,
+            "json_key_chars": 211,
+            "json_bytes": 987,
+            "model_input_chars": 588,
+            "estimated_input_tokens": 294,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "NOTE_REDUCE-v1",
+            "snapshot_identity": "synthetic:S-ASR",
+            "source_content_hash": "533a8a6cdfc17ca011d6ae0f44dbb2b7522fcaec75949e0ea55e2f0e7ad5bfc2",
+            "short_id_map_fingerprint": "efda52c23ced1027729fbd0395eddb08ce7ae91747cb2dc7d6051811da65b07e"
+          }
+        }
+      ],
+      "source_coverage": 1.0,
+      "claim_evidence_validity": 1.0,
+      "lossless_roundtrip": true,
+      "expected_actionable": [
+        "水陆庵"
+      ],
+      "expected_reference": [],
+      "actionable_poi_precision": null,
+      "actionable_poi_recall": null,
+      "manual_review_rate": null,
+      "review_reasons": [],
+      "model_quality": "NOT_VERIFIED",
+      "reported_input_tokens": null,
+      "reported_output_tokens": null,
+      "usage_source": "UNKNOWN",
+      "provider_calls": 0
+    },
+    {
+      "sample_id": "S-FAST",
+      "source": "SYNTHETIC",
+      "request_metrics": [
+        {
+          "stage": "GROUND_MAP",
+          "baseline": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 216,
+            "unique_transcript_chars": 32,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 108,
+            "json_key_chars": 0,
+            "json_bytes": 409,
+            "model_input_chars": 238,
+            "estimated_input_tokens": 119,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 114,
+            "unique_transcript_chars": 32,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 6,
+            "json_key_chars": 0,
+            "json_bytes": 307,
+            "model_input_chars": 136,
+            "estimated_input_tokens": 68,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "GROUND_MAP-v1",
+            "snapshot_identity": "synthetic:S-FAST",
+            "source_content_hash": "ca259be783f4a49fa5755cfb1add08f3f0aa1a5534d964f456ae6394a4a51974",
+            "short_id_map_fingerprint": "f01477ac8343d8e87261c01ce1a4079b0394e60baf03e81572fa65a33f57346f"
+          }
+        },
+        {
+          "stage": "TRANSCRIPT_CORRECTION",
+          "baseline": {
+            "system_chars": 21,
+            "domain_chars": 0,
+            "user_body_chars": 627,
+            "unique_transcript_chars": 32,
+            "duplicate_context_chars": 46,
+            "evidence_quote_chars": 0,
+            "id_chars": 252,
+            "json_key_chars": 146,
+            "json_bytes": 983,
+            "model_input_chars": 648,
+            "estimated_input_tokens": 324,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 73,
+            "domain_chars": 0,
+            "user_body_chars": 166,
+            "unique_transcript_chars": 32,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 12,
+            "json_key_chars": 60,
+            "json_bytes": 479,
+            "model_input_chars": 239,
+            "estimated_input_tokens": 120,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "TRANSCRIPT_CORRECTION-v1",
+            "snapshot_identity": "synthetic:S-FAST",
+            "source_content_hash": "ca259be783f4a49fa5755cfb1add08f3f0aa1a5534d964f456ae6394a4a51974",
+            "short_id_map_fingerprint": "f01477ac8343d8e87261c01ce1a4079b0394e60baf03e81572fa65a33f57346f"
+          }
+        },
+        {
+          "stage": "NOTE_REDUCE",
+          "baseline": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 775,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 216,
+            "json_key_chars": 217,
+            "json_bytes": 1262,
+            "model_input_chars": 801,
+            "estimated_input_tokens": 401,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 566,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 8,
+            "json_key_chars": 211,
+            "json_bytes": 1023,
+            "model_input_chars": 592,
+            "estimated_input_tokens": 296,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "NOTE_REDUCE-v1",
+            "snapshot_identity": "synthetic:S-FAST",
+            "source_content_hash": "ca259be783f4a49fa5755cfb1add08f3f0aa1a5534d964f456ae6394a4a51974",
+            "short_id_map_fingerprint": "ce3ea7ab12c0346590bac491cfbc73264ee3731f6d5ac4f594730ee1e4b64843"
+          }
+        }
+      ],
+      "source_coverage": 1.0,
+      "claim_evidence_validity": 1.0,
+      "lossless_roundtrip": true,
+      "expected_actionable": [
+        "水陆庵",
+        "翠华山",
+        "南五台"
+      ],
+      "expected_reference": [],
+      "actionable_poi_precision": null,
+      "actionable_poi_recall": null,
+      "manual_review_rate": null,
+      "review_reasons": [],
+      "model_quality": "NOT_VERIFIED",
+      "reported_input_tokens": null,
+      "reported_output_tokens": null,
+      "usage_source": "UNKNOWN",
+      "provider_calls": 0
+    },
+    {
+      "sample_id": "S-LONG",
+      "source": "SYNTHETIC",
+      "request_metrics": [
+        {
+          "stage": "GROUND_MAP",
+          "baseline": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 372,
+            "unique_transcript_chars": 60,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 180,
+            "json_key_chars": 0,
+            "json_bytes": 613,
+            "model_input_chars": 394,
+            "estimated_input_tokens": 197,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 202,
+            "unique_transcript_chars": 60,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 10,
+            "json_key_chars": 0,
+            "json_bytes": 443,
+            "model_input_chars": 224,
+            "estimated_input_tokens": 112,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "GROUND_MAP-v1",
+            "snapshot_identity": "synthetic:S-LONG",
+            "source_content_hash": "2f88cb1f785b7a30804c6ff31515eb01616b222d2d6708306e5cebafb3895240",
+            "short_id_map_fingerprint": "528e42d7930a387357a570619f444b6efd643f4b7484aa71f54ed09e6e4d4bdf"
+          }
+        },
+        {
+          "stage": "GROUND_MAP",
+          "baseline": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 379,
+            "unique_transcript_chars": 60,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 180,
+            "json_key_chars": 0,
+            "json_bytes": 620,
+            "model_input_chars": 401,
+            "estimated_input_tokens": 201,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 210,
+            "unique_transcript_chars": 60,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 11,
+            "json_key_chars": 0,
+            "json_bytes": 451,
+            "model_input_chars": 232,
+            "estimated_input_tokens": 116,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "GROUND_MAP-v1",
+            "snapshot_identity": "synthetic:S-LONG",
+            "source_content_hash": "2f88cb1f785b7a30804c6ff31515eb01616b222d2d6708306e5cebafb3895240",
+            "short_id_map_fingerprint": "528e42d7930a387357a570619f444b6efd643f4b7484aa71f54ed09e6e4d4bdf"
+          }
+        },
+        {
+          "stage": "GROUND_MAP",
+          "baseline": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 384,
+            "unique_transcript_chars": 65,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 180,
+            "json_key_chars": 0,
+            "json_bytes": 625,
+            "model_input_chars": 406,
+            "estimated_input_tokens": 203,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 219,
+            "unique_transcript_chars": 65,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 15,
+            "json_key_chars": 0,
+            "json_bytes": 460,
+            "model_input_chars": 241,
+            "estimated_input_tokens": 121,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "GROUND_MAP-v1",
+            "snapshot_identity": "synthetic:S-LONG",
+            "source_content_hash": "2f88cb1f785b7a30804c6ff31515eb01616b222d2d6708306e5cebafb3895240",
+            "short_id_map_fingerprint": "528e42d7930a387357a570619f444b6efd643f4b7484aa71f54ed09e6e4d4bdf"
+          }
+        },
+        {
+          "stage": "GROUND_MAP",
+          "baseline": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 391,
+            "unique_transcript_chars": 65,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 180,
+            "json_key_chars": 0,
+            "json_bytes": 632,
+            "model_input_chars": 413,
+            "estimated_input_tokens": 207,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 226,
+            "unique_transcript_chars": 65,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 15,
+            "json_key_chars": 0,
+            "json_bytes": 467,
+            "model_input_chars": 248,
+            "estimated_input_tokens": 124,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "GROUND_MAP-v1",
+            "snapshot_identity": "synthetic:S-LONG",
+            "source_content_hash": "2f88cb1f785b7a30804c6ff31515eb01616b222d2d6708306e5cebafb3895240",
+            "short_id_map_fingerprint": "528e42d7930a387357a570619f444b6efd643f4b7484aa71f54ed09e6e4d4bdf"
+          }
+        },
+        {
+          "stage": "GROUND_MAP",
+          "baseline": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 394,
+            "unique_transcript_chars": 65,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 180,
+            "json_key_chars": 0,
+            "json_bytes": 635,
+            "model_input_chars": 416,
+            "estimated_input_tokens": 208,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 229,
+            "unique_transcript_chars": 65,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 15,
+            "json_key_chars": 0,
+            "json_bytes": 470,
+            "model_input_chars": 251,
+            "estimated_input_tokens": 126,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "GROUND_MAP-v1",
+            "snapshot_identity": "synthetic:S-LONG",
+            "source_content_hash": "2f88cb1f785b7a30804c6ff31515eb01616b222d2d6708306e5cebafb3895240",
+            "short_id_map_fingerprint": "528e42d7930a387357a570619f444b6efd643f4b7484aa71f54ed09e6e4d4bdf"
+          }
+        },
+        {
+          "stage": "GROUND_MAP",
+          "baseline": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 394,
+            "unique_transcript_chars": 65,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 180,
+            "json_key_chars": 0,
+            "json_bytes": 635,
+            "model_input_chars": 416,
+            "estimated_input_tokens": 208,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 229,
+            "unique_transcript_chars": 65,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 15,
+            "json_key_chars": 0,
+            "json_bytes": 470,
+            "model_input_chars": 251,
+            "estimated_input_tokens": 126,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "GROUND_MAP-v1",
+            "snapshot_identity": "synthetic:S-LONG",
+            "source_content_hash": "2f88cb1f785b7a30804c6ff31515eb01616b222d2d6708306e5cebafb3895240",
+            "short_id_map_fingerprint": "528e42d7930a387357a570619f444b6efd643f4b7484aa71f54ed09e6e4d4bdf"
+          }
+        },
+        {
+          "stage": "GROUND_MAP",
+          "baseline": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 224,
+            "unique_transcript_chars": 27,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 108,
+            "json_key_chars": 0,
+            "json_bytes": 407,
+            "model_input_chars": 246,
+            "estimated_input_tokens": 123,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 22,
+            "domain_chars": 0,
+            "user_body_chars": 125,
+            "unique_transcript_chars": 27,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 9,
+            "json_key_chars": 0,
+            "json_bytes": 308,
+            "model_input_chars": 147,
+            "estimated_input_tokens": 74,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "GROUND_MAP-v1",
+            "snapshot_identity": "synthetic:S-LONG",
+            "source_content_hash": "2f88cb1f785b7a30804c6ff31515eb01616b222d2d6708306e5cebafb3895240",
+            "short_id_map_fingerprint": "528e42d7930a387357a570619f444b6efd643f4b7484aa71f54ed09e6e4d4bdf"
+          }
+        },
+        {
+          "stage": "TRANSCRIPT_CORRECTION",
+          "baseline": {
+            "system_chars": 21,
+            "domain_chars": 0,
+            "user_body_chars": 8233,
+            "unique_transcript_chars": 407,
+            "duplicate_context_chars": 797,
+            "evidence_quote_chars": 0,
+            "id_chars": 3492,
+            "json_key_chars": 1676,
+            "json_bytes": 11443,
+            "model_input_chars": 8254,
+            "estimated_input_tokens": 4127,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 73,
+            "domain_chars": 0,
+            "user_body_chars": 1639,
+            "unique_transcript_chars": 407,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 180,
+            "json_key_chars": 480,
+            "json_bytes": 2902,
+            "model_input_chars": 1712,
+            "estimated_input_tokens": 856,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "TRANSCRIPT_CORRECTION-v1",
+            "snapshot_identity": "synthetic:S-LONG",
+            "source_content_hash": "2f88cb1f785b7a30804c6ff31515eb01616b222d2d6708306e5cebafb3895240",
+            "short_id_map_fingerprint": "528e42d7930a387357a570619f444b6efd643f4b7484aa71f54ed09e6e4d4bdf"
+          }
+        },
+        {
+          "stage": "NOTE_REDUCE",
+          "baseline": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 5980,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 1296,
+            "json_key_chars": 2077,
+            "json_bytes": 8955,
+            "model_input_chars": 6006,
+            "estimated_input_tokens": 3003,
+            "request_count": 1
+          },
+          "candidate": {
+            "system_chars": 26,
+            "domain_chars": 0,
+            "user_body_chars": 4776,
+            "unique_transcript_chars": 0,
+            "duplicate_context_chars": 0,
+            "evidence_quote_chars": 0,
+            "id_chars": 92,
+            "json_key_chars": 2071,
+            "json_bytes": 7725,
+            "model_input_chars": 4802,
+            "estimated_input_tokens": 2401,
+            "request_count": 1
+          },
+          "input_identity": {
+            "compiler_version": "stage-evidence-v1",
+            "stage_projection_version": "NOTE_REDUCE-v1",
+            "snapshot_identity": "synthetic:S-LONG",
+            "source_content_hash": "2f88cb1f785b7a30804c6ff31515eb01616b222d2d6708306e5cebafb3895240",
+            "short_id_map_fingerprint": "1d3659bdd37f17c7795a66ac08ce50f3a7800ec41b67bfdb6de704019c40d29a"
+          }
+        }
+      ],
+      "source_coverage": 1.0,
+      "claim_evidence_validity": 1.0,
+      "lossless_roundtrip": true,
+      "expected_actionable": [
+        "故宫",
+        "天坛"
+      ],
+      "expected_reference": [],
+      "actionable_poi_precision": null,
+      "actionable_poi_recall": null,
+      "manual_review_rate": null,
+      "review_reasons": [],
+      "model_quality": "NOT_VERIFIED",
+      "reported_input_tokens": null,
+      "reported_output_tokens": null,
+      "usage_source": "UNKNOWN",
+      "provider_calls": 0
+    }
+  ],
+  "baseline_json_bytes": 65570,
+  "candidate_json_bytes": 41461,
+  "byte_reduction_percent": 36.77,
+  "offline_gate": true,
+  "provider_calls": 0,
+  "real_token_target": "NOT_VERIFIED",
+  "real_business_quality": "NOT_VERIFIED",
+  "production_proven": false
+}

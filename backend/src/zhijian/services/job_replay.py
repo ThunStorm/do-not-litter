@@ -6,7 +6,14 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from zhijian.ai.job_config import RECOVERY_KEY, secret_free_model_profile
+from zhijian.ai.job_config import (
+    PENDING_EXECUTION_KEY,
+    RECOVERY_KEY,
+    build_execution_config,
+    execution_config_summary,
+    install_execution_config,
+    secret_free_model_profile,
+)
 from zhijian.core.time import as_utc, utc_now
 from zhijian.db.models import GroundedMapArtifact, Job, JobStep, JobStepArtifact, Setting, SystemEvent
 from zhijian.domain.enums import JobStatus
@@ -47,6 +54,7 @@ FULL_REPLAY_CLEARED_PAYLOAD_KEYS = {
     RECOVERY_KEY,
     "ai_recovery_overrides",
     FULL_REPLAY_DEFERRED_KEY,
+    PENDING_EXECUTION_KEY,
 }
 
 
@@ -124,11 +132,13 @@ def full_replay_options(job: Job) -> dict:
     }
 
 
-def _reset_full_replay(db: Session, job: Job) -> None:
+def reset_job_for_full_replay(db: Session, job: Job, execution_config: dict | None = None) -> None:
     now = utc_now()
+    execution_config = execution_config or job.payload_json.get(PENDING_EXECUTION_KEY)
     job.payload_json = {
         key: value for key, value in job.payload_json.items() if key not in FULL_REPLAY_CLEARED_PAYLOAD_KEYS
     }
+    install_execution_config(job, execution_config)
     job.status = JobStatus.QUEUED.value
     job.current_step = "RECEIVED"
     job.progress = 0
@@ -149,12 +159,15 @@ def _reset_full_replay(db: Session, job: Job) -> None:
 
 def queue_full_replay(db: Session, job: Job) -> dict:
     """Restart the same Job ID; active work is safely requeued after cancellation."""
+    execution_config = build_execution_config(db, job, full=True)
     active = job.status in {JobStatus.QUEUED.value, JobStatus.RUNNING.value} or bool(job.lease_owner)
     if active:
         now = utc_now()
         job.status = JobStatus.CANCELLED.value
         job.finished_at = job.heartbeat_at = now
         job.payload_json = {**job.payload_json, FULL_REPLAY_DEFERRED_KEY: True}
+        if execution_config:
+            job.payload_json = {**job.payload_json, PENDING_EXECUTION_KEY: execution_config}
         if job.lease_owner:
             job.lease_expire_at = now + timedelta(seconds=60)
         current_step = db.scalar(
@@ -166,7 +179,7 @@ def queue_full_replay(db: Session, job: Job) -> dict:
             current_step.error = None
         message = "已请求停止当前流程；将在安全边界后从头重新运行原任务"
     else:
-        _reset_full_replay(db, job)
+        reset_job_for_full_replay(db, job, execution_config)
         message = "已将原任务从头重新入队"
     record_event(
         db,
@@ -176,7 +189,11 @@ def queue_full_replay(db: Session, job: Job) -> dict:
         actor="user",
         entity_type="job",
         entity_id=job.id,
-        detail={"reuses_job": True, "deferred": active},
+        detail={
+            "reuses_job": True,
+            "deferred": active,
+            "execution_config": execution_config_summary(execution_config),
+        },
         commit=False,
     )
     db.commit()
@@ -190,7 +207,7 @@ def resume_deferred_full_replays(db: Session) -> int:
     ):
         if not job.payload_json.get(FULL_REPLAY_DEFERRED_KEY):
             continue
-        _reset_full_replay(db, job)
+        reset_job_for_full_replay(db, job)
         record_event(
             db,
             "job.full_replay.requeued",
@@ -369,6 +386,40 @@ def queue_step_replay(
             or str(event.detail_json.get("step") or job.current_step) != step_name
         ):
             raise ValueError("REPLAY_EVENT_MISMATCH:错误事件与失败步骤不一致")
+    recovery = job.payload_json.get(RECOVERY_KEY) or {}
+    overrides = dict(job.payload_json.get("ai_recovery_overrides") or {})
+    if note_recovery:
+        recovery = {
+            "version": 1,
+            "settings": {
+                **recovery.get("settings", {}),
+                f"model-profile:{note_recovery['profile_id']}": note_recovery["profile"],
+            },
+        }
+        overrides[note_recovery["stage"]] = note_recovery["policy"]
+    remaining_stages = {
+        "CORRECT_TRANSCRIPT": (
+            "TRANSCRIPT_CORRECTION",
+            "GROUND_MAP",
+            "EXTRACT_TRAVEL_FACTS",
+            "NOTE_REDUCE",
+            "GENERATE_AI_NOTE",
+        ),
+        "EXTRACT_TRAVEL_FACTS": ("GROUND_MAP", "EXTRACT_TRAVEL_FACTS", "NOTE_REDUCE", "GENERATE_AI_NOTE"),
+        "GENERATE_AI_NOTE": ("NOTE_REDUCE", "GENERATE_AI_NOTE"),
+    }.get(step_name, ())
+    if step_name == "GENERATE_AI_NOTE":
+        has_map = bool(
+            db.scalar(
+                select(GroundedMapArtifact.id).where(
+                    GroundedMapArtifact.transcript_id == str(job.payload_json.get("transcript_id") or "")
+                )
+            )
+        )
+        remaining_stages = ("NOTE_REDUCE" if has_map else "GENERATE_AI_NOTE",)
+    execution_config = build_execution_config(
+        db, job, recovery=recovery, recovery_overrides=overrides, stages=remaining_stages
+    )
     steps = {item.step_name: item for item in db.scalars(select(JobStep).where(JobStep.job_id == job.id))}
     start = VIDEO_STEP_ORDER.index(step_name)
     for name in VIDEO_STEP_ORDER[:start]:
@@ -387,17 +438,14 @@ def queue_step_replay(
             artifact.invalidated_at = utc_now()
     payload = {key: value for key, value in job.payload_json.items() if key != "ai_soft_budget"}
     if note_recovery:
-        settings = dict((payload.get(RECOVERY_KEY) or {}).get("settings") or {})
-        settings[f"model-profile:{note_recovery['profile_id']}"] = note_recovery["profile"]
-        payload[RECOVERY_KEY] = {"version": 1, "settings": settings}
-        overrides = dict(payload.get("ai_recovery_overrides") or {})
-        overrides[note_recovery["stage"]] = note_recovery["policy"]
+        payload[RECOVERY_KEY] = recovery
         payload["ai_recovery_overrides"] = overrides
     job.payload_json = {
         **payload,
         "replay_from_step": step_name,
         "source_event_id": source_event_id,
     }
+    install_execution_config(job, execution_config)
     job.status = JobStatus.QUEUED.value
     job.current_step = step_name
     job.progress = max(0, round(start / len(VIDEO_STEP_ORDER) * 100))
@@ -413,6 +461,7 @@ def queue_step_replay(
         entity_type="job",
         entity_id=job.id,
         detail={
+            "execution_config": execution_config_summary(execution_config),
             "step": step_name,
             "source_event_id": source_event_id,
             "reused_steps": options["reused_steps"],

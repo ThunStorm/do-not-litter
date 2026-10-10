@@ -17,11 +17,20 @@ Custom
 
 Custom 下允许只覆盖某几个 Stage。
 
-没有覆盖的 Stage 使用提交 Job 当时保存的 Stage Policy。Job 同时固定当时的模型路由、Profile 非密钥字段、Prompt 补充、领域包、转写处理参数、AI 通用参数与 ASR/笔记分块选择；排队期间修改设置不影响该 Job 或其完整/步骤重跑。新提交的 Job 使用更新后的设置。API Key 等凭据仍在调用时从 Secret Store 读取，不写入 Job payload。没有历史快照的旧 Job 保持兼容读取行为。
+没有覆盖的 Stage 使用提交 Job 当时保存的 Stage Policy。Job 固定模型身份/路由、生成参数、Prompt 补充、领域包、ASR/转写分块及预算上限；排队期间修改设置不影响当前执行。普通重试、步骤续跑和完整重跑默认在入队时刷新同模型的必要执行配置，无需新增选择项；原提交快照不改写。API Key 等凭据仍在构造调用客户端时从 Secret Store 读取，不写入 Job payload。没有历史提交快照的旧 Job 保持兼容读取，不伪造当时设置。
 
-失败在笔记生成步骤时，用户可明确选择“使用当前笔记模型继续”。服务端只把当前笔记阶段策略与所选 Profile 的无密钥字段记为本次 Job 的恢复配置，原提交快照及上游 Artifact 不变，并在 `job.step_replay.queued` 记录模型与探测状态。普通步骤续跑仍使用原提交配置；完整重跑会清除恢复配置。手动选定且探测为 `NOT_TESTED` 的 Profile 可进入原有 JSON、Segment Evidence 与预算门禁；`FAIL` 仍拒绝选路。
+失败在笔记生成步骤时，用户可明确选择“使用当前笔记模型继续”。服务端只把当前笔记阶段策略与所选 Profile 的无密钥字段记为本次 Job 的恢复配置，原提交快照及上游 Artifact 不变，并在 `job.step_replay.queued` 记录模型与探测状态。普通步骤续跑保持有效模型/语义配置并自动刷新该模型必要执行配置；完整重跑清除显式笔记恢复配置，回到原提交模型身份。手动选定且探测为 `NOT_TESTED` 的 Profile 可进入原有 JSON、Segment Evidence 与预算门禁；`FAIL` 仍拒绝选路。
 
 恢复卡可从当前笔记阶段模型和通用路由已保存的备用模型中明确选择；选择备用模型只覆盖本 Job，不改全局 Stage Policy。只允许启用、位置匹配、`GLOBAL_SYNTHESIS` 探测不为 `FAIL` 的 Profile。任务恢复配置保存所选模型的无密钥字段和阶段覆盖，审计记录实际模型；不是给模型补造能力 Probe 结果。
+
+### 同模型必要配置刷新（2026-10-09）
+
+- 身份包含实际 model、provider、去除末尾斜杠的 base_url、接入方式和推理位置；仅 Profile ID/名称相同不能证明同模型。相关模型被删除、禁用或身份改变时，返回 `REPLAY_MODEL_UNAVAILABLE / REPLAY_MODEL_IDENTITY_CHANGED`，不改变 Job/Step/Artifact 状态，不追随新的全局路由。
+- Profile 白名单：接口能力与实际 JSON 支持、超时、间隔、并发、限速、重试/JSON 重试、稳定性模式和熔断参数。Stage 仅刷新超时/重试，且当前阶段路由必须与原路由一致；通用重试/等待/间隔、转写处理超时可刷新。任务显式覆盖仍优先。temperature、thinking、输入/输出上限、Prompt/领域包、分块和所有预算上限不自动更新。
+- `ai_submission_config` 保存提交意图；`ai_execution_config` 保存本次必要配置覆盖、revision、采样时间、来源更新时间、字段差异和有效配置指纹；替换前的执行配置追加到 `ai_execution_history`。读取顺序为本次执行配置（已合并有效显式恢复）→ 显式恢复 → 原提交快照，不在运行中继续读全局配置。审计记录执行 revision/指纹及刷新字段，不记录 Secret。
+- 步骤续跑只刷新剩余阶段所需模型；有 Grounded Map 时笔记阶段仅检查 NOTE_REDUCE，已完成阶段不因后来删除旧模型而阻止合法续跑。接口指纹继续进入 Cache Key；ASR 等上游有效产物保留，失败阶段和后续产物按原 Replay 门禁失效。
+- 活跃任务完整重跑先保存 `ai_pending_execution_config`，当前执行配置保持不变；旧执行安全退出并释放租约后才安装入队时冻结的配置，不在释放时重新采样。普通重试与完整重跑共用重置函数，清除旧步骤续跑标记并使旧 Artifact 失效。
+- Token 与远程尝试按同 Job 的现存 Audit 累计，配置刷新不扩大限额、不删除历史消耗；单轮墙钟限制保持。已按保留策略清理的旧 Audit 不补造用量，累计口径不代表可恢复完整历史账单。
 
 例如：
 

@@ -11,6 +11,7 @@ import {
   LockKeyhole,
   Plus,
   RefreshCw,
+  Save as SaveIcon,
   Server,
   Trash2,
 } from "lucide-react";
@@ -224,7 +225,7 @@ function GeneralPanel() {
             />
           </label>
           <label>
-            每轮单个远程配置调用上限
+            单任务单个远程配置累计调用上限
             <input
               type="number"
               min="1"
@@ -239,7 +240,7 @@ function GeneralPanel() {
             />
           </label>
           <label>
-            每轮单个远程配置输入 Token 上限
+            单任务单个远程配置累计输入 Token 上限
             <input
               type="number"
               min="1000"
@@ -254,7 +255,7 @@ function GeneralPanel() {
             />
           </label>
           <label>
-            每轮单个远程配置输出 Token 上限
+            单任务单个远程配置累计输出 Token 上限
             <input
               type="number"
               min="1000"
@@ -269,7 +270,7 @@ function GeneralPanel() {
             />
           </label>
           <label>
-            每轮本地输入 Token 上限
+            单任务本地累计输入 Token 上限
             <input
               type="number"
               min="1000"
@@ -284,7 +285,7 @@ function GeneralPanel() {
             />
           </label>
           <label>
-            每轮本地输出 Token 上限
+            单任务本地累计输出 Token 上限
             <input
               type="number"
               min="1000"
@@ -692,7 +693,7 @@ function PromptSupplementsPanel() {
             onClick={() => save.mutate()}
             disabled={save.isPending}
           >
-            {save.isPending && <LoaderCircle className="spin" />}保存补充提示词
+            {save.isPending ? <LoaderCircle className="spin" /> : <SaveIcon />}保存补充提示词
           </button>
         </div>
       </div>
@@ -804,7 +805,7 @@ function RuntimePanel() {
         </div>
         <div className="settings-form-actions">
           <button className="button button--primary" type="submit" disabled={!asr.data || save.isPending || selected === asr.data.default_provider || (selected === "QWEN3_ASR" && !qwenReady)}>
-            {save.isPending && <LoaderCircle className="spin" />}保存默认引擎
+            {save.isPending ? <LoaderCircle className="spin" /> : <SaveIcon />}保存默认引擎
           </button>
         </div>
         {message && <p className="settings-note settings-note--inset" role="status">{message}</p>}
@@ -1686,7 +1687,7 @@ function ModelProfileEditor({
     onSuccess: (result) => {
       setValues((current) => ({ ...current, interface_capabilities: result,
         supports_json_mode: result.json_object === "SUPPORTED" }));
-      setMessage("接口能力已读取，保存后用于新任务；未调用模型");
+      setMessage("接口能力已读取，保存时核对并用于任务及同模型重跑；未调用模型");
     },
     onError: (error) => setMessage(error.message),
   });
@@ -1724,7 +1725,7 @@ function ModelProfileEditor({
     readInterface.isPending ||
     remove.isPending;
   const pendingMessage = save.isPending
-    ? "正在保存配置…"
+    ? values.connection_type === "LOCAL_ROUTER" ? "正在核对接口能力并保存配置…" : "正在保存配置…"
     : readInterface.isPending
       ? "正在读取接口能力…"
       : test.isPending || probe.isPending || draftProbe.isPending
@@ -1751,42 +1752,46 @@ function ModelProfileEditor({
             {assigned && <small>当前路由使用中</small>}
           </h3>
           <div className="provider-form__actions">
-            {values.connection_type === "LOCAL_ROUTER" && (
-              <button className="button button--outline" disabled={busy} onClick={() => readInterface.mutate()}>
-                读取接口能力
-              </button>
-            )}
-            <button
-              className="button button--outline"
-              onClick={() => test.mutate()}
-              disabled={save.isPending || readInterface.isPending || remove.isPending}
-            >
-              真实测试
-            </button>
-            <button
-              className="button button--outline"
-              onClick={() => (profile ? probe.mutate() : draftProbe.mutate())}
-              disabled={save.isPending || readInterface.isPending || remove.isPending}
-            >
-              {profile ? "能力探测" : "草稿能力探测"}
-            </button>
-            {profile && (
+            <div className="provider-form__action-group">
+              {values.connection_type === "LOCAL_ROUTER" && (
+                <button className="button button--outline" disabled={busy} onClick={() => readInterface.mutate()}>
+                  读取接口能力
+                </button>
+              )}
               <button
                 className="button button--outline"
-                onClick={() => setRemoveOpen(true)}
-                disabled={busy || assigned}
+                onClick={() => test.mutate()}
+                disabled={save.isPending || readInterface.isPending || remove.isPending}
               >
-                <Trash2 />
-                删除
+                真实测试
               </button>
-            )}
-            <button
-              className="button button--primary"
-              onClick={() => save.mutate()}
-              disabled={busy}
-            >
-              {save.isPending && <LoaderCircle className="spin" />}保存
-            </button>
+              <button
+                className="button button--outline"
+                onClick={() => (profile ? probe.mutate() : draftProbe.mutate())}
+                disabled={save.isPending || readInterface.isPending || remove.isPending}
+              >
+                {profile ? "能力探测" : "草稿能力探测"}
+              </button>
+            </div>
+            <div className="provider-form__action-group provider-form__action-group--commit">
+              {profile && (
+                <button
+                  className="button button--outline"
+                  onClick={() => setRemoveOpen(true)}
+                  disabled={busy || assigned}
+                >
+                  <Trash2 />
+                  删除
+                </button>
+              )}
+              <button
+                className="button button--primary"
+                onClick={() => save.mutate()}
+                disabled={busy}
+              >
+                {save.isPending ? <LoaderCircle className="spin" /> : <SaveIcon />}保存
+              </button>
+            </div>
           </div>
         </div>
         {feedbackMessage && (
@@ -1990,7 +1995,7 @@ function ModelProfileEditor({
                 {values.interface_capabilities.system !== "SUPPORTED" && <p>当前接口尚未提供系统指令，正式任务会提前提示兼容原因，不会丢弃规则后调用。</p>}
                 <p>不支持或未声明的可选参数采用模型默认值；用量未知时进行预算估算，不能视为零消耗。</p>
               </>
-            ) : <p>尚未读取当前模型的接口能力。模型、地址、凭据或接入方式变化后需重新读取并保存。</p>}
+            ) : <p>保存时会自动核对当前模型的接口能力；模型、地址、凭据或接入方式变化后会重新读取。目录检查不会调用模型。</p>}
           </div>
         )}
         <div className="provider-form__body"><div className="field-grid">
@@ -2079,14 +2084,14 @@ function ModelProfileEditor({
             </label>
           </div>
         )}
-        <div className="provider-capabilities" aria-label="已探测能力">
+        <div className="provider-capabilities" aria-label="已探测能力"><p>格式小样通过仅说明 JSON 可解析。业务阶段独立验证，未测或过期的结果不代表业务能力通过。</p>
           <span className="provider-capabilities__label">
             {profile ? "已探测能力" : "草稿探测结果"}
           </span>
           {capabilities.length > 0 ? (
             <div className="provider-capabilities__list">
               {capabilities.map((capability) => (
-                <span key={capability}>{capability}</span>
+                <span key={capability}>{({ FORMAT_SMOKE: "格式小样", CLASSIFICATION: "分类", STRUCTURED_EXTRACTION: "结构化抽取", ENTITY_EXTRACTION: "实体识别", TRANSCRIPT_CORRECTION: "转写校对", GLOBAL_SYNTHESIS: "笔记归纳" } as Record<string, string>)[capability] ?? capability}</span>
               ))}
             </div>
           ) : (

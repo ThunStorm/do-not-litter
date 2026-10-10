@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from time import perf_counter, sleep
 from typing import Any, Protocol
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -20,6 +21,7 @@ from zhijian.ai.reliability import (
     retry_after_seconds,
     retry_wait_seconds,
 )
+from zhijian.ai.request_metrics import request_metrics
 from zhijian.ai.token_usage import estimate_tokens
 
 AttemptCallback = Callable[
@@ -42,9 +44,12 @@ def _post(url: str, *, cancel_check: Callable[[], None] | None = None, **kwargs)
         trust_env = kwargs.pop("trust_env", True)
         async with httpx.AsyncClient(timeout=timeout, trust_env=trust_env) as client:
             task = asyncio.create_task(client.post(url, **kwargs))
+            deadline = perf_counter() + float(timeout)
             try:
                 while not task.done():
                     cancel_check()
+                    if perf_counter() >= deadline:
+                        raise httpx.ReadTimeout("模型 HTTP 总时限已耗尽")
                     await asyncio.wait({task}, timeout=0.25)
                 cancel_check()
                 return await task
@@ -120,6 +125,8 @@ def provider_error_details(exc: Exception) -> dict[str, Any]:
     reliability = getattr(exc, "reliability_metadata", None)
     if isinstance(reliability, dict):
         details["reliability"] = reliability
+    if isinstance(getattr(exc, "upstream_cleanup", None), dict):
+        details["upstream_cleanup"] = exc.upstream_cleanup
     return details
 
 
@@ -131,11 +138,51 @@ def _redact_provider_text(value: str) -> str:
     return text[:500]
 
 
+def safe_runtime_metadata(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    safe: dict[str, Any] = {}
+    for key in ("queue_ms", "adapter_ms", "first_output_ms", "total_ms"):
+        number = value.get(key)
+        if type(number) in (int, float) and 0 <= number <= 86_400_000:
+            safe[key] = number
+    for key in ("actual_model", "request_id"):
+        item = value.get(key)
+        if isinstance(item, str) and re.fullmatch(r"[a-zA-Z0-9_./:-]{1,200}", item):
+            safe[key] = item
+    return safe
+
+
 class OllamaProvider:
     def __init__(self, base_url: str, timeout: float = 120) -> None:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.cancel_check: Callable[[], None] | None = None
+
+    def _unload_interrupted(self, model: str) -> dict[str, str]:
+        if urlsplit(self.base_url).hostname not in {"localhost", "127.0.0.1", "::1"}:
+            return {"state": "UNKNOWN", "reason": "NON_LOCAL_ENDPOINT"}
+        try:
+            response = httpx.post(
+                f"{self.base_url}/api/generate",
+                json={"model": model, "keep_alive": 0},
+                timeout=3,
+                trust_env=False,
+            )
+            response.raise_for_status()
+            response = httpx.get(f"{self.base_url}/api/ps", timeout=3, trust_env=False)
+            response.raise_for_status()
+            models = response.json().get("models")
+            if not isinstance(models, list):
+                return {"state": "UNKNOWN"}
+            loaded = any(
+                item.get("name") in {model, model + ":latest"}
+                or item.get("model") in {model, model + ":latest"}
+                for item in models
+            )
+            return {"state": "UNKNOWN" if loaded else "UNLOADED", "process_exit": "NOT_VERIFIED"}
+        except (httpx.HTTPError, ValueError, TypeError, AttributeError):
+            return {"state": "UNKNOWN"}
 
     def _generate(
         self,
@@ -152,20 +199,29 @@ class OllamaProvider:
             runtime_options["num_predict"] = options.max_output_tokens
         if options and options.context_window is not None:
             runtime_options["num_ctx"] = options.context_window
-        response = _post(
-            f"{self.base_url}/api/chat",
-            cancel_check=self.cancel_check,
-            json={
-                "model": model,
-                "messages": messages,
-                "stream": False,
-                "keep_alive": 0,
-                **({"format": "json"} if json_mode else {}),
-                **({"options": runtime_options} if runtime_options else {}),
-                **({"think": options.thinking} if options and options.thinking is not None else {}),
-            },
-            timeout=self.timeout,
-        )
+        try:
+            response = _post(
+                f"{self.base_url}/api/chat",
+                cancel_check=self.cancel_check,
+                json={
+                    "model": model,
+                    "messages": messages,
+                    "stream": False,
+                    "keep_alive": 0,
+                    **({"format": "json"} if json_mode else {}),
+                    **({"options": runtime_options} if runtime_options else {}),
+                    **({"think": options.thinking} if options and options.thinking is not None else {}),
+                },
+                timeout=self.timeout,
+            )
+        except Exception as exc:
+            if (
+                type(exc).__name__ == "JobCancelled"
+                or isinstance(exc, httpx.TimeoutException)
+                or getattr(exc, "code", None) == "AI_STAGE_WALL_TIME_EXCEEDED"
+            ):
+                exc.upstream_cleanup = self._unload_interrupted(model)
+            raise
         response.raise_for_status()
         data = response.json()
         return LLMResult(
@@ -178,6 +234,12 @@ class OllamaProvider:
             },
             metadata={
                 "finish_reason": data.get("done_reason"),
+                "usage_source": "REPORTED"
+                if any(
+                    type(data.get(key)) is int and data[key] >= 0
+                    for key in ("prompt_eval_count", "eval_count")
+                )
+                else "UNKNOWN",
                 "content_length": len(data.get("message", {}).get("content", "")),
             },
         )
@@ -303,6 +365,8 @@ class OpenAICompatibleProvider:
             usage=usage,
             metadata={
                 **contract_metadata,
+                "request_metrics": request_metrics(payload["messages"]),
+                "localmux": safe_runtime_metadata(data.get("localmux")),
                 "usage_source": usage_source,
                 "estimated_prompt_tokens": estimate_tokens(
                     sum(len(str(m.get("content") or "")) for m in messages)
@@ -480,6 +544,7 @@ class FallbackLLMProvider:
                     key,
                     policy,
                     limiter_key=provider_rate_limit_identity(provider),
+                    cancel_check=self.cancel_check,
                 )
                 if wait_before:
                     self._sleep(wait_before)
@@ -497,8 +562,10 @@ class FallbackLLMProvider:
                         input_chars,
                         attempt_metadata,
                     )
+                self._attempt_context = {**self._attempt_context, "attempt_id": attempt_id}
                 self._remaining_attempts -= 1
                 options = self.fallback_request_options if route == "fallback" else self.request_options
+                queued_before_ms = round((perf_counter() - started) * 1000)
                 if self.attempt_runner:
                     result = self.attempt_runner(provider, method, call_messages, model, options)
                 elif options is None:
@@ -506,6 +573,7 @@ class FallbackLLMProvider:
                 else:
                     result = getattr(provider, method)(call_messages, model=model, options=options)
                 if str(result.metadata.get("finish_reason") or "").lower() in {"length", "max_tokens"}:
+                    result.metadata["parse_quality"] = "INCOMPLETE"
                     raise AIProviderError("AI_PROVIDER_OUTPUT_TRUNCATED", "模型输出达到长度上限")
                 if not result.content or not result.content.strip():
                     raise AIProviderError("AI_PROVIDER_EMPTY_RESPONSE", "模型返回了空内容", retryable=True)
@@ -534,7 +602,8 @@ class FallbackLLMProvider:
                 is_json_error = error.code in {"AI_PROVIDER_INVALID_JSON", "AI_PROVIDER_SCHEMA_INVALID"}
                 retry_json = is_json_error and json_retries < policy.json_retry_count
                 retry_http = (
-                    not is_json_error and error.retryable
+                    not is_json_error
+                    and error.retryable
                     and error.code not in {"AI_PROVIDER_TIMEOUT", "AI_PROVIDER_READ_TIMEOUT"}
                     and http_retries < policy.retry_count
                 )
@@ -572,6 +641,16 @@ class FallbackLLMProvider:
                     ),
                     "recovery": "retry_same_model" if retry_json else None,
                     "json_attempt": json_retries or None,
+                    "remote_execution_state": "UNKNOWN"
+                    if error.code
+                    in {"AI_PROVIDER_TIMEOUT", "AI_PROVIDER_READ_TIMEOUT", "AI_STAGE_WALL_TIME_EXCEEDED"}
+                    else None,
+                    "upstream_cleanup": getattr(exc, "upstream_cleanup", None),
+                    "execution_path": "FALLBACK"
+                    if route == "fallback"
+                    else "PRIMARY_RETRY"
+                    if attempt > 1
+                    else "PRIMARY_DIRECT",
                 }
                 self._attempt_context = error.reliability_metadata
                 if self.on_attempt:
@@ -597,10 +676,19 @@ class FallbackLLMProvider:
                     self._sleep(wait_seconds)
             else:
                 ReliabilityGuards.success(key)
+                if json_retries:
+                    result.metadata["parse_quality"] = "MODEL_REPAIRED"
                 result.metadata = {
                     **result.metadata,
                     "circuit_state": circuit_state,
                     "wait_seconds": wait_before,
+                    "execution_path": "FALLBACK"
+                    if route == "fallback"
+                    else "PRIMARY_RETRY"
+                    if attempt > 1
+                    else "PRIMARY_DIRECT",
+                    "queue_ms": queued_before_ms + result.metadata.get("queue_ms", 0),
+                    "end_to_end_ms": round((perf_counter() - started) * 1000),
                 }
                 self._attempt_context = result.metadata
                 if self.on_attempt:

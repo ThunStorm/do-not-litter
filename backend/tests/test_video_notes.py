@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
@@ -440,10 +441,17 @@ def test_ai_correction_is_persisted_before_note_generation(monkeypatch, app_and_
         def generate_json(self, messages, model):
             assert any("保留作者自然口语语气" in message["content"] for message in messages)
             payload = json.loads(messages[-1]["content"])
-            assert "segments" not in payload
-            assert payload["items"][1]["context_before"][0]["text"] == "闪西兰田的水路案"
-            assert payload["items"][1]["context_after"][0]["text"] == "窗口鸡很短"
-            values = [item["target"] for item in payload["items"]]
+            assert "items" not in payload
+            assert {item["text"] for item in payload["segments"]} == {
+                "闪西兰田的水路案",
+                "国家深林公元",
+                "窗口鸡很短",
+            }
+            values = [
+                {**item, "id": item["segment_id"]}
+                for item in payload["segments"]
+                if item["segment_id"] in payload["target_ids"]
+            ]
             corrected = {
                 "闪西兰田的水路案": "西安蓝田水陆庵",
                 "国家深林公元": "国家森林公园",
@@ -511,7 +519,12 @@ def test_transcript_correction_splits_truncated_batches(monkeypatch, app_and_ses
 
     class Provider:
         def generate_json(self, messages, *, model):
-            values = [item["target"] for item in json.loads(messages[-1]["content"])["items"]]
+            payload = json.loads(messages[-1]["content"])
+            values = [
+                {**item, "id": item["segment_id"]}
+                for item in payload["segments"]
+                if item["segment_id"] in payload["target_ids"]
+            ]
             batch_sizes.append(len(values))
             if len(values) > 2:
                 return LLMResult(
@@ -1497,6 +1510,9 @@ def test_poi_resolution_scores_candidates_and_sends_ambiguous_mentions_to_review
         asset = VideoAsset(source_id=source.id, canonical_url=source.locator, title="旅行")
         db.add(asset)
         db.flush()
+        _, valid_segments = materialize_transcript(
+            db, source, asset, [{"text": "四季民福烤鸭店", "start_ms": 0, "end_ms": 1000}], source_kind="ASR"
+        )
         mention = PlaceMention(
             video_asset_id=asset.id,
             name="四季民福烤鸭店",
@@ -1504,7 +1520,8 @@ def test_poi_resolution_scores_candidates_and_sends_ambiguous_mentions_to_review
             suggested_name="四季民福烤鸭店（故宫店）",
             city_hint="北京市",
             place_type="RESTAURANT",
-            segment_ids_json=["seg_fixture"],
+            segment_ids_json=[valid_segments[0].id],
+            quote="四季民福烤鸭店",
             confidence=0.9,
             metadata_json={"visit_windows": [{"source_text": "秋季最好"}]},
         )
@@ -1542,7 +1559,7 @@ def test_note_map_reduce_persists_compact_facts(app_and_session, monkeypatch) ->
         class Provider:
             def generate_json(self, messages, *, model):
                 content = messages[-1]["content"]
-                ids = [segment.id for segment in segments if segment.id in content]
+                ids = list(dict.fromkeys(re.findall(r"\bs\d+\b", content)))
                 if "SectionFacts" in content:
                     ids = [segment.id for segment in segments]
                 return SimpleNamespace(

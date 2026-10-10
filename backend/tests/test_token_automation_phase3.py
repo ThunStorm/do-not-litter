@@ -4,7 +4,7 @@ from zhijian.ai.token_monitor import detect_token_anomalies, record_token_anomal
 from zhijian.core.config import Settings
 from zhijian.db.models import ExternalCallAudit, Job, PlaceMention, Source, SystemEvent, VideoAsset
 from zhijian.providers.amap import POICandidate
-from zhijian.services.video_support import resolve_mentions_with_amap
+from zhijian.services.video_support import materialize_transcript, resolve_mentions_with_amap
 
 
 def _audit(
@@ -141,8 +141,15 @@ def test_only_auto_strong_creates_a_confirmed_place(app_and_session, monkeypatch
     class Provider:
         def __init__(self, *_args, **_kwargs) -> None:
             self.candidate = POICandidate(
-                "park", "翠湖公园", "昆明市五华区", "云南省", "昆明市", "五华区",
-                102.7, 25.05, "110000",
+                "park",
+                "翠湖公园",
+                "昆明市五华区",
+                "云南省",
+                "昆明市",
+                "五华区",
+                102.7,
+                25.05,
+                "110000",
             )
 
         def search(self, *_args, **_kwargs):
@@ -160,6 +167,9 @@ def test_only_auto_strong_creates_a_confirmed_place(app_and_session, monkeypatch
         asset = VideoAsset(source_id=source.id, canonical_url=source.locator)
         db.add(asset)
         db.flush()
+        _, refs = materialize_transcript(
+            db, source, asset, [{"text": "翠湖公园", "start_ms": 0, "end_ms": 1000}], source_kind="ASR"
+        )
         mention = PlaceMention(
             video_asset_id=asset.id,
             name="翠湖公园",
@@ -167,6 +177,8 @@ def test_only_auto_strong_creates_a_confirmed_place(app_and_session, monkeypatch
             suggested_name="翠湖公园",
             city_hint="昆明市",
             place_type="PARK",
+            segment_ids_json=[refs[0].id],
+            quote="翠湖公园",
         )
         db.add(mention)
         db.commit()

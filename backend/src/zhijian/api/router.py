@@ -26,9 +26,18 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.orm import Session
 
+from zhijian.ai.capabilities import AICapability
 from zhijian.ai.domain_context import DOMAIN_PACK_PREFIX, DomainPack
-from zhijian.ai.job_config import ASR_DEFAULT_KEY, default_asr_provider, job_setting, job_stage_override
+from zhijian.ai.job_config import (
+    ASR_DEFAULT_KEY,
+    build_execution_config,
+    default_asr_provider,
+    execution_config_summary,
+    job_setting,
+    job_stage_override,
+)
 from zhijian.ai.model_registry import (
+    business_probe_status,
     invoke_profile_model,
     model_connection_type,
     model_profile_from_value,
@@ -156,6 +165,7 @@ from zhijian.services.job_replay import (
     queue_login_step_skip,
     queue_step_replay,
     replay_options,
+    reset_job_for_full_replay,
 )
 from zhijian.services.place_knowledge import aggregate_place_knowledge, normalize_insight
 from zhijian.services.runtime_monitor import read_runtime_metrics_sample
@@ -717,9 +727,11 @@ def job_ai_usage(job_id: str, _: Protected, db: Session = Depends(get_db)) -> di
         values = {
             "calls": 0 if cache_hit else 1,
             "attempt_count": 0 if cache_hit else 1,
-            **({key: 0 for key in token_usage({})} if cache_hit else token_usage(
-                response_meta, int(request_meta.get("input_chars") or 0)
-            )),
+            **(
+                {key: 0 for key in token_usage({})}
+                if cache_hit
+                else token_usage(response_meta, int(request_meta.get("input_chars") or 0))
+            ),
             "cached_tokens": int(response_meta.get("cached_tokens") or 0),
             "input_chars": 0 if cache_hit else int(request_meta.get("input_chars") or 0),
             "cache_hit_count": int(cache_hit),
@@ -773,14 +785,46 @@ def job_ai_usage(job_id: str, _: Protected, db: Session = Depends(get_db)) -> di
         )
         if isinstance(event.detail_json, dict)
     ]
+
     def effective_tokens(bucket: dict) -> int:
-        return sum(bucket[key] for key in (
-            "input_tokens", "output_tokens", "estimated_input_tokens", "estimated_output_tokens"
-        ))
+        return sum(
+            bucket[key]
+            for key in ("input_tokens", "output_tokens", "estimated_input_tokens", "estimated_output_tokens")
+        )
 
     total_tokens = effective_tokens(total)
     return {
         "total": total,
+        "call_details": [
+            {
+                "id": row.id,
+                "stage": (row.request_meta_json or {}).get("stage") or row.operation,
+                "status": row.status,
+                "attempt_state": (row.request_meta_json or {}).get("attempt_state"),
+                "model": (row.request_meta_json or {}).get("model") or row.provider,
+                "parse_quality": (row.response_meta_json or {}).get("parse_quality"),
+                "execution_path": "CACHE_HIT"
+                if (row.request_meta_json or {}).get("cache_hit")
+                else (row.response_meta_json or {}).get("execution_path"),
+                "queue_ms": (row.response_meta_json or {}).get("queue_ms"),
+                "provider_ms": (row.response_meta_json or {}).get("provider_ms"),
+                "duration_ms": row.duration_ms,
+                "usage_source": (row.response_meta_json or {}).get("usage_source")
+                or (
+                    "REPORTED"
+                    if any(
+                        type((row.response_meta_json or {}).get(key)) is int
+                        for key in ("prompt_tokens", "completion_tokens")
+                    )
+                    else "UNKNOWN"
+                ),
+                "request_metrics": (row.request_meta_json or {}).get("request_metrics"),
+                "rejected_items": (row.response_meta_json or {}).get("rejected_items"),
+                "acceptance": (row.response_meta_json or {}).get("acceptance"),
+                "error_code": row.error_code,
+            }
+            for row in rows[-100:]
+        ],
         "local": local,
         "remote": remote,
         "by_stage": by_stage,
@@ -804,9 +848,8 @@ def job_ai_usage(job_id: str, _: Protected, db: Session = Depends(get_db)) -> di
             "cache_hit_ratio": cache_hits / max(1, len(rows)),
             "retry_token_ratio": effective_tokens(retry) / max(1, total_tokens),
             "fallback_token_ratio": effective_tokens(fallback) / max(1, total_tokens),
-            "repeated_input_ratio": repeated_input_tokens / max(
-                1, total["input_tokens"] + total["estimated_input_tokens"]
-            ),
+            "repeated_input_ratio": repeated_input_tokens
+            / max(1, total["input_tokens"] + total["estimated_input_tokens"]),
         },
         "budget": job.payload_json.get("ai_soft_budget") or {"status": "EXPECTED"},
         "anomalies": anomalies,
@@ -880,24 +923,12 @@ def retry_job(
             raise HTTPException(status_code=409, detail="错误事件不属于该任务，无法重跑")
         if event.level not in {"ERROR", "CRITICAL"}:
             raise HTTPException(status_code=409, detail="仅错误事件可以触发所属任务重跑")
-    job.status = JobStatus.QUEUED.value
-    job.error = None
-    job.error_code = None
-    job.finished_at = None
-    job.started_at = None
-    job.heartbeat_at = None
-    job.lease_owner = None
-    job.lease_expire_at = None
-    job.current_step = "RECEIVED"
-    job.progress = 0
-    job.retry_count += 1
-    for step in db.scalars(select(JobStep).where(JobStep.job_id == job.id)).all():
-        step.status = "PENDING"
-        step.progress = 0
-        step.error = None
-        step.started_at = None
-        step.finished_at = None
-        step.output_json = {}
+    try:
+        execution_config = build_execution_config(db, job, full=True)
+    except ValueError as exc:
+        code, _, message = str(exc).partition(":")
+        raise HTTPException(status_code=409, detail={"code": code, "message": message}) from exc
+    reset_job_for_full_replay(db, job, execution_config)
     record_event(
         db,
         "job.retry.queued",
@@ -906,7 +937,11 @@ def retry_job(
         actor="user",
         entity_type="job",
         entity_id=job.id,
-        detail={"retry_count": job.retry_count, "source_event_id": source_event_id},
+        detail={
+            "retry_count": job.retry_count,
+            "source_event_id": source_event_id,
+            "execution_config": execution_config_summary(execution_config),
+        },
         commit=False,
     )
     db.commit()
@@ -964,7 +999,11 @@ def retry_full(job_id: str, _: Protected, db: Session = Depends(get_db)) -> dict
     job = db.get(Job, job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="任务不存在")
-    return queue_full_replay(db, job)
+    try:
+        return queue_full_replay(db, job)
+    except ValueError as exc:
+        code, _, message = str(exc).partition(":")
+        raise HTTPException(status_code=409, detail={"code": code, "message": message}) from exc
 
 
 @router.post("/api/jobs/{job_id}/cancel")
@@ -3550,7 +3589,14 @@ def _model_profile_view(setting: Setting) -> dict:
         "quality_tier": profile.quality_tier,
         "specialties": sorted(profile.specialties),
         "enabled": profile.enabled,
-        "probe_results": value.get("probe_results") or {},
+        "business_assessments": value.get("business_assessments") or [],
+        "probe_results": {
+            key: business_probe_status(value, key)
+            if key
+            in {"STRUCTURED_EXTRACTION", "ENTITY_EXTRACTION", "TRANSCRIPT_CORRECTION", "GLOBAL_SYNTHESIS"}
+            else status
+            for key, status in (value.get("probe_results") or {}).items()
+        },
     }
 
 
@@ -3678,6 +3724,34 @@ def read_saved_interface_capabilities(
     return read_draft_interface_capabilities(payload.model_copy(update={"api_key": key}), _)
 
 
+def _prepare_model_profile_save(payload: ModelProfileConfig, previous: dict, api_key: str | None) -> dict:
+    from zhijian.ai.job_config import profile_identity
+
+    value = payload.model_dump(mode="json", exclude={"api_key"})
+    if model_connection_type(value) != "LOCAL_ROUTER":
+        return {**value, "interface_capabilities": None}
+    saved_capability = previous.get("interface_capabilities")
+    if (
+        not payload.api_key
+        and saved_capability
+        and profile_identity(previous) == profile_identity(value)
+        and saved_capability.get("model") == value["model"]
+        and saved_capability.get("base_url") == value["base_url"].rstrip("/")
+        and value.get("interface_capabilities") in (None, saved_capability)
+    ):
+        return {
+            **value,
+            "interface_capabilities": saved_capability,
+            "supports_json_mode": saved_capability.get("json_object") == "SUPPORTED",
+        }
+    try:
+        value = _interactive_interface_config(value, api_key)
+    except AIProviderError as exc:
+        raise _model_test_http_error("保存前接口检查失败，原配置保持不变", exc) from exc
+    value["supports_json_mode"] = value["interface_capabilities"]["json_object"] == "SUPPORTED"
+    return value
+
+
 @router.get("/api/settings/model-profiles")
 def list_model_profiles(_: Protected, db: Session = Depends(get_db)) -> list[dict]:
     return [_model_profile_view(item) for item in _model_profiles(db)]
@@ -3691,7 +3765,7 @@ def create_model_profile(
     store: SecretStore = Depends(get_secret_store),
 ) -> dict:
     profile_id = new_id("model")
-    value = payload.model_dump(mode="json", exclude={"api_key"})
+    value = _prepare_model_profile_save(payload, {}, payload.api_key)
     setting = Setting(key=f"model-profile:{profile_id}", value_json=value)
     if payload.api_key:
         store.set(f"model-profile:{profile_id}:api-key", payload.api_key)
@@ -3726,7 +3800,20 @@ def update_model_profile(
     setting = db.get(Setting, f"model-profile:{profile_id}")
     if setting is None:
         raise HTTPException(status_code=404, detail="模型配置不存在")
-    setting.value_json = payload.model_dump(mode="json", exclude={"api_key"})
+    key = payload.api_key or store.get(f"model-profile:{profile_id}:api-key")
+    previous = setting.value_json or {}
+    value = _prepare_model_profile_save(payload, previous, key)
+    from zhijian.ai.job_config import profile_identity
+
+    if (
+        not payload.api_key
+        and profile_identity(previous) == profile_identity(value)
+        and previous.get("interface_capabilities") == value.get("interface_capabilities")
+    ):
+        for field in ("probe_results", "business_assessments"):
+            if field in previous:
+                value[field] = previous[field]
+    setting.value_json = value
     if payload.api_key:
         store.set(f"model-profile:{profile_id}:api-key", payload.api_key)
         setting.is_secret_ref = True
@@ -4104,11 +4191,21 @@ def probe_saved_model_profile(
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"模型能力探测失败：{str(exc)[:240]}") from exc
     value["probe_results"] = results
-    value["capabilities"] = [key for key, status in results.items() if status == "PASS"]
+    from zhijian.ai.model_registry import business_assessments
+
+    value["business_assessments"] = business_assessments(profile.model, results)
+    value["capabilities"] = sorted(
+        set(value.get("capabilities") or [])
+        | {
+            key
+            for key, status in results.items()
+            if status == "PASS" and key in AICapability._value2member_map_
+        }
+    )
     value["supports_json_mode"] = (
         profile.interface_capabilities.json_object == "SUPPORTED"
         if profile.connection_type == "LOCAL_ROUTER" and profile.interface_capabilities
-        else results.get("STRUCTURED_EXTRACTION") == "PASS"
+        else results.get("FORMAT_SMOKE") == "PASS"
     )
     setting.value_json = value
     record_event(
@@ -4145,7 +4242,14 @@ def probe_model_profile_draft(payload: ModelProfileConfig, _: Protected) -> dict
         raise _model_test_http_error("草稿能力探测未完成", exc) from exc
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"草稿能力探测失败：{str(exc)[:240]}") from exc
-    capabilities = [key for key, status in results.items() if status == "PASS"]
+    capabilities = sorted(
+        set(value.get("capabilities") or [])
+        | {
+            key
+            for key, status in results.items()
+            if status == "PASS" and key in AICapability._value2member_map_
+        }
+    )
     return {
         "status": "READY",
         "message": "草稿能力探测已完成，保存后才会写入模型配置。",
@@ -4153,7 +4257,7 @@ def probe_model_profile_draft(payload: ModelProfileConfig, _: Protected) -> dict
         "capabilities": capabilities,
         "supports_json_mode": profile.interface_capabilities.json_object == "SUPPORTED"
         if profile.connection_type == "LOCAL_ROUTER" and profile.interface_capabilities
-        else "STRUCTURED_EXTRACTION" in capabilities,
+        else results.get("FORMAT_SMOKE") == "PASS",
         "interface_capabilities": value.get("interface_capabilities"),
     }
 

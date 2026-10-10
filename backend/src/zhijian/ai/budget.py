@@ -104,8 +104,6 @@ def soft_budget_state(
         ExternalCallAudit.job_id == job.id,
         ExternalCallAudit.capability == "LLM",
     ]
-    if job.started_at:
-        filters.append(ExternalCallAudit.created_at >= job.started_at)
     rows = db.scalars(select(ExternalCallAudit).where(*filters)).all()
     actual = [row for row in rows if not (row.request_meta_json or {}).get("cache_hit")]
     if location == "REMOTE" and (provider or model or profile_id):
@@ -190,8 +188,6 @@ def ensure_ai_budget(
         ExternalCallAudit.job_id == job.id,
         ExternalCallAudit.capability == "LLM",
     ]
-    if job.started_at:
-        filters.append(ExternalCallAudit.created_at >= job.started_at)
     rows = db.scalars(select(ExternalCallAudit).where(*filters)).all()
     actual = [row for row in rows if not (row.request_meta_json or {}).get("cache_hit")]
     target_rows = (
@@ -209,7 +205,7 @@ def ensure_ai_budget(
         else [row for row in actual if _audit_location(row) == "REMOTE"]
     )
     if location == "REMOTE" and len(target_rows) >= config.ai_max_model_attempts_per_job:
-        raise AIBudgetExceeded("本轮该远程模型已达到调用次数上限")
+        raise AIBudgetExceeded("本任务该远程模型累计调用已达到次数上限")
     location_rows = (
         target_rows if location == "REMOTE" else [row for row in actual if _audit_location(row) == "LOCAL"]
     )
@@ -227,7 +223,7 @@ def ensure_ai_budget(
     )
     if prompt_tokens + estimate > prompt_limit or completion_tokens >= completion_limit:
         target = "该远程模型" if remote else "本地模型"
-        raise AIBudgetExceeded(f"本轮{target}已达到 AI Token 预算上限")
+        raise AIBudgetExceeded(f"本任务{target}累计消耗已达到 AI Token 预算上限")
     return soft_state
 
 

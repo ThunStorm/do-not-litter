@@ -1,11 +1,11 @@
 # AI Gateway 生产验收与发布门禁
 
-更新日期：2026-09-15。本文件承接已归档的执行计划，只保留尚未完成的生产验收边界，不把源码实现误写为生产已验证。
+更新日期：2026-10-10。本文件承接已归档的执行计划，只保留尚未完成的生产验收边界，不把源码实现误写为生产已验证。
 
 ## 已在源码验证
 
 - `LocalAIResourceManager` 使用共享 `data/runtime/local-ai.lock` 的 `flock` 串行化 API 与 Worker 的本地 ASR、文本、视觉及模型测试；进程退出由操作系统释放锁。
-- AI Budget 只统计 `capability=LLM` 的真实尝试；远程调用次数和 Token 按本轮执行及 Provider Profile 分账，本地不设固定次数上限但保留 Token/总时长保护；Replay 不继承上一轮预算消耗，缓存命中不计调用或 Token。
+- AI Budget 只统计 `capability=LLM` 的真实尝试；远程调用次数和 Token 按本轮执行及 Provider Profile 分账，本地不设固定次数上限但保留 Token/总时长保护；Replay 按同 Job 现存审计累计预算消耗，缓存命中不计调用或 Token。
 - 设置页真实测试与能力探测使用 Provider 凭据级节流；远程探测串行且限制输出。429/配额/网络阻塞不写成能力 `FAIL`，也不覆盖此前 `PASS`。
 - Cache key 绑定请求路由的 Provider/Model，结果及命中审计保存实际返回的 Provider/Model；这定义了当前的 route-result 行为，但尚未用真实 fallback 验收其用户可见语义。
 - `scripts/run_ai_benchmark.py` 评估受控真实 E2E 采集的结果；Golden 样本定义在 `benchmark/golden-ai-gateway-samples.json`。它不调用 Provider、不下载视频。
@@ -23,8 +23,12 @@
 
 ## 生产门禁（尚未由本文件宣称完成）
 
-生产迁移前确认无 `QUEUED/RUNNING` Job 或 lease，备份 SQLite，并执行 `PRAGMA integrity_check`。仓库 migration head 为 `0023`；生产实际版本须在操作时读取，不由本文推断。迁移或重启只通过 `deploy/macos/manage.py`，不得以临时开发服务替代 LaunchAgent。
+生产迁移前确认无 `QUEUED/RUNNING` Job 或 lease，备份 SQLite，并执行 `PRAGMA integrity_check`。仓库 migration head 为 `0025`；生产实际版本须在操作时读取，不由本文推断。迁移或重启只通过 `deploy/macos/manage.py`，不得以临时开发服务替代 LaunchAgent。
 
 已有一条真实视频样本完成字幕、笔记、地点提取和截图，并因 POI 待人工确认以 `PARTIAL_SUCCESS` 结束；该样本不覆盖本门禁。真实 E2E 仍须分别留存：本地 Ollama text/JSON/structured output、一个已配置远程 Provider、LOCAL_ONLY/REMOTE_ONLY/LOCAL_FIRST/REMOTE_FIRST/AUTO 路由、跨进程 ASR 与模型测试等待、缓存与 force-regenerate（含 fallback 后再命中）、低预算拦截、AI 阶段取消与 Replay、一个平台字幕视频及一个 ASR 视频。未配置的 Key、Cookie、模型或可访问样本是明确的外部条件，不能以 Mock 或空记录替代。
 
 通过所有门禁前，禁止声明 “AI Workload Gateway Production Proven”，也不启动 GenericProcessor、Source Watch、RAG、Multi Worker、Cloud Worker 或高风险自动操作。
+
+## 2026-10-10 请求优化工作包
+
+核心离线及 UI 验证、真实 E2E 各项状态分别见 [工作包门禁](../benchmark/RELEASE_ACCEPTANCE.md)、[跨项目 E2E](../benchmark/CROSS_PROJECT_E2E_REPORT.md)、[合成 A/B](../benchmark/AI_REQUEST_OPTIMIZATION_AB_REPORT.md)。本包没有真实推理，不宣称 Production Proven；既有 Gateway 毕业门槛保留，合成字节收益不能替代它。

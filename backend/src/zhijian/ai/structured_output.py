@@ -9,8 +9,9 @@ from typing import Any
 from zhijian.ai.reliability import AIProviderError
 
 
-def parse_json_object(content: str) -> dict[str, Any]:
-    text = str(content or "").replace("\ufeff", "").strip()
+def parse_json_with_quality(content: str) -> tuple[dict[str, Any], str, list[str]]:
+    original = str(content or "")
+    text = original.removeprefix("\ufeff").strip()
     if not text:
         raise AIProviderError("AI_PROVIDER_EMPTY_RESPONSE", "模型没有返回内容", retryable=True)
     text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.IGNORECASE).strip()
@@ -26,16 +27,30 @@ def parse_json_object(content: str) -> dict[str, Any]:
         raise AIProviderError("AI_PROVIDER_INVALID_JSON", "模型没有返回 JSON 对象", retryable=True)
     if end < start:
         raise AIProviderError("AI_PROVIDER_OUTPUT_TRUNCATED", "模型返回的 JSON 被截断")
-    candidate = re.sub(r",\s*([}\]])", r"\1", text[start : end + 1])
+    # Repair only commas outside quoted strings; never rewrite evidence text.
+    candidate = text[start : end + 1]
+    rules: list[str] = ["outer_commentary"] if start != 0 or end != len(text) - 1 else []
     try:
         value = json.loads(candidate)
     except json.JSONDecodeError as exc:
-        raise AIProviderError(
-            "AI_PROVIDER_INVALID_JSON", "模型返回的 JSON 无法解析", retryable=True, cause=exc
-        ) from exc
+        candidate = re.sub(r'("(?:[^"\\]|\\.)*")|,\s*(?=[}\]])', lambda match: match[1] or "", candidate)
+        try:
+            value = json.loads(candidate)
+        except json.JSONDecodeError:
+            raise AIProviderError(
+                "AI_PROVIDER_INVALID_JSON", "模型返回的 JSON 无法解析", retryable=True, cause=exc
+            ) from exc
+        rules.append("trailing_comma")
     if not isinstance(value, dict):
         raise AIProviderError("AI_PROVIDER_SCHEMA_INVALID", "模型返回的 JSON 顶层必须是对象", retryable=True)
-    return value
+    quality = (
+        "DETERMINISTIC_REPAIRED" if rules else "NORMALIZED_VALID" if text != original else "DIRECT_VALID"
+    )
+    return value, quality, rules
+
+
+def parse_json_object(content: str) -> dict[str, Any]:
+    return parse_json_with_quality(content)[0]
 
 
 _REQUIRED_FIELDS = {
@@ -55,7 +70,10 @@ _LIST_LIMITS = {
 def validate_structured_output(content: str, stage: str, metadata: dict[str, Any] | None = None) -> None:
     if str((metadata or {}).get("finish_reason") or "").lower() in {"length", "max_tokens"}:
         raise AIProviderError("AI_PROVIDER_OUTPUT_TRUNCATED", "模型输出达到长度上限")
-    value = parse_json_object(content)
+    value, quality, rules = parse_json_with_quality(content)
+    if metadata is not None:
+        metadata.setdefault("parse_quality", quality)
+        metadata.setdefault("repair_rules", rules)
     if stage == "GROUND_MAP" and {"content_units", "entities", "relations", "claims", "warnings"} <= set(
         value
     ):

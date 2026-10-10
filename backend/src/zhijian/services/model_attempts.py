@@ -6,6 +6,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from zhijian.ai.job_config import EXECUTION_KEY
 from zhijian.core.config import Settings
 from zhijian.core.time import as_utc, utc_now
 from zhijian.db.models import ExternalCallAudit, Job
@@ -28,10 +29,15 @@ def begin_model_attempt(
 ) -> str:
     timeout_seconds = float(request_meta.get("timeout_seconds") or 300)
     started_at = utc_now()
+    execution = (job.payload_json or {}).get(EXECUTION_KEY) if job else None
     metadata = {
         **request_meta,
+        "attempt_state": "QUEUED",
         "deadline_at": (started_at + timedelta(seconds=timeout_seconds)).isoformat(),
         "run_fence": job_run_fence(job) if job else None,
+        "execution_config": {key: execution[key] for key in ("revision", "fingerprint")}
+        if execution
+        else None,
     }
     attempt = ExternalCallAudit(
         job_id=job.id if job else None,
@@ -68,6 +74,21 @@ def begin_model_attempt(
     if job:
         _start_heartbeat(attempt.id, job.id, metadata, settings)
     return attempt.id
+
+
+def advance_model_attempt(db: Session, attempt_id: str, state: str) -> bool:
+    attempt = db.get(ExternalCallAudit, attempt_id)
+    if not attempt or attempt.status != "RUNNING":
+        return False
+    transitions = {"QUEUED": {"DISPATCHED"}, "DISPATCHED": {"VALIDATING"}}
+    current = (attempt.request_meta_json or {}).get("attempt_state")
+    if current == state:
+        return True
+    if state not in transitions.get(current, set()):
+        return False
+    attempt.request_meta_json = {**attempt.request_meta_json, "attempt_state": state}
+    db.commit()
+    return True
 
 
 def finish_model_attempt(
@@ -116,7 +137,7 @@ def finish_model_attempt(
         return False
     attempt.status = status
     attempt.duration_ms = duration_ms
-    attempt.request_meta_json = {**metadata, **request_meta_updates}
+    attempt.request_meta_json = {**metadata, **request_meta_updates, "attempt_state": "TERMINAL"}
     attempt.response_meta_json = response_meta
     attempt.error_code = error_code
     attempt.error_message = error_message

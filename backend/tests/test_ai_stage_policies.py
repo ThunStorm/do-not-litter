@@ -230,7 +230,8 @@ def test_model_probe_persists_only_capability_results(client, app_and_session, m
     monkeypatch.setattr("zhijian.api.router._model_profile_provider", lambda *_args: Provider())
     response = client.post(f"/api/settings/model-profiles/{profile_id}/probe")
     assert response.status_code == 200
-    assert "TRANSCRIPT_CORRECTION" in response.json()["capabilities"]
+    assert response.json()["probe_results"]["FORMAT_SMOKE"] == "PASS"
+    assert response.json()["probe_results"]["TRANSCRIPT_CORRECTION"] == "FAIL"
     with factory() as db:
         stored = db.scalar(select(Setting).where(Setting.key == f"model-profile:{profile_id}"))
         assert stored and "api_key" not in str(stored.value_json)
@@ -260,7 +261,8 @@ def test_draft_model_probe_returns_results_without_persisting_key(
         },
     )
     assert response.status_code == 200
-    assert "STRUCTURED_EXTRACTION" in response.json()["capabilities"]
+    assert response.json()["probe_results"]["FORMAT_SMOKE"] == "PASS"
+    assert response.json()["probe_results"]["STRUCTURED_EXTRACTION"] == "FAIL"
     with app_and_session[1]() as db:
         assert "draft-key-must-not-persist" not in str(db.query(Setting).all())
 

@@ -21,11 +21,11 @@ from zhijian.ai.stage_decision import decide_stage, record_stage_decision
 from zhijian.core.config import Settings
 from zhijian.core.time import utc_now
 from zhijian.db.models import GroundedMapArtifact, Job, JobStep, Segment, Transcript, VideoAsset
-from zhijian.providers.llm import FallbackLLMProvider
+from zhijian.providers.llm import FallbackLLMProvider, LLMResult
 from zhijian.services.audit import record_event
 from zhijian.services.jobs import ensure_job_active
 
-MAP_PROMPT_VERSION = "semantic-map-v3"
+MAP_PROMPT_VERSION = "semantic-map-v3-compiler1"
 MAP_ARTIFACT_SCHEMA_VERSION = "grounded-map-v3"
 LOCAL_MAP_CHUNK_CHARS = 6_000
 LOCAL_MAP_CHUNK_SEGMENTS = 64
@@ -394,6 +394,24 @@ def get_or_create_grounded_map(
                 "content": f"视频标题：{asset.title}\n分块：{chunk_index}/{chunk_count}\n{text}",
             },
         ]
+
+        def validate_evidence(result: LLMResult) -> None:
+            payload = parse_model_json(result.content)
+            accepted = _canonical_payload(payload, chunk)
+            collections = ("entities", "claims") if "entities" in payload else ("section_facts", "places")
+            counts = (
+                (len(accepted[4]), len(accepted[6]))
+                if "entities" in payload
+                else (len(accepted[0]), len(accepted[1]))
+            )
+            rejected = sum(
+                max(0, len(payload.get(name, [])) - count)
+                for name, count in zip(collections, counts, strict=True)
+            )
+            result.metadata.update(
+                rejected_items=rejected, acceptance="PARTIAL_ACCEPTED" if rejected else "ACCEPTED"
+            )
+
         try:
             response = _cached_stage_json(
                 db,
@@ -412,6 +430,9 @@ def get_or_create_grounded_map(
                     else model
                 ),
                 messages=messages,
+                result_validator=validate_evidence,
+                request_segments=segments,
+                stage_deadline=stage_started + policy.wall_time_seconds if policy.wall_time_seconds else None,
                 fallback_only=fallback_only,
                 attempt_metadata={
                     "chunk_index": chunk_index,

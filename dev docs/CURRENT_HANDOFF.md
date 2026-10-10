@@ -4,13 +4,19 @@
 
 ## 任务续接
 
-- 目标与范围：全局文档同步与当前分支远程交付，包含已验证的本地路由/CLI、Token/取消响应及 trust_env 修复；不扩展未来路线。
-- 完成与验证：源码后端 279/前端 19、Ruff/类型/构建通过；2026-10-08 23:47 已无迁移加载，服务原快照见下。本轮仅文档链接、历史迁移、清单及合订一致性检查；代码和文档随本轮提交交付，准确提交以分支 Git 记录为准。
-- 当前只读复核：job_d3fc3507…于 2026-10-09 00:16 从校对续跑至 PARTIAL_SUCCESS，复用 ASR，产出笔记/截图；地点 3 REVIEW、12 UNRESOLVED。此前两条旧阻塞 Job 已不在库中。本轮没有发起真实调用或续跑。
-- 未完成：Ollama 客户端取消后上游继续推理；全型号/长视频/厂商额度、远端取消计费和质量 Benchmark 未闭环。当前仅有有界真实样本，不能外推全矩阵。
-- 下一步一项：经用户授权处理 Ollama 取消后的限时清理及真实退出验收。相关文件：providers/llm.py、ai/resource_manager.py、ai-gateway/AI_RUNTIME_AND_PROVIDERS.md。禁止自动重跑、改历史审计/提交快照、自动确认 POI；本轮不重启/迁移，旧服务健康采样未复核。
+- 范围：完成 Z0–Z7 请求优化核心开发/离线验证，连同已存在的同模型保存/Replay 改动无迁移部署；Z8 保留独立 backlog，未修改 Mux。
+- 已完成：后端全量 320、末次诊断目标 74、前端 19 与静态检查通过；隔离及生产 PC/390px 调用明细验收通过。API/Worker/页面/新心跳 READY，Job 与 549 条 LLM Audit 不变。本轮已部署并提交（提交号见 git log -1），未推送。
+- 未完成：真实保存/同模型续跑、字幕/ASR/长视频/Token A/B 与 Ollama 实际退出未复验。现有 Mux 健康/目录连接失败，BLOCKED_EXTERNAL；合成字节降幅 36.77% 不证明模型用量或业务质量。
+- 下一步一项：Mux 恢复后，明确一个模型/任务与低额度真实 E2E 授权，再按矩阵取证。
+- 文件：[实施计划](planning/ZHIJIAN_AI_OPTIMIZATION_AND_E2E_PLAN.md)、[发布门禁](benchmark/RELEASE_ACCEPTANCE.md)、ai/request_compiler.py。
+- 禁止：不自动调用/续跑、不改提交快照或历史结果、不自动确认 POI；旧生产条目保留原采样日期，本次未逐项复核。
 
-## 生产快照（最新数据库采样 2026-10-09；服务健康采样仍为 2026-10-08，下列旧条目保留原日期）
+## 生产快照（最新数据库/服务健康采样 2026-10-10 11:04 北京时间；下列旧条目保留原日期，本次未逐项复核）
+
+- 2026-10-10 11:04（请求优化核心无迁移部署）：重载前 active Job/lease/RUNNING LLM=0，integrity=ok、FK=0、revision=0025。SQLite 逻辑备份 `data/backups/app-pre-ai-optimization-20261010-110232.db`、旧静态包 `data/backups/frontend-pre-ai-optimization-20261010-110232.tar.gz` 已验证；当前候选源码归档 `data/backups/source-ai-optimization-candidate-20261010-110232.tar.gz` 保留接手与新增更改（非 10-09 原未提交源码快照，回退边界见发布门禁）。将 Node 24 验收构建切换到 frontend/dist 并保留旧哈希资源，生产 Python manage.py restart/status 确认 API/Worker RUNNING、首页/health/新心跳 READY，Worker PID=12182。OpenAPI 104 路径，实机 AI Usage 有新 call_details（24 条旧审计）；首页及 JS `index-3FtGH5U4.js`、CSS `index-BGA9mjX8.css` 的 HTTP 内容哈希与部署文件一致。生产 Edge/Playwright 在 1440×1000、390×844 只读展开/收起调用明细，24 条结果一致，无溢出/相关控制台错误。重载后 integrity=ok、FK=0、0025、active/lease=0；Job 状态/配置/重试/错误 hash、全部 549 条 LLM Audit 的逐字段 hash 与备份前一致。未迁移、未改模型配置、未触发真实模型/视频/POI；本轮提交并保留全部接手改动，未推送。当前 Mux 只读健康/目录 ConnectError / AI_PROVIDER_INTERFACE_UNAVAILABLE，实机 E2E 保持开放。
+
+
+- 2026-10-09 16:35–16:42（当前工作树统一无迁移重载）：重载前 active Job/lease=0、integrity=ok、FK=0、revision=0025（仓库 head 同为 0025）。逻辑备份 `data/backups/app-pre-same-model-redeploy-20261009-163524.db` 已验证完整性/FK/revision；旧静态包备份 `data/backups/frontend-pre-same-model-redeploy-20261009-163524.tar.gz` 已验证索引。Node 24 构建发布包后切换 frontend/dist（保留旧哈希资源），生产解释器 manage.py restart/status 确认 API/Worker RUNNING、页面/health/新心跳 READY；新 PID API=76935、Worker=76961，Worker 心跳 PID 与进程一致。OpenAPI 104 条路径，模型保存/接口能力及三类重跑路由存在，首页及新 JS/CSS HTTP 内容哈希与部署文件一致。生产 Browser 在 1440×1000、390×844 只读核对设置页面/新累计预算标签，无横向溢出或相关控制台错误；未点击保存/真实测试。重载后 integrity=ok、FK=0、revision=0025、active/lease=0；Job 状态/配置/重试计数/错误与重载前备份一致，LLM Audit 前后均 549 条。未迁移、未改模型配置、未触发真实 Provider/视频续跑、未确认 POI、未提交/推送。
 
 - 2026-10-09（文档任务的数据库只读复核）：`job_d3fc3507d995425eb6d1fe01a76b0311` 在 2026-10-08 23:50:36 至 2026-10-09 00:16:08 从 CORRECT_TRANSCRIPT 续跑，终态 PARTIAL_SUCCESS/CLEAN_CACHE，生成 `cnt_c48ba4c1f95d4013bbe82269041e58d0` 与 `note_0e1dbcfa3148455db77e5146f8ffa12c`；上游含 ASR 的 6 步 REUSED，校对、Ground Map、Note、地点/截图/物化均 COMPLETED。地点 confirmed=0、REVIEW=3、UNRESOLVED=12，保留人审；调用审计仍保留原 trust_env 失败及后续 Ground Map 失败，不能因步骤完成改写历史。此前 job_d8e17638…/job_f4495f14…均已不在当前库中。本轮仅采集上述证据，没有发起推理/重跑/迁移/重启，也未重新采样 API/Worker 健康；23:47 的服务状态继续保留原日期，不当作本次健康结果。
 

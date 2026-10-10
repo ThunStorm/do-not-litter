@@ -112,12 +112,12 @@ Mux 的 M1–M5 和两项目边界由[通用设计说明书](../../../local-ai-m
 
 ## 10. 已实现的使用方式与验证入口
 
-- 模型设置提供 LocalAiMux 预设和 `DIRECT / LOCAL_ROUTER` 接入方式；未登记接入类型的旧 Profile，仅在明确命名为 Local Ai Mux/LocalMux 且使用回环地址时识别本机路由，不凭端口猜测，也不覆盖显式 DIRECT。读取能力并保存后使用绑定模型/地址的快照；地址、模型、凭据或接入方式变化后，界面清除旧能力。快照沿用 Setting JSON，无数据库结构变更。
-- 已保存配置通过 `POST /api/settings/model-profiles/{id}/interface-capabilities` 使用当前输入和既存 Key 读取；草稿使用 `/api/settings/model-profiles/interface-capabilities-draft`。这两条路由只读取 `/v1/models` 与 `/api/chat/models` 并核对目录，响应有大小/数量、读取超时和总时长限制，不跟随重定向、不经环境代理、不写配置、不调用模型。用户保存后快照才用于新任务。
+- 模型设置提供 LocalAiMux 预设和 `DIRECT / LOCAL_ROUTER` 接入方式；未登记接入类型的旧 Profile，仅在明确命名为 Local Ai Mux/LocalMux 且使用回环地址时识别本机路由，不凭端口猜测，也不覆盖显式 DIRECT。新建、缺少能力或模型/地址/凭据/接入方式变化时，保存自动读取并核对目录后落库；无绑定变化且能力有效时复用。失败保留原配置和原凭据，DIRECT 不读 Mux 目录。界面仍清除变更后的旧能力，手动读取入口保留。快照沿用 Setting JSON，无数据库结构变更。
+- 已保存配置通过 `POST /api/settings/model-profiles/{id}/interface-capabilities` 使用当前输入和既存 Key 读取；草稿使用 `/api/settings/model-profiles/interface-capabilities-draft`。这两条路由只读取 `/v1/models` 与 `/api/chat/models` 并核对目录，响应有大小/数量、读取超时和总时长限制，不跟随重定向、不经环境代理、不写配置、不调用模型。用户保存后能力用于新任务及旧任务的同模型重跑执行快照；保存的自动目录检查不等于真实业务 Probe。
 - 测试不再强制 64 Token，连通测试使用文本调用；输出长度可空。正式调用和主备分别按冻结快照省略不可用的输出/温度/原生 JSON 参数，范围已声明时校验；路由模式采用默认思考行为。缺 system/历史/文本能力、快照未读取或绑定过期时在推理前拒绝，不启动单 user 业务编译。
 - 前置 system 合并保持内容和顺序；JSON 修复指令组织到业务 user 前。能力指纹、客户端规范化版本及上游报告的 schema_version（若有）进入缓存语义与审计，现有 Job 提交/恢复快照自动保存新增非密钥字段；不改历史任务或已有业务 Probe 结果。
 - 配置类 400 / 接口不兼容不再计入临时故障熔断，也不自动换模型。未知用量保留为未知，输入/可见输出估算参与原有预算；上游占位 stop 不能当可靠结束原因，保留 reported_finish_reason，明确 length 仍拦截。没有证据保证上游思考 Token 已计入估算或断开已停止消费。
-- 自动验收入口：`backend/tests/test_local_router_contract.py`、`backend/tests/test_job_runtime_optimization.py`，以及既有 Provider/缓存/Job/预算/API 回归和前端 `pnpm verify`。浏览器使用 Edge 在隔离响应下验证 PC 1440×1000、Mobile 390×844 的选预设、读能力、默认参数、保存、修改模型后的能力失效及无溢出/控制台错误；这些 Fixture 不代表真实 Mux 推理。
+- 自动验收入口：`backend/tests/test_same_model_replay_config.py`、`backend/tests/test_local_router_contract.py`、`backend/tests/test_job_runtime_optimization.py`，以及既有 Provider/缓存/Job/预算/API 回归和前端 `pnpm verify`。浏览器使用 Edge 在隔离响应下验证 PC 1440×1000、Mobile 390×844 的选预设、读能力、默认参数、保存、修改模型后的能力失效及无溢出/控制台错误；这些 Fixture 不代表真实 Mux 推理。
 
 2026-10-06 初次验证：后端全量 256 项通过（含本工作包 19 项），前端 18 项、ESLint、TypeScript、Vite build、后端 Ruff/格式检查通过；合订构建脚本 5 项、文档链接/生成一致性和 git diff --check 通过。Browser 插件不可用，按测试技能采用已安装 Edge 的 Playwright；隔离 PC/Mobile 控件流程无框架覆盖、控制台错误或水平溢出，保存 payload 和修改模型后的旧能力失效已核对。截图/测试脚本放在仓库外，不作为真实业务验收。
 

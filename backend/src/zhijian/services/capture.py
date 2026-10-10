@@ -3,9 +3,11 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from zhijian.ai.job_config import SNAPSHOT_KEY, capture_ai_config
+from zhijian.ai.job_config import SNAPSHOT_KEY, capture_ai_config, validate_job_interfaces
+from zhijian.ai.reliability import AIProviderError
 from zhijian.core.config import Settings
 from zhijian.db.models import Job, Source
 from zhijian.domain.enums import JobStatus, JobType
@@ -27,9 +29,7 @@ def create_capture_job(
     asr_provider: str | None = None,
 ) -> tuple[Source, Job]:
     is_local_video = bool(
-        source_type == "FILE"
-        and file_path
-        and file_path.suffix.lower() in {".mp4", ".mov", ".webm", ".m4v"}
+        source_type == "FILE" and file_path and file_path.suffix.lower() in {".mp4", ".mov", ".webm", ".m4v"}
     )
     is_youtube = source_type == "URL" and is_youtube_url(locator)
     is_video = (source_type == "URL" and (is_bilibili_url(locator) or is_youtube)) or is_local_video
@@ -40,12 +40,15 @@ def create_capture_job(
         title=title or None,
         metadata_json=metadata or {},
     )
+    snapshot = capture_ai_config(db, settings)
+    if is_video:
+        try:
+            validate_job_interfaces(snapshot["settings"], ai_overrides or {})
+        except AIProviderError as exc:
+            raise HTTPException(status_code=422, detail={"code": exc.code, "message": str(exc)}) from exc
     db.add(source)
     db.flush()
-    snapshot = capture_ai_config(db, settings)
-    needs_asr = is_video or bool(
-        file_path and file_path.suffix.lower() in {".mp3", ".m4a", ".wav", ".aac"}
-    )
+    needs_asr = is_video or bool(file_path and file_path.suffix.lower() in {".mp3", ".m4a", ".wav", ".aac"})
     payload = {
         "source_id": source.id,
         "locator": locator,

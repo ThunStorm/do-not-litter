@@ -136,11 +136,24 @@ def _summary_markdown(summary: dict[str, Any]) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description="评估已采集的 AI Gateway Golden Benchmark")
     parser.add_argument("samples", type=Path, help="Golden sample 定义 JSON")
-    parser.add_argument("runs", type=Path, help="已采集的结果 JSON 数组")
+    parser.add_argument("runs", type=Path, nargs="?", help="已采集的结果 JSON 数组")
+    parser.add_argument("--request-optimization", action="store_true", help="合成请求 A/B，无模型调用")
     parser.add_argument("--output", type=Path, help="可选：写入 JSON 结果")
     parser.add_argument("--output-dir", type=Path, help="正式 Benchmark 运行包目录")
     args = parser.parse_args()
     samples = json.loads(args.samples.read_text(encoding="utf-8"))
+    if args.request_optimization:
+        from zhijian.ai.request_benchmark import evaluate_request_optimization
+
+        result = evaluate_request_optimization(samples)
+        encoded = json.dumps(result, ensure_ascii=False, indent=2) + "\n"
+        if args.output:
+            args.output.write_text(encoded, encoding="utf-8")
+        else:
+            print(encoded, end="")
+        return
+    if args.runs is None:
+        parser.error("非合成模式必须提供已采集的 runs 文件")
     rows = json.loads(args.runs.read_text(encoding="utf-8"))
     if not isinstance(samples, list) or not isinstance(rows, list):
         raise SystemExit("samples 和 runs 均必须为 JSON 数组")

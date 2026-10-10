@@ -8,10 +8,9 @@ from dataclasses import dataclass
 from typing import Any
 
 from zhijian.ai.capabilities import AICapability
+from zhijian.ai.model_registry import business_probe_status
 
-LOCAL_PREFERRED_STAGES = frozenset(
-    {"TRANSCRIPT_CORRECTION", "GROUND_MAP", "EXTRACT_TRAVEL_FACTS"}
-)
+LOCAL_PREFERRED_STAGES = frozenset({"TRANSCRIPT_CORRECTION", "GROUND_MAP", "EXTRACT_TRAVEL_FACTS"})
 
 
 @dataclass(frozen=True)
@@ -36,6 +35,12 @@ def choose_auto_route(
         if value and bool(value.get("enabled", True)) and _supports(value, capability)
     ]
     local = [(profile_id, value) for profile_id, value in eligible if _location(value) == "LOCAL"]
+    verified = [
+        (key, value) for key, value in eligible if business_probe_status(value, capability.value) == "PASS"
+    ]
+    if verified:
+        eligible = verified
+        local = [(key, value) for key, value in eligible if _location(value) == "LOCAL"]
     remote = [(profile_id, value) for profile_id, value in eligible if _location(value) == "REMOTE"]
     quality = quality_preset.upper() == "QUALITY"
     prefer_local = stage in LOCAL_PREFERRED_STAGES or budget_pressure or not quality
@@ -92,10 +97,7 @@ def _best(
     return min(
         items,
         key=lambda item: (
-            0
-            if str((item[1].get("probe_results") or {}).get(capability.value) or "").upper()
-            == "PASS"
-            else 1,
+            0 if business_probe_status(item[1], capability.value) == "PASS" else 1,
             tiers.get(_tier(item[1]), 9),
             -int(item[1].get("recommended_working_context") or 0),
             item[0],

@@ -23,6 +23,7 @@ from zhijian.ai.job_config import SNAPSHOT_KEY, job_setting, job_stage_override,
 from zhijian.ai.model_registry import model_connection_type
 from zhijian.ai.policies import resolve_stage_policy
 from zhijian.ai.reliability import AIProviderError, ModelReliabilityPolicy, resolve_reliability_policy
+from zhijian.ai.request_compiler import compile_request
 from zhijian.ai.runtime_hints import read_runtime_hint, tighten_note_reduce_hint, tighten_runtime_hint
 from zhijian.ai.stage_decision import decide_stage, record_stage_decision
 from zhijian.ai.token_usage import estimate_tokens
@@ -509,6 +510,8 @@ def _cached_stage_json(
     attempt_metadata: dict[str, Any] | None = None,
     result_validator: Callable[[LLMResult], None] | None = None,
     fallback_only: bool = False,
+    request_segments: list[Segment] | None = None,
+    stage_deadline: float | None = None,
 ) -> LLMResult:
     if not hasattr(db, "scalar"):
         return provider.generate_json(messages, model=model)
@@ -517,9 +520,18 @@ def _cached_stage_json(
     if effective_thinking is None and isinstance(provider, FallbackLLMProvider):
         effective_thinking = getattr(provider.request_options, "thinking", None)
     domain_messages, domain_versions = domain_context_messages(
-        db, policy.domain_pack_ids, AICapability(capability), job
+        db,
+        policy.domain_pack_ids,
+        AICapability(capability),
+        job,
+        context_text="\n".join(item["content"] for item in messages if item["role"] == "user"),
     )
     enriched_messages = [messages[0], *domain_messages, *messages[1:]] if messages else domain_messages
+    compiled = (
+        compile_request(stage, enriched_messages, request_segments, request_segments[0].snapshot_id)
+        if request_segments
+        else None
+    )
     return AIWorkloadGateway().execute_cached_json(
         db,
         job=job,
@@ -528,7 +540,12 @@ def _cached_stage_json(
         provider=provider,
         provider_name=provider_name,
         model=model,
-        messages=enriched_messages,
+        messages=compiled.messages if compiled else enriched_messages,
+        compiled_request=compiled,
+        stage_deadline=stage_deadline,
+        domain_chars=sum(len(item["content"]) for item in domain_messages),
+        max_stage_attempts=policy.max_attempts,
+        max_input_tokens=policy.max_input_tokens,
         semantic_options={
             "temperature": policy.temperature,
             "max_output_tokens": policy.max_output_tokens,
@@ -593,7 +610,9 @@ def _profile_supports_capability(
     if not config or not bool(config.get("enabled", True)):
         return False
     capabilities = {str(item) for item in config.get("capabilities") or []}
-    probe = str((config.get("probe_results") or {}).get(capability.value) or "NOT_TESTED").upper()
+    from zhijian.ai.model_registry import business_probe_status
+
+    probe = business_probe_status(config, capability.value)
     if allow_unverified:
         return True
     return probe != "FAIL" and (
@@ -735,6 +754,10 @@ def provider_for_role(
             )
             if route_decision:
                 primary_id, fallback_id = route_decision.primary_id, route_decision.fallback_id
+                from zhijian.ai.model_registry import business_probe_status
+
+                if business_probe_status(candidates[primary_id], resolved_policy.capability.value) != "PASS":
+                    route_decision = replace(route_decision, reason_code="BUSINESS_NOT_VERIFIED")
         if mode in {"LOCAL_FIRST", "REMOTE_FIRST"} and primary_id and not fallback_id:
             # Keep an eligible saved backup when there is no opposite-location candidate.
             configured_fallback = configured_profile_ids[1]
@@ -823,7 +846,7 @@ def provider_for_role(
         if cached is None:
             cached = (usage.get("prompt_tokens_details") or {}).get("cached_tokens")
         attempt_id = str(attempt_metadata.pop("attempt_id", ""))
-        result_metadata = result.metadata if result else {}
+        result_metadata = {**(error.get("reliability") or {}), **(result.metadata if result else {})}
         attempt_metadata.update(
             {
                 key: result_metadata[key]
@@ -833,11 +856,30 @@ def provider_for_role(
                     "effective_input_hash",
                     "effective_parameters",
                     "omitted_parameters",
+                    "request_metrics",
                 )
                 if key in result_metadata
             }
         )
         response_meta = {
+            **{
+                key: result_metadata[key]
+                for key in (
+                    "parse_quality",
+                    "repair_rules",
+                    "execution_path",
+                    "original_result_hash",
+                    "queue_ms",
+                    "provider_ms",
+                    "end_to_end_ms",
+                    "localmux",
+                    "request_id",
+                    "remote_execution_state",
+                    "acceptance",
+                    "rejected_items",
+                )
+                if key in result_metadata
+            },
             "prompt_tokens": usage.get("prompt_tokens", usage.get("prompt_eval_count")),
             "completion_tokens": usage.get("completion_tokens", usage.get("eval_count")),
             "cached_tokens": cached,
@@ -1194,8 +1236,7 @@ def _transcript_context(segments: list[Segment], max_chars: int) -> str:
         start = segment.locator_json.get("start_ms", 0)
         end = segment.locator_json.get("end_ms", start)
         line = f"[segment:{segment.id} {start}-{end}ms] {segment.corrected_text or segment.text}"
-        if lines and used + len(line) > max_chars:
-            break
+        # Callers already chunk by budget. Never silently omit the tail or overlap evidence.
         lines.append(line)
         used += len(line)
     return "\n".join(lines)
@@ -1656,6 +1697,8 @@ def correct_transcript(
         encoding="utf-8"
     )
     processing = transcript_processing_config(db, job)
+    correction_wall = _resolved_stage_policy(db, "TRANSCRIPT_CORRECTION", job).wall_time_seconds
+    correction_deadline = perf_counter() + correction_wall if correction_wall else None
     configured_batch_size = _correction_batch_size(provider_name, processing.batch_size)
     runtime_hints = (job.payload_json.get("ai_runtime_hints") or {}) if job else {}
     correction_hints = (
@@ -1763,6 +1806,8 @@ def correct_transcript(
                 provider_name=provider_name,
                 model=model,
                 messages=messages,
+                request_segments=segments,
+                stage_deadline=correction_deadline,
                 attempt_metadata={
                     "chunk_index": batch_index,
                     "chunk_count": batch_total,
@@ -1777,7 +1822,20 @@ def correct_transcript(
             if len(batch) <= 1:
                 if not isinstance(provider, FallbackLLMProvider):
                     raise
-                response = provider.generate_fallback_json(messages)
+                response = _cached_stage_json(
+                    db,
+                    job=job,
+                    stage="TRANSCRIPT_CORRECTION",
+                    capability="TRANSCRIPT_CORRECTION",
+                    provider=provider,
+                    provider_name=provider_name,
+                    model=model,
+                    messages=messages,
+                    request_segments=segments,
+                    stage_deadline=correction_deadline,
+                    fallback_only=True,
+                    result_validator=lambda result: validated_changes(batch, result),
+                )
                 apply_batch_result(batch, response, validated_changes(batch, response))
                 return
             midpoint = len(batch) // 2
@@ -2152,6 +2210,7 @@ def generate_note(
                 provider_name=provider_name,
                 model=model,
                 messages=messages,
+                request_segments=segments,
             )
             payload = parse_model_json(response.content)
             if payload.get("overview"):
@@ -2261,6 +2320,10 @@ def generate_note(
                     provider_name=provider_name,
                     model=model,
                     messages=messages,
+                    request_segments=segments,
+                    stage_deadline=stage_started + reduce_policy.wall_time_seconds
+                    if reduce_policy.wall_time_seconds
+                    else None,
                     attempt_metadata={
                         "chunk_index": pack_index,
                         "chunk_count": pack_count,
@@ -2274,7 +2337,21 @@ def generate_note(
                 if len(pack) <= 1:
                     if not isinstance(provider, FallbackLLMProvider):
                         raise
-                    reduced = provider.generate_fallback_json(messages)
+                    reduced = _cached_stage_json(
+                        db,
+                        job=job,
+                        stage="NOTE_REDUCE",
+                        capability="GLOBAL_SYNTHESIS",
+                        provider=provider,
+                        provider_name=provider_name,
+                        model=model,
+                        messages=messages,
+                        request_segments=segments,
+                        fallback_only=True,
+                        stage_deadline=stage_started + reduce_policy.wall_time_seconds
+                        if reduce_policy.wall_time_seconds
+                        else None,
+                    )
                 else:
                     midpoint = len(pack) // 2
                     tighten_note_reduce_hint(
@@ -2518,6 +2595,7 @@ def extract_place_mentions(
                 provider=provider,
                 provider_name=provider_name,
                 model=model,
+                request_segments=segments,
                 messages=[
                     {"role": "system", "content": prompt},
                     *prompt_supplement_messages(db, "travel_place_extraction", job),
@@ -2848,6 +2926,33 @@ def resolve_mentions_with_amap(
             and (mention.metadata_json or {}).get("confirmation_origin") == "MANUAL_CONFIRMED"
         )
     ]
+    from zhijian.services.evidence_trace import evidence_trace
+
+    verified_searchable = []
+    for mention in searchable:
+        refs = db.scalars(select(Segment).where(Segment.id.in_(mention.segment_ids_json))).all()
+        snapshot_id = refs[0].snapshot_id if refs else ""
+        trace = evidence_trace(refs, mention.segment_ids_json, mention.quote, snapshot_id)
+        snapshot = db.get(Snapshot, snapshot_id) if snapshot_id else None
+        asset = db.get(VideoAsset, mention.video_asset_id)
+        if (
+            trace["valid"]
+            and snapshot
+            and asset
+            and snapshot.source_id == asset.source_id
+            and snapshot.metadata_json.get("video_asset_id") == asset.id
+        ):
+            verified_searchable.append(mention)
+            mention.metadata_json = {**mention.metadata_json, "evidence_trace_version": trace["version"]}
+        else:
+            mention.resolution_status = ResolutionStatus.REVIEW.value
+            mention.metadata_json = {
+                **mention.metadata_json,
+                "reason_codes": ["SOURCE_EVIDENCE_INVALID"],
+                "reason": "来源或逐字证据无效，需人工核对",
+            }
+    searchable = verified_searchable
+    searchable_ids = {item.id for item in searchable}
     with ThreadPoolExecutor(max_workers=max(1, settings.amap_max_concurrency)) as executor:
         futures = {
             executor.submit(_rank_poi_candidates, provider, mention, mentions): mention.id
@@ -2865,6 +2970,8 @@ def resolve_mentions_with_amap(
             and (mention.metadata_json or {}).get("confirmation_origin") == "MANUAL_CONFIRMED"
         ):
             confirmed += 1
+            continue
+        if mention.id not in searchable_ids:
             continue
         candidates = candidate_results.get(mention.id, [])
         if isinstance(candidates, Exception):

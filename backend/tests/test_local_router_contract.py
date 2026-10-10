@@ -145,9 +145,7 @@ def test_router_cancellable_request_disables_environment_proxy(monkeypatch):
     monkeypatch.setattr(httpx, "AsyncClient", client)
     router = provider(contract())
     router.cancel_check = lambda: None
-    result = router.generate_json(
-        [{"role": "user", "content": "Return JSON ok"}], model="codebuddy/hy3"
-    )
+    result = router.generate_json([{"role": "user", "content": "Return JSON ok"}], model="codebuddy/hy3")
     assert result.content == '{"ok":true}'
     assert len(requests) == 1 and requests[0].url.path == "/v1/chat/completions"
     assert client_options[0]["trust_env"] is False
@@ -515,7 +513,8 @@ def test_saved_metadata_read_is_read_only_and_separate_from_business_probe(
     _, factory = app_and_session
     with factory() as db:
         stored = db.scalar(select(Setting).where(Setting.key == f"model-profile:{saved['id']}"))
-        assert stored.value_json["interface_capabilities"] is None and "api_key" not in stored.value_json
+        assert stored.value_json["interface_capabilities"]["system"] == "UNSUPPORTED"
+        assert "api_key" not in stored.value_json
     assert client.get("/api/settings/model-profiles").json()[-1]["probe_results"] == {}
     direct = client.post(
         "/api/settings/model-profiles/interface-capabilities-draft",

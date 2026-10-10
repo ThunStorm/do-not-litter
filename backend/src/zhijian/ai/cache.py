@@ -142,6 +142,7 @@ def cached_json_result(
             _record_invalid_cache(db, job, stage, capability, previous, location, exc)
         else:
             _record_cache_hit(db, job, stage, capability, previous, location)
+            cached.metadata["execution_path"] = "CACHE_HIT"
             return cached
     result = call()
     if validate:
@@ -150,7 +151,24 @@ def cached_json_result(
     metadata = {
         key: value
         for key, value in dict(getattr(result, "metadata", {}) or {}).items()
-        if key in {"finish_reason", "content_length", "response_id"}
+        if key
+        in {
+            "finish_reason",
+            "content_length",
+            "response_id",
+            "parse_quality",
+            "repair_rules",
+            "execution_path",
+            "original_result_hash",
+            "canonical_decoded",
+            "request_id",
+            "localmux",
+            "queue_ms",
+            "provider_ms",
+            "end_to_end_ms",
+            "acceptance",
+            "rejected_items",
+        }
     }
     if cache_enabled:
         db.add(
@@ -196,6 +214,8 @@ def _record_cache_hit(
                 "cache_entry_id": entry.id,
             },
             response_meta_json={
+                "execution_path": "CACHE_HIT",
+                "parse_quality": (entry.result_json.get("metadata") or {}).get("parse_quality"),
                 "prompt_tokens": usage.get("prompt_tokens", usage.get("prompt_eval_count")),
                 "completion_tokens": usage.get("completion_tokens", usage.get("eval_count")),
                 "cached_tokens": usage.get("cached_tokens", usage.get("prompt_tokens", 0)),

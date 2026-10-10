@@ -1,4 +1,3 @@
-import json
 from collections import deque
 from contextlib import contextmanager
 from dataclasses import replace
@@ -15,7 +14,48 @@ from zhijian.ai.reliability import (
     resolve_reliability_policy,
 )
 from zhijian.ai.schemas import ModelProfile
+from zhijian.ai.structured_output import parse_json_object
+from zhijian.core.time import utc_now
 from zhijian.providers.llm import LLMProvider, ProviderRequestOptions
+
+BUSINESS_PROBE_VERSION = "business-mini-v1"
+
+
+def business_probe_status(value: dict, capability: str) -> str:
+    from datetime import datetime, timedelta
+
+    from zhijian.core.time import as_utc
+
+    records = value.get("business_assessments") or []
+    record = next((row for row in records if row.get("stage") == capability), None)
+    if (
+        record
+        and record.get("model") == value.get("model")
+        and record.get("prompt_version") == BUSINESS_PROBE_VERSION
+    ):
+        try:
+            if utc_now() - as_utc(datetime.fromisoformat(record["tested_at"])) <= timedelta(days=30):
+                return str(record.get("probe_status") or "NOT_TESTED")
+        except (ValueError, KeyError, TypeError):
+            pass
+    return "FAIL" if (value.get("probe_results") or {}).get(capability) == "FAIL" else "NOT_TESTED"
+
+
+def business_assessments(model: str, results: dict[str, str]) -> list[dict[str, str]]:
+    return [
+        {
+            "stage": stage,
+            "model": model,
+            "prompt_version": BUSINESS_PROBE_VERSION,
+            "benchmark_version": BUSINESS_PROBE_VERSION,
+            "probe_status": status,
+            "tested_at": utc_now().isoformat(),
+            "evidence_ref": f"{BUSINESS_PROBE_VERSION}:{stage}",
+        }
+        for stage, status in results.items()
+        if stage != "FORMAT_SMOKE" and status != "NOT_TESTED"
+    ]
+
 
 _manual_test_condition = Condition()
 _manual_test_tickets: deque[object] = deque()
@@ -151,23 +191,91 @@ def _probe_model_profile(provider: LLMProvider, profile: ModelProfile) -> dict[s
 
     text([{"role": "user", "content": "Reply PONG only."}])
     text([{"role": "user", "content": "请只回答：已收到。"}])
-    results[AICapability.CLASSIFICATION.value] = "PASS"
     evidence_id = "evidence_probe_01"
     result = structured(
         [{"role": "user", "content": f'仅返回 JSON：{{"id":"{evidence_id}","ok":true}}'}],
     )
     try:
-        value = json.loads(result.content)
-        if value.get("id") == evidence_id:
-            results[AICapability.STRUCTURED_EXTRACTION.value] = "PASS"
-            results[AICapability.ENTITY_EXTRACTION.value] = "PASS"
-            results[AICapability.TRANSCRIPT_CORRECTION.value] = "PASS"
-        else:
-            results[AICapability.STRUCTURED_EXTRACTION.value] = "FAIL"
-            results[AICapability.ENTITY_EXTRACTION.value] = "FAIL"
-            results[AICapability.TRANSCRIPT_CORRECTION.value] = "FAIL"
-    except (AttributeError, TypeError, ValueError):
-        results[AICapability.STRUCTURED_EXTRACTION.value] = "FAIL"
-        results[AICapability.ENTITY_EXTRACTION.value] = "FAIL"
-        results[AICapability.TRANSCRIPT_CORRECTION.value] = "FAIL"
+        value = parse_json_object(result.content)
+        results["FORMAT_SMOKE"] = (
+            "PASS" if value.get("id") == evidence_id and value.get("ok") is True else "FAIL"
+        )
+    except (AttributeError, TypeError, ValueError, RuntimeError):
+        results["FORMAT_SMOKE"] = "FAIL"
+    if results["FORMAT_SMOKE"] != "PASS":
+        return results
+    cases = {
+        "TRANSCRIPT_CORRECTION": (
+            "校对错音，保留数字和否定，仅返回变化。s1：水路庵门票20元，不推荐周末。"
+            '返回 {"changes":[{"segment_id":"s1","corrected_text":"水陆庵门票20元，不推荐周末。"}]}',
+            lambda value: (
+                value.get("changes")
+                == [{"segment_id": "s1", "corrected_text": "水陆庵门票20元，不推荐周末。"}]
+            ),
+        ),
+        "ENTITY_EXTRACTION": (
+            "只据 s1：推荐西安和洛阳，不是比较项天津。提取所有地名与逐字quote，"
+            '返回 {"places":[{"name":地名,"segment_ids":["s1"],"quote":地名,'
+            '"poi_policy":"RESOLVE或REFERENCE_ONLY"}]}',
+            lambda value: (
+                {item.get("name") for item in value.get("places", [])} == {"西安", "洛阳", "天津"}
+                and all(
+                    item.get("segment_ids") == ["s1"]
+                    and item.get("quote") == item.get("name")
+                    and item.get("poi_policy")
+                    == ("REFERENCE_ONLY" if item.get("name") == "天津" else "RESOLVE")
+                    for item in value.get("places", [])
+                )
+            ),
+        ),
+        "STRUCTURED_EXTRACTION": (
+            "仅据 s1：西安和洛阳适合10月，门票20元，不推荐周末。"
+            '返回 {"claims":[{"type":"MONTH或PRICE或NEGATIVE","segment_ids":["s1"],'
+            '"quote":"逐字子串"}]}；三种事实都保留。',
+            lambda value: (
+                {item.get("type") for item in value.get("claims", [])} == {"MONTH", "PRICE", "NEGATIVE"}
+                and all(
+                    item.get("segment_ids") == ["s1"]
+                    and item.get("quote")
+                    and item["quote"] in "西安和洛阳适合10月，门票20元，不推荐周末。"
+                    and {"MONTH": "10月", "PRICE": "20元", "NEGATIVE": "不推荐"}.get(
+                        item.get("type"), "__INVALID__"
+                    )
+                    in item["quote"]
+                    for item in value.get("claims", [])
+                )
+            ),
+        ),
+        "GLOBAL_SYNTHESIS": (
+            "仅据 s1：西安10月门票20元，不推荐周末；s2：洛阳推荐米粉。"
+            '返回 {"sections":[{"summary":"原文事实","segment_ids":["s1或s2"]}]}，'
+            "保留两地、月份、价格、否定与推荐菜。",
+            lambda value: (
+                len(value.get("sections", [])) == 2
+                and any(
+                    item.get("segment_ids") == ["s1"]
+                    and all(term in item.get("summary", "") for term in ("西安", "10月", "20元", "不推荐"))
+                    for item in value["sections"]
+                )
+                and any(
+                    item.get("segment_ids") == ["s2"]
+                    and all(term in item.get("summary", "") for term in ("洛阳", "米粉"))
+                    for item in value["sections"]
+                )
+            ),
+        ),
+    }
+    for capability, (prompt, validate) in cases.items():
+        result = structured([{"role": "user", "content": prompt}])
+        try:
+            value = parse_json_object(result.content)
+            results[capability] = (
+                "PASS"
+                if validate(value)
+                and (getattr(result, "metadata", {}) or {}).get("finish_reason")
+                not in {"length", "max_tokens"}
+                else "FAIL"
+            )
+        except (ValueError, TypeError, AttributeError, RuntimeError):
+            results[capability] = "FAIL"
     return results
