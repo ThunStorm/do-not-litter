@@ -11,7 +11,9 @@
 - 入口：[视频验收](benchmark/VIDEO_E2E_BV11Ao7BYE1V_REPORT.md)、[总矩阵](benchmark/CROSS_PROJECT_E2E_REPORT.md)。
 - 禁止：不自动确认POI、不改原提交快照/历史、不扩大调用预算/切换模型/晋级ASR；仍未知的内容不写成通过。旧现场保留原日期，未逐项复核。
 
-## 生产快照（最新数据库/服务健康采样 2026-10-10 17:34 北京时间；下列旧条目保留原日期，本次未逐项复核）
+## 生产快照（最新数据库/服务健康采样 2026-10-10 22:29 北京时间；下列旧条目保留原日期，本次未逐项复核）
+
+- 2026-10-10 22:29（高德QPS补修）：只读核对指定视频5项UNRESOLVED全部为账号接口QPS超限，剩余1项REVIEW为评分/地域不足。9fdf3fe在Provider统一API/Worker跨进程1.1秒间隔、QPS/HTTP429后5秒冷却且不自动重试、Key哈希缓存隔离及HTTP错误脱敏；后端326/前端19/目标11与HTTP补测5、静态类型及隔离构建通过。备份 `data/backups/app-pre-amap-qps-20261010-222813.db` 和旧Provider源码 `data/backups/source-pre-amap-qps-20261010-222813.tar.gz`；active/lease/RUNNING audit0、integrity/FK正常后manage.py无迁移重载。API35459/Worker35471与页面/新心跳READY；0025、integrity=ok、FK0、active/lease0。7Job/7Note/9版本/227Mention/4379Segment/13Transcript/997外部Audit与重载前逐字段hash不变，模型设置不变，未重跑真实高德/模型或确认POI。6地点+12校对段的人审时间码清单在忽略目录 `data/benchmarks/video-bv11ao7bye1v-20261010-162544/HUMAN_REVIEW.md`；实际账号配额/其他应用流量与人审仍未证明。见视频报告，本次未更改上方任务续接段。
 
 - 2026-10-10 17:34（指定视频验收与补修）：用户指定 BV11Ao7BYE1V（479秒）。测试前逻辑备份 `data/backups/app-pre-bv11ao7bye1v-e2e-20261010-162544.db`；独立Job `job_64e7b17ff08a4c838cd9a9292760ff84`，每核心阶段max_attempts=4、retry_count=0，保存默认Qwen-ASR及模型不变。此前App运行但Mux API未启动，已仅启动既有本机API；schema=2、GLM-5.3请求别名可见，3次隔离Text/JSON小样通过（实际型号/Token未知）。视频音频/ASR/两批校对/Ground Map完成；首个JSON尾部多 ]} 导致失败并被Profile JSON=1修复，阶段0仅覆盖HTTP的缺口已发现。停止后lease/Mux active=0，逻辑备份 `data/backups/app-pre-retry-fix-20261010-165737.db` 验证integrity/FK后无迁移重载43f42ff；API/Worker/页面/心跳READY，Worker94467。仅从GENERATE_AI_NOTE续跑，8个上游步骤REUSED；10次尝试（含旧失败/修复/取消）、无fallback/缓存命中，不回填旧审计。终态PARTIAL_SUCCESS/CLEAN_CACHE、v2 `ntv_b9b5d931625c41caad4fd01124d731e7`、14章节/12READY截图；CONFIRMED0、REVIEW1、UNRESOLVED5、AREA_RESOLVED5、SKIPPED6，无人工确认。当前50段/BV/CID/Snapshot校验通过，实体17/Claim33/章节quote16均有逐字转写依据；人审音频/地名真实性未评分。PC1440/390阅读/18来源链接/截图弹层通过，无溢出/相关错误。最终0025、integrity=ok、FK0、active/lease0；LLM Audit559条，包含该Job10条；测试前原有Job/Note/版本/Segment/Transcript逐字段不变。历史输出估算口径保留，新调用按wire字符估算；真实Token仍UNKNOWN。原提交快照及配置不改，提交后未推送；完整矩阵仍见视频报告。
 

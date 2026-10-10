@@ -177,6 +177,37 @@
     "historical_rows_updated": false,
     "real_poi_retry_performed": false,
     "human_review_status": "NOT_VERIFIED",
-    "private_review_packet": "data/benchmarks/video-bv11ao7bye1v-20261010-162544/HUMAN_REVIEW.md"
+    "private_review_packet": "data/benchmarks/video-bv11ao7bye1v-20261010-162544/HUMAN_REVIEW.md",
+    "fix_deployment": {
+      "code_sha": "9fdf3fe",
+      "verified_at": "2026-10-10T22:29:26+08:00",
+      "backup": "data/backups/app-pre-amap-qps-20261010-222813.db",
+      "source_rollback_archive": "data/backups/source-pre-amap-qps-20261010-222813.tar.gz",
+      "migration_performed": false,
+      "api_pid": 35459,
+      "worker_pid": 35471,
+      "api_worker_health": "READY",
+      "integrity": "ok",
+      "foreign_key_violations": 0,
+      "revision": "0025",
+      "active_jobs_or_leases": 0,
+      "business_tables_unchanged": [
+        "jobs",
+        "ai_notes",
+        "ai_note_versions",
+        "place_mentions",
+        "segments",
+        "transcripts",
+        "external_call_audits"
+      ],
+      "model_settings_unchanged": true,
+      "real_poi_requery": "NOT_RUN",
+      "tests": {
+        "backend_full": 326,
+        "frontend": 19,
+        "target_poi": 11,
+        "post_http_redaction_target": 5
+      }
+    }
   }
 }
