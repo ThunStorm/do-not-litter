@@ -46,7 +46,7 @@ from zhijian.ai.model_registry import (
     probe_model_profile,
     queued_model_test,
 )
-from zhijian.ai.model_test_queue import model_test_cancel_check
+from zhijian.ai.model_test_queue import model_test_cancel_check, uses_local_model_hardware
 from zhijian.ai.policies import resolve_stage_policy, validate_stage_policy
 from zhijian.ai.reliability import AIProviderError
 from zhijian.ai.resource_manager import local_ai_resource_manager
@@ -3664,7 +3664,7 @@ def _test_model_connection(value: dict, api_key: str | None) -> object:
     with queued_model_test(model_test_groups(value)):
         return (
             local_ai_resource_manager.run("MODEL_TEST", call, cancel_check=model_test_cancel_check())
-            if profile.location == "LOCAL"
+            if uses_local_model_hardware(value)
             else call()
         )
 
@@ -4246,11 +4246,12 @@ def probe_saved_model_profile(
                 provider, profile, diagnostics=diagnostics, groups=model_test_groups(value)
             )
 
-        results = (
-            local_ai_resource_manager.run("MODEL_TEST", call, cancel_check=model_test_cancel_check())
-            if profile.location == "LOCAL"
-            else call()
-        )
+        with queued_model_test(model_test_groups(value)):
+            results = (
+                local_ai_resource_manager.run("MODEL_TEST", call, cancel_check=model_test_cancel_check())
+                if uses_local_model_hardware(value)
+                else call()
+            )
     except HTTPException:
         raise
     except AIProviderError as exc:
@@ -4328,12 +4329,13 @@ def probe_model_profile_draft(payload: ModelProfileConfig, _: Protected) -> dict
                 provider, profile, diagnostics=diagnostics, groups=model_test_groups(value)
             )
 
-        if profile.location == "LOCAL":
-            results = local_ai_resource_manager.run(
-                "MODEL_TEST", probe, cancel_check=model_test_cancel_check()
-            )
-        else:
-            results = probe()
+        with queued_model_test(model_test_groups(value)):
+            if uses_local_model_hardware(value):
+                results = local_ai_resource_manager.run(
+                    "MODEL_TEST", probe, cancel_check=model_test_cancel_check()
+                )
+            else:
+                results = probe()
     except HTTPException:
         raise
     except AIProviderError as exc:

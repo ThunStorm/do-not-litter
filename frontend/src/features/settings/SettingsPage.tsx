@@ -544,7 +544,7 @@ function ModelsPanel() {
         </button>
         </div>
       </div>
-      <p className="settings-note">真实测试与能力探测使用已保存配置；同供应商或入口串行，独立入口最多三组并行。重复提交会合并正在进行的同项测试。</p>
+      <p className="settings-note">真实测试与能力探测使用已保存配置；本地模型始终串行，每次调用结束后至少间隔5秒，配置更长时按配置等待。远程同供应商或入口串行，独立入口最多三组并行。重复提交会合并正在进行的同项测试。</p>
       {batch.error && <p className="settings-note" role="alert">{batch.error.message}</p>}
       {batchIds.length > 0 && <p className="settings-note" role="status">本次一键测试：{batchJobs.filter((job) => job.status === "COMPLETED").length}/{batchIds.length} 完成，{batchJobs.filter((job) => job.status === "FAILED").length} 失败，{batchJobs.filter((job) => job.status === "RUNNING").length} 运行，{batchJobs.filter((job) => job.status === "QUEUED").length} 排队。</p>}
       {adding && <ModelProfileEditor onClose={() => setAdding(false)} />}

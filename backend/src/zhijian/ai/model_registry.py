@@ -9,6 +9,7 @@ from zhijian.ai.model_test_queue import (
     model_test_groups,
     pace_model_test,
     queued_model_test,
+    uses_local_model_hardware,
 )
 from zhijian.ai.reliability import (
     ReliabilityGuards,
@@ -24,6 +25,7 @@ from zhijian.providers.llm import LLMProvider, ProviderRequestOptions
 
 BUSINESS_PROBE_VERSION = "business-mini-v1"
 NOTE_PROBE_VERSION = "note-synthesis-v2"
+LOCAL_TEST_INTERVAL_SECONDS = 5.0
 NOTE_PROBE_SOURCES = {"s1": "西安10月门票20元，不推荐周末。", "s2": "洛阳推荐米粉。"}
 
 
@@ -221,6 +223,7 @@ def invoke_profile_model(
     messages: list[dict[str, str]],
 ):
     """Keep pacing, but neither consult nor change the production circuit breaker."""
+    local_hardware = uses_local_model_hardware(profile.model_dump(mode="python"))
     policy = resolve_reliability_policy(profile.model_dump(mode="python"))
     policy = replace(
         policy,
@@ -230,11 +233,16 @@ def invoke_profile_model(
         json_retry_count=0,
         circuit_breaker_enabled=False,
         request_interval_seconds=max(
-            4.0 if profile.location == "REMOTE" else 0, policy.request_interval_seconds
+            LOCAL_TEST_INTERVAL_SECONDS if local_hardware else 4.0, policy.request_interval_seconds
         ),
     )
     key = provider_rate_limit_identity(provider)
     semaphore = None
+    local_interval = max(
+        policy.request_interval_seconds,
+        60 / policy.rate_limit_rpm if policy.rate_limit_rpm else 0,
+    )
+    attempted = False
     try:
         semaphore, wait_seconds, _ = ReliabilityGuards.acquire(
             key,
@@ -247,13 +255,9 @@ def invoke_profile_model(
             max_output_tokens=profile.max_output_tokens,
             thinking=False if profile.supports_thinking or profile.provider.lower() == "deepseek" else None,
         )
-        if getattr(provider, "base_url", None):
-            pace_model_test(
-                max(
-                    policy.request_interval_seconds,
-                    60 / policy.rate_limit_rpm if policy.rate_limit_rpm else 0,
-                )
-            )
+        if local_hardware or getattr(provider, "base_url", None):
+            pace_model_test(local_interval)
+        attempted = True
         result = getattr(provider, method)(messages, model=profile.model, options=options)
     except Exception as exc:
         error = classify_provider_error(exc)
@@ -265,6 +269,10 @@ def invoke_profile_model(
         raise error from exc
     finally:
         ReliabilityGuards.release(semaphore)
+        if local_hardware and attempted:
+            # Count the hardware settling interval from completion, including
+            # failures; the shared hardware group carries it to the next model.
+            pace_model_test(0, cooldown=local_interval, finished=True)
     return result
 
 

@@ -17,6 +17,10 @@ _active = set()
 _state = local()
 
 
+def uses_local_model_hardware(value: dict) -> bool:
+    return value.get("location") == "LOCAL" or str(value.get("provider") or "").strip().lower() == "ollama"
+
+
 def model_test_groups(value: dict) -> frozenset[str]:
     raw = str(value.get("base_url") or "")
     try:
@@ -29,7 +33,7 @@ def model_test_groups(value: dict) -> frozenset[str]:
     groups = {f"entry:{origin}"} if raw else {"legacy"}
     if provider and provider not in {"openaicompatible", "localmux", "localaimux"}:
         groups.add(f"supplier:{provider}")
-    if value.get("location") == "LOCAL" or provider == "ollama":
+    if uses_local_model_hardware(value):
         groups.add("hardware:local")
     return frozenset(hashlib.sha256(group.encode()).hexdigest() for group in groups)
 
@@ -86,7 +90,7 @@ def queued_model_test(groups=None, cancel_check=None):
             _condition.notify_all()
 
 
-def pace_model_test(interval: float, cooldown: float = 0) -> None:
+def pace_model_test(interval: float, cooldown: float = 0, *, finished: bool = False) -> None:
     handles = getattr(_state, "handles", {})
     if not handles:
         return
@@ -97,7 +101,10 @@ def pace_model_test(interval: float, cooldown: float = 0) -> None:
             records.append(json.loads(handle.read() or "{}"))
         except ValueError:
             records.append({})
-    deadline = max((float(row.get("next_at", 0)) for row in records), default=0)
+    deadline = max(
+        (max(float(row.get("next_at", 0)), float(row.get("finished_at", 0)) + interval) for row in records),
+        default=0,
+    )
     if not cooldown:
         remaining = max(0, deadline - time())
         check = getattr(_state, "cancel_check", None)
@@ -109,10 +116,13 @@ def pace_model_test(interval: float, cooldown: float = 0) -> None:
         elif remaining:
             sleep(remaining)
     next_at = max(deadline, time() + (cooldown or interval))
-    for handle in handles.values():
+    for handle, row in zip(handles.values(), records, strict=True):
         handle.seek(0)
         handle.truncate()
-        json.dump({"next_at": next_at}, handle)
+        record = {"next_at": next_at}
+        if finished or row.get("finished_at"):
+            record["finished_at"] = time() if finished else row["finished_at"]
+        json.dump(record, handle)
         handle.flush()
 
 

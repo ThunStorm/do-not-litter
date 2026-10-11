@@ -11,7 +11,9 @@
 - 入口：[视频验收](benchmark/VIDEO_E2E_BV11Ao7BYE1V_REPORT.md)、[总矩阵](benchmark/CROSS_PROJECT_E2E_REPORT.md)。
 - 禁止：不自动确认POI、不改原提交快照/历史、不扩大调用预算/切换模型/晋级ASR；仍未知的内容不写成通过。旧现场保留原日期，未逐项复核。
 
-## 生产快照（最新健康采样2026-10-11 18:30，北京时间；旧条目保留原日期；旧条目保留原日期）
+## 生产快照（最新健康采样2026-10-11 21:36，北京时间；旧条目保留原日期；旧条目保留原日期）
+
+- 2026-10-11 21:36（本地测试串行与完成后间隔补修）：用户明确要求本地能力测试始终串行且留资源加载间隔；LOCAL/Ollama跨Provider/入口共用硬件分组，直连或缺Base URL也不能绕过，每子调用结束后至少5秒，前后配置间隔/RPM更长取更长；共享完成时间跨模型/API/Worker保留。已保存/草稿探测统一分组锁→硬件锁。目标21/后端379/前端19及Ruff、ESLint、类型与隔离构建通过；生产Browser1095/390px只读验证说明和无溢出/相关错误，未触发真实模型测试。沿用本任务无迁移重部署授权；重载前active/lease/RUNNING call0、integrity=ok、FK0、0025；逻辑备份 `data/backups/app-pre-local-test-gap-20261011-213505.db` 和同名verification、旧静态包及HEAD源码归档保留。API42039/Worker42057 RUNNING，内容/health/对应新心跳READY，新JS/CSS HTTP hash一致；44表（排除system_events/runtime）逐字段hash与备份不变，活跃/lease0、integrity=ok、FK0、0025。只读截图/JSON见忽略目录 `data/benchmarks/local-model-test-gap-20261011/`。本轮补充本地提交、未推送；未迁移、改历史/模型设置、视频重跑或确认POI，上方任务续接未改。
 
 - 2026-10-11 18:30（模型测试队列无迁移加载及真实验收）：后端369、队列11（实际凭据存储/首页计数隔离）、前端19与静态/类型/隔离构建通过；内置Browser在隔离SQLite/模拟模型上完成1095及390px一键/多次单点、分组并发、失败/取消隔离、编辑保留、无溢出/相关错误验收，自动测试模型/硬件锁隔离临时目录。用户授权重部署、Python可移除宗卷访问、文档及本地提交；系统设置python3.14可移除宗卷已开启。首次启动受TCC阻塞，权限就绪后恢复；首轮11项因Worker凭据存储传参错误在供应商调用前失败，记录保留，补修后重新测试。真实11模型终态9完成/2失败：9项连通READY且笔记归纳PASS，部分实体/结构化抽取FAIL仍如实保存；DeepSeek Flash Main已测5项全PASS，无400；Free SN DSv4F为TPM/RPM限额、史哥赞助为令牌失效，未重试且原能力结果未改。时间线证实同入口/供应商及本地串行、独立入口并行，最后一个本地模型较慢但完成。重载前活跃/lease/LLM0、integrity=ok、FK0、0025；备份 `data/backups/app-pre-model-test-queue-20261011-165459.db`、`app-pre-model-test-store-fix-20261011-180624.db`、最终 `app-pre-model-test-final-20261011-182939.db`，旧静态包与HEAD源码归档保留。最终API21042/Worker21065 RUNNING、页面/health/对应新心跳READY；OpenAPI105，新静态JS/CSS内容hash一致，首页计数不含测试Job。最终重载前后44表（非runtime/system_events）逐字段一致；原业务Job及笔记/转写/审计不变，首次Worker正常到期清理将16项中间产物AVAILABLE变为EXPIRED，探测仅新增测试Job/事件及更新模型能力/评估/Mux接口快照。当前活跃/lease0、integrity=ok、FK0、0025，业务状态1NEEDS_USER/8PARTIAL_SUCCESS。现场JSON/截图见忽略目录 `data/benchmarks/model-tests-20261011/`；本轮本地提交、未推送，未迁移、视频重跑或确认POI，上方任务续接未改。
 

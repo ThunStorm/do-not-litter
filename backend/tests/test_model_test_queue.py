@@ -43,6 +43,97 @@ def test_supplier_or_entry_conflict_without_grouping_generic_adapters():
     )
     assert model_test_groups(profile()) == model_test_groups({**profile(), "api_key": "different-key"})
     assert model_test_groups(profile(base="https://example.test:bad"))
+
+
+@pytest.mark.parametrize("first_interval,second_interval", [(0, 0), (11, 0), (0, 11)])
+@pytest.mark.parametrize("failed", [False, True])
+def test_local_direct_calls_wait_after_completion_across_models(
+    monkeypatch, first_interval, second_interval, failed
+):
+    from types import SimpleNamespace
+
+    import zhijian.ai.model_registry as registry
+    import zhijian.ai.model_test_queue as queue
+    from zhijian.ai.reliability import AIProviderError
+    from zhijian.ai.schemas import ModelProfile
+
+    clock, starts = [100.0], []
+    monkeypatch.setattr(queue, "time", lambda: clock[0])
+    monkeypatch.setattr(queue, "sleep", lambda seconds: clock.__setitem__(0, clock[0] + seconds))
+    monkeypatch.setattr(registry.ReliabilityGuards, "acquire", lambda *_args, **_kwargs: (None, 0, 0))
+
+    class Provider:
+        # No Base URL: native local adapters must still obey the hardware gap.
+        def generate_text(self, *_args, **_kwargs):
+            starts.append(clock[0])
+            clock[0] += 8
+            if failed and len(starts) == 1:
+                raise ValueError("fixture failed after loading")
+            return SimpleNamespace(content="ok")
+
+    for index, interval in enumerate([first_interval, second_interval]):
+        value = {
+            "id": str(index), "provider": f"local-adapter-{index}", "model": str(index),
+            "location": "LOCAL", "reliability_mode": "DIRECT", "request_interval_seconds": interval,
+            "base_url": f"http://local-fixture-{index}:1234",
+        }
+        with queued_model_test(model_test_groups(value)):
+            if failed and index == 0:
+                with pytest.raises(AIProviderError):
+                    registry.invoke_profile_model(Provider(), ModelProfile(**value), "generate_text", [])
+            else:
+                registry.invoke_profile_model(Provider(), ModelProfile(**value), "generate_text", [])
+    assert starts[1] - (starts[0] + 8) == max(5, first_interval, second_interval)
+
+
+@pytest.mark.parametrize("provider,location", [("Ollama", "REMOTE"), ("custom-local", "LOCAL")])
+def test_local_hardware_group_is_shared_across_providers_and_entries(provider, location):
+    first = model_test_groups({**profile("Ollama", "http://a.fixture:11434"), "location": "LOCAL"})
+    second = model_test_groups({**profile(provider, "http://b.fixture:10000"), "location": location})
+    assert first & second
+
+
+@pytest.mark.parametrize("saved", [False, True])
+def test_local_probe_waiting_for_group_does_not_take_hardware_lock(
+    app_and_session, monkeypatch, saved
+):
+    from types import SimpleNamespace
+
+    import zhijian.ai.model_test_queue as queue
+    import zhijian.api.router as api
+    from zhijian.domain.schemas import ModelProfileConfig
+
+    _, factory = app_and_session
+    value = {**profile("ollama", "http://local.fixture:11434"), "location": "LOCAL"}
+    groups = model_test_groups(value)
+    if saved:
+        with factory() as db:
+            db.add(Setting(key="model-profile:a", value_json=value))
+            db.commit()
+
+    def probe(_provider, _profile, **kwargs):
+        with queued_model_test(kwargs["groups"]):
+            return {"FORMAT_SMOKE": "PASS"}
+
+    monkeypatch.setattr(api, "probe_model_profile", probe)
+    monkeypatch.setattr(api, "_model_profile_provider", lambda *_args: None)
+
+    def request():
+        if saved:
+            with factory() as db:
+                return api.probe_saved_model_profile("a", None, db, SimpleNamespace(get=lambda _key: None))
+        return api.probe_model_profile_draft(ModelProfileConfig(**value), None)
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        with queued_model_test(groups):
+            future = pool.submit(request)
+            with queue._condition:
+                assert queue._condition.wait_for(lambda: len(queue._tickets) == 2, timeout=2)
+            # A Worker holding the group can still obtain the hardware lock:
+            # the waiting API request must not hold it in the opposite order.
+            assert api.local_ai_resource_manager._lock.acquire(timeout=0.2)
+            api.local_ai_resource_manager._lock.release()
+        assert future.result(timeout=2)["probe_results"]["FORMAT_SMOKE"] == "PASS"
     assert model_test_groups(profile(base="https://[invalid"))
 
 

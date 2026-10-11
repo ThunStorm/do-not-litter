@@ -254,7 +254,7 @@
 | 证据地图截断恢复 | `LOCAL_FIRST` 首次本地输出截断后先拆分；存在已配置备用模型时，子块或预计超出剩余阶段预算的后续块走备用路由，保持原 Segment Evidence、Schema 校验、调用审计与缓存，不重复扩大本地慢请求；正文字符 Hint 不得漏算分块结构开销 | `services/grounded_map.py`、`ai/gateway.py` |
 | 笔记归纳恢复 | `GLOBAL_SYNTHESIS` 是内部阶段契约；版本有效的 `FAIL` 仍拦截，旧版笔记小样/过期结果为未验证而非通过。显式阶段选定或非AUTO首选槽位留空继承通用主模型可尝试 `NOT_TESTED`，不扩大自动候选/备用声明；保存/执行/恢复统一判定，同模型续跑刷新最新评估；每个阶段重新核对同身份模型最新已保存能力结果，执行参数与历史快照保留。小样允许合并/拆分章节，严格验证来源和事实证据，歧义不误判失败。DeepSeek 笔记默认关闭思考，保留原 JSON/Evidence/预算；续跑仍须 lease 释放、上游有效且无待执行完整重跑 | `ai-gateway/01-architecture-models.md`、`services/video_support.py`、`services/job_replay.py`、`jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md` |
 | 请求优化与能力诊断 | 短 ID 仅在模型边界，Snapshot/内容/编译器/投影/映射绑定缓存；原文/quote 不变，未知或越界引用拒绝，校对只返回 target_ids；不静默截尾；格式 smoke 不授业务 PASS，模型修复默认关闭；解析质量与回退/重试/缓存分开，等待后复核 Deadline；POI 空证据/跨来源不得自动确认，合成字节收益不冒称真实 Token/质量 | `ai/request_compiler.py`、`benchmark/RELEASE_ACCEPTANCE.md` |
-| AI Gateway 稳定性 | 精确 Cache hit 不重复调用 Provider；`force_regenerate` 绕过命中并保留结果链；本机 ASR/文本/视觉/模型测试必须跨 API/Worker 进程串行；LOCAL/REMOTE Token 分账只依据审计路由位置；Cache hit 不计模型调用或预算；Ollama `keep_alive: 0` 与本地重任务低并发不得回退；未经真实 E2E 与 Benchmark Gate 不得宣称生产验证 | `ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md`、`ai/resource_manager.py`、`ai/budget.py`、`ai-gateway/AI_RUNTIME_AND_PROVIDERS.md` |
+| AI Gateway 稳定性 | 精确 Cache hit 不重复调用 Provider；`force_regenerate` 绕过命中并保留结果链；本机 ASR/文本/视觉/模型测试必须跨 API/Worker 进程串行；本地模型测试不论直连/入口，每子调用结束后至少5秒，配置/RPM更长取更长，共享完成时间并统一分组锁→硬件锁顺序；LOCAL/REMOTE Token 分账只依据审计路由位置；Cache hit 不计模型调用或预算；Ollama `keep_alive: 0` 与本地重任务低并发不得回退；未经真实 E2E 与 Benchmark Gate 不得宣称生产验证 | `ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md`、`ai/resource_manager.py`、`ai/budget.py`、`ai-gateway/AI_RUNTIME_AND_PROVIDERS.md` |
 | 可取消本地路由 HTTP | LOCAL_ROUTER 的 `trust_env=False` 在异步路径必须配置到 AsyncClient 构造函数；成功请求和 DIRECT/LOCAL_ROUTER 取消均须通过离线回归。客户端取消不等于上游停止，Ollama 显式清理缺口不得被健康或 Mock 测试抹掉 | `providers/llm.py`、`tests/test_local_router_contract.py`、`tests/test_job_runtime_optimization.py`、`ai-gateway/AI_RUNTIME_AND_PROVIDERS.md` |
 | 任务控制 | 当前标记只属于运行中的当前 JobStep；终态不固定高亮最后一步；时间线按 Pipeline 排序、阶段中文化并显示步骤用时；普通步骤 90 秒、LLM 步骤 500 秒预警，900 秒才终止；模型/重试/资源锁等待与 ASR 每 250ms 观察取消，ASR 每 30 秒报告等待，确认停止前不开始重跑 | `jobs/MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md`、`jobs/TASK_SUMMARY_AND_PARTIAL_SUCCESS_SPEC.md`、`jobs/TASK_STATUS_AND_BEIJING_TIME_SPEC.md` |
 | Token 用量 | 实测字段与本地字符估算/未知独立；缺省不冒充 0，失败输出不编造、Cache 不重复计消耗；估算参与预算，历史 Audit 只读推导不回填；超时不重复相同模型请求，备用受路由/能力/预算门禁约束 | `ai/token_usage.py`、`operations/LOGGING.md#41-token-口径2026-10-08` |
@@ -361,6 +361,8 @@
 | 部署 | Mac mini LaunchAgent 双服务、外置生产 venv Python 3.14、健康内容与 Worker 心跳门禁 | operations/DEPLOYMENT_OPTIONS.md、CURRENT_HANDOFF.md |
 
 ## 最新自动验证
+
+2026-10-11 本地模型测试间隔补修：LOCAL或Ollama统一共用本地硬件分组，不因Provider/入口、直连模式或Base URL缺失绕过串行；每次测试/探测子调用结束（含失败）后至少5秒，前后配置间隔/RPM更长取更长，共享完成时间和期限跨API/Worker/模型保留。已保存/草稿探测统一先分组锁再硬件锁，避免与Worker反向取锁。队列目标21项（新增10项覆盖成功/失败、较长间隔、跨Provider/入口与锁顺序）、后端全量379及Ruff通过；前端19/ESLint/TypeScript/隔离Vite通过，生产Browser1095与390px只读核对明确说明、无溢出/相关console错误。未重新触发真实模型推理；加载和备份证据见[交接生产快照](CURRENT_HANDOFF.md)，契约见[模型测试队列](ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md#11-已保存模型测试队列2026-10-11)。
 
 2026-10-11 已保存模型测试队列：新增一键真实测试+能力探测，单模型按钮共用MODEL_TEST Worker通道，不进入业务任务列表/首页计数；同供应商/入口FIFO和跨进程文件锁，独立最多三组并行，本地硬件仍串行，尊重间隔/RPM且远程至少4秒，429等共享至少60秒/Retry-After冷却，不自动重试或备用。重复在途同项复用，每模型独立结果/续租/fence与取消，错误不影响其他入口，晚结果不覆盖新执行；模型身份变化拒绝旧测试，凭据不进Job。PC1095与390px在隔离SQLite/模拟模型上通过一键、持续单点/去重、分组并发、失败/取消隔离、未保存编辑保留、进度和无溢出/相关console错误验收；外部Edge稳定帧/截图阻塞，改用Codex内置Browser完成。新增队列11项（含真实凭据存储初始化及首页计数隔离），自动测试使用临时模型/硬件锁避免干扰生产；后端全量369、前端19及Ruff/ESLint/TypeScript/隔离Vite通过，无迁移。真实已保存模型测试与生产加载另见带日期交接快照；完整契约见[模型设置](ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md#11-已保存模型测试队列2026-10-11)。
 
@@ -5324,7 +5326,7 @@ GET 返回三个补充文本、只读核心规则摘要、最大长度和每个�
 
 已保存模型的界面测试通过`POST /api/settings/model-tests`立即入队，由Worker独立最多三线程执行`MODEL_TEST` Job，视频/招聘处理通道不领取这些Job，普通任务列表/首页近期任务及状态计数不混入测试记录。复用既有测试/探测处理函数的结果写入与脱敏逻辑；每个测试有独立Session、续租和执行fence，晚结果不能覆盖新执行。Job只保存Profile ID、身份哈希、不可逆分组哈希和结果，不保存凭据。
 
-同一入口（scheme/host/port，忽略路径）或同一明确命名的供应商串行FIFO；通用OpenAI兼容/LocalAiMux是协议或桥接名称，不把不同入口误合为一个供应商。Worker调度跳过被占用的分组但保留冲突任务先后，独立分组可并行；跨API/Worker使用同分组文件锁，整段探测持锁，本地模型继续遵守硬件串行/keep_alive=0。远程每请求至少4秒并尊重Profile间隔/RPM，HTTP429或额度/限流错误按Retry-After且至少60秒共享冷却，不自动重试、换Key或备用。外部账户额度和其他应用流量不能由本队列保证；失败原因单独呈现，业务小样结果不代表全面质量。
+同一入口（scheme/host/port，忽略路径）或同一明确命名的供应商串行FIFO；通用OpenAI兼容/LocalAiMux是协议或桥接名称，不把不同入口误合为一个供应商。Worker调度跳过被占用的分组但保留冲突任务先后，独立分组可并行；跨API/Worker使用同分组文件锁，整段探测持锁，本地模型不论直连模式、Provider或入口都共用硬件串行/keep_alive=0；每次真实测试或探测子调用结束（成功或失败）后至少5秒再开始下一次，间隔/RPM要求更长则取更长值。完成时间与等待期限写入共享锁文件，跨模型/API/Worker保留；不因Base URL缺失或切换模型跳过等待。已保存与草稿探测先取分组锁再取硬件锁，避免反向取锁互相等待。远程每请求至少4秒并尊重Profile间隔/RPM，HTTP429或额度/限流错误按Retry-After且至少60秒共享冷却，不自动重试、换Key或备用。外部账户额度和其他应用流量不能由本队列保证；失败原因单独呈现，业务小样结果不代表全面质量。
 
 既有同步test/probe及草稿接口保留兼容，使用同一分组锁/节流，手动测试不改变生产熔断。草稿仍不持久化Key。一键测试仅在用户显式点击时创建任务，Worker启动/页面刷新不自动测试。回归入口：`backend/tests/test_model_test_queue.py`；界面截图及隔离验收用模拟模型，不替代真实Provider验收。
 
@@ -6302,7 +6304,7 @@ Capability Probe 只对实际执行的项目给出 `PASS` 或 `FAIL`，未覆盖
 
 输出限额仅在接口支持时传入；不强制所有型号接受 64 Token 或关闭思考。显式本机路由的接口能力目录与业务 Probe 分开，非必要参数采用模型默认值，system/消息、JSON/Evidence 和总预算继续校验。协议不兼容属于配置错误，不作为临时故障累计熔断；完整契约与本轮实现见 [LocalAiMux 客户端接入](ai-gateway/LOCAL_ROUTER_PROVIDER_COMPATIBILITY_SPEC.md)。
 
-手动连通/能力测试按同一明确供应商或入口共享FIFO/跨进程锁，独立分组最多三组并行，不受生产熔断冷却拦截或更改生产熔断；保留凭据节流及Profile间隔/RPM，远程至少4秒，429等限流按Retry-After且至少60秒共享冷却，不自动重试。已保存模型按钮与显式“一键测试全部”共用Worker队列，同项在途重复点击复用，失败/取消释放资源；不自动启动批量测试或回退其他账号。接口、状态及草稿兼容边界见[模型设置](ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md#11-已保存模型测试队列2026-10-11)。
+手动连通/能力测试按同一明确供应商或入口共享FIFO/跨进程锁，独立分组最多三组并行，不受生产熔断冷却拦截或更改生产熔断；保留凭据节流及Profile间隔/RPM，本地每调用结束后至少5秒且不受直连/入口差异影响，配置/RPM更长取更长；远程至少4秒，429等限流按Retry-After且至少60秒共享冷却，不自动重试。已保存模型按钮与显式“一键测试全部”共用Worker队列，同项在途重复点击复用，失败/取消释放资源；不自动启动批量测试或回退其他账号。接口、状态及草稿兼容边界见[模型设置](ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md#11-已保存模型测试队列2026-10-11)。
 
 ### 笔记归纳小样与有效结论（2026-10-11）
 
