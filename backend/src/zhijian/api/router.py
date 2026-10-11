@@ -37,13 +37,16 @@ from zhijian.ai.job_config import (
     job_stage_override,
 )
 from zhijian.ai.model_registry import (
+    business_assessments,
     business_probe_status,
     invoke_profile_model,
     model_connection_type,
     model_profile_from_value,
+    model_test_groups,
     probe_model_profile,
     queued_model_test,
 )
+from zhijian.ai.model_test_queue import model_test_cancel_check
 from zhijian.ai.policies import resolve_stage_policy, validate_stage_policy
 from zhijian.ai.reliability import AIProviderError
 from zhijian.ai.resource_manager import local_ai_resource_manager
@@ -108,6 +111,7 @@ from zhijian.domain.schemas import (
     MapOverviewView,
     ModelProfileConfig,
     ModelRoutingConfig,
+    ModelTestRequest,
     NearbyPOIRequest,
     PlaceDetailView,
     PlaceInsightUpdate,
@@ -138,6 +142,7 @@ from zhijian.providers.llm import (
     LLMProvider,
     OllamaProvider,
     OpenAICompatibleProvider,
+    provider_error_details,
 )
 from zhijian.providers.runtime import check_qwen_asr, check_whisper, hardware_report, runtime_report
 from zhijian.services.audit import record_event
@@ -486,9 +491,17 @@ def status_view(
 
 @router.get("/api/dashboard")
 def dashboard(_: Protected, db: Session = Depends(get_db)) -> dict:
-    jobs = db.scalars(select(Job).order_by(Job.created_at.desc()).limit(5)).all()
+    jobs = db.scalars(
+        select(Job).where(Job.job_type != "MODEL_TEST").order_by(Job.created_at.desc()).limit(5)
+    ).all()
     contents = db.scalars(select(ContentItem).order_by(ContentItem.updated_at.desc()).limit(6)).all()
-    counts = dict(db.execute(select(Job.status, func.count(Job.id)).group_by(Job.status)).all())
+    counts = dict(
+        db.execute(
+            select(Job.status, func.count(Job.id))
+            .where(Job.job_type != "MODEL_TEST")
+            .group_by(Job.status)
+        ).all()
+    )
     return {
         "job_counts": counts,
         "jobs": [job_view(job, db).model_dump() for job in jobs],
@@ -621,7 +634,12 @@ async def capture_file(
 
 @router.get("/api/jobs", response_model=list[JobView])
 def list_jobs(_: Protected, db: Session = Depends(get_db)) -> list[JobView]:
-    return [job_view(job, db) for job in db.scalars(select(Job).order_by(Job.created_at.desc())).all()]
+    return [
+        job_view(job, db)
+        for job in db.scalars(
+            select(Job).where(Job.job_type != "MODEL_TEST").order_by(Job.created_at.desc())
+        ).all()
+    ]
 
 
 @router.get("/api/jobs/{job_id}")
@@ -3630,7 +3648,6 @@ def _routing_profile_summary(db: Session, profile_id: str | None) -> dict[str, s
     }
 
 
-@queued_model_test()
 def _test_model_connection(value: dict, api_key: str | None) -> object:
     value = _interactive_interface_config(value, api_key)
     provider = _model_profile_provider(value, api_key)
@@ -3644,7 +3661,12 @@ def _test_model_connection(value: dict, api_key: str | None) -> object:
             [{"role": "user", "content": '仅返回 JSON：{"ok":true}'}],
         )
 
-    return local_ai_resource_manager.run("MODEL_TEST", call) if profile.location == "LOCAL" else call()
+    with queued_model_test(model_test_groups(value)):
+        return (
+            local_ai_resource_manager.run("MODEL_TEST", call, cancel_check=model_test_cancel_check())
+            if profile.location == "LOCAL"
+            else call()
+        )
 
 
 def _model_test_http_error(label: str, exc: AIProviderError) -> HTTPException:
@@ -3661,17 +3683,33 @@ def _model_test_http_error(label: str, exc: AIProviderError) -> HTTPException:
         if exc.code.startswith("AI_PROVIDER_INTERFACE_")
         else 502
     )
-    return HTTPException(status_code=status, detail=f"{label}：{exc.code}：{str(exc)[:200]}")
+    details = provider_error_details(exc)
+    phase = {
+        "TEXT_CONNECTIVITY": "文本连通",
+        "CHINESE_CONNECTIVITY": "中文连通",
+        "FORMAT_SMOKE": "JSON格式小样",
+        "TRANSCRIPT_CORRECTION": "转写校对小样",
+        "ENTITY_EXTRACTION": "地点抽取小样",
+        "STRUCTURED_EXTRACTION": "事实抽取小样",
+        "GLOBAL_SYNTHESIS": "笔记归纳小样",
+    }.get(getattr(exc, "probe_stage", ""))
+    context = f"（{phase}）" if phase else ""
+    return HTTPException(
+        status_code=status, detail=f"{label}{context}：{exc.code}：{details['message'][:200]}"
+    )
 
 
 def _model_profile_provider(value: dict, api_key: str | None) -> LLMProvider:
     provider_name = str(value.get("provider") or "").lower()
     timeout = int(value.get("timeout_seconds") or 300)
     if provider_name == "ollama":
-        return OllamaProvider(str(value.get("base_url") or ""), timeout)
+        provider = OllamaProvider(str(value.get("base_url") or ""), timeout)
+
+        provider.cancel_check = model_test_cancel_check()
+        return provider
     if not api_key:
         raise HTTPException(status_code=422, detail="请填写 API Key 后再进行真实测试")
-    return OpenAICompatibleProvider(
+    provider = OpenAICompatibleProvider(
         provider_name or "openai-compatible",
         str(value.get("base_url") or ""),
         api_key,
@@ -3680,6 +3718,9 @@ def _model_profile_provider(value: dict, api_key: str | None) -> LLMProvider:
         connection_type=model_connection_type(value),
         interface_capabilities=value.get("interface_capabilities"),
     )
+
+    provider.cancel_check = model_test_cancel_check()
+    return provider
 
 
 def _interactive_interface_config(value: dict, api_key: str | None) -> dict:
@@ -3750,6 +3791,28 @@ def _prepare_model_profile_save(payload: ModelProfileConfig, previous: dict, api
         raise _model_test_http_error("保存前接口检查失败，原配置保持不变", exc) from exc
     value["supports_json_mode"] = value["interface_capabilities"]["json_object"] == "SUPPORTED"
     return value
+
+
+@router.post("/api/settings/model-tests")
+def queue_saved_model_tests(
+    payload: ModelTestRequest, _: Protected, db: Session = Depends(get_db)
+) -> list[dict]:
+    from zhijian.services.model_tests import enqueue_model_tests
+
+    try:
+        return enqueue_model_tests(db, payload.profile_ids, payload.mode)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.get("/api/settings/model-tests")
+def saved_model_tests(_: Protected, db: Session = Depends(get_db)) -> list[dict]:
+    from zhijian.services.model_tests import test_job_view
+
+    jobs = db.scalars(
+        select(Job).where(Job.job_type == "MODEL_TEST").order_by(Job.created_at.desc()).limit(100)
+    ).all()
+    return [test_job_view(job) for job in jobs]
 
 
 @router.get("/api/settings/model-profiles")
@@ -4114,7 +4177,6 @@ def save_prompt_supplements(
 
 
 @router.post("/api/settings/model-profiles/{profile_id}/test")
-@queued_model_test()
 def test_model_profile(
     profile_id: str,
     _: Protected,
@@ -4143,7 +4205,6 @@ def test_model_profile(
 
 
 @router.post("/api/settings/model-profiles/test-draft")
-@queued_model_test()
 def test_model_profile_draft(payload: ModelProfileConfig, _: Protected) -> dict:
     """Run a transient model connectivity test without persisting the draft or its secret."""
     value = payload.model_dump(mode="json", exclude={"api_key"})
@@ -4163,7 +4224,6 @@ def test_model_profile_draft(payload: ModelProfileConfig, _: Protected) -> dict:
 
 
 @router.post("/api/settings/model-profiles/{profile_id}/probe")
-@queued_model_test()
 def probe_saved_model_profile(
     profile_id: str,
     _: Protected,
@@ -4179,21 +4239,46 @@ def probe_saved_model_profile(
         value = _interactive_interface_config(value, api_key)
         profile = model_profile_from_value(profile_id, value)
         provider = _model_profile_provider(value, api_key)
+        diagnostics: dict = {}
 
         def call() -> dict[str, str]:
-            return probe_model_profile(provider, profile)
+            return probe_model_profile(
+                provider, profile, diagnostics=diagnostics, groups=model_test_groups(value)
+            )
 
-        results = local_ai_resource_manager.run("MODEL_TEST", call) if profile.location == "LOCAL" else call()
+        results = (
+            local_ai_resource_manager.run("MODEL_TEST", call, cancel_check=model_test_cancel_check())
+            if profile.location == "LOCAL"
+            else call()
+        )
     except HTTPException:
         raise
     except AIProviderError as exc:
+        record_event(
+            db,
+            "model_profile.probe_failed",
+            f"模型能力探测未完成：{value.get('name', profile_id)}",
+            level="WARNING",
+            actor="user",
+            entity_type="model_profile",
+            entity_id=profile_id,
+            detail={"probe_stage": getattr(exc, "probe_stage", None), "error": provider_error_details(exc)},
+        )
         raise _model_test_http_error("模型能力探测未完成，原能力结果保持不变", exc) from exc
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"模型能力探测失败：{str(exc)[:240]}") from exc
-    value["probe_results"] = results
-    from zhijian.ai.model_registry import business_assessments
-
-    value["business_assessments"] = business_assessments(profile.model, results)
+    assessments = business_assessments(profile.model, results, diagnostics)
+    assessments.extend(
+        row for row in value.get("business_assessments") or [] if row.get("stage") == "GLOBAL_SYNTHESIS"
+    )
+    stored_results = dict(results)
+    if results.get("GLOBAL_SYNTHESIS") == "NOT_TESTED":
+        # An ambiguous paraphrase is not a new negative capability assessment.
+        previous = (value.get("probe_results") or {}).get("GLOBAL_SYNTHESIS")
+        if previous:
+            stored_results["GLOBAL_SYNTHESIS"] = previous
+    value["probe_results"] = stored_results
+    value["business_assessments"] = assessments
     value["capabilities"] = sorted(
         set(value.get("capabilities") or [])
         | {
@@ -4205,22 +4290,30 @@ def probe_saved_model_profile(
     value["supports_json_mode"] = (
         profile.interface_capabilities.json_object == "SUPPORTED"
         if profile.connection_type == "LOCAL_ROUTER" and profile.interface_capabilities
-        else results.get("FORMAT_SMOKE") == "PASS"
+        else profile.supports_json_mode
     )
+    check = model_test_cancel_check()
+    if check:
+        check()
     setting.value_json = value
     record_event(
         db,
         "model_profile.probed",
         f"已完成模型能力探测：{value.get('name', profile_id)}",
         actor="user",
-        detail={"pass_count": sum(status == "PASS" for status in results.values())},
+        detail={
+            "pass_count": sum(status == "PASS" for status in results.values()),
+            "note_probe": {
+                "status": results.get("GLOBAL_SYNTHESIS"),
+                **diagnostics.get("GLOBAL_SYNTHESIS", {}),
+            },
+        },
     )
     db.commit()
     return _model_profile_view(setting)
 
 
 @router.post("/api/settings/model-profiles/probe-draft")
-@queued_model_test()
 def probe_model_profile_draft(payload: ModelProfileConfig, _: Protected) -> dict:
     """Probe a draft without persisting its profile or API key."""
     value = payload.model_dump(mode="json", exclude={"api_key"})
@@ -4228,12 +4321,17 @@ def probe_model_profile_draft(payload: ModelProfileConfig, _: Protected) -> dict
         value = _interactive_interface_config(value, payload.api_key)
         profile = model_profile_from_value("draft", value)
         provider = _model_profile_provider(value, payload.api_key)
+        diagnostics: dict = {}
 
         def probe() -> dict[str, str]:
-            return probe_model_profile(provider, profile)
+            return probe_model_profile(
+                provider, profile, diagnostics=diagnostics, groups=model_test_groups(value)
+            )
 
         if profile.location == "LOCAL":
-            results = local_ai_resource_manager.run("MODEL_TEST", probe)
+            results = local_ai_resource_manager.run(
+                "MODEL_TEST", probe, cancel_check=model_test_cancel_check()
+            )
         else:
             results = probe()
     except HTTPException:
@@ -4254,10 +4352,11 @@ def probe_model_profile_draft(payload: ModelProfileConfig, _: Protected) -> dict
         "status": "READY",
         "message": "草稿能力探测已完成，保存后才会写入模型配置。",
         "probe_results": results,
+        "business_assessments": business_assessments(profile.model, results, diagnostics),
         "capabilities": capabilities,
         "supports_json_mode": profile.interface_capabilities.json_object == "SUPPORTED"
         if profile.connection_type == "LOCAL_ROUTER" and profile.interface_capabilities
-        else results.get("FORMAT_SMOKE") == "PASS",
+        else profile.supports_json_mode,
         "interface_capabilities": value.get("interface_capabilities"),
     }
 
@@ -4327,7 +4426,6 @@ def save_provider(
 
 
 @router.post("/api/settings/providers/{role}/test")
-@queued_model_test()
 def test_provider(
     role: str,
     payload: ProviderConfig,

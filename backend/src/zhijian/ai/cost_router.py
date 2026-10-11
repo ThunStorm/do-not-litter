@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from zhijian.ai.capabilities import AICapability
-from zhijian.ai.model_registry import business_probe_status
+from zhijian.ai.model_registry import business_probe_status, profile_supports_capability
 
 LOCAL_PREFERRED_STAGES = frozenset({"TRANSCRIPT_CORRECTION", "GROUND_MAP", "EXTRACT_TRAVEL_FACTS"})
 
@@ -78,9 +78,7 @@ def _tier(profile: dict[str, Any]) -> str:
 
 
 def _supports(profile: dict[str, Any], capability: AICapability) -> bool:
-    capabilities = {str(item) for item in profile.get("capabilities") or []}
-    probe = str((profile.get("probe_results") or {}).get(capability.value) or "NOT_TESTED").upper()
-    return probe != "FAIL" and (not capabilities or capability.value in capabilities)
+    return profile_supports_capability(profile, capability.value)
 
 
 def _best(

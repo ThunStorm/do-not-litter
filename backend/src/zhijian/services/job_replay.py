@@ -14,6 +14,7 @@ from zhijian.ai.job_config import (
     install_execution_config,
     secret_free_model_profile,
 )
+from zhijian.ai.model_registry import business_probe_status, profile_supports_capability
 from zhijian.core.time import as_utc, utc_now
 from zhijian.db.models import GroundedMapArtifact, Job, JobStep, JobStepArtifact, Setting, SystemEvent
 from zhijian.domain.enums import JobStatus
@@ -77,13 +78,27 @@ def _current_note_recovery(db: Session, job: Job, requested_profile_id: str | No
         if mode in {"LOCAL_FIRST", "LOCAL_ONLY"}
         else None
     )
-    profile_id = str(selected_id or "")
-    if not profile_id:
-        return None
     routing_setting = db.get(Setting, "model-routing")
     routing = (
         routing_setting.value_json if routing_setting and isinstance(routing_setting.value_json, dict) else {}
     )
+    expected_location = "REMOTE" if mode.startswith("REMOTE") else "LOCAL"
+    if not selected_id and mode in {"REMOTE_FIRST", "REMOTE_ONLY", "LOCAL_FIRST", "LOCAL_ONLY"}:
+        for key in ("primary_id", "fallback_id"):
+            candidate_id = str(routing.get(key) or "")
+            candidate = db.get(Setting, f"model-profile:{candidate_id}") if candidate_id else None
+            value = candidate.value_json if candidate else {}
+            if value.get("location") == expected_location and profile_supports_capability(
+                value,
+                "GLOBAL_SYNTHESIS",
+                explicitly_selected=True,
+                allow_unverified=bool(policy.get("allow_unverified_model")),
+            ):
+                selected_id = candidate_id
+                break
+    profile_id = str(selected_id or "")
+    if not profile_id:
+        return None
     allowed_ids = {profile_id, str(routing.get("fallback_id") or "")}
     if requested_profile_id:
         if requested_profile_id not in allowed_ids:
@@ -93,18 +108,26 @@ def _current_note_recovery(db: Session, job: Job, requested_profile_id: str | No
     profile = (
         profile_setting.value_json if profile_setting and isinstance(profile_setting.value_json, dict) else {}
     )
-    probe = str((profile.get("probe_results") or {}).get("GLOBAL_SYNTHESIS") or "NOT_TESTED").upper()
+    probe = business_probe_status(profile, "GLOBAL_SYNTHESIS")
     expected_location = "REMOTE" if profile_id != str(selected_id) or mode.startswith("REMOTE") else "LOCAL"
     if (
         not profile
         or not profile.get("enabled", True)
         or profile.get("location") != expected_location
-        or probe == "FAIL"
+        or not profile_supports_capability(
+            profile,
+            "GLOBAL_SYNTHESIS",
+            explicitly_selected=True,
+            allow_unverified=bool(policy.get("allow_unverified_model")),
+        )
     ):
         return None
     recovered_policy = {
         key: value for key, value in policy.items() if key not in {"stage", "capability", "version"}
     }
+    recovered_policy["remote_profile_id" if expected_location == "REMOTE" else "local_profile_id"] = (
+        profile_id
+    )
     if profile_id != str(selected_id):
         recovered_policy.update(
             {"execution_mode": "REMOTE_ONLY", "local_profile_id": None, "remote_profile_id": profile_id}

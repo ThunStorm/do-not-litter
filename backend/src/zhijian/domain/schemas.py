@@ -408,3 +408,8 @@ class AMapConfig(BaseModel):
     js_key: str = Field(default="", max_length=256)
     security_code: str | None = Field(default=None, max_length=512)
     web_service_key: str | None = Field(default=None, max_length=512)
+
+
+class ModelTestRequest(BaseModel):
+    profile_ids: list[str] | None = Field(default=None, max_length=100)
+    mode: Literal["TEST", "PROBE", "BOTH"] = "BOTH"

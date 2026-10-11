@@ -1,17 +1,21 @@
-from collections import deque
-from contextlib import contextmanager
+import re
 from dataclasses import replace
-from threading import Condition, local
 from time import sleep
 from typing import Any
 from urllib.parse import urlsplit
 
 from zhijian.ai.capabilities import AICapability
+from zhijian.ai.model_test_queue import (
+    model_test_groups,
+    pace_model_test,
+    queued_model_test,
+)
 from zhijian.ai.reliability import (
     ReliabilityGuards,
     classify_provider_error,
     provider_rate_limit_identity,
     resolve_reliability_policy,
+    retry_after_seconds,
 )
 from zhijian.ai.schemas import ModelProfile
 from zhijian.ai.structured_output import parse_json_object
@@ -19,6 +23,12 @@ from zhijian.core.time import utc_now
 from zhijian.providers.llm import LLMProvider, ProviderRequestOptions
 
 BUSINESS_PROBE_VERSION = "business-mini-v1"
+NOTE_PROBE_VERSION = "note-synthesis-v2"
+NOTE_PROBE_SOURCES = {"s1": "西安10月门票20元，不推荐周末。", "s2": "洛阳推荐米粉。"}
+
+
+def _probe_version(capability: str) -> str:
+    return NOTE_PROBE_VERSION if capability == "GLOBAL_SYNTHESIS" else BUSINESS_PROBE_VERSION
 
 
 def business_probe_status(value: dict, capability: str) -> str:
@@ -31,57 +41,128 @@ def business_probe_status(value: dict, capability: str) -> str:
     if (
         record
         and record.get("model") == value.get("model")
-        and record.get("prompt_version") == BUSINESS_PROBE_VERSION
+        and record.get("prompt_version") == _probe_version(capability)
     ):
         try:
-            if utc_now() - as_utc(datetime.fromisoformat(record["tested_at"])) <= timedelta(days=30):
+            if (
+                timedelta(0)
+                <= utc_now() - as_utc(datetime.fromisoformat(record["tested_at"]))
+                <= timedelta(days=30)
+            ):
                 return str(record.get("probe_status") or "NOT_TESTED")
         except (ValueError, KeyError, TypeError):
             pass
+    # v1 note layout/wording failures are not evidence against the revised contract.
+    # Keep the historical record, but never treat an invalid/expired record as current.
+    if capability == "GLOBAL_SYNTHESIS" and record:
+        return "NOT_TESTED"
     return "FAIL" if (value.get("probe_results") or {}).get(capability) == "FAIL" else "NOT_TESTED"
 
 
-def business_assessments(model: str, results: dict[str, str]) -> list[dict[str, str]]:
+def business_assessments(
+    model: str, results: dict[str, str], diagnostics: dict[str, dict[str, str]] | None = None
+) -> list[dict[str, str]]:
     return [
         {
             "stage": stage,
             "model": model,
-            "prompt_version": BUSINESS_PROBE_VERSION,
-            "benchmark_version": BUSINESS_PROBE_VERSION,
+            "prompt_version": _probe_version(stage),
+            "benchmark_version": _probe_version(stage),
             "probe_status": status,
             "tested_at": utc_now().isoformat(),
-            "evidence_ref": f"{BUSINESS_PROBE_VERSION}:{stage}",
+            "evidence_ref": f"{_probe_version(stage)}:{stage}",
+            **(diagnostics or {}).get(stage, {}),
         }
         for stage, status in results.items()
         if stage != "FORMAT_SMOKE" and status != "NOT_TESTED"
     ]
 
 
-_manual_test_condition = Condition()
-_manual_test_tickets: deque[object] = deque()
-_manual_test_state = local()
+def profile_supports_capability(
+    value: dict | None,
+    capability: str,
+    *,
+    allow_unverified: bool = False,
+    explicitly_selected: bool = False,
+) -> bool:
+    if not value or not value.get("enabled", True):
+        return False
+    if capability == "GLOBAL_SYNTHESIS" and "text" not in (value.get("modalities") or ["text"]):
+        return False
+    probe = business_probe_status(value, capability)
+    capabilities = set(value.get("capabilities") or [])
+    return allow_unverified or (
+        probe != "FAIL"
+        and (
+            not capabilities
+            or capability in capabilities
+            or probe == "PASS"
+            or (explicitly_selected and probe == "NOT_TESTED")
+        )
+    )
 
 
-@contextmanager
-def queued_model_test():
-    """FIFO for entire manual operations, including all calls in a capability probe."""
-    if getattr(_manual_test_state, "active", False):
-        yield
-        return
-    ticket = object()
-    with _manual_test_condition:
-        _manual_test_tickets.append(ticket)
-        _manual_test_condition.notify_all()
-    try:
-        with _manual_test_condition:
-            _manual_test_condition.wait_for(lambda: _manual_test_tickets[0] is ticket)
-        _manual_test_state.active = True
-        yield
-    finally:
-        _manual_test_state.active = False
-        with _manual_test_condition:
-            _manual_test_tickets.remove(ticket)
-            _manual_test_condition.notify_all()
+def _assess_note_probe(value: dict) -> tuple[str, str]:
+    """Check note evidence and simple facts; ambiguous paraphrases remain unverified."""
+    sections = value.get("sections")
+    if not isinstance(sections, list) or not sections:
+        return "FAIL", "NOTE_PROBE_SECTIONS_INVALID"
+    coverage = {key: [] for key in NOTE_PROBE_SOURCES}
+    summaries = {key: [] for key in NOTE_PROBE_SOURCES}
+    for section in sections:
+        if (
+            not isinstance(section, dict)
+            or not isinstance(section.get("summary"), str)
+            or not section["summary"].strip()
+        ):
+            return "FAIL", "NOTE_PROBE_SUMMARY_MISSING"
+        ids = section.get("segment_ids")
+        if (
+            not isinstance(ids, list)
+            or not ids
+            or any(not isinstance(item, str) or item not in NOTE_PROBE_SOURCES for item in ids)
+            or len(ids) != len(set(ids))
+        ):
+            return "FAIL", "NOTE_PROBE_SOURCE_INVALID"
+        quotes = section.get("supporting_quotes")
+        if not isinstance(quotes, list) or not quotes:
+            return "FAIL", "NOTE_PROBE_QUOTE_MISSING"
+        bullets = section.get("bullets", [])
+        if not isinstance(bullets, list) or any(not isinstance(item, str) for item in bullets):
+            return "FAIL", "NOTE_PROBE_BULLETS_INVALID"
+        text = " ".join([section["summary"], *bullets])
+        source = "\n".join(NOTE_PROBE_SOURCES[item] for item in ids)
+        if set(re.findall(r"\d+(?:元|月)", text)) - set(re.findall(r"\d+(?:元|月)", source)):
+            return "FAIL", "NOTE_PROBE_FACT_CONTRADICTION"
+        if "s1" in ids and re.search(r"(?<!不)推荐周末|周末(?:很|也)?(?:推荐|适合)", text):
+            return "FAIL", "NOTE_PROBE_FACT_CONTRADICTION"
+        if "s2" in ids and re.search(r"不(?:推荐|建议)(?:洛阳)?米粉|米粉不(?:推荐|建议)", text):
+            return "FAIL", "NOTE_PROBE_FACT_CONTRADICTION"
+        for quote in quotes:
+            if not isinstance(quote, str) or not quote.strip() or quote not in source:
+                return "FAIL", "NOTE_PROBE_QUOTE_INVALID"
+            for segment_id in ids:
+                coverage[segment_id].extend(
+                    part for part in quote.split("\n") if part and part in NOTE_PROBE_SOURCES[segment_id]
+                )
+        for segment_id in ids:
+            summaries[segment_id].append(text)
+    for segment_id, terms in (("s1", ("西安", "10月", "20元", "不推荐周末")), ("s2", ("洛阳", "推荐米粉"))):
+        if not all(any(term in quote for quote in coverage[segment_id]) for term in terms):
+            return "FAIL", "NOTE_PROBE_FACT_EVIDENCE_MISSING"
+    first, second = " ".join(summaries["s1"]), " ".join(summaries["s2"])
+    if not (
+        "西安" in first
+        and re.search(r"10月|十月", first)
+        and re.search(r"20元|二十元", first)
+        and "周末" in first
+        and re.search(r"不推荐|不建议|避开|避免", first)
+        and "洛阳" in second
+        and "米粉" in second
+        and re.search(r"推荐|建议|尝|吃", second)
+    ):
+        return "NOT_TESTED", "NOTE_PROBE_SUMMARY_UNCERTAIN"
+    return "PASS", "NOTE_PROBE_EVIDENCE_COVERED"
 
 
 def model_connection_type(value: dict[str, Any]) -> str:
@@ -166,31 +247,60 @@ def invoke_profile_model(
             max_output_tokens=profile.max_output_tokens,
             thinking=False if profile.supports_thinking or profile.provider.lower() == "deepseek" else None,
         )
+        if getattr(provider, "base_url", None):
+            pace_model_test(
+                max(
+                    policy.request_interval_seconds,
+                    60 / policy.rate_limit_rpm if policy.rate_limit_rpm else 0,
+                )
+            )
         result = getattr(provider, method)(messages, model=profile.model, options=options)
     except Exception as exc:
         error = classify_provider_error(exc)
+        if (
+            error.code in {"AI_PROVIDER_RATE_LIMITED", "AI_PROVIDER_THROTTLED", "AI_PROVIDER_QUOTA_EXHAUSTED"}
+            or getattr(getattr(error.cause, "response", None), "status_code", None) == 429
+        ):
+            pace_model_test(0, max(60, retry_after_seconds(error.cause or error) or 0))
         raise error from exc
     finally:
         ReliabilityGuards.release(semaphore)
     return result
 
 
-def probe_model_profile(provider: LLMProvider, profile: ModelProfile) -> dict[str, str]:
-    with queued_model_test():
-        return _probe_model_profile(provider, profile)
+def probe_model_profile(
+    provider: LLMProvider, profile: ModelProfile, *, diagnostics: dict | None = None, groups=None
+) -> dict[str, str]:
+    groups = groups or model_test_groups(
+        {**profile.model_dump(), "base_url": getattr(provider, "base_url", "")}
+    )
+    with queued_model_test(groups, getattr(provider, "cancel_check", None)):
+        return _probe_model_profile(provider, profile, diagnostics=diagnostics)
 
 
-def _probe_model_profile(provider: LLMProvider, profile: ModelProfile) -> dict[str, str]:
+def _probe_model_profile(
+    provider: LLMProvider, profile: ModelProfile, *, diagnostics: dict | None = None
+) -> dict[str, str]:
     results = {capability.value: "NOT_TESTED" for capability in AICapability}
 
-    def text(messages: list[dict[str, str]]):
-        return invoke_profile_model(provider, profile, "generate_text", messages)
+    def invoke(method: str, messages: list[dict[str, str]], probe_stage: str):
+        from zhijian.ai.reliability import AIProviderError
 
-    def structured(messages: list[dict[str, str]]):
-        return invoke_profile_model(provider, profile, "generate_json", messages)
+        try:
+            return invoke_profile_model(provider, profile, method, messages)
+        except AIProviderError as exc:
+            exc.probe_stage = probe_stage
+            raise
 
-    text([{"role": "user", "content": "Reply PONG only."}])
-    text([{"role": "user", "content": "请只回答：已收到。"}])
+    def structured(messages: list[dict[str, str]], probe_stage: str = "FORMAT_SMOKE"):
+        return invoke(
+            "generate_json",
+            [{**message, "content": f"仅返回 JSON 对象。\n{message['content']}"} for message in messages],
+            probe_stage,
+        )
+
+    invoke("generate_text", [{"role": "user", "content": "Reply PONG only."}], "TEXT_CONNECTIVITY")
+    invoke("generate_text", [{"role": "user", "content": "请只回答：已收到。"}], "CHINESE_CONNECTIVITY")
     evidence_id = "evidence_probe_01"
     result = structured(
         [{"role": "user", "content": f'仅返回 JSON：{{"id":"{evidence_id}","ok":true}}'}],
@@ -247,26 +357,38 @@ def _probe_model_profile(provider: LLMProvider, profile: ModelProfile) -> dict[s
             ),
         ),
         "GLOBAL_SYNTHESIS": (
-            "仅据 s1：西安10月门票20元，不推荐周末；s2：洛阳推荐米粉。"
-            '返回 {"sections":[{"summary":"原文事实","segment_ids":["s1或s2"]}]}，'
-            "保留两地、月份、价格、否定与推荐菜。",
-            lambda value: (
-                len(value.get("sections", [])) == 2
-                and any(
-                    item.get("segment_ids") == ["s1"]
-                    and all(term in item.get("summary", "") for term in ("西安", "10月", "20元", "不推荐"))
-                    for item in value["sections"]
-                )
-                and any(
-                    item.get("segment_ids") == ["s2"]
-                    and all(term in item.get("summary", "") for term in ("洛阳", "米粉"))
-                    for item in value["sections"]
-                )
-            ),
+            "仅据 s1：西安10月门票20元，不推荐周末。s2：洛阳推荐米粉。"
+            '返回 JSON {"sections":[{"heading":"标题","summary":"概述",'
+            '"bullets":["事实要点"],"segment_ids":["s1"],"supporting_quotes":["逐字原文"]}]}。'
+            "可合并或拆分章节、调整顺序，摘要可改写；保留两地、月份、价格、否定和推荐菜。"
+            "每条引文必须来自对应 segment_ids，所有必需事实都要有逐字引文覆盖。",
+            None,
         ),
     }
     for capability, (prompt, validate) in cases.items():
-        result = structured([{"role": "user", "content": prompt}])
+        result = structured([{"role": "user", "content": prompt}], capability)
+        if capability == "GLOBAL_SYNTHESIS":
+            from hashlib import sha256
+
+            from zhijian.ai.reliability import AIProviderError
+            from zhijian.providers.llm import provider_error_details
+
+            if (getattr(result, "metadata", {}) or {}).get("finish_reason") in {"length", "max_tokens"}:
+                error = AIProviderError("AI_PROVIDER_OUTPUT_TRUNCATED", "笔记能力小样输出截断，本次无法判定")
+                error.probe_stage = capability
+                raise error
+            try:
+                status, reason = _assess_note_probe(parse_json_object(result.content))
+            except (ValueError, TypeError, AttributeError, RuntimeError):
+                status, reason = "FAIL", "NOTE_PROBE_JSON_INVALID"
+            results[capability] = status
+            if diagnostics is not None:
+                diagnostics[capability] = {
+                    "reason_code": reason,
+                    "response_hash": sha256(result.content.encode()).hexdigest(),
+                    "response_preview": provider_error_details(ValueError(result.content))["message"],
+                }
+            continue
         try:
             value = parse_json_object(result.content)
             results[capability] = (

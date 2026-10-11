@@ -14,6 +14,7 @@ class JobStatus(StrEnum):
 
 
 class JobType(StrEnum):
+    MODEL_TEST = "MODEL_TEST"
     RECRUITMENT = "RECRUITMENT"
     TRAVEL = "TRAVEL"
     UNKNOWN = "UNKNOWN"

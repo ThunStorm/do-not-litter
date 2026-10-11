@@ -22,8 +22,8 @@ def _exit_while_holding(lock_path: str, acquired) -> None:
         os._exit(0)
 
 
-def test_local_ai_resource_manager_marks_and_releases_heavy_work() -> None:
-    manager = LocalAIResourceManager()
+def test_local_ai_resource_manager_marks_and_releases_heavy_work(tmp_path) -> None:
+    manager = LocalAIResourceManager(tmp_path / "local-ai.lock")
     assert manager.run("ASR", lambda: manager.active_kind) == "ASR"
     assert manager.active_kind is None
 

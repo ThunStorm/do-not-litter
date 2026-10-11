@@ -1,7 +1,7 @@
 from typing import Any
 
 from zhijian.ai.capabilities import AICapability, AIModelLocation
-from zhijian.ai.model_registry import model_profile_from_value
+from zhijian.ai.model_registry import business_probe_status, model_profile_from_value
 from zhijian.ai.schemas import AIStagePolicy, ResolvedAIStagePolicy
 from zhijian.ai.stages import stage_defaults, stage_spec
 
@@ -54,6 +54,8 @@ def validate_stage_policy(
         profile = model_profile_from_value(profile_id, value)
         if not profile.enabled or profile.location != expected_location:
             raise ValueError(f"{field.removesuffix('_profile_id')} 模型的位置或启用状态无效")
+        if spec.capability == AICapability.GLOBAL_SYNTHESIS and "text" not in profile.modalities:
+            raise ValueError("笔记归纳需要支持文本输入的模型")
         if (
             spec.capability
             in {
@@ -72,6 +74,6 @@ def validate_stage_policy(
             and policy.max_output_tokens > profile.max_output_tokens
         ):
             raise ValueError("阶段最大输出超过模型 Profile 上限")
-        probe = str((value.get("probe_results") or {}).get(spec.capability.value) or "NOT_TESTED").upper()
+        probe = business_probe_status(value, spec.capability.value)
         if probe == "FAIL" and not policy.allow_unverified_model:
             raise ValueError("所选模型未通过该阶段能力测试；如需继续，请显式允许未验证模型")

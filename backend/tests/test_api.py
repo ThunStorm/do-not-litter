@@ -637,7 +637,7 @@ def test_note_replay_can_explicitly_use_current_stage_model_without_rewriting_sn
             "note_profile_id": selected_profile_id,
         },
     )
-    assert queued.status_code == 200
+    assert queued.status_code == 200, queued.text
     with factory() as db:
         job = db.get(Job, job_id)
         assert job and job.status == "QUEUED"

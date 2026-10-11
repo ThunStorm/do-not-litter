@@ -19,13 +19,20 @@ from zhijian.ai.capabilities import AICapability
 from zhijian.ai.cost_router import RouteDecision, choose_auto_route
 from zhijian.ai.domain_context import domain_context_hash, domain_context_messages
 from zhijian.ai.gateway import AIWorkloadGateway
-from zhijian.ai.job_config import SNAPSHOT_KEY, job_setting, job_stage_override, job_video_note_chunk_chars
+from zhijian.ai.job_config import (
+    SNAPSHOT_KEY,
+    job_setting,
+    job_stage_override,
+    job_video_note_chunk_chars,
+    latest_profile_assessment,
+)
 from zhijian.ai.model_registry import model_connection_type
 from zhijian.ai.policies import resolve_stage_policy
 from zhijian.ai.reliability import AIProviderError, ModelReliabilityPolicy, resolve_reliability_policy
 from zhijian.ai.request_compiler import compile_request
 from zhijian.ai.runtime_hints import read_runtime_hint, tighten_note_reduce_hint, tighten_runtime_hint
 from zhijian.ai.stage_decision import decide_stage, record_stage_decision
+from zhijian.ai.stages import stage_spec
 from zhijian.ai.token_usage import estimate_tokens
 from zhijian.ai.transcript_quality import correction_candidates, transcript_source_class
 from zhijian.core.config import Settings
@@ -461,6 +468,11 @@ def _visit_windows_from_candidate(
 class ProviderUnavailable(RuntimeError):
     code = "PROVIDER_NOT_CONFIGURED"
 
+    def __init__(self, message: str, *, code: str | None = None):
+        super().__init__(message)
+        if code:
+            self.code = code
+
 
 def prompt_supplement_value(db: Session, role: str, job: Job | None = None) -> str:
     if not hasattr(db, "get"):
@@ -607,18 +619,13 @@ def _profile_supports_capability(
     allow_unverified: bool = False,
     explicitly_selected: bool = False,
 ) -> bool:
-    if not config or not bool(config.get("enabled", True)):
-        return False
-    capabilities = {str(item) for item in config.get("capabilities") or []}
-    from zhijian.ai.model_registry import business_probe_status
+    from zhijian.ai.model_registry import profile_supports_capability
 
-    probe = business_probe_status(config, capability.value)
-    if allow_unverified:
-        return True
-    return probe != "FAIL" and (
-        not capabilities
-        or capability.value in capabilities
-        or (explicitly_selected and probe == "NOT_TESTED")
+    return profile_supports_capability(
+        config,
+        capability.value,
+        allow_unverified=allow_unverified,
+        explicitly_selected=explicitly_selected,
     )
 
 
@@ -686,6 +693,17 @@ def _provider_from_config(
 def provider_for_role(
     db: Session, settings: Settings, role: str, job: Job | None = None
 ) -> tuple[LLMProvider, str, str]:
+    stage_profiles: dict[str, dict | None] = {}
+    assessment_checks: dict[str, dict] = {}
+
+    def profile_config(profile_id: str) -> dict | None:
+        if profile_id not in stage_profiles:
+            value = _profile_config(db, profile_id, job)
+            if value and job:
+                value, assessment_checks[profile_id] = latest_profile_assessment(db, profile_id, value)
+            stage_profiles[profile_id] = value
+        return stage_profiles[profile_id]
+
     routes = job_setting(db, "model-routing", job)
     primary_id = str(routes.get("primary_id") or "")
     fallback_id = str(routes.get("fallback_id") or "")
@@ -703,8 +721,8 @@ def provider_for_role(
         if stage and (stage_setting or job_override or automation_enabled)
         else None
     )
-    primary_config = _profile_config(db, primary_id, job)
-    fallback_config = _profile_config(db, fallback_id, job)
+    primary_config = profile_config(primary_id)
+    fallback_config = profile_config(fallback_id)
     route_decision: RouteDecision | None = None
     budget_pressure = bool(
         job and str((job.payload_json.get("ai_soft_budget") or {}).get("status") or "") == "WARNING"
@@ -712,6 +730,16 @@ def provider_for_role(
     if resolved_policy:
         local_id = resolved_policy.local_profile_id
         remote_id = resolved_policy.remote_profile_id
+        preferred_location = "REMOTE" if resolved_policy.execution_mode.startswith("REMOTE") else "LOCAL"
+        preferred_id = remote_id if preferred_location == "REMOTE" else local_id
+        inherited_note_id = (
+            primary_id
+            if stage in {"NOTE_REDUCE", "GENERATE_AI_NOTE"}
+            and resolved_policy.execution_mode != "AUTO"
+            and not preferred_id
+            and _profile_location(primary_config) == preferred_location
+            else ""
+        )
         candidates = tuple(
             (item_id, config)
             for item_id, config in ((primary_id, primary_config), (fallback_id, fallback_config))
@@ -719,6 +747,7 @@ def provider_for_role(
                 config,
                 resolved_policy.capability,
                 allow_unverified=resolved_policy.allow_unverified_model,
+                explicitly_selected=bool(inherited_note_id) and item_id == inherited_note_id,
             )
         )
         local_id = local_id or next(
@@ -741,7 +770,7 @@ def provider_for_role(
             candidates = {
                 item_id: config
                 for item_id in candidate_ids
-                if (config := _profile_config(db, item_id, job)) is not None
+                if (config := profile_config(item_id)) is not None
             }
             route_decision = choose_auto_route(
                 stage,
@@ -767,14 +796,15 @@ def provider_for_role(
                 fallback_id = configured_fallback
         if role == "grounded_map_escalation":
             primary_id, fallback_id = remote_id, ""
-        primary_config = _profile_config(db, primary_id, job)
-        fallback_config = _profile_config(db, fallback_id, job)
+        primary_config = profile_config(primary_id)
+        fallback_config = profile_config(fallback_id)
         if not _profile_supports_capability(
             primary_config,
             resolved_policy.capability,
             allow_unverified=resolved_policy.allow_unverified_model,
             explicitly_selected=primary_id
-            in {resolved_policy.local_profile_id, resolved_policy.remote_profile_id},
+            in {resolved_policy.local_profile_id, resolved_policy.remote_profile_id}
+            or (bool(inherited_note_id) and primary_id == inherited_note_id),
         ):
             primary_config = None
         if not _profile_supports_capability(
@@ -782,9 +812,34 @@ def provider_for_role(
             resolved_policy.capability,
             allow_unverified=resolved_policy.allow_unverified_model,
             explicitly_selected=fallback_id
-            in {resolved_policy.local_profile_id, resolved_policy.remote_profile_id},
+            in {resolved_policy.local_profile_id, resolved_policy.remote_profile_id}
+            or (bool(inherited_note_id) and fallback_id == inherited_note_id),
         ):
             fallback_config = None
+    elif stage:
+        capability = stage_spec(stage).capability
+        if not _profile_supports_capability(
+            primary_config, capability, explicitly_selected=stage in {"NOTE_REDUCE", "GENERATE_AI_NOTE"}
+        ):
+            primary_config = None
+        if not _profile_supports_capability(fallback_config, capability):
+            fallback_config = None
+    if job and stage and assessment_checks:
+        from zhijian.ai.model_registry import business_probe_status
+
+        capability = resolved_policy.capability if resolved_policy else stage_spec(stage).capability
+        for profile_id, check in assessment_checks.items():
+            check["capability"] = capability.value
+            check["status"] = business_probe_status(stage_profiles[profile_id], capability.value)
+        record_event(
+            db,
+            "ai.capability.checked",
+            "已核对模型身份及阶段能力评估",
+            component="ai-gateway",
+            entity_type="job",
+            entity_id=job.id,
+            detail={"stage": stage, "profiles": list(assessment_checks.values())},
+        )
     policy = GeneralConfig(**job_setting(db, "app:general", job))
 
     def on_retry(attempt: int, exc: Exception) -> None:
@@ -946,6 +1001,9 @@ def provider_for_role(
                 "route": route,
                 "route_decision": route_decision.route if route_decision else None,
                 "route_reason": route_decision.reason_code if route_decision else None,
+                "capability_assessment": assessment_checks.get(
+                    fallback_id if route == "fallback" else primary_id
+                ),
                 "attempt": attempt,
                 "input_chars": input_chars,
                 **attempt_metadata,
@@ -1032,6 +1090,27 @@ def provider_for_role(
             stage_label = {"NOTE_REDUCE": "笔记归纳", "GENERATE_AI_NOTE": "视频笔记"}.get(
                 stage or "", stage or role
             )
+            if stage in {"NOTE_REDUCE", "GENERATE_AI_NOTE"}:
+                from zhijian.ai.model_registry import business_probe_status
+
+                rejected = profile_config(primary_id)
+                if rejected is None:
+                    rejected = next(
+                        (
+                            config
+                            for config in (profile_config(item) for item in configured_profile_ids)
+                            if config
+                        ),
+                        None,
+                    )
+                if rejected:
+                    probe = business_probe_status(rejected, "GLOBAL_SYNTHESIS")
+                    name = rejected.get("name") or rejected.get("model") or primary_id
+                    raise ProviderUnavailable(
+                        f"{stage_label}模型 {name}（{rejected.get('model')}）不满足 GLOBAL_SYNTHESIS："
+                        f"有效探测结果 {probe}；请检查启用状态、文本能力及阶段未验证模型策略",
+                        code="MODEL_CAPABILITY_REJECTED",
+                    )
             raise ProviderUnavailable(f"{stage_label}所选模型不满足阶段能力要求或探测失败")
         raise ProviderUnavailable("尚未在设置中选择主模型")
     if resolved_policy and resolved_policy.allow_unverified_model and job:

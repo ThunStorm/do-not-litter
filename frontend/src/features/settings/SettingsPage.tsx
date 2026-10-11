@@ -21,6 +21,7 @@ import {
   isValidElement,
   type ReactNode,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { Link } from "react-router-dom";
@@ -35,6 +36,7 @@ import type {
   AIStagePolicy,
   DomainPackView,
   ModelProfileView,
+  ModelTestView,
   ModelRoutingView,
   PromptSupplementsView,
   TranscriptProcessingView,
@@ -398,6 +400,24 @@ function ModelsPanel() {
     queryKey: ["model-profiles"],
     queryFn: api.modelProfiles,
   });
+  const tests = useQuery({
+    queryKey: ["model-tests"], queryFn: api.modelTests,
+    refetchInterval: (query) => query.state.data?.some((job) => ["QUEUED", "RUNNING"].includes(job.status)) ? 1000 : false,
+  });
+  const terminalIds = (tests.data ?? []).filter((job) => !["QUEUED", "RUNNING"].includes(job.status)).map((job) => job.id).join(",");
+  useEffect(() => {
+    if (terminalIds) void queryClient.invalidateQueries({ queryKey: ["model-profiles"] });
+  }, [terminalIds, queryClient]);
+  const [batchIds, setBatchIds] = useState<string[]>([]);
+  const batch = useMutation({
+    mutationFn: () => api.queueModelTests(null, "BOTH"),
+    onSuccess: (jobs) => {
+      setBatchIds(jobs.map((job) => job.id));
+      void queryClient.invalidateQueries({ queryKey: ["model-tests"] });
+    },
+  });
+  const batchJobs = tests.data?.filter((job) => batchIds.includes(job.id)) ?? [];
+  const batchActive = batchJobs.some((job) => ["QUEUED", "RUNNING"].includes(job.status));
   const routing = useQuery({
     queryKey: ["model-routing"],
     queryFn: api.modelRouting,
@@ -510,6 +530,11 @@ function ModelsPanel() {
       <PromptSupplementsPanel />
       <div className="provider-form__title model-library-title">
         <h3>已保存模型</h3>
+        <div className="provider-form__actions">
+        <button className="button button--outline" disabled={batch.isPending || batchActive || !profiles.data?.length} onClick={() => batch.mutate()}>
+          {batch.isPending || batchActive ? <LoaderCircle className="spin" /> : <RefreshCw />}
+          一键测试全部
+        </button>
         <button
           className="button button--outline"
           onClick={() => setAdding(true)}
@@ -517,13 +542,18 @@ function ModelsPanel() {
           <Plus />
           新增自定义模型
         </button>
+        </div>
       </div>
+      <p className="settings-note">真实测试与能力探测使用已保存配置；同供应商或入口串行，独立入口最多三组并行。重复提交会合并正在进行的同项测试。</p>
+      {batch.error && <p className="settings-note" role="alert">{batch.error.message}</p>}
+      {batchIds.length > 0 && <p className="settings-note" role="status">本次一键测试：{batchJobs.filter((job) => job.status === "COMPLETED").length}/{batchIds.length} 完成，{batchJobs.filter((job) => job.status === "FAILED").length} 失败，{batchJobs.filter((job) => job.status === "RUNNING").length} 运行，{batchJobs.filter((job) => job.status === "QUEUED").length} 排队。</p>}
       {adding && <ModelProfileEditor onClose={() => setAdding(false)} />}
       {profiles.data?.map((profile) => (
         <ModelProfileEditor
           key={profile.id}
           profile={profile}
           assigned={assignedIds.has(profile.id)}
+          testJob={tests.data?.find((job) => job.profile_id === profile.id && ["QUEUED", "RUNNING"].includes(job.status)) ?? tests.data?.find((job) => job.profile_id === profile.id)}
         />
       ))}
       {profiles.data?.length === 0 && !adding && (
@@ -1543,10 +1573,12 @@ function editablePolicy(policy: AIStagePolicy): AIStagePolicy {
 function ModelProfileEditor({
   profile,
   assigned = false,
+  testJob,
   onClose,
 }: {
   profile?: ModelProfileView;
   assigned?: boolean;
+  testJob?: ModelTestView;
   onClose?: () => void;
 }) {
   const queryClient = useQueryClient();
@@ -1599,8 +1631,12 @@ function ModelProfileEditor({
       profile && providerPreset(profile.provider)?.baseUrl !== profile.base_url,
     ),
   }));
+  const serverFormSignature = useRef("");
   useEffect(() => {
     if (profile) {
+      const signature = JSON.stringify({ ...profile, probe_results: undefined, business_assessments: undefined, capabilities: undefined });
+      if (signature === serverFormSignature.current) return;
+      serverFormSignature.current = signature;
       const preset = providerPreset(profile.provider);
       setValues({
         name: profile.name,
@@ -1655,9 +1691,12 @@ function ModelProfileEditor({
   const test = useMutation({
     mutationFn: () =>
       profile
-        ? api.testModelProfile(profile.id)
+        ? api.queueModelTests([profile.id], "TEST").then(() => ({ message: "真实测试已加入队列" }))
         : api.testModelProfileDraft(values),
-    onSuccess: (result) => setMessage(result.message),
+    onSuccess: (result) => {
+      setMessage(result.message);
+      void queryClient.invalidateQueries({ queryKey: ["model-tests"] });
+    },
     onError: (error) => setMessage(error.message),
   });
   const draftProbe = useMutation({
@@ -1675,11 +1714,16 @@ function ModelProfileEditor({
     onError: (error) => setMessage(error.message),
   });
   const probe = useMutation({
-    mutationFn: () => api.probeModelProfile(profile!.id),
+    mutationFn: () => api.queueModelTests([profile!.id], "PROBE"),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["model-profiles"] });
-      setMessage("能力探测已完成");
+      void queryClient.invalidateQueries({ queryKey: ["model-tests"] });
+      setMessage("能力探测已加入队列");
     },
+    onError: (error) => setMessage(error.message),
+  });
+  const cancelTest = useMutation({
+    mutationFn: () => api.cancelJob(testJob!.id),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["model-tests"] }),
     onError: (error) => setMessage(error.message),
   });
   const readInterface = useMutation({
@@ -1717,8 +1761,9 @@ function ModelProfileEditor({
   };
   const activePreset = providerPreset(values.provider);
   const isLocal = values.location === "LOCAL";
+  const testActive = !!testJob && ["QUEUED", "RUNNING"].includes(testJob.status);
   const busy =
-    save.isPending ||
+    testActive || save.isPending ||
     test.isPending ||
     draftProbe.isPending ||
     probe.isPending ||
@@ -1733,7 +1778,13 @@ function ModelProfileEditor({
         : remove.isPending
           ? "正在删除模型…"
           : "";
-  const feedbackMessage = pendingMessage || message;
+  const testFeedback = !testJob ? "" : testJob.status === "QUEUED" ? "排队中：等待同供应商或入口的前序测试"
+    : testJob.status === "RUNNING" ? testJob.phase === "PROBE" ? "正在等待或执行能力探测" : "正在等待或执行真实测试"
+    : testJob.status === "FAILED" ? `${testJob.phase === "TEST" ? "真实测试失败" : "能力探测失败"}：${testJob.error ?? "请检查配置"}`
+    : testJob.status === "CANCELLED" ? "测试已取消"
+    : testJob.results.PROBE ? `能力探测完成：${Object.values(testJob.results.PROBE.probe_results).filter((status) => status === "PASS").length}项通过，${Object.values(testJob.results.PROBE.probe_results).filter((status) => status === "FAIL").length}项未通过`
+    : "真实测试完成";
+  const feedbackMessage = pendingMessage || testFeedback || message;
   const modelOptionsId = `model-options-${profile?.id ?? "draft"}`;
   const capabilities = profile
     ? Object.entries(profile.probe_results)
@@ -1772,6 +1823,7 @@ function ModelProfileEditor({
               >
                 {profile ? "能力探测" : "草稿能力探测"}
               </button>
+              {testActive && <button className="button button--outline" disabled={cancelTest.isPending} onClick={() => cancelTest.mutate()}>取消测试</button>}
             </div>
             <div className="provider-form__action-group provider-form__action-group--commit">
               {profile && (
@@ -1795,8 +1847,8 @@ function ModelProfileEditor({
           </div>
         </div>
         {feedbackMessage && (
-          <div className="provider-form__feedback" role="status">
-            {pendingMessage ? <LoaderCircle className="spin" /> : <CheckCircle2 />}
+          <div className={`provider-form__feedback${testJob?.status === "FAILED" ? " provider-form__feedback--error" : ""}`} role="status">
+            {pendingMessage || testActive ? <LoaderCircle className="spin" /> : <CheckCircle2 />}
             <span className="provider-message">{feedbackMessage}</span>
           </div>
         )}

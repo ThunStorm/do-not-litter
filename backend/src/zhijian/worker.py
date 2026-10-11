@@ -27,6 +27,7 @@ from zhijian.services.jobs import (
     renew_job_lease,
 )
 from zhijian.services.log_retention import purge_expired_logs
+from zhijian.services.model_tests import model_test_worker_loop
 from zhijian.services.pipeline import process_job
 from zhijian.services.transcript_retention import purge_expired_transcripts
 from zhijian.services.video_cover import materialize_cover
@@ -167,6 +168,15 @@ def worker_loop(once: bool = False) -> None:
         )
     heartbeat_thread.start()
     watchdog_thread.start()
+    model_tests_stopped = Event()
+    model_tests_thread = Thread(
+        target=model_test_worker_loop,
+        args=(SessionLocal, owner, settings, model_tests_stopped),
+        name="zhijian-model-tests",
+        daemon=True,
+    )
+    if not once:
+        model_tests_thread.start()
     try:
         while True:
             with SessionLocal() as db:
@@ -223,6 +233,9 @@ def worker_loop(once: bool = False) -> None:
                 return
             time.sleep(settings.worker_poll_seconds)
     finally:
+        model_tests_stopped.set()
+        if not once:
+            model_tests_thread.join(timeout=1)
         heartbeat_stopped.set()
         watchdog_stopped.set()
         heartbeat_thread.join(timeout=1)

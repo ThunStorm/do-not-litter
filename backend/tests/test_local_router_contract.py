@@ -310,7 +310,15 @@ def test_manual_test_bypasses_circuit_without_resetting_production(monkeypatch):
 
 
 def test_manual_queue_fifo_across_models_and_failed_operation():
-    from zhijian.ai.model_registry import _manual_test_condition, _manual_test_tickets, queued_model_test
+    from zhijian.ai.model_test_queue import (
+        _condition as _manual_test_condition,
+    )
+    from zhijian.ai.model_test_queue import (
+        _tickets as _manual_test_tickets,
+    )
+    from zhijian.ai.model_test_queue import (
+        queued_model_test,
+    )
 
     release = Event()
     running = Event()

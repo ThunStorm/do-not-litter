@@ -256,6 +256,19 @@ export interface ModelProfileView {
   probe_results: Record<string, string>
 }
 
+export interface ModelTestView {
+  id: string
+  profile_id: string
+  name: string
+  mode: 'TEST' | 'PROBE' | 'BOTH'
+  status: string
+  phase: string
+  progress: number
+  error: string | null
+  error_code: string | null
+  results: { TEST?: { status: string; message: string }; PROBE?: { probe_results: Record<string, string> } }
+}
+
 export interface AIStagePolicy {
   stage: string
   capability: string

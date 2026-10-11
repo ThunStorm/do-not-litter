@@ -247,12 +247,12 @@
 | --- | --- | --- |
 | 部署与局域网 | 唯一后端为 Mac mini；4 位配对码显眼展示；Cookie 会话刷新不应重新要求配对；服务状态来自真实 API/Worker/SQLite | `operations/DEPLOYMENT_OPTIONS.md`、`jobs/MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md`、`services/auth.py` |
 | 捕获与本地处理 | URL、正文、DOCX、PDF、XLSX、图像 OCR、音视频均可进入 Job；Whisper.cpp、FFmpeg 与 OCR 状态必须是探测结果 | `product/PRODUCT_REQUIREMENTS.md`、`ai-gateway/AI_RUNTIME_AND_PROVIDERS.md` |
-| 模型设置 | 用户可维护任意 Provider/模型库；预设仅帮助填写；主/备用从已存模型选择；草稿可真实测试；默认超时 300 秒 | `ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md`、`operations/RUNTIME_MONITOR_AND_MODEL_PRESETS_SPEC.md` |
-| AI Gateway 契约 | Model Profile 显式保存 location/modalities/capabilities；Stage 参数仅白名单；新 Job 按提交时快照固定路由、Profile、Stage Policy、Prompt/领域上下文与 AI 参数，普通/完整/步骤重跑入队时自动刷新同模型必要执行配置，其余沿用原快照；身份变更/删除/禁用安全拒绝，入队后不追随全局变化，历史执行快照可追溯，累计预算不重置，Secret 不进 Job；笔记失败后的显式恢复操作仅覆盖本 Job 的笔记模型并审计，完整重跑清除该覆盖；没有快照的历史任务保持兼容路由，`AUTO/LOCAL_ONLY/LOCAL_FIRST/REMOTE_FIRST/REMOTE_ONLY` 语义不得回退 | `ai-gateway/05-job-policy.md`、`ai/policies.py` |
+| 模型设置 | 用户可维护任意 Provider/模型库；预设仅帮助填写；主/备用从已存模型选择；草稿可真实测试；已保存模型一键与单项共用Worker队列，同供应商/入口FIFO、独立最多三组并行，跨进程节流/429冷却/去重/取消及晚结果fence保留；默认超时 300 秒 | `ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md`、`operations/RUNTIME_MONITOR_AND_MODEL_PRESETS_SPEC.md` |
+| AI Gateway 契约 | Model Profile 显式保存 location/modalities/capabilities；Stage 参数仅白名单；新 Job 按提交时快照固定路由、Profile、Stage Policy、Prompt/领域上下文与 AI 参数，普通/完整/步骤重跑入队时自动刷新同模型必要执行配置，其余沿用原快照；身份变更/删除/禁用重跑安全拒绝，执行参数入队后不追随全局变化，各阶段能力门禁重新核对同身份模型最新已保存评估并审计，历史执行快照可追溯，累计预算不重置，Secret 不进 Job；笔记失败后的显式恢复操作仅覆盖本 Job 的笔记模型并审计，完整重跑清除该覆盖；没有快照的历史任务保持兼容路由，`AUTO/LOCAL_ONLY/LOCAL_FIRST/REMOTE_FIRST/REMOTE_ONLY` 语义不得回退 | `ai-gateway/05-job-policy.md`、`ai/policies.py` |
 | AI Gateway 质量与上下文 | 干净平台字幕不得无条件全文送模；长转写只传候选或 Facts，不能多阶段重复全文；Domain Context 仅低优先级增强，不能覆盖 Evidence、Schema 或安全契约；text-only Profile 不得绑定视觉 Stage | `ai-gateway/AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md`、`services/video_support.py` |
 | Qwen 逐字对齐与校对预算 | 高比例逐字对齐须在新 Transcript 物化前合并为语句 Segment，保留原始时间码；不得原地修改历史 Segment。校对预算按实际批次预估，实测剩余工作超墙钟上限时提前收口，请求 timeout 受剩余时长约束 | `scripts/qwen_asr_runner.py`、`services/video_support.py`、`ai/budget.py` |
 | 证据地图截断恢复 | `LOCAL_FIRST` 首次本地输出截断后先拆分；存在已配置备用模型时，子块或预计超出剩余阶段预算的后续块走备用路由，保持原 Segment Evidence、Schema 校验、调用审计与缓存，不重复扩大本地慢请求；正文字符 Hint 不得漏算分块结构开销 | `services/grounded_map.py`、`ai/gateway.py` |
-| 笔记归纳恢复 | `GLOBAL_SYNTHESIS` 是内部阶段契约；显式选定且探测 `NOT_TESTED` 的模型可在原 JSON/Evidence/预算门禁下尝试，`FAIL` 仍拦截。DeepSeek 笔记请求默认关闭思考并按输出预算缩小 Evidence Pack；取消后的同一步骤仅在 lease 释放、上游 Artifact 有效且无待执行完整重跑时允许续跑 | `services/video_support.py`、`services/job_replay.py`、`jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md` |
+| 笔记归纳恢复 | `GLOBAL_SYNTHESIS` 是内部阶段契约；版本有效的 `FAIL` 仍拦截，旧版笔记小样/过期结果为未验证而非通过。显式阶段选定或非AUTO首选槽位留空继承通用主模型可尝试 `NOT_TESTED`，不扩大自动候选/备用声明；保存/执行/恢复统一判定，同模型续跑刷新最新评估；每个阶段重新核对同身份模型最新已保存能力结果，执行参数与历史快照保留。小样允许合并/拆分章节，严格验证来源和事实证据，歧义不误判失败。DeepSeek 笔记默认关闭思考，保留原 JSON/Evidence/预算；续跑仍须 lease 释放、上游有效且无待执行完整重跑 | `ai-gateway/01-architecture-models.md`、`services/video_support.py`、`services/job_replay.py`、`jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md` |
 | 请求优化与能力诊断 | 短 ID 仅在模型边界，Snapshot/内容/编译器/投影/映射绑定缓存；原文/quote 不变，未知或越界引用拒绝，校对只返回 target_ids；不静默截尾；格式 smoke 不授业务 PASS，模型修复默认关闭；解析质量与回退/重试/缓存分开，等待后复核 Deadline；POI 空证据/跨来源不得自动确认，合成字节收益不冒称真实 Token/质量 | `ai/request_compiler.py`、`benchmark/RELEASE_ACCEPTANCE.md` |
 | AI Gateway 稳定性 | 精确 Cache hit 不重复调用 Provider；`force_regenerate` 绕过命中并保留结果链；本机 ASR/文本/视觉/模型测试必须跨 API/Worker 进程串行；LOCAL/REMOTE Token 分账只依据审计路由位置；Cache hit 不计模型调用或预算；Ollama `keep_alive: 0` 与本地重任务低并发不得回退；未经真实 E2E 与 Benchmark Gate 不得宣称生产验证 | `ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md`、`ai/resource_manager.py`、`ai/budget.py`、`ai-gateway/AI_RUNTIME_AND_PROVIDERS.md` |
 | 可取消本地路由 HTTP | LOCAL_ROUTER 的 `trust_env=False` 在异步路径必须配置到 AsyncClient 构造函数；成功请求和 DIRECT/LOCAL_ROUTER 取消均须通过离线回归。客户端取消不等于上游停止，Ollama 显式清理缺口不得被健康或 Mock 测试抹掉 | `providers/llm.py`、`tests/test_local_router_contract.py`、`tests/test_job_runtime_optimization.py`、`ai-gateway/AI_RUNTIME_AND_PROVIDERS.md` |
@@ -337,7 +337,7 @@
 
 # 当前实施状态
 
-> 状态记录日期：2026-10-10。本文唯一记录当前源码能力与自动验证；生产状态只见带原采样日期的 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
+> 状态记录日期：2026-10-11。本文唯一记录当前源码能力与自动验证；生产状态只见带原采样日期的 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
 
 ## 当前冻结范围
 
@@ -361,6 +361,10 @@
 | 部署 | Mac mini LaunchAgent 双服务、外置生产 venv Python 3.14、健康内容与 Worker 心跳门禁 | operations/DEPLOYMENT_OPTIONS.md、CURRENT_HANDOFF.md |
 
 ## 最新自动验证
+
+2026-10-11 已保存模型测试队列：新增一键真实测试+能力探测，单模型按钮共用MODEL_TEST Worker通道，不进入业务任务列表/首页计数；同供应商/入口FIFO和跨进程文件锁，独立最多三组并行，本地硬件仍串行，尊重间隔/RPM且远程至少4秒，429等共享至少60秒/Retry-After冷却，不自动重试或备用。重复在途同项复用，每模型独立结果/续租/fence与取消，错误不影响其他入口，晚结果不覆盖新执行；模型身份变化拒绝旧测试，凭据不进Job。PC1095与390px在隔离SQLite/模拟模型上通过一键、持续单点/去重、分组并发、失败/取消隔离、未保存编辑保留、进度和无溢出/相关console错误验收；外部Edge稳定帧/截图阻塞，改用Codex内置Browser完成。新增队列11项（含真实凭据存储初始化及首页计数隔离），自动测试使用临时模型/硬件锁避免干扰生产；后端全量369、前端19及Ruff/ESLint/TypeScript/隔离Vite通过，无迁移。真实已保存模型测试与生产加载另见带日期交接快照；完整契约见[模型设置](ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md#11-已保存模型测试队列2026-10-11)。
+
+2026-10-11 能力门禁与探测400修复：针对3bebb50笔记小样的版式/固定措辞限制，使用独立note-synthesis-v2；允许合并/拆分/调整章节，以来源、逐字引文、事实证据和有限数字/推荐方向检查判定，歧义为未验证，旧版/过期笔记评估不冒充PASS，历史裸FAIL/新版有效FAIL保守拦截，显式允许仍审计。按用户确认，每次阶段选模独立读取同身份模型最新已保存探测/业务评估，绕过旧事务/ORM缓存并固定本阶段判定；新PASS替代快照旧FAIL，新FAIL影响下一阶段，原模型/路由/生成参数/声明/预算和历史快照保留。同模型重跑入队刷新最新评估，不借用不同身份结果，原重跑身份门禁保留。ai.capability.checked及调用审计记录状态/更新时间/来源/哈希；能力拒绝与未配置错误分离。结构化探测明确JSON指令，HTTP失败记录具体小样、状态/脱敏厂商原因；格式可解析不自动开启DIRECT原生JSON，失败/截断不覆盖旧结果，限长小样诊断保留。专项32、目标97、后端全量358、完整Ruff及改动文件格式通过；Node24前端19/ESLint/TypeScript/隔离Vite构建通过。全库原有29文件格式差异未扩张修正，前端未改代码或重复Browser。只读复核job_b232da84…：校对成功、地图两次截断拆分恢复，笔记无请求，被v1 FAIL拦截；加载前API返回v1 FAIL且13:29探测仍写v1，确认当时修复未加载。源码验收时未提交/部署/重启、真实探测/续跑或改生产数据；随后已按用户授权无迁移加载并完成只读现场验收，证据见[交接生产快照](CURRENT_HANDOFF.md)。小样不证明全面语义质量，契约/回归入口见[模型边界](ai-gateway/01-architecture-models.md#笔记归纳小样与有效结论2026-10-11)、[任务策略](ai-gateway/05-job-policy.md)。
 
 2026-10-10 高德QPS补修：指定视频5项UNRESOLVED只读归因为账号接口QPS超限；Provider统一API/Worker跨进程请求间隔1.1秒、QPS/HTTP429后5秒冷却、不自动重试，缓存/同查询合并按Key哈希隔离，HTTP错误不带请求URL。新增跨进程/不同Key/失败冷却测试，后端全量326、目标11及HTTP错误补测5、Ruff通过，前端19/ESLint/TypeScript/隔离Vite构建通过。未改变前端行为或重复Browser，未增加真实Provider请求/改历史地点。6项地点及12个校对段的本机人审清单已生成；仍须人工核对与实机账号配额验收。
 
@@ -5314,6 +5318,16 @@ GET 返回三个补充文本、只读核心规则摘要、最大长度和每个�
 
 已被主/备用路由引用的模型不能删除；先切换路由才能删除。每次保存、路由切换、真实测试、自动备用切换和删除均写入审计日志，不含 Key。
 
+### 1.1 已保存模型测试队列（2026-10-11）
+
+“已保存模型”栏提供“一键测试全部”，逐模型先做真实连通测试，再做能力探测；连通失败不继续调用该模型，其他模型独立继续。单模型的真实测试/能力探测共用同一队列，重复提交已在排队或运行的同项任务复用原Job，BOTH覆盖TEST/PROBE；完成后再次点击是新的测试。界面显示本次批量进度与逐模型排队/执行/完成/失败/取消状态，可单独取消；进行中的模型禁止保存、删除或读接口，未保存编辑不会因探测结果刷新而丢失。PC与390px使用既有按钮/反馈体系，无横向溢出。
+
+已保存模型的界面测试通过`POST /api/settings/model-tests`立即入队，由Worker独立最多三线程执行`MODEL_TEST` Job，视频/招聘处理通道不领取这些Job，普通任务列表/首页近期任务及状态计数不混入测试记录。复用既有测试/探测处理函数的结果写入与脱敏逻辑；每个测试有独立Session、续租和执行fence，晚结果不能覆盖新执行。Job只保存Profile ID、身份哈希、不可逆分组哈希和结果，不保存凭据。
+
+同一入口（scheme/host/port，忽略路径）或同一明确命名的供应商串行FIFO；通用OpenAI兼容/LocalAiMux是协议或桥接名称，不把不同入口误合为一个供应商。Worker调度跳过被占用的分组但保留冲突任务先后，独立分组可并行；跨API/Worker使用同分组文件锁，整段探测持锁，本地模型继续遵守硬件串行/keep_alive=0。远程每请求至少4秒并尊重Profile间隔/RPM，HTTP429或额度/限流错误按Retry-After且至少60秒共享冷却，不自动重试、换Key或备用。外部账户额度和其他应用流量不能由本队列保证；失败原因单独呈现，业务小样结果不代表全面质量。
+
+既有同步test/probe及草稿接口保留兼容，使用同一分组锁/节流，手动测试不改变生产熔断。草稿仍不持久化Key。一键测试仅在用户显式点击时创建任务，Worker启动/页面刷新不自动测试。回归入口：`backend/tests/test_model_test_queue.py`；界面截图及隔离验收用模拟模型，不替代真实Provider验收。
+
 ## 2. 历史删除
 
 任务列表与内容列表提供独立的“删除历史”入口。删除不是归档：操作需要确认，成功后列表立即移除并写审计事件。
@@ -6284,11 +6298,23 @@ REMOTE_STRONG = 用户配置的 OpenAI-compatible 模型
 
 任何本地模型进入 Router 前必须通过 Capability Probe。
 
-Capability Probe 只对实际执行的项目给出 `PASS` 或 `FAIL`，未覆盖能力保持 `NOT_TESTED`。Provider 返回 429、配额不足、网络错误或熔断冷却时属于“本次无法判定”，不得写成能力失败或覆盖上一次成功结果。设置页真实测试与能力探测必须按同一 Provider 凭据共享节流，远程探测串行执行并限制输出长度。
+Capability Probe 只对实际执行的项目给出 `PASS` 或 `FAIL`，未覆盖能力保持 `NOT_TESTED`。Provider 返回 429、配额不足、网络错误或熔断冷却时属于“本次无法判定”，不得写成能力失败或覆盖上一次成功结果。设置页真实测试与能力探测必须按同一 Provider 凭据共享节流，同供应商或入口的远程探测串行执行并限制输出长度，独立分组允许受限并行。
 
 输出限额仅在接口支持时传入；不强制所有型号接受 64 Token 或关闭思考。显式本机路由的接口能力目录与业务 Probe 分开，非必要参数采用模型默认值，system/消息、JSON/Evidence 和总预算继续校验。协议不兼容属于配置错误，不作为临时故障累计熔断；完整契约与本轮实现见 [LocalAiMux 客户端接入](ai-gateway/LOCAL_ROUTER_PROVIDER_COMPATIBILITY_SPEC.md)。
 
-手动连通/能力测试共用先进先出队列，不受生产熔断冷却拦截，也不更改生产熔断状态；保留凭据节流，实际限流/配额/鉴权错误仍返回。重复点击可提交后排队，失败必须释放队列；不自动批量测模型或回退到其他账号。
+手动连通/能力测试按同一明确供应商或入口共享FIFO/跨进程锁，独立分组最多三组并行，不受生产熔断冷却拦截或更改生产熔断；保留凭据节流及Profile间隔/RPM，远程至少4秒，429等限流按Retry-After且至少60秒共享冷却，不自动重试。已保存模型按钮与显式“一键测试全部”共用Worker队列，同项在途重复点击复用，失败/取消释放资源；不自动启动批量测试或回退其他账号。接口、状态及草稿兼容边界见[模型设置](ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md#11-已保存模型测试队列2026-10-11)。
+
+### 笔记归纳小样与有效结论（2026-10-11）
+
+`GLOBAL_SYNTHESIS` 使用独立版本 `note-synthesis-v2`，其他业务小样仍为 `business-mini-v1`。修正 `3bebb50` 的旧笔记小样：不要求恰好两个章节、固定章节顺序或固定摘要措辞；使用生产笔记已有的 `summary`、`bullets`、`segment_ids`、`supporting_quotes` 字段，检查有效来源、逐字引文、两地及月份/价格/否定/推荐菜的证据覆盖。简单数字或推荐方向的明确矛盾为 `FAIL`；有限规则无法确定的改写为 `NOT_TESTED`，不得声称已证明全面语义质量。所有结构化探测在 user 消息中明确要求 JSON，不额外要求 system 接口能力。
+
+新版有效业务失败仍阻止执行，现有 `allow_unverified_model` 显式允许时记录审计，禁用/非文本模型不能因此放行。旧版笔记评估、超过30天或模型身份不匹配的笔记记录有效状态为 `NOT_TESTED`，不改写原记录，也不变成 `PASS`；没有版本证据的历史裸 `FAIL` 继续保守拦截。保存、AUTO候选、阶段执行、能力展示与笔记恢复共用版本判定。只有非AUTO笔记阶段的首选模型槽位留空时，才允许继承通用主模型作未验证尝试；不扩大未声明能力的自动候选或备用模型。
+
+探测 HTTP 错误和笔记小样截断均不覆盖旧结果；摘要无法判定时保留上一份笔记评估，最新尝试状态写入 `model_profile.probed.detail.note_probe`。笔记评估及事件记录原因码、响应哈希和最多500字符的脱敏预览，保留既有笔记评估用于追溯；`model_profile.probe_failed` 记录失败子项、HTTP状态和脱敏厂商消息，API指出具体小样。正常业务笔记请求不因此新增全文响应日志。格式可解析不证明原生JSON接口支持，DIRECT探测保留用户配置的supports_json_mode，LOCAL_ROUTER按接口目录判定。
+
+按2026-10-11用户确认，现有任务入队续跑刷新同身份模型的最新探测结果/业务评估；每次阶段选模还会重新查询最新已保存评估，绕过旧事务/ORM缓存。一次阶段判定使用同份评估，下一阶段重新查询；模型身份/路由、参数、能力声明、原提交与执行历史保留。`ai.capability.checked`和调用审计记录采用的状态、更新时间、来源及评估哈希，不发起额外真实探测，不借用不同身份模型结果；新PASS可替代快照旧FAIL，新有效FAIL也会拦截后续阶段。完整读取与身份边界见[任务策略](ai-gateway/05-job-policy.md)。能力门禁拒绝使用`MODEL_CAPABILITY_REJECTED`，真正缺少配置仍使用`PROVIDER_NOT_CONFIGURED`。
+
+离线回归入口：`backend/tests/test_note_capability_probe.py`。小样通过只证明这个输入上的结构、证据覆盖及有限事实检查；真实DeepSeek、长视频笔记语义和POI仍须独立验收。
 
 最低要求：
 
@@ -8265,7 +8291,7 @@ Custom
 
 Custom 下允许只覆盖某几个 Stage。
 
-没有覆盖的 Stage 使用提交 Job 当时保存的 Stage Policy。Job 固定模型身份/路由、生成参数、Prompt 补充、领域包、ASR/转写分块及预算上限；排队期间修改设置不影响当前执行。普通重试、步骤续跑和完整重跑默认在入队时刷新同模型的必要执行配置，无需新增选择项；原提交快照不改写。API Key 等凭据仍在构造调用客户端时从 Secret Store 读取，不写入 Job payload。没有历史提交快照的旧 Job 保持兼容读取，不伪造当时设置。
+没有覆盖的 Stage 使用提交 Job 当时保存的 Stage Policy。Job 固定模型身份/路由、生成参数、Prompt 补充、领域包、ASR/转写分块及预算上限；排队期间修改这些设置不影响当前执行。能力评估属于执行资格：每次进入阶段选模时重新读取同身份模型最新已保存的探测结果，不沿用快照里的旧能力结论，也不自动调用模型重测。普通重试、步骤续跑和完整重跑默认在入队时刷新同模型的必要执行配置，无需新增选择项；原提交快照不改写。API Key 等凭据仍在构造调用客户端时从 Secret Store 读取，不写入 Job payload。没有历史提交快照的旧 Job 保持兼容读取，不伪造当时设置。
 
 失败在笔记生成步骤时，用户可明确选择“使用当前笔记模型继续”。服务端只把当前笔记阶段策略与所选 Profile 的无密钥字段记为本次 Job 的恢复配置，原提交快照及上游 Artifact 不变，并在 `job.step_replay.queued` 记录模型与探测状态。普通步骤续跑保持有效模型/语义配置并自动刷新该模型必要执行配置；完整重跑清除显式笔记恢复配置，回到原提交模型身份。手动选定且探测为 `NOT_TESTED` 的 Profile 可进入原有 JSON、Segment Evidence 与预算门禁；`FAIL` 仍拒绝选路。
 
@@ -8274,8 +8300,8 @@ Custom 下允许只覆盖某几个 Stage。
 ### 同模型必要配置刷新（2026-10-09）
 
 - 身份包含实际 model、provider、去除末尾斜杠的 base_url、接入方式和推理位置；仅 Profile ID/名称相同不能证明同模型。相关模型被删除、禁用或身份改变时，返回 `REPLAY_MODEL_UNAVAILABLE / REPLAY_MODEL_IDENTITY_CHANGED`，不改变 Job/Step/Artifact 状态，不追随新的全局路由。
-- Profile 白名单：接口能力与实际 JSON 支持、超时、间隔、并发、限速、重试/JSON 重试、稳定性模式和熔断参数。Stage 仅刷新超时/重试，且当前阶段路由必须与原路由一致；通用重试/等待/间隔、转写处理超时可刷新。任务显式覆盖仍优先。temperature、thinking、输入/输出上限、Prompt/领域包、分块和所有预算上限不自动更新。
-- `ai_submission_config` 保存提交意图；`ai_execution_config` 保存本次必要配置覆盖、revision、采样时间、来源更新时间、字段差异和有效配置指纹；替换前的执行配置追加到 `ai_execution_history`。读取顺序为本次执行配置（已合并有效显式恢复）→ 显式恢复 → 原提交快照，不在运行中继续读全局配置。审计记录执行 revision/指纹及刷新字段，不记录 Secret。
+- Profile 白名单：接口能力与实际 JSON 支持、最新探测结果/业务评估、超时、间隔、并发、限速、重试/JSON 重试、稳定性模式和熔断参数。Stage 仅刷新超时/重试，且当前阶段路由必须与原路由一致；通用重试/等待/间隔、转写处理超时可刷新。任务显式覆盖仍优先。temperature、thinking、输入/输出上限、声明能力/模态、Prompt/领域包、分块和所有预算上限不自动更新。
+- `ai_submission_config` 保存提交意图；`ai_execution_config` 保存本次必要配置覆盖、revision、采样时间、来源更新时间、字段差异和有效配置指纹；替换前的执行配置追加到 `ai_execution_history`。执行配置读取顺序为本次执行配置（已合并有效显式恢复）→ 显式恢复 → 原提交快照。能力门禁单独通过新连接采样同身份模型最新已保存的 `probe_results/business_assessments`，绕过旧事务/ORM缓存，一次阶段选模固定这份评估，下一阶段重新采样；不改变执行参数或已配置候选模型。`ai.capability.checked` 及调用审计记录能力、有效状态、更新时间、评估哈希和来源；没有同身份现存Profile时不借用其他模型评估，当前在途配置保留原语义，重跑仍按原身份门禁拒绝。审计不记录 Secret。
 - 步骤续跑只刷新剩余阶段所需模型；有 Grounded Map 时笔记阶段仅检查 NOTE_REDUCE，已完成阶段不因后来删除旧模型而阻止合法续跑。接口指纹继续进入 Cache Key；ASR 等上游有效产物保留，失败阶段和后续产物按原 Replay 门禁失效。
 - 活跃任务完整重跑先保存 `ai_pending_execution_config`，当前执行配置保持不变；旧执行安全退出并释放租约后才安装入队时冻结的配置，不在释放时重新采样。普通重试与完整重跑共用重置函数，清除旧步骤续跑标记并使旧 Artifact 失效。
 - Token 与远程尝试按同 Job 的现存 Audit 累计，配置刷新不扩大限额、不删除历史消耗；单轮墙钟限制保持。已按保留策略清理的旧 Audit 不补造用量，累计口径不代表可恢复完整历史账单。
@@ -9442,7 +9468,8 @@ Claim
 | --- | --- |
 | `GET/POST /api/settings/model-profiles`、`PUT/DELETE /api/settings/model-profiles/{profile_id}` | 已保存模型配置；接入类型 `DIRECT / LOCAL_ROUTER`，接口快照保存在 Setting JSON，凭据进 Secret Store |
 | `POST /api/settings/model-profiles/{profile_id}/interface-capabilities`、`POST /api/settings/model-profiles/interface-capabilities-draft` | 使用当前输入和已有/草稿凭据读取路由目录，不推理、不保存；保存配置后快照才对新任务生效 |
-| `POST /api/settings/model-profiles/{profile_id}/test`、`.../{profile_id}/probe`、`.../test-draft`、`.../probe-draft` | 用户显式发起真实连通/能力小样，共用 API 进程内 FIFO 与凭据节流；不影响生产熔断，不自动重试或换模型 |
+| `POST/GET /api/settings/model-tests` | 已保存模型TEST/PROBE/BOTH立即入队并返回独立MODEL_TEST Job；省略profile_ids为全部模型；GET返回最近100项测试状态。Worker最多三组并行，同供应商或入口串行，重复在途同项复用，单项取消复用`POST /api/jobs/{id}/cancel`，不保存凭据 |
+| `POST /api/settings/model-profiles/{profile_id}/test`、`.../{profile_id}/probe`、`.../test-draft`、`.../probe-draft` | 保留同步兼容与草稿接口，按供应商/入口分组FIFO和跨进程锁共享节流；不影响生产熔断，不自动重试或换模型。已保存模型的界面按钮使用上述Worker接口 |
 | `GET /api/jobs/{job_id}/ai-usage` | 返回 total/local/remote、by_stage/by_model、retry/fallback/waste、cache/ratios/budget；数据由历史审计只读推导，不改旧账本 |
 
 用量聚合中的 `input_tokens/output_tokens` 保留可信实测；`estimated_input_tokens/estimated_output_tokens` 与对应 `estimated_*_calls` 表示本地估算，`unknown_input_calls/unknown_output_calls` 表示没有可信值或可用估算。输入和输出独立判定，可信 0 不等于缺省，路由占位 0 不当成实测；Cache hit 不重复计耗。估算参与预算但不证明账单、思考 Token 或取消后消费已经终止。详见 [日志口径](operations/LOGGING.md#41-token-口径2026-10-08)与 [LocalAiMux 契约](ai-gateway/LOCAL_ROUTER_PROVIDER_COMPATIBILITY_SPEC.md)。

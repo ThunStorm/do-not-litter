@@ -183,7 +183,7 @@ def lease_next_job(db: Session, owner: str, lease_seconds: int) -> Job | None:
     now = utc_now()
     candidate_id = db.scalar(
         select(Job.id)
-        .where(Job.status == JobStatus.QUEUED.value)
+        .where(Job.status == JobStatus.QUEUED.value, Job.job_type != "MODEL_TEST")
         .order_by(Job.priority.asc(), Job.created_at.asc())
         .limit(1)
     )

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Generator
+from types import SimpleNamespace
 
 import pytest
 from fastapi import FastAPI
@@ -13,6 +14,16 @@ from zhijian.core.config import Settings, get_settings
 from zhijian.db.base import Base
 from zhijian.db.session import build_engine, get_db
 from zhijian.services.seed import seed_demo_data
+
+
+@pytest.fixture(autouse=True)
+def isolate_manual_test_locks(tmp_path, monkeypatch):
+    from zhijian.ai.resource_manager import local_ai_resource_manager
+
+    monkeypatch.setattr(
+        "zhijian.ai.model_test_queue.get_settings", lambda: SimpleNamespace(data_dir=tmp_path)
+    )
+    monkeypatch.setattr(local_ai_resource_manager, "lock_path", tmp_path / "local-ai.lock")
 
 
 @pytest.fixture

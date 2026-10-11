@@ -32,6 +32,8 @@ TEXT_STAGES = (
     "EXTRACT_TRAVEL_FACTS",
 )
 _PROFILE_RUNTIME_FIELDS = {
+    "probe_results",
+    "business_assessments",
     "interface_capabilities",
     "supports_json_mode",
     "timeout_seconds",
@@ -68,6 +70,7 @@ def profile_identity(value: dict[str, Any]) -> tuple:
 
 def stage_profile_ids(values: dict, overrides: dict, stages=TEXT_STAGES) -> set[str]:
     """Select configured candidates without opening clients or invoking inference."""
+    from zhijian.ai.model_registry import business_probe_status
     from zhijian.ai.policies import resolve_stage_policy
 
     routing = values.get("model-routing") or {}
@@ -91,6 +94,17 @@ def stage_profile_ids(values: dict, overrides: dict, stages=TEXT_STAGES) -> set[
                     explicit
                     or not values.get(f"ai-stage-policy:{stage}")
                     or policy.capability.value in profile.get("capabilities", [])
+                    or (
+                        stage in {"NOTE_REDUCE", "GENERATE_AI_NOTE"}
+                        and (
+                            business_probe_status(profile, "GLOBAL_SYNTHESIS") == "PASS"
+                            or (
+                                mode != "AUTO"
+                                and profile_id == routing.get("primary_id")
+                                and location == ("REMOTE" if mode.startswith("REMOTE") else "LOCAL")
+                            )
+                        )
+                    )
                 ):
                     result.add(profile_id)
         if mode in {"LOCAL_FIRST", "REMOTE_FIRST", "AUTO"}:
@@ -308,6 +322,39 @@ def job_setting(db: Session, key: str, job: Job | None = None) -> dict[str, Any]
         row = db.get(Setting, key)
         value = row.value_json if row else None
     return deepcopy(value) if isinstance(value, dict) else {}
+
+
+def latest_profile_assessment(db: Session, profile_id: str, frozen: dict) -> tuple[dict, dict]:
+    """Use committed assessments for this identity, without replacing execution intent."""
+    # A fresh connection avoids both the ORM identity cache and an old read transaction.
+    with db.get_bind().connect() as connection:
+        row = connection.execute(
+            select(Setting.value_json, Setting.updated_at).where(Setting.key == f"model-profile:{profile_id}")
+        ).first()
+    metadata = {"profile_id": profile_id, "checked_at": utc_now().isoformat()}
+    if row is None or profile_identity(frozen) != profile_identity(row.value_json or {}):
+        # Never borrow another model's assessment. Existing in-flight submission
+        # semantics remain frozen; replay still rejects changed/deleted identities.
+        return frozen, {**metadata, "source": "SNAPSHOT_IDENTITY_UNAVAILABLE"}
+    current = row.value_json or {}
+    result = deepcopy(frozen)
+    for key in ("probe_results", "business_assessments"):
+        result[key] = deepcopy(current.get(key) or ({} if key == "probe_results" else []))
+    result["enabled"] = bool(current.get("enabled", True))
+    metadata.update(
+        {
+            "source": "CURRENT_SAVED",
+            "updated_at": row.updated_at.isoformat(),
+            "assessment_hash": hashlib.sha256(
+                json.dumps(
+                    {key: result[key] for key in ("probe_results", "business_assessments")},
+                    sort_keys=True,
+                    ensure_ascii=False,
+                ).encode()
+            ).hexdigest(),
+        }
+    )
+    return result, metadata
 
 
 def job_stage_override(job: Job | None, stage: str) -> dict[str, Any] | None:
