@@ -30,6 +30,11 @@ def resolve_stage_policy(
     return ResolvedAIStagePolicy(**values, sources=sources)
 
 
+def stage_attempt_limit(max_attempts: int | None, planned_calls: int = 1) -> int | None:
+    """Normal batches each receive their bounded retry/fallback allowance."""
+    return max_attempts * max(1, planned_calls) if max_attempts else None
+
+
 def validate_stage_policy(
     policy: AIStagePolicy,
     profiles: dict[str, dict[str, Any]],

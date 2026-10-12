@@ -15,6 +15,7 @@ from zhijian.ai.reliability import (
     AIProviderError,
     ModelReliabilityPolicy,
     ReliabilityGuards,
+    check_output_budget,
     classify_provider_error,
     provider_identity,
     provider_rate_limit_identity,
@@ -76,6 +77,7 @@ class ProviderRequestOptions:
     max_output_tokens: int | None = None
     thinking: bool | None = None
     context_window: int | None = None
+    response_schema: dict[str, Any] | None = None
 
 
 class LLMProvider(Protocol):
@@ -208,7 +210,11 @@ class OllamaProvider:
                     "messages": messages,
                     "stream": False,
                     "keep_alive": 0,
-                    **({"format": "json"} if json_mode else {}),
+                    **(
+                        {"format": options.response_schema if options and options.response_schema else "json"}
+                        if json_mode
+                        else {}
+                    ),
                     **({"options": runtime_options} if runtime_options else {}),
                     **({"think": options.thinking} if options and options.thinking is not None else {}),
                 },
@@ -261,6 +267,8 @@ class OllamaProvider:
 
 
 class OpenAICompatibleProvider:
+    request_contract_version = "openai-compatible-v3"
+
     def __init__(
         self,
         name: str,
@@ -282,6 +290,8 @@ class OpenAICompatibleProvider:
         self.interface_capabilities = (
             InterfaceCapabilities.model_validate(interface_capabilities) if interface_capabilities else None
         )
+        if urlsplit(self.base_url).hostname == "openrouter.ai":
+            self.request_contract_version = "openai-compatible-openrouter-v4"
 
     def _generate(
         self,
@@ -313,6 +323,21 @@ class OpenAICompatibleProvider:
         if self.connection_type != "LOCAL_ROUTER" and options and options.max_output_tokens is not None:
             payload["max_tokens"] = options.max_output_tokens
         if (
+            options
+            and self.connection_type != "LOCAL_ROUTER"
+            and options.thinking is False
+            and urlsplit(self.base_url).hostname in {"token.sensenova.cn", "token.sensenova.ai"}
+            and model.lower().startswith(("deepseek-v4", "glm-5.2", "sensenova-6.8-flash-lite"))
+        ):
+            payload["reasoning_effort"] = "none"
+        elif (
+            options
+            and self.connection_type != "LOCAL_ROUTER"
+            and options.thinking is not None
+            and urlsplit(self.base_url).hostname == "openrouter.ai"
+        ):
+            payload["reasoning"] = {"enabled": options.thinking}
+        elif (
             options
             and self.connection_type != "LOCAL_ROUTER"
             and options.thinking is not None
@@ -479,17 +504,18 @@ class FallbackLLMProvider:
         self._legacy_reliability = primary_reliability is None and fallback_reliability is None
         self._remaining_attempts = 0
         self._attempt_context: dict[str, Any] = {}
+        self.dispatch_guard: Callable[[], None] | None = None
 
     def _sleep(self, seconds: float) -> None:
         if self.cancel_check is None:
             self.sleeper(seconds)
             return
-        remaining = seconds
-        while remaining > 0:
+        deadline = perf_counter() + seconds
+        while perf_counter() < deadline:
             self.cancel_check()
-            interval = min(remaining, 0.25)
-            self.sleeper(interval)
-            remaining -= interval
+            remaining = deadline - perf_counter()
+            if remaining > 0:
+                self.sleeper(min(remaining, 0.25))
         self.cancel_check()
 
     @staticmethod
@@ -566,15 +592,21 @@ class FallbackLLMProvider:
                 self._remaining_attempts -= 1
                 options = self.fallback_request_options if route == "fallback" else self.request_options
                 queued_before_ms = round((perf_counter() - started) * 1000)
+                def dispatch_guard() -> None:
+                    nonlocal wait_before
+                    wait_before += ReliabilityGuards.before_dispatch(
+                        provider_rate_limit_identity(provider), policy, self._sleep
+                    )
+                self.dispatch_guard = dispatch_guard
                 if self.attempt_runner:
                     result = self.attempt_runner(provider, method, call_messages, model, options)
                 elif options is None:
+                    dispatch_guard()
                     result = getattr(provider, method)(call_messages, model=model)
                 else:
+                    dispatch_guard()
                     result = getattr(provider, method)(call_messages, model=model, options=options)
-                if str(result.metadata.get("finish_reason") or "").lower() in {"length", "max_tokens"}:
-                    result.metadata["parse_quality"] = "INCOMPLETE"
-                    raise AIProviderError("AI_PROVIDER_OUTPUT_TRUNCATED", "模型输出达到长度上限")
+                check_output_budget(result.content, result.metadata, result.usage)
                 if not result.content or not result.content.strip():
                     raise AIProviderError("AI_PROVIDER_EMPTY_RESPONSE", "模型返回了空内容", retryable=True)
                 if method == "generate_json" and self.result_validator:
@@ -708,6 +740,7 @@ class FallbackLLMProvider:
                     )
                 return result
             finally:
+                self.dispatch_guard = None
                 ReliabilityGuards.release(semaphore)
 
     def _call(self, method: str, messages: list[dict[str, str]]) -> LLMResult:

@@ -4,14 +4,15 @@
 
 ## 任务续接
 
-- 范围：Z0–Z7核心+指定视频真实验收；Z8不实施，Mux只启动已有本机API，未改仓库/Key/权限。
-- 已完成：代码补修43f42ff已无迁移加载；322后端/19前端与静态检查通过。BV11Ao7BYE1V新Job64e7…达到PARTIAL_SUCCESS，当前Note v2、14章节/12截图，10次尝试未超12；校对/转写/Ground Map在续跑中REUSED，旧失败/修复/取消记录保留。PC/390px通过，本轮提交，未推送。
-- 未完成：1REVIEW/5UNRESOLVED待人审，confirmed=0；音频/地名GT、精确上游型号/Token、人工字幕/长视频/Ollama退出与全路由/缓存矩阵仍未证明。
-- 下一步一项：用户按时间码核对6个待处理地点及关键转写，再决定扩大真实矩阵。
-- 入口：[视频验收](benchmark/VIDEO_E2E_BV11Ao7BYE1V_REPORT.md)、[总矩阵](benchmark/CROSS_PROJECT_E2E_REPORT.md)。
-- 禁止：不自动确认POI、不改原提交快照/历史、不扩大调用预算/切换模型/晋级ASR；仍未知的内容不写成通过。旧现场保留原日期，未逐项复核。
+- 目标：AI入口隔离、正常批次/重跑参数、能力判定、免费入口真实诊断和 BV1eAew6UEvG 全模型矩阵；Z8未实施。
+- 已完成：源码补修、后端400项/前端21项与静态检查、PC/390px Browser、必要备份无迁移重载。官方DeepSeek最终新Job `job_b218748b83704374a698223c614e90c3` 全16步完成、MODEL笔记12节41引文，引用归属错误0；原受阻Job已恢复。10个保存模型均已真实测试，详见[矩阵报告](benchmark/AI_ENTRY_ISOLATION_BV1eAew6UEvG_REPORT.md)。本轮已本地提交，未推送。
+- 限制：免费DS校对/地图成功但归纳间歇429，HYBRID笔记未算完整模型通过；OR动态免费路由有强制思考400/截断/JSON错误；赞助入口401令牌失效。7b覆盖薄；8b/7b未按用户要求重验纯本地。地点confirmed=0，语义仍待人审。
+- 下一步：若要使失败的免费/赞助入口完整通过，先取得供应商可用配额/有效新凭据，再按矩阵报告定向续跑，勿重跑已验官方/9b。
+- 禁止：不自动确认POI、不改原提交/历史、不突破Job硬预算，不把HYBRID或连接测试写成完整模型验收。现场见下方带日期快照。
 
-## 生产快照（最新健康采样2026-10-11 21:36，北京时间；旧条目保留原日期；旧条目保留原日期）
+## 生产快照（最新健康采样2026-10-12 16:11，北京时间；旧条目保留原日期）
+
+- 2026-10-12 16:11（入口隔离/视频矩阵最终现场）：补修后先后制作逻辑备份，最终重载前备份 `data/backups/app-pre-note-fact-dedup-20261012-155739.db` 已验 integrity=ok；无迁移。API/Worker RUNNING、API正文和Worker心跳READY，Worker PID=5357。生产0025、integrity=ok、FK0、活跃Job/lease=0、RUNNING LLM=0；前端部署资产沿用本轮验收版。官方DeepSeek独立回归16步全部完成，Job `job_b218748b83704374a698223c614e90c3` PARTIAL_SUCCESS/CLEAN_CACHE、MODEL笔记12节41引文，11条LLM审计均指向官方主Profile；引用和Segment绑定错误0，地点confirmed0。免费DS/OR HYBRID与赞助401限制见矩阵报告；本轮未自动确认POI或清除原审计。现场只证明当前服务和所列真实任务，语义Ground Truth仍待人工审阅。
 
 - 2026-10-11 21:36（本地测试串行与完成后间隔补修）：用户明确要求本地能力测试始终串行且留资源加载间隔；LOCAL/Ollama跨Provider/入口共用硬件分组，直连或缺Base URL也不能绕过，每子调用结束后至少5秒，前后配置间隔/RPM更长取更长；共享完成时间跨模型/API/Worker保留。已保存/草稿探测统一分组锁→硬件锁。目标21/后端379/前端19及Ruff、ESLint、类型与隔离构建通过；生产Browser1095/390px只读验证说明和无溢出/相关错误，未触发真实模型测试。沿用本任务无迁移重部署授权；重载前active/lease/RUNNING call0、integrity=ok、FK0、0025；逻辑备份 `data/backups/app-pre-local-test-gap-20261011-213505.db` 和同名verification、旧静态包及HEAD源码归档保留。API42039/Worker42057 RUNNING，内容/health/对应新心跳READY，新JS/CSS HTTP hash一致；44表（排除system_events/runtime）逐字段hash与备份不变，活跃/lease0、integrity=ok、FK0、0025。只读截图/JSON见忽略目录 `data/benchmarks/local-model-test-gap-20261011/`。本轮补充本地提交、未推送；未迁移、改历史/模型设置、视频重跑或确认POI，上方任务续接未改。
 

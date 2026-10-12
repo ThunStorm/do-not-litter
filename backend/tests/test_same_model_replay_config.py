@@ -89,6 +89,7 @@ def seed_frozen_job(db, settings):
         interface_capabilities=capability().model_dump(),
         timeout_seconds=240,
         max_output_tokens=8192,
+        temperature=0.6,
         api_key="must-not-enter-snapshot",
     )
     policy.value_json = {
@@ -213,7 +214,7 @@ def test_capture_rejects_missing_or_incompatible_interface_before_job_creation(c
 
 
 @pytest.mark.parametrize("endpoint", ["retry", "retry-full"])
-def test_replay_refreshes_only_runtime_fields_and_freezes_this_run(client, app_and_session, endpoint):
+def test_replay_refreshes_original_models_parameters_and_freezes_this_run(client, app_and_session, endpoint):
     app, factory = app_and_session
     with factory() as db:
         job, _ = seed_frozen_job(db, app.dependency_overrides[get_settings]())
@@ -234,13 +235,14 @@ def test_replay_refreshes_only_runtime_fields_and_freezes_this_run(client, app_a
             db.scalar(select(JobStepArtifact).where(JobStepArtifact.job_id == job.id)).status == "INVALIDATED"
         )
         current = job_setting(db, "model-profile:original", job)
-        assert current["timeout_seconds"] == 240 and current["max_output_tokens"] == 4096
+        assert current["timeout_seconds"] == 240 and current["max_output_tokens"] == 8192
+        assert current["temperature"] == 0.6
         assert current["interface_capabilities"]["system"] == "SUPPORTED"
         stage = job_setting(db, "ai-stage-policy:TRANSCRIPT_CORRECTION", job)
-        assert stage["temperature"] == 0.1 and stage["max_output_tokens"] == 512
+        assert stage["temperature"] == 0.9 and stage["max_output_tokens"] == 2048
         assert stage["timeout_seconds"] == 200 and stage["retry_count"] == 2
         assert job_stage_override(job, "TRANSCRIPT_CORRECTION")["timeout_seconds"] == 77
-        assert job_setting(db, "transcript-processing", job) == {"batch_size": 16, "timeout_seconds": 210}
+        assert job_setting(db, "transcript-processing", job) == {"batch_size": 64, "timeout_seconds": 210}
         assert job_setting(db, "app:general", job)["ai_max_model_attempts_per_job"] == 1
         assert job_setting(db, "app:general", job)["ai_retry_count"] == 3
         assert job_setting(db, "prompt:supplements", job)["transcript_correction"] == "原规则"
@@ -367,6 +369,92 @@ def test_active_full_replay_uses_pending_config_without_changing_running_config(
         assert resume_deferred_full_replays(db) == 1
         assert PENDING_EXECUTION_KEY not in job.payload_json and job.payload_json[EXECUTION_KEY] == pending
         assert job_setting(db, "model-profile:original", job)["timeout_seconds"] == 240
+
+
+def test_consecutive_submissions_and_replay_keep_entry_specific_parameters(client, app_and_session):
+    from zhijian.services.video_support import provider_for_role
+
+    app, factory = app_and_session
+    settings = app.dependency_overrides[get_settings]()
+    store = build_secret_store(settings.secret_store, settings.data_dir)
+    with factory() as db:
+        for name, base, mode, retries in [
+            ("free", "https://free.fixture/v1", "FREE_TIER", 2),
+            ("official", "https://official.fixture/v1", "DIRECT", 0),
+        ]:
+            db.add(
+                Setting(
+                    key=f"model-profile:{name}",
+                    value_json={
+                        "name": name,
+                        "provider": "OpenAI Compatible",
+                        "base_url": base,
+                        "model": "deepseek-v4-flash",
+                        "location": "REMOTE",
+                        "reliability_mode": mode,
+                        "retry_count": retries,
+                        "max_output_tokens": 4096,
+                        "capabilities": [
+                            "TRANSCRIPT_CORRECTION",
+                            "GLOBAL_SYNTHESIS",
+                            "STRUCTURED_EXTRACTION",
+                        ],
+                    },
+                )
+            )
+            store.set(f"model-profile:{name}:api-key", "fixture-account")
+        db.merge(Setting(key="model-routing", value_json={"primary_id": "free", "fallback_id": None}))
+        db.add(
+            Setting(
+                key="ai-stage-policy:TRANSCRIPT_CORRECTION",
+                value_json={
+                    "execution_mode": "REMOTE_ONLY",
+                    "remote_profile_id": "free",
+                    "max_attempts": 4,
+                },
+            )
+        )
+        db.commit()
+    first = client.post("/api/capture", json={"text": "https://www.bilibili.com/video/BV1fixture"})
+    assert first.status_code == 200
+    with factory() as db:
+        original_job = db.get(Job, first.json()["job_id"])
+        snapshot = deepcopy(original_job.payload_json[SNAPSHOT_KEY])
+        db.get(Setting, "model-profile:free").value_json = {
+            **db.get(Setting, "model-profile:free").value_json,
+            "retry_count": 1,
+            "max_output_tokens": 8192,
+        }
+        db.get(Setting, "model-routing").value_json = {"primary_id": "official", "fallback_id": None}
+        db.get(Setting, "ai-stage-policy:TRANSCRIPT_CORRECTION").value_json = {
+            "execution_mode": "REMOTE_ONLY",
+            "remote_profile_id": "official",
+            "retry_count": 0,
+            "temperature": 0.8,
+            "max_attempts": 4,
+        }
+        original_job.status = "FAILED"
+        db.commit()
+    second = client.post("/api/capture", json={"text": "https://www.bilibili.com/video/BV1fixture"})
+    assert second.status_code == 200
+    assert client.post(f"/api/jobs/{first.json()['job_id']}/retry").status_code == 200
+    with factory() as db:
+        old = db.get(Job, first.json()["job_id"])
+        new = db.get(Job, second.json()["job_id"])
+        assert old.payload_json[SNAPSHOT_KEY] == snapshot
+        assert job_setting(db, "model-routing", old)["primary_id"] == "free"
+        assert job_setting(db, "model-routing", new)["primary_id"] == "official"
+        original_provider, _, _ = provider_for_role(db, settings, "transcript_correction", old)
+        new_provider, _, _ = provider_for_role(db, settings, "transcript_correction", new)
+        assert original_provider.primary.profile_id == "free"
+        assert original_provider.primary_reliability.retry_count == 1
+        assert original_provider.request_options.max_output_tokens == 8192
+        assert new_provider.primary.profile_id == "official"
+        assert (
+            new_provider.primary_reliability.mode == "DIRECT"
+            and new_provider.primary_reliability.retry_count == 0
+        )
+        assert new_provider.request_options.max_output_tokens == 4096
 
 
 def test_replay_budget_keeps_prior_run_attempts_and_original_limit(app_and_session):

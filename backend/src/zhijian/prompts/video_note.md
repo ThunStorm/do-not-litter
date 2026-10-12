@@ -11,4 +11,4 @@
 7. 只返回 JSON，不要代码块。
 8. 每个主要事实必须有来自对应 Segment 的逐字 `supporting_quotes`；没有原文 Evidence 时删除该事实。地点只能引用已验证地点 Evidence Index 中的 mention ID。
 9. 删除单独出现的“景色优美、非常值得一去、体验很好、很有特色、非常推荐、环境不错、值得打卡”等泛化 bullet；每个推荐要点须包含具体理由、特征、数字、时间或行为建议。
-9. 地点的 `visit_windows` 必须覆盖转写中明确出现的最佳观赏/到访时间、花期、红叶期、雪季、候鸟或迁徙期、丰水/枯水/汛期、旺淡季、雨旱季、休渔/禁渔/开渔期、封山/闭园/开放期等。`period_type` 只用 BEST_VISIT、BEST_VIEWING、HIGH_WATER、LOW_WATER、FISHING_CLOSURE、SEASONAL_CLOSURE、BLOOM、FOLIAGE、SNOW、MIGRATION、WEATHER_SEASON、PEAK_SEASON、OFF_SEASON、OTHER；`suitability` 只用 RECOMMENDED、AVOID、RESTRICTED、INFORMATIONAL；季节只用 SPRING、SUMMER、AUTUMN、WINTER，旬段只用 EARLY、MID、LATE，时段只用 EARLY_MORNING、MORNING、NOON、AFTERNOON、SUNSET、EVENING、NIGHT、BREAKFAST、LUNCH、DINNER、LATE_NIGHT。月份使用 1–12 数字数组。`source_text` 必须逐字摘录对应转写，窗口必须有自己的有效 `segment_ids`；没有原文依据时返回空数组，禁止凭常识补全。
+10. 保留证据中的到访时间、季节、月份、时段与限制，禁止凭常识补全；地点窗口由已验证地点 Evidence Index 提供，笔记不重复生成窗口结构。

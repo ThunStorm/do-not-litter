@@ -1,5 +1,6 @@
 import json
 from collections.abc import Callable
+from dataclasses import replace
 from hashlib import sha256
 from time import perf_counter
 from typing import Any
@@ -10,11 +11,13 @@ from sqlalchemy.orm import Session
 from zhijian.ai.budget import ensure_ai_budget, remaining_ai_wall_seconds
 from zhijian.ai.cache import cached_json_result
 from zhijian.ai.capabilities import AIModelLocation
+from zhijian.ai.reliability import check_output_budget
 from zhijian.ai.request_compiler import CompiledRequest
 from zhijian.ai.request_metrics import request_metrics
 from zhijian.ai.resource_manager import local_ai_resource_manager
+from zhijian.ai.runtime_hints import runtime_hint_scope
 from zhijian.ai.schemas import AIRequest, AIResult
-from zhijian.ai.structured_output import validate_structured_output
+from zhijian.ai.structured_output import stage_json_schema, validate_structured_output
 from zhijian.ai.token_usage import estimate_tokens
 from zhijian.db.models import ExternalCallAudit, Job
 from zhijian.providers.llm import (
@@ -57,11 +60,13 @@ class AIWorkloadGateway:
         max_input_tokens: int | None = None,
     ) -> LLMResult:
         """Cache one route result while enforcing budget and local serialization per actual attempt."""
+        local_schema = stage_json_schema(stage)
 
         def validate_result(result: LLMResult) -> None:
             from zhijian.ai.reliability import AIProviderError
 
             try:
+                check_output_budget(result.content, result.metadata, result.usage)
                 validate_structured_output(result.content, stage, getattr(result, "metadata", {}))
                 original = result.content
                 if compiled_request:
@@ -76,7 +81,9 @@ class AIWorkloadGateway:
                     result_validator(result)
             except AIProviderError as exc:
                 result.metadata["parse_quality"] = (
-                    "INCOMPLETE" if exc.code == "AI_PROVIDER_OUTPUT_TRUNCATED" else "INVALID"
+                    "INCOMPLETE"
+                    if exc.code in {"AI_PROVIDER_OUTPUT_TRUNCATED", "AI_PROVIDER_REASONING_BUDGET"}
+                    else "INVALID"
                 )
                 raise
 
@@ -138,7 +145,8 @@ class AIWorkloadGateway:
                     **{
                         key: value
                         for key, value in (attempt_metadata or {}).items()
-                        if key in {"chunk_index", "chunk_count", "split_path", "segment_count"}
+                        if key
+                        in {"chunk_index", "chunk_count", "split_path", "segment_count", "planned_calls"}
                     },
                 }
 
@@ -149,6 +157,8 @@ class AIWorkloadGateway:
                     attempt_model: str,
                     options: ProviderRequestOptions | None,
                 ) -> LLMResult:
+                    if isinstance(attempt_provider, OllamaProvider) and local_schema:
+                        options = replace(options or ProviderRequestOptions(), response_schema=local_schema)
                     return self._execute_attempt(
                         db,
                         job,
@@ -160,6 +170,7 @@ class AIWorkloadGateway:
                         ensure_budget=False,
                         deadline=hard_deadline,
                         attempt_id=provider._attempt_context.get("attempt_id"),
+                        before_dispatch=provider.dispatch_guard,
                     )
 
                 def ensure_attempt_budget(
@@ -179,9 +190,6 @@ class AIWorkloadGateway:
                         model=attempt_model,
                         profile_id=getattr(attempt_provider, "profile_id", None),
                     )
-                    timeout = getattr(attempt_provider, "timeout", None)
-                    if timeout is not None and job is not None:
-                        attempt_provider.timeout = min(float(timeout), hard_deadline - perf_counter())
 
                 provider.before_attempt = ensure_attempt_budget
                 provider.cancel_check = check_deadline
@@ -198,11 +206,28 @@ class AIWorkloadGateway:
             check_deadline()
             check_request_limits(messages)
             result = self._execute_attempt(
-                db, job, provider, "generate_json", messages, model, None, deadline=hard_deadline
+                db,
+                job,
+                provider,
+                "generate_json",
+                messages,
+                model,
+                ProviderRequestOptions(response_schema=local_schema)
+                if isinstance(provider, OllamaProvider) and local_schema
+                else None,
+                deadline=hard_deadline,
             )
             validate_result(result)
             return result
 
+        semantic_options = {
+            **semantic_options,
+            "provider_execution_scope": runtime_hint_scope(provider, model),
+        }
+        if isinstance(provider, OllamaProvider) or isinstance(
+            getattr(provider, "primary", None), OllamaProvider
+        ):
+            semantic_options = {**semantic_options, "native_response_schema": local_schema}
         if signature := interface_signature(provider):
             semantic_options = {**semantic_options, "interface_contract": signature}
         if compiled_request:
@@ -236,8 +261,10 @@ class AIWorkloadGateway:
         ensure_budget: bool = True,
         deadline: float = float("inf"),
         attempt_id: str | None = None,
+        before_dispatch: Callable[[], None] | None = None,
     ) -> LLMResult:
         provider_name = str(getattr(provider, "name", "ollama"))
+        original_timeout = getattr(provider, "timeout", None)
         queued_at = perf_counter()
         if (job or deadline != float("inf")) and getattr(provider, "timeout", None) is not None:
             deadline = min(deadline, queued_at + float(provider.timeout))
@@ -265,11 +292,17 @@ class AIWorkloadGateway:
                 )
             if job:
                 ensure_job_active(db, job)
-            if isinstance(provider, (OllamaProvider, OpenAICompatibleProvider)):
+            if getattr(provider, "timeout", None) is not None:
                 provider.timeout = min(float(provider.timeout), deadline - perf_counter())
+            if isinstance(provider, (OllamaProvider, OpenAICompatibleProvider)):
                 provider.cancel_check = check_active if job or deadline != float("inf") else None
             if attempt_id:
                 advance_model_attempt(db, attempt_id, "DISPATCHED")
+            if before_dispatch:
+                before_dispatch()
+                check_active()
+                if getattr(provider, "timeout", None) is not None:
+                    provider.timeout = min(float(provider.timeout), deadline - perf_counter())
             started = perf_counter()
             result = (
                 getattr(provider, method)(messages, model=model)
@@ -307,6 +340,8 @@ class AIWorkloadGateway:
                 return local_ai_resource_manager.run("TEXT_LLM", invoke, cancel_check=check_active)
             return invoke()
         finally:
+            if original_timeout is not None:
+                provider.timeout = original_timeout
             if isinstance(provider, (OllamaProvider, OpenAICompatibleProvider)):
                 provider.cancel_check = None
 

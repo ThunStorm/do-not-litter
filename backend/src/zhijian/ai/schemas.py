@@ -62,6 +62,7 @@ class AIResult(BaseModel):
 
 
 class ModelProfile(BaseModel):
+    temperature: float | None = Field(default=None, ge=0, le=2)
     id: str
     provider: str
     model: str

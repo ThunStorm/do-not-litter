@@ -32,6 +32,7 @@ TEXT_STAGES = (
     "EXTRACT_TRAVEL_FACTS",
 )
 _PROFILE_RUNTIME_FIELDS = {
+    "temperature",
     "probe_results",
     "business_assessments",
     "interface_capabilities",
@@ -46,6 +47,12 @@ _PROFILE_RUNTIME_FIELDS = {
     "circuit_breaker_enabled",
     "circuit_breaker_threshold",
     "circuit_breaker_cooldown_seconds",
+    "max_output_tokens",
+    "context_window",
+    "recommended_working_context",
+    "supports_json_schema",
+    "supports_thinking",
+    "supports_tools",
 }
 _GENERAL_RUNTIME_FIELDS = {
     "ai_retry_count",
@@ -53,6 +60,14 @@ _GENERAL_RUNTIME_FIELDS = {
     "ai_request_interval_seconds",
     "ai_json_retry_count",
 }
+
+
+def _uses_global_pool(policy: dict) -> bool:
+    slots = {
+        "LOCAL_ONLY": ("local_profile_id",),
+        "REMOTE_ONLY": ("remote_profile_id",),
+    }.get(policy.get("execution_mode"), ("local_profile_id", "remote_profile_id"))
+    return any(not policy.get(slot) for slot in slots)
 
 
 def profile_identity(value: dict[str, Any]) -> tuple:
@@ -188,11 +203,22 @@ def build_execution_config(
                 continue
             fields = _PROFILE_RUNTIME_FIELDS
         elif key.startswith("ai-stage-policy:"):
-            fields = {"timeout_seconds", "retry_count"}
+            from zhijian.ai.schemas import AIStagePolicy
+
+            fields = set(AIStagePolicy.model_fields) - {
+                "stage",
+                "capability",
+                "execution_mode",
+                "local_profile_id",
+                "remote_profile_id",
+                "version",
+                "domain",
+                "domain_pack_ids",
+            }
         elif key == "app:general":
             fields = _GENERAL_RUNTIME_FIELDS
         elif key == "transcript-processing":
-            fields = {"timeout_seconds"}
+            fields = {"chunk_chars", "batch_size", "timeout_seconds"}
         else:
             continue
         row = db.get(Setting, key)
@@ -209,6 +235,12 @@ def build_execution_config(
             for field in ("execution_mode", "local_profile_id", "remote_profile_id")
         ):
             continue  # A different current route's runtime options are not this model's settings.
+        elif key.startswith("ai-stage-policy:") and (
+            _uses_global_pool(original)
+            and (values.get("model-routing") or {})
+            != ((routing.value_json or {}) if (routing := db.get(Setting, "model-routing")) else {})
+        ):
+            continue  # Empty stage slots belong to their submission-time global model pool.
         if not row:
             continue
         sources[key] = row.updated_at.isoformat()

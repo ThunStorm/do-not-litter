@@ -5,11 +5,50 @@ from zhijian.ai.budget import AIBudgetExceeded
 from zhijian.ai.reliability import (
     AIProviderError,
     ModelReliabilityPolicy,
+    ReliabilityGuards,
     classify_provider_error,
     provider_rate_limit_identity,
 )
 from zhijian.ai.structured_output import parse_json_object, validate_structured_output
 from zhijian.providers.llm import FallbackLLMProvider, LLMResult
+
+
+def test_dispatch_spacing_rechecks_late_queue_and_cancellation(monkeypatch):
+    clock = [100.0]
+    monkeypatch.setattr("zhijian.ai.reliability.monotonic", lambda: clock[0])
+    key = "late-dispatch-test"
+    ReliabilityGuards._last_dispatched.pop(key, None)
+    policy = ModelReliabilityPolicy("GUARDED", request_interval_seconds=90)
+    assert ReliabilityGuards.before_dispatch(key, policy, lambda _: None) == 0
+    clock[0] = 147.0
+    waits = []
+    def sleep(seconds):
+        waits.append(seconds)
+        clock[0] += seconds + 7  # cancellation/queue checks may make a wait run late
+    assert ReliabilityGuards.before_dispatch(key, policy, sleep) == 43
+    assert waits == [43]
+    assert ReliabilityGuards._last_dispatched[key] == 197
+    clock[0] = 200
+    def cancel(_):
+        raise RuntimeError("cancelled")
+    with pytest.raises(RuntimeError, match="cancelled"):
+        ReliabilityGuards.before_dispatch(key, policy, cancel)
+    assert ReliabilityGuards._last_dispatched[key] == 197
+    assert ReliabilityGuards.before_dispatch(key, ModelReliabilityPolicy("DIRECT"), cancel) == 0
+    ReliabilityGuards._last_dispatched.pop(key)
+
+
+def test_cancellation_checks_do_not_extend_the_requested_sleep(monkeypatch):
+    from types import SimpleNamespace
+
+    clock = [0.0]
+    monkeypatch.setattr("zhijian.providers.llm.perf_counter", lambda: clock[0])
+    def check():
+        clock[0] += 0.1
+    def sleep(seconds):
+        clock[0] += seconds
+    FallbackLLMProvider._sleep(SimpleNamespace(cancel_check=check, sleeper=sleep), 2)
+    assert clock[0] == pytest.approx(2.1)  # only the final cancellation check follows the deadline
 
 
 @pytest.mark.parametrize(

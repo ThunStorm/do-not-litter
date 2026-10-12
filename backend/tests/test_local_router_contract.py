@@ -276,7 +276,7 @@ def test_probe_uses_optional_profile_limit_instead_of_fixed_64():
             [{"role": "user", "content": "PONG"}],
         )
     assert [option.max_output_tokens for option in options] == [4096, None]
-    assert all(option.thinking is None for option in options)
+    assert all(option.thinking is False for option in options)
 
 
 def test_manual_test_bypasses_circuit_without_resetting_production(monkeypatch):

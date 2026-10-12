@@ -75,6 +75,28 @@ _LIST_LIMITS = {
 }
 
 
+def stage_json_schema(stage: str) -> dict | None:
+    fields = (
+        ("content_units", "entities", "relations", "claims", "warnings")
+        if stage == "GROUND_MAP"
+        else _REQUIRED_FIELDS.get(stage)
+    )
+    if stage == "TRANSCRIPT_CORRECTION":
+        fields = ("changes",)
+    if not fields:
+        return None
+    return {
+        "type": "object",
+        "required": list(fields),
+        "properties": {
+            field: {"type": "array", "items": {"type": "string" if field == "warnings" else "object"}}
+            if field not in {"overview"}
+            else {"type": "string"}
+            for field in fields
+        },
+    }
+
+
 def validate_structured_output(content: str, stage: str, metadata: dict[str, Any] | None = None) -> None:
     if str((metadata or {}).get("finish_reason") or "").lower() in {"length", "max_tokens"}:
         raise AIProviderError("AI_PROVIDER_OUTPUT_TRUNCATED", "模型输出达到长度上限")
@@ -82,14 +104,19 @@ def validate_structured_output(content: str, stage: str, metadata: dict[str, Any
     if metadata is not None:
         metadata.setdefault("parse_quality", quality)
         metadata.setdefault("repair_rules", rules)
-    if stage == "GROUND_MAP" and {"content_units", "entities", "relations", "claims", "warnings"} <= set(
-        value
-    ):
+        metadata["response_keys"] = sorted(value)
+    if stage == "GROUND_MAP" and {"entities", "claims"} <= set(value):
+        # Empty auxiliary collections may be omitted by compatible endpoints;
+        # entity/claim evidence remains mandatory and is validated downstream.
         for field in ("content_units", "entities", "relations", "claims", "warnings"):
-            if not isinstance(value[field], list):
+            if field in value and not isinstance(value[field], list):
                 raise AIProviderError(
                     "AI_PROVIDER_SCHEMA_INVALID", f"模型输出字段 {field} 必须是列表", retryable=True
                 )
+        if metadata is not None:
+            metadata["schema_defaults"] = [
+                field for field in ("content_units", "relations", "warnings") if field not in value
+            ]
         return
     if stage == "TRANSCRIPT_CORRECTION" and not isinstance(value.get("changes"), list):
         raise AIProviderError(

@@ -154,6 +154,7 @@ def test_manual_request_respects_rpm_and_all_http429_cool_down(monkeypatch, busy
     )
 
     def generate(*_args, **_kwargs):
+        assert _kwargs["options"].thinking is False
         if busy:
             request = httpx.Request("POST", "https://fixture.test")
             httpx.Response(429, request=request, json={"error": {"message": "busy_queue"}}).raise_for_status()

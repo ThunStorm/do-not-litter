@@ -42,6 +42,7 @@ import type {
   TranscriptProcessingView,
 } from "../../lib/types";
 import { BilibiliLoginPanel } from "./BilibiliLoginPanel";
+import { editablePolicy } from "./stagePolicyForm";
 import {
   applyProviderPreset,
   providerPreset,
@@ -1245,7 +1246,7 @@ function StagePolicyEditor({
       {advanced && (
         <div className="field-grid route-field-grid">
           <NumberPolicyField
-            label="Temperature"
+            label="温度（留空继承模型）"
             value={values.temperature}
             min="0"
             max="2"
@@ -1294,14 +1295,14 @@ function StagePolicyEditor({
             onChange={(value) => update("wall_time_seconds", value)}
           />
           <NumberPolicyField
-            label="最多模型尝试"
+            label="单批最多模型尝试"
             value={values.max_attempts}
             min="1"
             max="20"
             onChange={(value) => update("max_attempts", value)}
           />
           <NumberPolicyField
-            label="重试次数"
+            label="重试次数（留空继承模型）"
             value={values.retry_count}
             min="0"
             max="3"
@@ -1564,12 +1565,6 @@ function NumberPolicyField({
     </label>
   );
 }
-function editablePolicy(policy: AIStagePolicy): AIStagePolicy {
-  const values = { ...policy };
-  delete values.sources;
-  return values;
-}
-
 function ModelProfileEditor({
   profile,
   assigned = false,
@@ -1590,6 +1585,7 @@ function ModelProfileEditor({
     connection_type: profile?.connection_type ?? "DIRECT",
     interface_capabilities: profile?.interface_capabilities ?? null,
     max_output_tokens: profile?.max_output_tokens ?? null,
+    temperature: profile?.temperature ?? null,
     timeout_seconds: profile?.timeout_seconds ?? 300,
     reliability_mode: profile?.reliability_mode ?? "STANDARD",
     request_interval_seconds: profile?.request_interval_seconds ?? null,
@@ -1646,6 +1642,7 @@ function ModelProfileEditor({
         connection_type: profile.connection_type ?? "DIRECT",
         interface_capabilities: profile.interface_capabilities ?? null,
         max_output_tokens: profile.max_output_tokens,
+        temperature: profile.temperature ?? null,
         timeout_seconds: profile.timeout_seconds,
         reliability_mode: profile.reliability_mode,
         request_interval_seconds: profile.request_interval_seconds,
@@ -2051,6 +2048,9 @@ function ModelProfileEditor({
           </div>
         )}
         <div className="provider-form__body"><div className="field-grid">
+          <NumberPolicyField label="默认温度（阶段留空时生效）"
+            value={values.temperature ?? null} min="0" max="2" step="0.1"
+            onChange={(value) => update("temperature", value)} />
           <NumberPolicyField label="输出长度上限（留空使用模型默认值）"
             value={values.max_output_tokens ?? null} min="1" max="131072"
             onChange={(value) => update("max_output_tokens", value)} />

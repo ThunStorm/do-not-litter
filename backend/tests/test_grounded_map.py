@@ -1,12 +1,13 @@
 import json
 from datetime import UTC, datetime
 
+import pytest
 from sqlalchemy import select
 
 from zhijian.ai.reliability import ModelReliabilityPolicy
 from zhijian.core.config import Settings
-from zhijian.db.models import AICacheEntry, AINote, ExternalCallAudit, Job, Source, VideoAsset
-from zhijian.providers.llm import FallbackLLMProvider, LLMResult
+from zhijian.db.models import AICacheEntry, AINote, ExternalCallAudit, Job, Setting, Source, VideoAsset
+from zhijian.providers.llm import FallbackLLMProvider, LLMResult, ProviderRequestOptions
 from zhijian.services.grounded_map import get_or_create_grounded_map
 from zhijian.services.video_support import (
     _compact_note_facts,
@@ -138,12 +139,22 @@ def test_grounded_map_is_reused_and_place_materialization_is_llm_free(app_and_se
             source_kind="ASR",
         )
         artifact = get_or_create_grounded_map(db, Settings(_env_file=None), asset, transcript, segments)
-        selected.update(provider="other-provider", model="other-model")
         reused = get_or_create_grounded_map(db, Settings(_env_file=None), asset, transcript, segments)
         assert reused.id == artifact.id
         assert reused.provider == "fixture"
         assert reused.producer_version == "grounded-map-v3"
         assert len(provider.calls) == 1
+
+        selected.update(provider="other-provider", model="other-model")
+        changed = get_or_create_grounded_map(db, Settings(_env_file=None), asset, transcript, segments)
+        assert changed.id != artifact.id
+        assert changed.provider == "other-provider"
+        assert len(provider.calls) == 2
+
+        provider.request_options = ProviderRequestOptions(max_output_tokens=8192)
+        refreshed = get_or_create_grounded_map(db, Settings(_env_file=None), asset, transcript, segments)
+        assert refreshed.id != changed.id
+        assert len(provider.calls) == 3
 
         mentions = extract_place_mentions(
             db, Settings(_env_file=None), asset, None, segments, candidates=artifact.places_json
@@ -157,8 +168,28 @@ def test_grounded_map_is_reused_and_place_materialization_is_llm_free(app_and_se
         db.flush()
         generate_note(db, Settings(_env_file=None), asset, transcript, segments, compact, mentions, artifact)
         generate_note(db, Settings(_env_file=None), asset, transcript, segments, detailed, mentions, artifact)
-        assert len(provider.calls) == 3
-        assert all("Render Profile" not in call[-1]["content"] for call in provider.calls[:1])
+        assert len(provider.calls) == 5
+        assert all("Render Profile" not in call[-1]["content"] for call in provider.calls[:3])
+
+        from zhijian.ai.reliability import AIProviderError
+
+        def unavailable(*_args, **_kwargs):
+            raise AIProviderError("AI_PROVIDER_THROTTLED", "fixture vendor quota")
+
+        monkeypatch.setattr(provider, "generate_json", unavailable)
+        paused = Job(
+            job_type="TRAVEL",
+            status="RUNNING",
+            payload_json={
+                "ai_overrides": {"NOTE_REDUCE": {"force_regenerate": True}},
+            },
+        )
+        db.add(paused)
+        db.flush()
+        with pytest.raises(AIProviderError, match="fixture vendor quota"):
+            generate_note(
+                db, Settings(_env_file=None), asset, transcript, segments, paused, mentions, artifact
+            )
 
 
 def test_grounded_map_splits_truncated_chunks(app_and_session, monkeypatch) -> None:
@@ -330,7 +361,8 @@ def test_grounded_map_switches_remaining_chunks_when_local_cannot_fit_wall_budge
         assert routes == ["ollama", "ollama", "remote", "remote"]
 
 
-def test_grounded_map_prechunks_for_local_models(app_and_session, monkeypatch) -> None:
+@pytest.mark.parametrize("chunk_size", [None, 5000])
+def test_grounded_map_prechunks_for_local_models(app_and_session, monkeypatch, chunk_size) -> None:
     _, factory = app_and_session
     batch_sizes: list[int] = []
     monkeypatch.setattr(
@@ -340,7 +372,9 @@ def test_grounded_map_prechunks_for_local_models(app_and_session, monkeypatch) -
     class Provider:
         def generate_json(self, messages, *, model):
             batch_sizes.append(messages[-1]["content"].count("[segment:"))
-            assert "禁止输出空字符串、空数组" in messages[0]["content"]
+            assert "没有对应项目时返回空数组" in messages[0]["content"]
+            assert "所有局部ID引用必须先在本次输出中定义" in messages[0]["content"]
+            assert '"target_entity_id":"ent_02"' not in messages[0]["content"]
             return LLMResult(
                 '{"section_facts":[],"places":[],"warnings":[]}',
                 "ollama",
@@ -353,6 +387,9 @@ def test_grounded_map_prechunks_for_local_models(app_and_session, monkeypatch) -
         lambda *_args: (Provider(), "ollama", "local-model"),
     )
     with factory() as db:
+        if chunk_size is not None:
+            db.add(Setting(key="ai-stage-policy:GROUND_MAP", value_json={"chunk_size": chunk_size}))
+            db.commit()
         source = Source(source_type="URL", locator="https://example.test/local-map", title="fixture")
         db.add(source)
         db.flush()
@@ -371,7 +408,7 @@ def test_grounded_map_prechunks_for_local_models(app_and_session, monkeypatch) -
         )
         get_or_create_grounded_map(db, Settings(_env_file=None), asset, transcript, segments)
 
-    assert batch_sizes == [64, 64, 2]
+    assert batch_sizes == [16] * 8 + [2]
 
 
 def test_grounded_map_hint_keeps_five_segments_per_chunk(app_and_session, monkeypatch) -> None:
@@ -391,7 +428,7 @@ def test_grounded_map_hint_keeps_five_segments_per_chunk(app_and_session, monkey
     )
     monkeypatch.setattr(
         "zhijian.services.grounded_map.read_runtime_hint",
-        lambda *_args: {"safe_max_chars": 240, "safe_max_segments": 5},
+        lambda *_args, **_kwargs: {"safe_max_chars": 240, "safe_max_segments": 5},
     )
     with factory() as db:
         source = Source(source_type="URL", locator="https://example.test/hinted-map", title="fixture")

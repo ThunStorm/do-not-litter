@@ -314,6 +314,7 @@ class ProviderConfig(BaseModel):
 
 class ModelProfileConfig(ProviderConfig):
     name: str = Field(min_length=1, max_length=80)
+    temperature: float | None = Field(default=None, ge=0, le=2)
     reliability_mode: Literal["DIRECT", "STANDARD", "GUARDED", "FREE_TIER"] = "STANDARD"
     request_interval_seconds: float | None = Field(default=None, ge=0, le=300)
     max_concurrency: int | None = Field(default=None, ge=1, le=16)

@@ -15,8 +15,9 @@ from zhijian.ai.budget import remaining_ai_wall_seconds
 from zhijian.ai.capabilities import AICapability
 from zhijian.ai.domain_context import domain_context_hash, domain_context_messages
 from zhijian.ai.job_config import job_video_note_chunk_chars
+from zhijian.ai.policies import stage_attempt_limit
 from zhijian.ai.reliability import AIProviderError
-from zhijian.ai.runtime_hints import read_runtime_hint, tighten_runtime_hint
+from zhijian.ai.runtime_hints import read_runtime_hint, runtime_hint_scope, tighten_runtime_hint
 from zhijian.ai.stage_decision import decide_stage, record_stage_decision
 from zhijian.core.config import Settings
 from zhijian.core.time import utc_now
@@ -25,7 +26,7 @@ from zhijian.providers.llm import FallbackLLMProvider, LLMResult
 from zhijian.services.audit import record_event
 from zhijian.services.jobs import ensure_job_active
 
-MAP_PROMPT_VERSION = "semantic-map-v3-compiler1"
+MAP_PROMPT_VERSION = "semantic-map-v3-compiler2"
 MAP_ARTIFACT_SCHEMA_VERSION = "grounded-map-v3"
 LOCAL_MAP_CHUNK_CHARS = 6_000
 LOCAL_MAP_CHUNK_SEGMENTS = 64
@@ -299,6 +300,9 @@ def get_or_create_grounded_map(
         "domain": policy.domain or "travel",
         "domain_pack_ids": list(policy.domain_pack_ids),
         "domain_context_hash": domain_pack_version,
+        "provider_execution_scope": runtime_hint_scope(provider, model),
+        "execution_mode": policy.execution_mode,
+        "escalation_threshold": policy.escalation_threshold,
     }
     semantic_hash = sha256(
         json.dumps(
@@ -344,10 +348,18 @@ def get_or_create_grounded_map(
     claims: list[dict] = []
     chunk_chars = int(policy.chunk_size or job_video_note_chunk_chars(job, settings.video_note_chunk_chars))
     max_segments = None
-    if provider_name.lower() == "ollama" and policy.chunk_size is None:
+    if provider_name.lower() == "ollama":
         chunk_chars = min(chunk_chars, LOCAL_MAP_CHUNK_CHARS)
-        max_segments = LOCAL_MAP_CHUNK_SEGMENTS
-    saved_hint = read_runtime_hint(db, "GROUND_MAP", model)
+        output_tokens = int(
+            getattr(getattr(provider, "request_options", None), "max_output_tokens", None)
+            or policy.max_output_tokens
+            or 4096
+        )
+        # Rich entity/claim JSON needs substantially more output than raw text;
+        # the configured input size is an upper bound, not a required batch size.
+        max_segments = min(LOCAL_MAP_CHUNK_SEGMENTS, max(1, (output_tokens - 1024) // 192))
+    hint_scope = runtime_hint_scope(provider, model)
+    saved_hint = read_runtime_hint(db, "GROUND_MAP", model, scope=hint_scope)
     if saved_hint.get("safe_max_chars"):
         # Runtime hints count transcript text; _transcript_chunks adds 80 chars per Segment.
         hint_segments = int(saved_hint.get("safe_max_segments") or 1)
@@ -355,6 +367,7 @@ def get_or_create_grounded_map(
     if saved_hint.get("safe_max_segments"):
         max_segments = min(max_segments or len(segments), saved_hint["safe_max_segments"])
     chunks = _transcript_chunks(segments, chunk_chars, max_segments=max_segments)
+    planned_calls = max(1, len(chunks))
     stage_started = perf_counter()
     logical_attempts = 0
     fallback_requests = 0
@@ -370,12 +383,13 @@ def get_or_create_grounded_map(
         split_path: str = "root",
         fallback_only: bool = False,
     ) -> None:
-        nonlocal completed_chars, logical_attempts, fallback_requests
+        nonlocal completed_chars, logical_attempts, fallback_requests, planned_calls
         if policy.wall_time_seconds and perf_counter() - stage_started >= policy.wall_time_seconds:
             raise AIProviderError(
                 "AI_STAGE_WALL_TIME_EXCEEDED", "证据地图已达到阶段总时限", switch_model=False
             )
-        if policy.max_attempts and logical_attempts >= policy.max_attempts:
+        attempt_limit = stage_attempt_limit(policy.max_attempts, planned_calls)
+        if attempt_limit and logical_attempts >= attempt_limit:
             raise AIProviderError("AI_PROVIDER_ATTEMPT_BUDGET", "证据地图已达到尝试上限", switch_model=False)
         logical_attempts += 1
         if fallback_only:
@@ -437,6 +451,7 @@ def get_or_create_grounded_map(
                 attempt_metadata={
                     "chunk_index": chunk_index,
                     "chunk_count": chunk_count,
+                    "planned_calls": planned_calls,
                     "split_path": split_path,
                     "segment_count": len(chunk),
                 },
@@ -457,6 +472,7 @@ def get_or_create_grounded_map(
                 return
             else:
                 midpoint = len(chunk) // 2
+                planned_calls += 1
                 safe_max_chars = max(
                     sum(len(item.corrected_text or item.text) for item in part)
                     for part in (chunk[:midpoint], chunk[midpoint:])
@@ -467,11 +483,12 @@ def get_or_create_grounded_map(
                     model,
                     safe_max_chars=max(1, safe_max_chars),
                     safe_max_segments=midpoint,
+                    scope=hint_scope,
                 )
                 if job:
                     hints = dict(job.payload_json.get("ai_runtime_hints") or {})
                     model_hints = dict(hints.get("ground_map") or {})
-                    model_hints[model] = {**persisted, "reason": exc.code}
+                    model_hints[hint_scope] = {"model": model, **persisted, "reason": exc.code}
                     hints["ground_map"] = model_hints
                     job.payload_json = {**job.payload_json, "ai_runtime_hints": hints}
                     db.commit()
@@ -559,6 +576,7 @@ def get_or_create_grounded_map(
                     },
                 )
 
+    remote_escalation_count = 0
     escalation_reasons = _semantic_escalation_reasons(entities, float(policy.escalation_threshold or 0.6))
     if job and provider_name.lower() == "ollama" and escalation_reasons:
         target_entity_ids = set(list(escalation_reasons)[:8])
@@ -602,6 +620,7 @@ def get_or_create_grounded_map(
                     ],
                     attempt_metadata={
                         "semantic_escalation": True,
+                        "planned_calls": planned_calls + 1,
                         "entity_count": len(target_entity_ids),
                         "reason_codes": sorted(
                             {reason for values in escalation_reasons.values() for reason in values}
@@ -620,6 +639,7 @@ def get_or_create_grounded_map(
                 replacement = {str(item["entity_id"]): item for item in remote_entities}
                 entities = [replacement.get(str(item["entity_id"]), item) for item in entities]
                 warnings.extend(remote_warnings)
+                remote_escalation_count += 1
                 record_event(
                     db,
                     "ai.remote_escalation",
@@ -656,9 +676,7 @@ def get_or_create_grounded_map(
     )
     semantic_options["semantic_unit_count"] = len(content_units)
     semantic_options["fallback_chunk_count"] = fallback_requests
-    semantic_options["remote_escalation_count"] = int(
-        bool(job and provider_name.lower() == "ollama" and escalation_reasons)
-    )
+    semantic_options["remote_escalation_count"] = remote_escalation_count
 
     artifact = GroundedMapArtifact(
         video_asset_id=asset.id,

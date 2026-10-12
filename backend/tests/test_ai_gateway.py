@@ -137,6 +137,7 @@ def test_gateway_caps_model_timeout_to_remaining_job_wall_budget(app_and_session
         timeout = 180.0
 
         def generate_json(self, _messages, *, model):
+            self.dispatched_timeout = self.timeout
             return LLMResult('{"changes":[]}', self.name, model, {})
 
     _, factory = app_and_session
@@ -166,7 +167,8 @@ def test_gateway_caps_model_timeout_to_remaining_job_wall_budget(app_and_session
             cache_enabled=False,
             force_regenerate=False,
         )
-        assert 0 < primary.timeout < 21
+        assert 0 < primary.dispatched_timeout < 21
+        assert primary.timeout == 180.0
 
 
 def test_invalid_structured_output_is_not_cached(app_and_session) -> None:

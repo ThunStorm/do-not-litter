@@ -3586,6 +3586,7 @@ def _model_profile_view(setting: Setting) -> dict:
         "timeout_seconds": int(value.get("timeout_seconds") or 60),
         "reliability_mode": profile.reliability_mode,
         "request_interval_seconds": value.get("request_interval_seconds"),
+        "temperature": profile.temperature,
         "max_concurrency": profile.max_concurrency,
         "retry_count": profile.retry_count,
         "json_retry_count": profile.json_retry_count,

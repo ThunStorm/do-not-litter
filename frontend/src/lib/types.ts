@@ -250,6 +250,7 @@ export interface ModelProfileView {
   context_window: number
   recommended_working_context: number
   max_output_tokens: number | null
+  temperature?: number | null
   quality_tier: 'FAST' | 'MAIN' | 'STRONG' | 'SPECIALIST'
   specialties: string[]
   enabled: boolean

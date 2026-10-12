@@ -248,9 +248,9 @@
 | 部署与局域网 | 唯一后端为 Mac mini；4 位配对码显眼展示；Cookie 会话刷新不应重新要求配对；服务状态来自真实 API/Worker/SQLite | `operations/DEPLOYMENT_OPTIONS.md`、`jobs/MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md`、`services/auth.py` |
 | 捕获与本地处理 | URL、正文、DOCX、PDF、XLSX、图像 OCR、音视频均可进入 Job；Whisper.cpp、FFmpeg 与 OCR 状态必须是探测结果 | `product/PRODUCT_REQUIREMENTS.md`、`ai-gateway/AI_RUNTIME_AND_PROVIDERS.md` |
 | 模型设置 | 用户可维护任意 Provider/模型库；预设仅帮助填写；主/备用从已存模型选择；草稿可真实测试；已保存模型一键与单项共用Worker队列，同供应商/入口FIFO、独立最多三组并行，跨进程节流/429冷却/去重/取消及晚结果fence保留；默认超时 300 秒 | `ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md`、`operations/RUNTIME_MONITOR_AND_MODEL_PRESETS_SPEC.md` |
-| AI Gateway 契约 | Model Profile 显式保存 location/modalities/capabilities；Stage 参数仅白名单；新 Job 按提交时快照固定路由、Profile、Stage Policy、Prompt/领域上下文与 AI 参数，普通/完整/步骤重跑入队时自动刷新同模型必要执行配置，其余沿用原快照；身份变更/删除/禁用重跑安全拒绝，执行参数入队后不追随全局变化，各阶段能力门禁重新核对同身份模型最新已保存评估并审计，历史执行快照可追溯，累计预算不重置，Secret 不进 Job；笔记失败后的显式恢复操作仅覆盖本 Job 的笔记模型并审计，完整重跑清除该覆盖；没有快照的历史任务保持兼容路由，`AUTO/LOCAL_ONLY/LOCAL_FIRST/REMOTE_FIRST/REMOTE_ONLY` 语义不得回退 | `ai-gateway/05-job-policy.md`、`ai/policies.py` |
+| AI Gateway 契约 | Model Profile 显式保存 location/modalities/capabilities；Stage 参数仅白名单；新 Job 按提交时快照固定路由、Profile、Stage Policy、Prompt/领域上下文与 AI 参数，普通/完整/步骤重跑入队时自动刷新原模型最新可调参数，其余沿用原快照；身份变更/删除/禁用重跑安全拒绝，模型/入口身份和提交路由保留，不借用其他模型参数；执行参数入队后不追随全局变化，各阶段能力门禁重新核对同身份模型最新已保存评估并审计，历史执行快照可追溯，累计预算不重置，Secret 不进 Job；笔记失败后的显式恢复操作仅覆盖本 Job 的笔记模型并审计，完整重跑清除该覆盖；没有快照的历史任务保持兼容路由，`AUTO/LOCAL_ONLY/LOCAL_FIRST/REMOTE_FIRST/REMOTE_ONLY` 语义不得回退 | `ai-gateway/05-job-policy.md`、`ai/policies.py` |
 | AI Gateway 质量与上下文 | 干净平台字幕不得无条件全文送模；长转写只传候选或 Facts，不能多阶段重复全文；Domain Context 仅低优先级增强，不能覆盖 Evidence、Schema 或安全契约；text-only Profile 不得绑定视觉 Stage | `ai-gateway/AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md`、`services/video_support.py` |
-| Qwen 逐字对齐与校对预算 | 高比例逐字对齐须在新 Transcript 物化前合并为语句 Segment，保留原始时间码；不得原地修改历史 Segment。校对预算按实际批次预估，实测剩余工作超墙钟上限时提前收口，请求 timeout 受剩余时长约束 | `scripts/qwen_asr_runner.py`、`services/video_support.py`、`ai/budget.py` |
+| Qwen 逐字对齐与校对预算 | 高比例逐字对齐须在新 Transcript 物化前合并为语句 Segment，保留原始时间码；不得原地修改历史 Segment。批次经验按入口/账户/有效参数隔离，旧模型名经验不借用；单批尝试上限不误作整个阶段批次数，校对/地图/笔记按正常及拆分批次分配额度；校对预算按实际批次预估，实测剩余工作超墙钟上限时提前收口，请求 timeout 受剩余时长约束 | `scripts/qwen_asr_runner.py`、`services/video_support.py`、`ai/budget.py` |
 | 证据地图截断恢复 | `LOCAL_FIRST` 首次本地输出截断后先拆分；存在已配置备用模型时，子块或预计超出剩余阶段预算的后续块走备用路由，保持原 Segment Evidence、Schema 校验、调用审计与缓存，不重复扩大本地慢请求；正文字符 Hint 不得漏算分块结构开销 | `services/grounded_map.py`、`ai/gateway.py` |
 | 笔记归纳恢复 | `GLOBAL_SYNTHESIS` 是内部阶段契约；版本有效的 `FAIL` 仍拦截，旧版笔记小样/过期结果为未验证而非通过。显式阶段选定或非AUTO首选槽位留空继承通用主模型可尝试 `NOT_TESTED`，不扩大自动候选/备用声明；保存/执行/恢复统一判定，同模型续跑刷新最新评估；每个阶段重新核对同身份模型最新已保存能力结果，执行参数与历史快照保留。小样允许合并/拆分章节，严格验证来源和事实证据，歧义不误判失败。DeepSeek 笔记默认关闭思考，保留原 JSON/Evidence/预算；续跑仍须 lease 释放、上游有效且无待执行完整重跑 | `ai-gateway/01-architecture-models.md`、`services/video_support.py`、`services/job_replay.py`、`jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md` |
 | 请求优化与能力诊断 | 短 ID 仅在模型边界，Snapshot/内容/编译器/投影/映射绑定缓存；原文/quote 不变，未知或越界引用拒绝，校对只返回 target_ids；不静默截尾；格式 smoke 不授业务 PASS，模型修复默认关闭；解析质量与回退/重试/缓存分开，等待后复核 Deadline；POI 空证据/跨来源不得自动确认，合成字节收益不冒称真实 Token/质量 | `ai/request_compiler.py`、`benchmark/RELEASE_ACCEPTANCE.md` |
@@ -289,6 +289,10 @@
 ## 4. 验证记录的唯一来源
 
 自动验证与未闭环项见 [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md)，生产采样见 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)，逐版本证据见 history/IMPLEMENTATION_HISTORY.md。本文不再复制测试数量、生产版本和活跃任务数，避免多处漂移。Gateway 生产验收继续受 ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md 约束。
+
+本轮新增回归：笔记归纳首包Provider失败且无任何有效AI章节时暂停，不把确定性提纲当作模型成功；历史DETERMINISTIC_FALLBACK或HYBRID部分降级任务可从GENERATE_AI_NOTE显式恢复，普通部分成功仍不复跑清理步骤。分包按有效模型输出容量估算，保留真正截断后的二分及同入口经验。厂商HTTP配额/限流、本地断路保护、思考/正文预算原因分开记录，不用应用OPEN状态推断厂商熔断。
+
+保护请求预约与实际发出分别核对间隔；取消检查耗时计入墙钟等待，不能额外放大配置间隔；等待后复核取消/截止时间。手动探测统一关闭思考，由实际入口映射协议，LOCAL_ROUTER继续按接口契约省略。归纳保留时间/限制在笔记中的事实表达，使用已验证地点窗口，不重复提取地点窗口结构；地点提取与窗口校验契约不变。
 
 
 ---
@@ -337,12 +341,12 @@
 
 # 当前实施状态
 
-> 状态记录日期：2026-10-11。本文唯一记录当前源码能力与自动验证；生产状态只见带原采样日期的 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
+> 状态记录日期：2026-10-12。本文唯一记录当前源码能力与自动验证；生产状态只见带原采样日期的 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
 
 ## 当前冻结范围
 
 - 当前分支为 `codex/mac-mini-implementation`；本轮交付包含同模型重跑配置与 Z0–Z7 请求优化核心；Z8 保持独立 backlog，不修改 LocalAiMux。
-- 仓库 Alembic head 为 0025；生产版本由交接现场证明，不由仓库推断。本轮无 Schema 变更；重新部署另由交接记录证明，不运行真实模型。
+- 仓库 Alembic head 为 0025；生产版本由交接现场证明，不由仓库推断。本轮无 Schema 变更；重新部署和已授权真实模型/视频矩阵另由交接及验收报告证明。
 - 唯一支持的后端为 Mac mini，FastAPI、SQLite/WAL 与独立 Worker；单用户通过可信局域网访问。
 - 源码实现、离线验证、生产加载与真实业务验收分别记录。规格中的待实施项、历史工作包和新草案不自动成为已授权任务。
 
@@ -361,6 +365,8 @@
 | 部署 | Mac mini LaunchAgent 双服务、外置生产 venv Python 3.14、健康内容与 Worker 心跳门禁 | operations/DEPLOYMENT_OPTIONS.md、CURRENT_HANDOFF.md |
 
 ## 最新自动验证
+
+2026-10-12 入口隔离、正常分批及同模型续跑补修：单批尝试与正常计划批次数分开，保留累计硬预算；v2调用经验、原始响应缓存与地图语义产物按实际入口/账户摘要/模型参数隔离，旧模型名经验不借用。新提交固定当前设置，续跑刷新原身份模型最新生成/上下文/稳定性参数，阶段参数刷新受原路由/模型池归属约束。Ollama使用原生阶段JSON Schema，本地地图4096输出默认最多16段，模型默认温度独立保存、继承表单保留来源状态，思考耗尽且无正文单独诊断停止拆分，商汤三类模型与OpenRouter按实际入口映射关闭思考，手动探测同步关闭思考；间隔按实际发出时间复核，等待使用墙钟避免取消检查放大时长；笔记减少重复地点窗口提取规则，LOCAL_ONLY禁止歧义复核借用全局远程入口；提示删除悬空关系示例，严格保留Evidence引用校验。后端全量400、补充目标及继承/预算测试及Ruff通过；前端21、ESLint/TypeScript/隔离构建通过，Browser1095×876/390×844只读核对中文“单批最多模型尝试”、模型默认温度及留空继承、无溢出/相关错误。无迁移；授权真实视频结果与模型质量边界见[指定视频矩阵](benchmark/AI_ENTRY_ISOLATION_BV1eAew6UEvG_REPORT.md)，生产现场见带日期交接。
 
 2026-10-11 本地模型测试间隔补修：LOCAL或Ollama统一共用本地硬件分组，不因Provider/入口、直连模式或Base URL缺失绕过串行；每次测试/探测子调用结束（含失败）后至少5秒，前后配置间隔/RPM更长取更长，共享完成时间和期限跨API/Worker/模型保留。已保存/草稿探测统一先分组锁再硬件锁，避免与Worker反向取锁。队列目标21项（新增10项覆盖成功/失败、较长间隔、跨Provider/入口与锁顺序）、后端全量379及Ruff通过；前端19/ESLint/TypeScript/隔离Vite通过，生产Browser1095与390px只读核对明确说明、无溢出/相关console错误。未重新触发真实模型推理；加载和备份证据见[交接生产快照](CURRENT_HANDOFF.md)，契约见[模型测试队列](ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md#11-已保存模型测试队列2026-10-11)。
 
@@ -6383,6 +6389,10 @@ Provider 必须支持或模拟：
 max_output_tokens
 ```
 
+### 9.5.1 模型默认温度（2026-10-12）
+
+Model Profile可保存可选temperature（0–2）；阶段留空时继承该模型值，模型未配置时保留阶段系统默认，显式阶段/任务值仍优先。手动测试/探测使用已保存模型温度和输出容量；输出容量包含供应商报告的思考Token，支持Thinking声明不等于兼容入口已实际关闭思考。重跑刷新同身份模型温度，原提交快照不变；UI不得把系统默认展示值在无关保存时写成显式覆盖。
+
 ### 9.6 可重复性
 
 Benchmark 至少记录：
@@ -8270,6 +8280,23 @@ LOCAL_FIRST/REMOTE_FIRST 优先使用相反位置候选作为备用；没有相�
 显式 Stage `retry_count` 优先于 Model Profile：同时限制 HTTP 重试及 JSON 修复重试，JSON 上限取 Profile 与 Stage 的较小值。因此 `retry_count=0` 禁止两类模型重发；没有阶段覆盖时沿用 Profile。确定性 JSON 规范化不算模型重试，最多两个多余尾部闭合括号只在完整对象已经可解析时移除；不丢弃第二个文档或额外字段，修复后继续完整 Schema/Evidence 校验并记录规则。历史失败/修复审计不回填。
 
 
+## 正常批次与调用经验隔离（2026-10-12）
+
+`max_attempts`表示单批逻辑请求的实际尝试上限，包含HTTP重试、JSON修复与备用调用，不能直接作为整个阶段的正常批次数上限。校对、证据地图、笔记分包按计划批次B分配B×上限的有界阶段额度，二分拆分增加实际计划叶子批次；同时保留单Job累计次数、Token及墙钟硬预算。系统默认Stage重试值不覆盖Model Profile，只有保存/任务/运行时显式值才优先。
+
+批次经验使用v2不透明配置指纹，包含主/备用供应商、入口、Profile/模型、账户摘要、接口约束及有效生成/稳定性参数。不同免费/官方入口或参数不共享经验；v1仅模型名记录保留历史，生产不借用。校对Job内经验也使用该指纹，模型参数变化后不沿用旧条目。原始LLM缓存及证据地图语义Artifact同样包含调用配置指纹，地图还包含执行模式与升级阈值；限时请求只临时缩短客户端超时，调用结束恢复配置，不把剩余期限传播给下一批。有效的来源/Evidence复用仍遵守原身份及Replay规则。无密钥进入快照/日志/经验条目。
+
+本地地图的输入块上限同时受输出容量约束，显式输入长度不能绕过输出容量；4096输出默认每块最多16段。Ollama JSON调用使用原生format Schema要求阶段必需字段，兼容入口仍使用已有协议。地图v2只允许缺省空辅助集合，实体与Claim仍必须存在且逐项验证；必需字段缺失、无效引文或越权ID不能补造。LOCAL_ONLY也约束歧义实体远程复核；保留本地结果待审核，不借用全局官方入口。远程复核成功次数如实计数，允许远程的模式按计划批次另计一次复核额度。
+
+模型可保存可选默认温度，阶段留空时使用该模型值；模型未配置时采用原阶段默认值。显式阶段/任务温度仍优先，显式零重试仍保留；表单依据sources保留继承状态，不把系统展示默认值在无关保存中写成显式覆盖。生成请求的输出上限不超过实际模型Profile容量，降低模型上限后旧阶段较高值也不能越界。兼容入口的原始缓存/经验还含请求契约版本；商汤DeepSeek V4关闭思考使用入口专属reasoning_effort=none，官方入口仍用thinking.type=disabled。真实验证只记录实际返回用量，不根据同名模型推断参数协议。
+
+输出达到上限且无正文、供应商报告正数reasoning_tokens时，返回AI_PROVIDER_REASONING_BUDGET并保留用量；不作为普通输入/正文截断进行二分，也不执行JSON修复或自动备用。正常正文被截断仍可自适应分块。该诊断表示本次配置的输出/思考预算不足，不把Model能力判成FAIL、不覆盖已有能力结果；总调用/Token/时间硬预算仍保留。
+
+笔记分包保留256 Token基础余量，按每事实384 Token有界估算，结合输入容量形成初始包；真正正文截断再自适应拆分，阶段额度随叶子批次增长。首包Provider失败且无有效AI章节必须暂停，不能遍历大量熔断包并把事实提纲标成AI归纳成功；已有有效AI章节时保留混合结果和未归纳范围。历史确定性提纲可以显式续跑笔记阶段，沿用原模型身份并刷新该模型参数。
+
+保护模式在等待资源/任务检查后、实际发起Provider调用前再次核对同入口间隔；预约槽位晚到不能压缩下一次实际发出的间隔。取消和阶段/任务墙钟在额外等待后仍复核，DIRECT不借用免费入口等待/熔断。手动测试/探测也关闭思考并按实际入口协议发送，使用独立的跨进程排队与本地完成后冷却。
+
+
 ---
 
 # FILE: ai-gateway/05-job-policy.md
@@ -8293,16 +8320,16 @@ Custom
 
 Custom 下允许只覆盖某几个 Stage。
 
-没有覆盖的 Stage 使用提交 Job 当时保存的 Stage Policy。Job 固定模型身份/路由、生成参数、Prompt 补充、领域包、ASR/转写分块及预算上限；排队期间修改这些设置不影响当前执行。能力评估属于执行资格：每次进入阶段选模时重新读取同身份模型最新已保存的探测结果，不沿用快照里的旧能力结论，也不自动调用模型重测。普通重试、步骤续跑和完整重跑默认在入队时刷新同模型的必要执行配置，无需新增选择项；原提交快照不改写。API Key 等凭据仍在构造调用客户端时从 Secret Store 读取，不写入 Job payload。没有历史提交快照的旧 Job 保持兼容读取，不伪造当时设置。
+没有覆盖的 Stage 使用提交 Job 当时保存的 Stage Policy。Job 固定模型身份/路由、生成参数、Prompt 补充、领域包、ASR/转写分块及预算上限；排队期间修改这些设置不影响当前执行。能力评估属于执行资格：每次进入阶段选模时重新读取同身份模型最新已保存的探测结果，不沿用快照里的旧能力结论，也不自动调用模型重测。普通重试、步骤续跑和完整重跑默认在入队时刷新同模型的最新可调执行参数，无需新增选择项；原提交快照不改写。API Key 等凭据仍在构造调用客户端时从 Secret Store 读取，不写入 Job payload。没有历史提交快照的旧 Job 保持兼容读取，不伪造当时设置。
 
 失败在笔记生成步骤时，用户可明确选择“使用当前笔记模型继续”。服务端只把当前笔记阶段策略与所选 Profile 的无密钥字段记为本次 Job 的恢复配置，原提交快照及上游 Artifact 不变，并在 `job.step_replay.queued` 记录模型与探测状态。普通步骤续跑保持有效模型/语义配置并自动刷新该模型必要执行配置；完整重跑清除显式笔记恢复配置，回到原提交模型身份。手动选定且探测为 `NOT_TESTED` 的 Profile 可进入原有 JSON、Segment Evidence 与预算门禁；`FAIL` 仍拒绝选路。
 
 恢复卡可从当前笔记阶段模型和通用路由已保存的备用模型中明确选择；选择备用模型只覆盖本 Job，不改全局 Stage Policy。只允许启用、位置匹配、`GLOBAL_SYNTHESIS` 探测不为 `FAIL` 的 Profile。任务恢复配置保存所选模型的无密钥字段和阶段覆盖，审计记录实际模型；不是给模型补造能力 Probe 结果。
 
-### 同模型必要配置刷新（2026-10-09）
+### 同模型参数刷新（2026-10-12）
 
 - 身份包含实际 model、provider、去除末尾斜杠的 base_url、接入方式和推理位置；仅 Profile ID/名称相同不能证明同模型。相关模型被删除、禁用或身份改变时，返回 `REPLAY_MODEL_UNAVAILABLE / REPLAY_MODEL_IDENTITY_CHANGED`，不改变 Job/Step/Artifact 状态，不追随新的全局路由。
-- Profile 白名单：接口能力与实际 JSON 支持、最新探测结果/业务评估、超时、间隔、并发、限速、重试/JSON 重试、稳定性模式和熔断参数。Stage 仅刷新超时/重试，且当前阶段路由必须与原路由一致；通用重试/等待/间隔、转写处理超时可刷新。任务显式覆盖仍优先。temperature、thinking、输入/输出上限、声明能力/模态、Prompt/领域包、分块和所有预算上限不自动更新。
+- 同一身份的Profile刷新接口/JSON支持、最新能力评估、超时/间隔/并发/重试/限速/熔断、输出上限、上下文及思考/工具支持参数。关联Stage刷新温度、思考、输入/输出上限、墙钟、单批尝试及重试、分块等可调参数；当前Stage模型槽位/路由或所依赖的全局候选池已变为另一模型时，不借用新模型的Stage配置。转写处理刷新字符/段数预算与超时，显式任务覆盖仍优先。模型身份/提交路由、Prompt/领域包及单Job累计硬预算保留；原提交快照和旧执行历史不改写。
 - `ai_submission_config` 保存提交意图；`ai_execution_config` 保存本次必要配置覆盖、revision、采样时间、来源更新时间、字段差异和有效配置指纹；替换前的执行配置追加到 `ai_execution_history`。执行配置读取顺序为本次执行配置（已合并有效显式恢复）→ 显式恢复 → 原提交快照。能力门禁单独通过新连接采样同身份模型最新已保存的 `probe_results/business_assessments`，绕过旧事务/ORM缓存，一次阶段选模固定这份评估，下一阶段重新采样；不改变执行参数或已配置候选模型。`ai.capability.checked` 及调用审计记录能力、有效状态、更新时间、评估哈希和来源；没有同身份现存Profile时不借用其他模型评估，当前在途配置保留原语义，重跑仍按原身份门禁拒绝。审计不记录 Secret。
 - 步骤续跑只刷新剩余阶段所需模型；有 Grounded Map 时笔记阶段仅检查 NOTE_REDUCE，已完成阶段不因后来删除旧模型而阻止合法续跑。接口指纹继续进入 Cache Key；ASR 等上游有效产物保留，失败阶段和后续产物按原 Replay 门禁失效。
 - 活跃任务完整重跑先保存 `ai_pending_execution_config`，当前执行配置保持不变；旧执行安全退出并释放租约后才安装入队时冻结的配置，不在释放时重新采样。普通重试与完整重跑共用重置函数，清除旧步骤续跑标记并使旧 Artifact 失效。

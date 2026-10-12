@@ -19,6 +19,38 @@ from zhijian.services.evidence_trace import evidence_trace
 from zhijian.services.jobs import JobCancelled
 
 
+@pytest.mark.parametrize(
+    "base,model,expected",
+    [
+        ("https://token.sensenova.cn/v1", "deepseek-v4-flash", {"reasoning_effort": "none"}),
+        ("https://token.sensenova.cn/v1", "glm-5.2", {"reasoning_effort": "none"}),
+        ("https://openrouter.ai/api/v1", "openrouter/free", {"reasoning": {"enabled": False}}),
+        ("https://token.sensenova.cn/v1", "sensenova-6.8-flash-lite", {"reasoning_effort": "none"}),
+        ("https://api.deepseek.com/v1", "deepseek-v4-flash", {"thinking": {"type": "disabled"}}),
+        ("https://other.fixture/v1", "deepseek-v4-flash", {}),
+    ],
+)
+def test_thinking_control_is_specific_to_actual_entry(monkeypatch, base, model, expected):
+    from zhijian.providers.llm import OpenAICompatibleProvider, ProviderRequestOptions
+
+    sent = []
+
+    def post(url, **kwargs):
+        sent.append(kwargs["json"])
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", url),
+            json={
+                "choices": [{"message": {"content": '{"changes":[]}'}, "finish_reason": "stop"}],
+            },
+        )
+
+    monkeypatch.setattr(httpx, "post", post)
+    provider = OpenAICompatibleProvider("openai-compatible", base, "fixture-account")
+    provider.generate_json([], model=model, options=ProviderRequestOptions(thinking=False))
+    assert {k: sent[0][k] for k in ("thinking", "reasoning_effort", "reasoning") if k in sent[0]} == expected
+
+
 def segments(snapshot="snapshot-a"):
     return [
         Segment(
@@ -149,6 +181,61 @@ def test_extra_closers_are_repaired_without_discarding_another_document():
     for text in ('{"ok":true}{"other":1}', '{"ok":true},"other":1}', '{"ok":true}}}}'):
         with pytest.raises(AIProviderError):
             parse_json_with_quality(text)
+
+
+def test_v2_map_accepts_absent_empty_auxiliary_collections_but_checks_core_arrays():
+    from zhijian.ai.structured_output import validate_structured_output
+
+    metadata = {}
+    validate_structured_output('{"entities":[],"claims":[]}', "GROUND_MAP", metadata)
+    assert metadata["schema_defaults"] == ["content_units", "relations", "warnings"]
+    with pytest.raises(AIProviderError):
+        validate_structured_output('{"entities":{},"claims":[]}', "GROUND_MAP")
+    with pytest.raises(AIProviderError):
+        validate_structured_output('{"entities":[]}', "GROUND_MAP")
+
+
+def test_local_map_sends_mandatory_native_schema(app_and_session, monkeypatch):
+    requests = []
+
+    def post(_url, **kwargs):
+        requests.append(kwargs["json"])
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", _url),
+            json={
+                "message": {
+                    "content": '{"content_units":[],"entities":[],"relations":[],"claims":[],"warnings":[]}'
+                },
+                "done": True,
+                "done_reason": "stop",
+            },
+        )
+
+    monkeypatch.setattr("zhijian.providers.llm._post", post)
+    provider = OllamaProvider("http://local.fixture")
+    with app_and_session[1]() as db:
+        AIWorkloadGateway().execute_cached_json(
+            db,
+            job=None,
+            stage="GROUND_MAP",
+            capability="LLM",
+            provider=provider,
+            provider_name="ollama",
+            model="qwen3.5:9b",
+            messages=[{"role": "user", "content": "Return JSON."}],
+            semantic_options={},
+            cache_enabled=False,
+            force_regenerate=True,
+        )
+    assert requests[0]["format"]["required"] == [
+        "content_units",
+        "entities",
+        "relations",
+        "claims",
+        "warnings",
+    ]
+    assert requests[0]["keep_alive"] == 0
 
 
 def test_cache_is_scoped_and_replay_reads_canonical_result(app_and_session):

@@ -900,6 +900,50 @@ def test_partial_success_without_failed_step_does_not_replay_cleanup(client, app
     assert response.json()["code"] == "REPLAY_STEP_MISMATCH"
 
 
+@pytest.mark.parametrize("mode", ["DETERMINISTIC_FALLBACK", "HYBRID"])
+def test_deterministic_note_fallback_can_resume_original_note_stage(client, app_and_session, mode):
+    from zhijian.services.job_replay import PROMPT_ROLE_BY_STEP
+    from zhijian.services.video_support import prompt_supplement_hash
+
+    _, factory = app_and_session
+    with factory() as db:
+        job = Job(
+            job_type="TRAVEL",
+            status="PARTIAL_SUCCESS",
+            current_step="CLEAN_CACHE",
+            payload_json={"note_generation_mode": mode},
+        )
+        db.add(job)
+        db.flush()
+        for name in VIDEO_STEP_ORDER[: VIDEO_STEP_ORDER.index("GENERATE_AI_NOTE") + 1]:
+            db.add(
+                JobStep(
+                    job_id=job.id,
+                    step_name=name,
+                    status="COMPLETED",
+                    input_json={
+                        "prompt_supplement_hash": prompt_supplement_hash(db, PROMPT_ROLE_BY_STEP[name], job)
+                    }
+                    if name in PROMPT_ROLE_BY_STEP
+                    else {},
+                )
+            )
+            db.add(
+                JobStepArtifact(
+                    job_id=job.id,
+                    step_name=name,
+                    artifact_ref_json={"ok": True},
+                    replayable_until=datetime.now(UTC) + timedelta(hours=1),
+                )
+            )
+        db.commit()
+        job_id = job.id
+    options = client.get(f"/api/jobs/{job_id}/replay-options").json()
+    assert options["step_replay_available"] is True
+    assert options["replay_from_step"] == "GENERATE_AI_NOTE"
+    assert "CORRECT_TRANSCRIPT" in options["reused_steps"]
+
+
 def test_spa_shell_revalidates_but_hashed_assets_are_immutable(client) -> None:
     shell = Response()
     SPAStaticFiles._with_cache_policy(shell, "logs")

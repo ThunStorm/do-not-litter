@@ -274,6 +274,13 @@ def replay_options(db: Session, job: Job) -> dict:
         and steps[job.current_step].status == "CANCELLED"
     ):
         failed = steps[job.current_step]
+    if (
+        failed is None
+        and job.status == JobStatus.PARTIAL_SUCCESS.value
+        and job.payload_json.get("note_generation_mode") in {"DETERMINISTIC_FALLBACK", "HYBRID"}
+        and steps.get("GENERATE_AI_NOTE")
+    ):
+        failed = steps["GENERATE_AI_NOTE"]
     if failed is None or failed.step_name not in VIDEO_STEP_ORDER:
         return _unavailable(job, "REPLAY_STEP_MISMATCH", "没有可续跑的失败步骤")
     if job.status not in {

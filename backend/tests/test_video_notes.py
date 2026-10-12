@@ -75,6 +75,16 @@ from zhijian.services.video_support import (
 )
 
 
+def test_compact_note_facts_drops_only_duplicate_points_and_empty_fields():
+    result = video_support._compact_note_facts([
+        {"summary": "票价20元", "key_points": ["票价20元", "不建议周末"],
+         "warnings": [], "segment_ids": ["s1"], "supporting_quotes": ["门票20元不推荐周末。"],
+         "place_mention_ids": []}
+    ])
+    assert result == [{"summary": "票价20元", "key_points": ["不建议周末"],
+                       "segment_ids": ["s1"], "supporting_quotes": ["门票20元不推荐周末。"]}]
+
+
 def test_bilibili_parser_keeps_bvid_and_selected_page() -> None:
     parsed = parse_bilibili_url("https://www.bilibili.com/video/BV1Tvbe6EEw2/?p=3")
     assert parsed.bvid == "BV1Tvbe6EEw2"
@@ -588,7 +598,8 @@ def test_transcript_correction_splits_truncated_batches(monkeypatch, app_and_ses
             "CORRECTED",
             "UNCHANGED",
         ]
-        hint = job.payload_json["ai_runtime_hints"]["transcript_correction"]["fixture-model"]
+        hint = next(iter(job.payload_json["ai_runtime_hints"]["transcript_correction"].values()))
+        assert hint["model"] == "fixture-model"
         assert hint["max_batch_size"] == hint["safe_max_segments"] == 2
         assert hint["safe_max_chars"] > 0
         assert hint["reason"] == "AI_PROVIDER_OUTPUT_TRUNCATED"

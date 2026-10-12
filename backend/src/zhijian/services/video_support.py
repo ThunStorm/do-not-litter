@@ -27,10 +27,15 @@ from zhijian.ai.job_config import (
     latest_profile_assessment,
 )
 from zhijian.ai.model_registry import model_connection_type
-from zhijian.ai.policies import resolve_stage_policy
+from zhijian.ai.policies import resolve_stage_policy, stage_attempt_limit
 from zhijian.ai.reliability import AIProviderError, ModelReliabilityPolicy, resolve_reliability_policy
 from zhijian.ai.request_compiler import compile_request
-from zhijian.ai.runtime_hints import read_runtime_hint, tighten_note_reduce_hint, tighten_runtime_hint
+from zhijian.ai.runtime_hints import (
+    read_runtime_hint,
+    runtime_hint_scope,
+    tighten_note_reduce_hint,
+    tighten_runtime_hint,
+)
 from zhijian.ai.stage_decision import decide_stage, record_stage_decision
 from zhijian.ai.stages import stage_spec
 from zhijian.ai.token_usage import estimate_tokens
@@ -556,7 +561,14 @@ def _cached_stage_json(
         compiled_request=compiled,
         stage_deadline=stage_deadline,
         domain_chars=sum(len(item["content"]) for item in domain_messages),
-        max_stage_attempts=policy.max_attempts,
+        max_stage_attempts=stage_attempt_limit(
+            policy.max_attempts,
+            int(
+                (attempt_metadata or {}).get("planned_calls")
+                or (attempt_metadata or {}).get("chunk_count")
+                or 1
+            ),
+        ),
         max_input_tokens=policy.max_input_tokens,
         semantic_options={
             "temperature": policy.temperature,
@@ -795,6 +807,8 @@ def provider_for_role(
             ):
                 fallback_id = configured_fallback
         if role == "grounded_map_escalation":
+            if mode == "LOCAL_ONLY":
+                raise ProviderUnavailable("该阶段仅允许本地模型，歧义实体保留待审核")
             primary_id, fallback_id = remote_id, ""
         primary_config = profile_config(primary_id)
         fallback_config = profile_config(fallback_id)
@@ -922,6 +936,9 @@ def provider_for_role(
                 for key in (
                     "parse_quality",
                     "repair_rules",
+                    "response_keys",
+                    "schema_defaults",
+                    "reasoning_tokens",
                     "execution_path",
                     "original_result_hash",
                     "queue_ms",
@@ -1021,7 +1038,11 @@ def provider_for_role(
     ) -> FallbackLLMProvider:
         def reliability_for(config: dict[str, Any] | None) -> ModelReliabilityPolicy:
             resolved = resolve_reliability_policy(config)
-            if resolved_policy and resolved_policy.retry_count is not None:
+            if (
+                resolved_policy
+                and resolved_policy.retry_count is not None
+                and getattr(resolved_policy, "sources", {}).get("retry_count") != "system_default"
+            ):
                 resolved = replace(
                     resolved,
                     retry_count=resolved_policy.retry_count,
@@ -1038,7 +1059,18 @@ def provider_for_role(
                 if resolved_policy and resolved_policy.max_output_tokens is not None
                 else profile_max_output_tokens
             )
-            if not resolved_policy and max_output_tokens is None:
+            if max_output_tokens is not None and profile_max_output_tokens is not None:
+                max_output_tokens = min(max_output_tokens, profile_max_output_tokens)
+            temperature = (config or {}).get("temperature")
+            if resolved_policy and (
+                temperature is None or resolved_policy.sources.get("temperature") != "system_default"
+            ):
+                temperature = resolved_policy.temperature
+            if (
+                not resolved_policy
+                and max_output_tokens is None
+                and (config or {}).get("temperature") is None
+            ):
                 return None
             thinking = resolved_policy.thinking if resolved_policy else None
             if thinking is None and role in {"note_reduce", "video_note_summary"} and config:
@@ -1047,7 +1079,7 @@ def provider_for_role(
                 if provider_name == "deepseek" or "api.deepseek.com" in base_url:
                     thinking = False
             return ProviderRequestOptions(
-                temperature=resolved_policy.temperature if resolved_policy else None,
+                temperature=temperature,
                 max_output_tokens=max_output_tokens,
                 thinking=thinking,
                 context_window=int((config or {}).get("context_window") or 0) or None,
@@ -1586,8 +1618,10 @@ def _compact_note_facts(facts: list[dict[str, object]]) -> list[dict[str, object
                 dict.fromkeys(str(item) for item in fact.get("place_mention_ids", []) if item)
             ),
         }
+        value["key_points"] = [point for point in value["key_points"] if point != value["summary"]]
+        value = {field: item for field, item in value.items() if item}
         key = json.dumps(value, ensure_ascii=False, sort_keys=True)
-        if value["segment_ids"] and key not in seen:
+        if value.get("segment_ids") and key not in seen:
             compact.append(value)
             seen.add(key)
     return compact
@@ -1791,7 +1825,11 @@ def correct_transcript(
         if isinstance(runtime_hints.get("transcript_correction"), dict)
         else {}
     )
-    saved = {**read_runtime_hint(db, "TRANSCRIPT_CORRECTION", model), **(correction_hints.get(model) or {})}
+    hint_scope = runtime_hint_scope(provider, model)
+    saved = {
+        **read_runtime_hint(db, "TRANSCRIPT_CORRECTION", model, scope=hint_scope),
+        **(correction_hints.get(hint_scope) or {}),
+    }
     saved_batch_size = int(saved.get("safe_max_segments") or saved.get("max_batch_size") or 0)
     saved_max_chars = int(saved.get("safe_max_chars") or 0)
     adaptive_batch_size = (
@@ -1802,6 +1840,7 @@ def correct_transcript(
         min(processing.chunk_chars, saved_max_chars) if saved_max_chars else processing.chunk_chars,
         adaptive_batch_size,
     )
+    planned_calls = max(1, len(chunks))
     if job:
         supplement_chars = sum(
             len(message["content"])
@@ -1869,7 +1908,7 @@ def correct_transcript(
     def request_batch(
         batch: list[Segment], *, batch_index: int, batch_total: int, split_path: str = "root"
     ) -> None:
-        nonlocal adaptive_batch_size
+        nonlocal adaptive_batch_size, planned_calls
         if job:
             ensure_job_active(db, job)
         payload = {
@@ -1896,6 +1935,7 @@ def correct_transcript(
                 attempt_metadata={
                     "chunk_index": batch_index,
                     "chunk_count": batch_total,
+                    "planned_calls": planned_calls,
                     "split_path": split_path,
                     "segment_count": len(batch),
                 },
@@ -1919,11 +1959,13 @@ def correct_transcript(
                     request_segments=segments,
                     stage_deadline=correction_deadline,
                     fallback_only=True,
+                    attempt_metadata={"planned_calls": planned_calls},
                     result_validator=lambda result: validated_changes(batch, result),
                 )
                 apply_batch_result(batch, response, validated_changes(batch, response))
                 return
             midpoint = len(batch) // 2
+            planned_calls += 1
             adaptive_batch_size = min(adaptive_batch_size, midpoint)
             safe_max_chars = max(
                 sum(len(item.raw_text or item.text) for item in part)
@@ -1935,11 +1977,13 @@ def correct_transcript(
                 model,
                 safe_max_chars=max(1, safe_max_chars),
                 safe_max_segments=adaptive_batch_size,
+                scope=hint_scope,
             )
             if job:
                 hints = dict(job.payload_json.get("ai_runtime_hints") or {})
                 model_hints = dict(hints.get("transcript_correction") or {})
-                model_hints[model] = {
+                model_hints[hint_scope] = {
+                    "model": model,
                     "max_batch_size": adaptive_batch_size,
                     **persisted,
                     "reason": exc.code,
@@ -2296,6 +2340,7 @@ def generate_note(
                 model=model,
                 messages=messages,
                 request_segments=segments,
+                attempt_metadata={"chunk_index": chunk_index + 1, "chunk_count": max(1, len(chunks))},
             )
             payload = parse_model_json(response.content)
             if payload.get("overview"):
@@ -2327,19 +2372,20 @@ def generate_note(
         raw_sections = _fallback_sections(chunks)
     if map_facts:
         reduce_policy = _resolved_stage_policy(db, "NOTE_REDUCE", job)
-        saved_hint = read_runtime_hint(db, "NOTE_REDUCE", model)
+        hint_scope = runtime_hint_scope(provider, model)
+        saved_hint = read_runtime_hint(db, "NOTE_REDUCE", model, scope=hint_scope)
         max_input_tokens = min(
             int(reduce_policy.max_input_tokens or 6000),
             int(saved_hint.get("safe_max_input_tokens") or 6000),
         )
         output_tokens = int(
-            reduce_policy.max_output_tokens
-            or getattr(getattr(provider, "request_options", None), "max_output_tokens", None)
+            getattr(getattr(provider, "request_options", None), "max_output_tokens", None)
+            or reduce_policy.max_output_tokens
             or 4096
         )
         max_facts = min(
             int(saved_hint.get("safe_max_facts") or 40),
-            max(1, (output_tokens - 1024) // 1024),
+            max(1, (output_tokens - 256) // 384),
         )
         compact_facts = _compact_note_facts(map_facts)
         fixed_chars = (
@@ -2353,6 +2399,7 @@ def generate_note(
             max_chars=max(1000, max_input_tokens * 4 - fixed_chars),
             max_facts=max_facts,
         )
+        planned_calls = max(1, len(packs))
         reduced_sections: list[dict[str, object]] = []
         failed_segment_ids: set[str] = set()
         stage_started = perf_counter()
@@ -2363,7 +2410,7 @@ def generate_note(
         def request_pack(
             pack: list[dict[str, object]], *, pack_index: int, pack_count: int, split_path: str = "root"
         ) -> None:
-            nonlocal completed_weight, logical_attempts, response
+            nonlocal completed_weight, logical_attempts, response, planned_calls
             if (
                 reduce_policy.wall_time_seconds
                 and perf_counter() - stage_started >= reduce_policy.wall_time_seconds
@@ -2371,7 +2418,8 @@ def generate_note(
                 raise AIProviderError(
                     "AI_STAGE_WALL_TIME_EXCEEDED", "笔记归纳已达到阶段总时限", switch_model=False
                 )
-            if reduce_policy.max_attempts and logical_attempts >= reduce_policy.max_attempts:
+            attempt_limit = stage_attempt_limit(reduce_policy.max_attempts, planned_calls)
+            if attempt_limit and logical_attempts >= attempt_limit:
                 raise AIProviderError(
                     "AI_PROVIDER_ATTEMPT_BUDGET", "笔记归纳已达到尝试上限", switch_model=False
                 )
@@ -2412,6 +2460,7 @@ def generate_note(
                     attempt_metadata={
                         "chunk_index": pack_index,
                         "chunk_count": pack_count,
+                        "planned_calls": planned_calls,
                         "split_path": split_path,
                         "segment_count": len(pack),
                     },
@@ -2420,7 +2469,11 @@ def generate_note(
                 if exc.code != "AI_PROVIDER_OUTPUT_TRUNCATED":
                     raise
                 if len(pack) <= 1:
-                    if not isinstance(provider, FallbackLLMProvider):
+                    if (
+                        not isinstance(provider, FallbackLLMProvider)
+                        or provider.fallback is None
+                        or not provider.fallback_model
+                    ):
                         raise
                     reduced = _cached_stage_json(
                         db,
@@ -2433,12 +2486,14 @@ def generate_note(
                         messages=messages,
                         request_segments=segments,
                         fallback_only=True,
+                        attempt_metadata={"planned_calls": planned_calls},
                         stage_deadline=stage_started + reduce_policy.wall_time_seconds
                         if reduce_policy.wall_time_seconds
                         else None,
                     )
                 else:
                     midpoint = len(pack) // 2
+                    planned_calls += 1
                     tighten_note_reduce_hint(
                         db,
                         model,
@@ -2446,6 +2501,7 @@ def generate_note(
                             1, len(json.dumps(pack[:midpoint], ensure_ascii=False)) // 4
                         ),
                         safe_max_facts=midpoint,
+                        scope=hint_scope,
                     )
                     request_pack(
                         pack[:midpoint],
@@ -2493,6 +2549,8 @@ def generate_note(
             try:
                 request_pack(pack, pack_index=pack_index, pack_count=len(packs))
             except Exception as exc:
+                if isinstance(exc, AIProviderError) and not reduced_sections:
+                    raise
                 failed_segment_ids.update(
                     str(segment_id) for fact in pack for segment_id in fact.get("segment_ids", [])
                 )

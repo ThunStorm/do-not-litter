@@ -108,6 +108,22 @@ class AIProviderError(RuntimeError):
         self.cause = cause
 
 
+def check_output_budget(content: str, metadata: dict, usage: dict | None = None) -> None:
+    if str(metadata.get("finish_reason") or "").lower() not in {"length", "max_tokens"}:
+        return
+    metadata["parse_quality"] = "INCOMPLETE"
+    details = (usage or {}).get("completion_tokens_details")
+    reasoning = details.get("reasoning_tokens") if isinstance(details, dict) else None
+    if not content.strip() and isinstance(reasoning, int) and reasoning > 0:
+        metadata["reasoning_tokens"] = reasoning
+        raise AIProviderError(
+            "AI_PROVIDER_REASONING_BUDGET",
+            "模型的输出额度已被思考消耗，未产生正文；请调整该入口的输出额度或思考设置",
+            switch_model=False,
+        )
+    raise AIProviderError("AI_PROVIDER_OUTPUT_TRUNCATED", "模型输出达到长度上限")
+
+
 def classify_provider_error(exc: Exception) -> AIProviderError:
     if isinstance(exc, AIProviderError):
         return exc
@@ -263,6 +279,7 @@ class ReliabilityGuards:
 
     _lock = Lock()
     _last_started: dict[str, float] = {}
+    _last_dispatched: dict[str, float] = {}
     _semaphores: dict[tuple[str, int], Semaphore] = {}
     _circuits: dict[str, _Circuit] = {}
 
@@ -308,6 +325,25 @@ class ReliabilityGuards:
     def release(cls, semaphore: Semaphore | None) -> None:
         if semaphore:
             semaphore.release()
+
+    @classmethod
+    def before_dispatch(cls, key: str, policy: ModelReliabilityPolicy, sleeper: Any) -> float:
+        """Recheck actual starts after queued work; reserved slots can run late."""
+        if policy.mode == "DIRECT":
+            return 0.0
+        interval = max(
+            policy.request_interval_seconds, 60 / policy.rate_limit_rpm if policy.rate_limit_rpm else 0
+        )
+        waited = 0.0
+        while True:
+            with cls._lock:
+                now = monotonic()
+                wait = max(0.0, cls._last_dispatched.get(key, now - interval) + interval - now)
+                if not wait:
+                    cls._last_dispatched[key] = now
+                    return waited
+            sleeper(wait)
+            waited += wait
 
     @classmethod
     def success(cls, key: str) -> None:

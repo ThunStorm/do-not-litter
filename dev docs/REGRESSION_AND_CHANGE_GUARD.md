@@ -17,9 +17,9 @@
 | 部署与局域网 | 唯一后端为 Mac mini；4 位配对码显眼展示；Cookie 会话刷新不应重新要求配对；服务状态来自真实 API/Worker/SQLite | `operations/DEPLOYMENT_OPTIONS.md`、`jobs/MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md`、`services/auth.py` |
 | 捕获与本地处理 | URL、正文、DOCX、PDF、XLSX、图像 OCR、音视频均可进入 Job；Whisper.cpp、FFmpeg 与 OCR 状态必须是探测结果 | `product/PRODUCT_REQUIREMENTS.md`、`ai-gateway/AI_RUNTIME_AND_PROVIDERS.md` |
 | 模型设置 | 用户可维护任意 Provider/模型库；预设仅帮助填写；主/备用从已存模型选择；草稿可真实测试；已保存模型一键与单项共用Worker队列，同供应商/入口FIFO、独立最多三组并行，跨进程节流/429冷却/去重/取消及晚结果fence保留；默认超时 300 秒 | `ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md`、`operations/RUNTIME_MONITOR_AND_MODEL_PRESETS_SPEC.md` |
-| AI Gateway 契约 | Model Profile 显式保存 location/modalities/capabilities；Stage 参数仅白名单；新 Job 按提交时快照固定路由、Profile、Stage Policy、Prompt/领域上下文与 AI 参数，普通/完整/步骤重跑入队时自动刷新同模型必要执行配置，其余沿用原快照；身份变更/删除/禁用重跑安全拒绝，执行参数入队后不追随全局变化，各阶段能力门禁重新核对同身份模型最新已保存评估并审计，历史执行快照可追溯，累计预算不重置，Secret 不进 Job；笔记失败后的显式恢复操作仅覆盖本 Job 的笔记模型并审计，完整重跑清除该覆盖；没有快照的历史任务保持兼容路由，`AUTO/LOCAL_ONLY/LOCAL_FIRST/REMOTE_FIRST/REMOTE_ONLY` 语义不得回退 | `ai-gateway/05-job-policy.md`、`ai/policies.py` |
+| AI Gateway 契约 | Model Profile 显式保存 location/modalities/capabilities；Stage 参数仅白名单；新 Job 按提交时快照固定路由、Profile、Stage Policy、Prompt/领域上下文与 AI 参数，普通/完整/步骤重跑入队时自动刷新原模型最新可调参数，其余沿用原快照；身份变更/删除/禁用重跑安全拒绝，模型/入口身份和提交路由保留，不借用其他模型参数；执行参数入队后不追随全局变化，各阶段能力门禁重新核对同身份模型最新已保存评估并审计，历史执行快照可追溯，累计预算不重置，Secret 不进 Job；笔记失败后的显式恢复操作仅覆盖本 Job 的笔记模型并审计，完整重跑清除该覆盖；没有快照的历史任务保持兼容路由，`AUTO/LOCAL_ONLY/LOCAL_FIRST/REMOTE_FIRST/REMOTE_ONLY` 语义不得回退 | `ai-gateway/05-job-policy.md`、`ai/policies.py` |
 | AI Gateway 质量与上下文 | 干净平台字幕不得无条件全文送模；长转写只传候选或 Facts，不能多阶段重复全文；Domain Context 仅低优先级增强，不能覆盖 Evidence、Schema 或安全契约；text-only Profile 不得绑定视觉 Stage | `ai-gateway/AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md`、`services/video_support.py` |
-| Qwen 逐字对齐与校对预算 | 高比例逐字对齐须在新 Transcript 物化前合并为语句 Segment，保留原始时间码；不得原地修改历史 Segment。校对预算按实际批次预估，实测剩余工作超墙钟上限时提前收口，请求 timeout 受剩余时长约束 | `scripts/qwen_asr_runner.py`、`services/video_support.py`、`ai/budget.py` |
+| Qwen 逐字对齐与校对预算 | 高比例逐字对齐须在新 Transcript 物化前合并为语句 Segment，保留原始时间码；不得原地修改历史 Segment。批次经验按入口/账户/有效参数隔离，旧模型名经验不借用；单批尝试上限不误作整个阶段批次数，校对/地图/笔记按正常及拆分批次分配额度；校对预算按实际批次预估，实测剩余工作超墙钟上限时提前收口，请求 timeout 受剩余时长约束 | `scripts/qwen_asr_runner.py`、`services/video_support.py`、`ai/budget.py` |
 | 证据地图截断恢复 | `LOCAL_FIRST` 首次本地输出截断后先拆分；存在已配置备用模型时，子块或预计超出剩余阶段预算的后续块走备用路由，保持原 Segment Evidence、Schema 校验、调用审计与缓存，不重复扩大本地慢请求；正文字符 Hint 不得漏算分块结构开销 | `services/grounded_map.py`、`ai/gateway.py` |
 | 笔记归纳恢复 | `GLOBAL_SYNTHESIS` 是内部阶段契约；版本有效的 `FAIL` 仍拦截，旧版笔记小样/过期结果为未验证而非通过。显式阶段选定或非AUTO首选槽位留空继承通用主模型可尝试 `NOT_TESTED`，不扩大自动候选/备用声明；保存/执行/恢复统一判定，同模型续跑刷新最新评估；每个阶段重新核对同身份模型最新已保存能力结果，执行参数与历史快照保留。小样允许合并/拆分章节，严格验证来源和事实证据，歧义不误判失败。DeepSeek 笔记默认关闭思考，保留原 JSON/Evidence/预算；续跑仍须 lease 释放、上游有效且无待执行完整重跑 | `ai-gateway/01-architecture-models.md`、`services/video_support.py`、`services/job_replay.py`、`jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md` |
 | 请求优化与能力诊断 | 短 ID 仅在模型边界，Snapshot/内容/编译器/投影/映射绑定缓存；原文/quote 不变，未知或越界引用拒绝，校对只返回 target_ids；不静默截尾；格式 smoke 不授业务 PASS，模型修复默认关闭；解析质量与回退/重试/缓存分开，等待后复核 Deadline；POI 空证据/跨来源不得自动确认，合成字节收益不冒称真实 Token/质量 | `ai/request_compiler.py`、`benchmark/RELEASE_ACCEPTANCE.md` |
@@ -58,3 +58,7 @@
 ## 4. 验证记录的唯一来源
 
 自动验证与未闭环项见 [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md)，生产采样见 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)，逐版本证据见 history/IMPLEMENTATION_HISTORY.md。本文不再复制测试数量、生产版本和活跃任务数，避免多处漂移。Gateway 生产验收继续受 ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md 约束。
+
+本轮新增回归：笔记归纳首包Provider失败且无任何有效AI章节时暂停，不把确定性提纲当作模型成功；历史DETERMINISTIC_FALLBACK或HYBRID部分降级任务可从GENERATE_AI_NOTE显式恢复，普通部分成功仍不复跑清理步骤。分包按有效模型输出容量估算，保留真正截断后的二分及同入口经验。厂商HTTP配额/限流、本地断路保护、思考/正文预算原因分开记录，不用应用OPEN状态推断厂商熔断。
+
+保护请求预约与实际发出分别核对间隔；取消检查耗时计入墙钟等待，不能额外放大配置间隔；等待后复核取消/截止时间。手动探测统一关闭思考，由实际入口映射协议，LOCAL_ROUTER继续按接口契约省略。归纳保留时间/限制在笔记中的事实表达，使用已验证地点窗口，不重复提取地点窗口结构；地点提取与窗口校验契约不变。

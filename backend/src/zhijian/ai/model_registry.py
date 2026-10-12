@@ -210,6 +210,7 @@ def model_profile_from_value(profile_id: str, value: dict[str, Any]) -> ModelPro
         context_window=int(value.get("context_window") or 32_768),
         recommended_working_context=int(value.get("recommended_working_context") or 8_192),
         max_output_tokens=value.get("max_output_tokens", 4_096),
+        temperature=value.get("temperature"),
         quality_tier=str(value.get("quality_tier") or "MAIN"),
         specialties=set(value.get("specialties") or []),
         enabled=bool(value.get("enabled", True)),
@@ -252,8 +253,9 @@ def invoke_profile_model(
         if wait_seconds:
             sleep(wait_seconds)
         options = ProviderRequestOptions(
+            temperature=profile.temperature,
             max_output_tokens=profile.max_output_tokens,
-            thinking=False if profile.supports_thinking or profile.provider.lower() == "deepseek" else None,
+            thinking=False,
         )
         if local_hardware or getattr(provider, "base_url", None):
             pace_model_test(local_interval)

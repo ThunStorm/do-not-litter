@@ -14,6 +14,7 @@ export const providerPresets = [
 export type ModelFormValues = {
   name: string; provider: string; base_url: string; model: string; timeout_seconds: number; request_interval_seconds: number | null; api_key: string
   connection_type?: 'DIRECT' | 'LOCAL_ROUTER'; interface_capabilities?: InterfaceCapabilities | null; max_output_tokens?: number | null
+  temperature?: number | null
   reliability_mode?: 'DIRECT' | 'STANDARD' | 'GUARDED' | 'FREE_TIER'; max_concurrency?: number | null; retry_count?: number | null; json_retry_count?: number | null; rate_limit_rpm?: number | null; circuit_breaker_enabled?: boolean | null; circuit_breaker_threshold?: number | null; circuit_breaker_cooldown_seconds?: number | null
   location?: 'LOCAL' | 'REMOTE'; modalities?: string[]; capabilities?: string[]; supports_json_mode?: boolean; supports_thinking?: boolean; quality_tier?: 'FAST' | 'MAIN' | 'STRONG' | 'SPECIALIST'
 }
