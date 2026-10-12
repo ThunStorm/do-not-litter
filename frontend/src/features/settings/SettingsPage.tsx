@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Copy,
   Cpu,
   Database,
@@ -28,6 +30,7 @@ import { Link } from "react-router-dom";
 
 import { PageHeader } from "../../components/AppShell";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
+import { IconButton } from "../../components/ui/IconButton";
 import { SelectMenu } from "../../components/ui/SelectMenu";
 import { api } from "../../lib/api";
 import type {
@@ -529,8 +532,9 @@ function ModelsPanel() {
       <StagePoliciesPanel profiles={profiles.data ?? []} />
       <TranscriptProcessingPanel />
       <PromptSupplementsPanel />
-      <div className="provider-form__title model-library-title">
-        <h3>已保存模型</h3>
+      <section className="model-library" aria-labelledby="saved-models-title">
+      <div className="provider-form__title">
+        <h3 id="saved-models-title">已保存模型</h3>
         <div className="provider-form__actions">
         <button className="button button--outline" disabled={batch.isPending || batchActive || !profiles.data?.length} onClick={() => batch.mutate()}>
           {batch.isPending || batchActive ? <LoaderCircle className="spin" /> : <RefreshCw />}
@@ -548,6 +552,7 @@ function ModelsPanel() {
       <p className="settings-note">真实测试与能力探测使用已保存配置；本地模型始终串行，每次调用结束后至少间隔5秒，配置更长时按配置等待。远程同供应商或入口串行，独立入口最多三组并行。重复提交会合并正在进行的同项测试。</p>
       {batch.error && <p className="settings-note" role="alert">{batch.error.message}</p>}
       {batchIds.length > 0 && <p className="settings-note" role="status">本次一键测试：{batchJobs.filter((job) => job.status === "COMPLETED").length}/{batchIds.length} 完成，{batchJobs.filter((job) => job.status === "FAILED").length} 失败，{batchJobs.filter((job) => job.status === "RUNNING").length} 运行，{batchJobs.filter((job) => job.status === "QUEUED").length} 排队。</p>}
+      <div className="model-library__list">
       {adding && <ModelProfileEditor onClose={() => setAdding(false)} />}
       {profiles.data?.map((profile) => (
         <ModelProfileEditor
@@ -562,6 +567,8 @@ function ModelsPanel() {
           尚未保存模型。新增后才能选择主模型或备用模型。
         </p>
       )}
+      </div>
+      </section>
     </>
   );
 }
@@ -1610,6 +1617,8 @@ function ModelProfileEditor({
   const [presetId, setPresetId] = useState(
     providerPreset(profile?.provider ?? "")?.id ?? "CUSTOM",
   );
+  const [expanded, setExpanded] = useState(!profile);
+  const [manualModel, setManualModel] = useState(false);
   const [message, setMessage] = useState("");
   const [removeOpen, setRemoveOpen] = useState(false);
   const [reliabilityAdvanced, setReliabilityAdvanced] = useState(false);
@@ -1732,6 +1741,9 @@ function ModelProfileEditor({
     },
     onError: (error) => setMessage(error.message),
   });
+  const modelCatalog = useMutation({
+    mutationFn: (request: ModelFormValues) => api.modelCatalog(profile?.id, request),
+  });
   const remove = useMutation({
     mutationFn: () => api.deleteModelProfile(profile!.id),
     onSuccess: () => {
@@ -1757,6 +1769,13 @@ function ModelProfileEditor({
     }));
   };
   const activePreset = providerPreset(values.provider);
+  const catalogIdentity = (request: ModelFormValues) => JSON.stringify([request.provider, request.base_url, request.connection_type, request.api_key]);
+  const catalogMatches = !!modelCatalog.variables && catalogIdentity(modelCatalog.variables) === catalogIdentity(values);
+  const catalogModels = catalogMatches ? modelCatalog.data?.models : undefined;
+  const modelNames = [...new Set([
+    values.model,
+    ...(catalogModels ? catalogModels.map((model) => model.id) : values.connection_type === "LOCAL_ROUTER" ? [] : activePreset?.models ?? []),
+  ].filter(Boolean))];
   const isLocal = values.location === "LOCAL";
   const testActive = !!testJob && ["QUEUED", "RUNNING"].includes(testJob.status);
   const busy =
@@ -1765,6 +1784,7 @@ function ModelProfileEditor({
     draftProbe.isPending ||
     probe.isPending ||
     readInterface.isPending ||
+    modelCatalog.isPending ||
     remove.isPending;
   const pendingMessage = save.isPending
     ? values.connection_type === "LOCAL_ROUTER" ? "正在核对接口能力并保存配置…" : "正在保存配置…"
@@ -1782,7 +1802,7 @@ function ModelProfileEditor({
     : testJob.results.PROBE ? `能力探测完成：${Object.values(testJob.results.PROBE.probe_results).filter((status) => status === "PASS").length}项通过，${Object.values(testJob.results.PROBE.probe_results).filter((status) => status === "FAIL").length}项未通过`
     : "真实测试完成";
   const feedbackMessage = pendingMessage || testFeedback || message;
-  const modelOptionsId = `model-options-${profile?.id ?? "draft"}`;
+  const editorId = `model-editor-${profile?.id ?? "draft"}`;
   const capabilities = profile
     ? Object.entries(profile.probe_results)
         .filter(([, value]) => value === "PASS")
@@ -1793,12 +1813,18 @@ function ModelProfileEditor({
   const reliabilityExamples = RELIABILITY_EXAMPLES[values.reliability_mode ?? "STANDARD"];
   return (
     <>
-      <section className="provider-form">
+      <section className={`provider-form${expanded ? "" : " provider-form--collapsed"}`}>
         <div className="provider-form__title">
+          <div className="model-profile-heading">
+          {profile && <IconButton label={`${expanded ? "收起" : "展开"}${profile.name}配置`} aria-expanded={expanded} aria-controls={editorId} onClick={() => setExpanded((current) => !current)}>{expanded ? <ChevronUp /> : <ChevronDown />}</IconButton>}
+          <div>
           <h3>
             {profile ? profile.name : "新增自定义模型"}
             {assigned && <small>当前路由使用中</small>}
           </h3>
+          {profile && <small className="model-profile-identity" title={profile.model}>{profile.model}</small>}
+          </div>
+          </div>
           <div className="provider-form__actions">
             <div className="provider-form__action-group">
               {values.connection_type === "LOCAL_ROUTER" && (
@@ -1849,6 +1875,7 @@ function ModelProfileEditor({
             <span className="provider-message">{feedbackMessage}</span>
           </div>
         )}
+        <div id={editorId} className="provider-form__body" hidden={!expanded}>
         <div className="field-grid">
           <label>
             显示名称
@@ -1912,23 +1939,14 @@ function ModelProfileEditor({
             <option value="TEXT">文本</option>
             <option value="TEXT_IMAGE">文本与图像</option>
           </SelectField>
-          <label>
-            模型名
-            <input
-              list={modelOptionsId}
-              value={values.model}
-              onChange={(event) => {
-                setManual((current) => ({ ...current, model: true }));
-                update("model", event.target.value);
-              }}
-              placeholder="可输入或选择模型名"
-            />
-            <datalist id={modelOptionsId}>
-              {activePreset?.models.map((model) => (
-                <option key={model} value={model} />
-              ))}
-            </datalist>
-          </label>
+          <div className="model-picker">
+            <SelectMenu label="模型名" searchable disabled={modelCatalog.isPending} value={values.model} options={[{ value: "", label: "请选择模型或手动填写" }, ...modelNames.map((model) => ({ value: model, label: model }))]} onChange={(value) => { setManual((current) => ({ ...current, model: true })); update("model", value); }} />
+            <div className="model-picker__actions"><button className="button button--outline" disabled={busy || !values.base_url} onClick={() => modelCatalog.mutate({ ...values })}>{modelCatalog.isPending ? <LoaderCircle className="spin" /> : <RefreshCw />}刷新模型列表</button><button className="text-action" onClick={() => setManualModel((current) => !current)}>{manualModel ? "收起手动填写" : "手动填写"}</button></div>
+            {manualModel && <label>手动模型名<input value={values.model} onChange={(event) => { setManual((current) => ({ ...current, model: true })); update("model", event.target.value); }} placeholder="填写完整模型 ID" /></label>}
+            {catalogMatches && modelCatalog.error && <small className="form-error" role="alert">{modelCatalog.error.message}</small>}
+            {catalogModels && values.model && !catalogModels.some((model) => model.id === values.model) && <small>当前模型未出现在目录中，已保留原值。</small>}
+            <small>{catalogModels ? `已读取 ${catalogModels.length} 个模型；选择后请保存。` : "可选择或手动填写；刷新目录不会调用模型。"}</small>
+          </div>
           <SelectField
             label="质量档"
             value={values.quality_tier ?? "MAIN"}
@@ -2153,6 +2171,7 @@ function ModelProfileEditor({
                 : "真实测试或草稿探测均不会保存 API Key"}
             </span>
           )}
+        </div>
         </div>
       </section>
       {profile && removeOpen && (

@@ -131,7 +131,7 @@ Mux 的 M1–M5 和两项目边界由[通用设计说明书](../../../local-ai-m
 
 旧 Local Ai Mux 的 400 已定位到缺少接入类型导致参数协商未启用；修复从当前目录读取有效能力，省略不支持的输出限额及原生 JSON 字段。schema_version=2 的 details 仅使用 effective_support，不把 native/public_interface 声明当有效能力。验收以该已保存模型的真实连通测试及能力探测均通过为准；源码回归/隔离 UI 通过不替代真实准出。
 
-目录元数据先读能力接口、再核对标准模型目录；已观测到 Mux 冷目录刷新约 7.3 秒，因此读取超时从 5 秒调为 20 秒，增加 30 秒总耗时检查，仍限制响应大小/数量、禁止重定向和环境代理。
+目录元数据先读能力接口、再核对标准模型目录；读取等待上限20秒、连接等待上限5秒、总期限30秒，后续请求按剩余预算收紧，仍限制响应大小/数量、禁止重定向和环境代理。2026-10-12修复新模型列表接口误用5秒读取上限（实机冷目录10.16秒），能力读取与模型列表共用实际ID校验：只排除标准目录中Mux拥有的free/cheap/balanced/best虚拟路由，实际型号差异、重复ID仍拒绝，虚拟路由不冒充可绑定的逐模型能力。
 
 2026-10-08 真实准出（隔离进程、直接读取现有配置与 Keychain，未写生产设置）：`model_9840af90390a42ac8e4f9b19a37a3d37 / codebuddy/hy3` 连通 PASS（5.02 秒，非空响应，实际省略 max_tokens）；既有能力 Probe PASS（12.11 秒，CLASSIFICATION/STRUCTURED_EXTRACTION/ENTITY_EXTRACTION/TRANSCRIPT_CORRECTION 为 PASS，其他 NOT_TESTED，无 FAIL）。共 4 次小样推理，无自动重试/备用模型/视频/POI 操作，不外推为整篇笔记或业务质量 Benchmark。隔离 PC/Mobile 验证重复提交可用、保存保护与排队提示。后端完整 259 项、前端 18 项/完整 verify、Ruff、合订脚本与 diff 检查通过。
 

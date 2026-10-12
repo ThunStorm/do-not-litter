@@ -312,6 +312,11 @@ class ProviderConfig(BaseModel):
         return self
 
 
+class ModelCatalogRequest(ProviderConfig):
+    model: str = ""
+    profile_id: str | None = Field(default=None, max_length=64)
+
+
 class ModelProfileConfig(ProviderConfig):
     name: str = Field(min_length=1, max_length=80)
     temperature: float | None = Field(default=None, ge=0, le=2)

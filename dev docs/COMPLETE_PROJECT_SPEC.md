@@ -352,6 +352,10 @@
 
 ## 当前能力
 
+2026-10-12 Mux模型目录修复：实机冷标准目录10.16秒、随后能力目录0.03秒，两者56个实际ID一致；确认新下拉刷新接口的5秒读取上限导致失败。读取等待改20秒、连接5秒、总期限30秒并按剩余预算收紧；列表与模型保存能力读取共用实际ID校验，仅排除owned_by=localmux的free/cheap/balanced/best虚拟路由，实际差异/重复仍拒绝，下拉返回实际模型。超时/HTTP状态/目录不一致/异常响应分别给脱敏提示。目标69项、后端全量424项、前端22项及源码/测试Ruff、前端Lint/TypeScript/隔离Vite构建通过；生产接口HTTP200返回56项，设置页刷新/搜索通过，原型号保留，无相关console错误；无迁移部署现场见交接。只读目录验证不代表真实推理或模型质量。
+
+2026-10-12 模型设置收敛：有标题的“已保存模型”父section包含说明、批量反馈、内缩子卡片、新增表单及空态；各模型默认收起、编辑保留、新增默认展开，共享IconButton支持键盘/ARIA。模型名改为可搜索SelectMenu，支持手动填写及显式刷新目录；新增POST /api/settings/model-catalog读取标准/Ollama/Mux元数据，Mux双目录实际ID须一致，标准目录中的虚拟路由独立识别。连接变更不复用跨origin/服务来源的旧Key，响应限时限量/无重定向，精确ID/凭据反射校验，过期结果不覆盖新连接/模型；失败保留原值，不保存配置或创建推理任务。新增目录18项、后端全量418、前端22及源码/测试Ruff、ESLint/TypeScript/隔离Vite构建通过；内置Browser验证父子包含、独立折叠、编辑保留、新增、搜索/选择、模拟刷新/失败、手动输入、长名称与PC/390px，修复长名称撑宽和相邻控件拉伸。沿用部署更新要求完成无迁移发布；真实目录采样及生产页面/数据证据见[交接快照](CURRENT_HANDOFF.md)，完整契约见[模型设置](ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md)。未触发模型推理、真实测试/能力探测、视频生成或POI确认。
+
 | 领域 | 已进入源码的能力 | 契约入口 |
 | --- | --- | --- |
 | Capture / 基础 | URL、正文、DOCX、PDF、XLSX、图像 OCR、音视频；局域网配对与 Session；Source/Evidence | product/PRODUCT_REQUIREMENTS.md、architecture/SECURITY_PRIVACY.md |
@@ -5360,6 +5364,25 @@ Worker 启动时及最多每 24 小时执行幂等清理：正文、Segment 文�
 
 模型页先显示“推理路由”两条选择框与状态摘要，随后是可展开的“已保存模型”列表和“新增自定义模型”入口。窄桌面下路由选择框垂直排布，编辑卡仍使用既有暖白、朱砂红与细线体系，不引入第三方品牌图标。
 
+### 3.1 已保存模型的独立折叠（2026-10-12）
+
+“已保存模型”是模型列表的父区块：一个有标题的 section 同时包含标题操作栏、测试说明/批量反馈、模型列表、新增表单及空态；外层边界包住整个列表，子卡片内缩并使用既有 muted surface 与柔和边框表达层级。每个已保存模型默认收起，保留显示名称、精确模型名、路由使用标记、测试状态和既有操作入口；共享 IconButton 提供独立展开/收起，支持键盘及 `aria-expanded/aria-controls`。折叠仅隐藏表单，不清空未保存编辑或停止测试轮询；新增配置默认展开。PC/390px 均须无横向溢出，展开一个模型不影响其他模型。
+
+### 3.2 模型名下拉与目录刷新（2026-10-12）
+
+模型名使用可搜索的共享 SelectMenu，可从当前值/预置候选或手动刷新的服务目录选择，并保留独立的“手动填写”。刷新不会自动换模型、修改路由或保存配置；目录缺少当前模型时明确提示并保留原值。目录响应只适用于提交时的服务来源、地址、接入方式及填写凭据，连接变化或过期响应不会覆盖新选择。长模型名在按钮中截断、在列表中换行，PC/390px不得撑宽页面。
+
+`POST /api/settings/model-catalog` 接受当前连接草稿与可选 `profile_id`，不要求先选定模型；只读取元数据，没有推理、任务或探测调用。已保存模型留空Key时从Secret Store读取；服务来源或地址origin变化后不得复用旧Key，须填写新连接凭据。返回精确 `models[].id` 与采样时间，不返回Key或完整上游元数据，只审计Profile ID及模型数量。页面不自动刷新，不把目录存在当作业务能力通过；短期结果只保留在页面内，不写localStorage或SQLite配置。
+
+| 连接 | 目录入口 | 已核对的来源 |
+| --- | --- | --- |
+| DeepSeek 直连 | `GET /models` | [官方模型目录文档](https://api-docs.deepseek.com/api/list-models/) |
+| OpenRouter | `GET /api/v1/models` | [官方模型目录文档](https://openrouter.ai/docs/api/api-reference/models/list-all-models-and-their-properties) |
+| Ollama | `GET /api/tags`，列出已安装模型 | [官方目录文档](https://docs.ollama.com/api/tags) |
+| LocalAiMux | `GET /v1/models` + `GET /api/chat/models` | `ai/model_catalog.py` 校验两个目录的实际模型ID一致；仅忽略标准目录中 owned_by=localmux 且ID为 free/cheap/balanced/best 的虚拟路由，选择器返回实际模型；逐模型能力复用同一校验 |
+
+后端连接等待上限5秒、读取等待上限20秒、整个读取期限30秒；第二次HTTP等待按剩余总预算收紧，响应上限1MB/1000条，拒绝重复/非法ID、凭据反射、不含凭据的地址校验失败及Mux目录不一致；不跟随重定向、不使用环境代理、不自动重试。超时、HTTP状态错误、实际模型目录不一致与其他异常响应分别返回脱敏错误，保留原模型并允许手动填写。2026-10-12只读采样：Mux冷标准目录10.16秒、随后能力目录0.03秒，两者56个实际ID一致；原5秒读取上限不足。源码修复与部署后现场验收分别记录，不能以离线样例代替。回归入口：`backend/tests/test_model_catalog.py`、`frontend/src/components/ui/SelectMenu.test.tsx`；Browser涵盖选择/搜索/刷新、失败保留、连接变更、手动填写和超长模型名。
+
 任务与内容行的删除入口默认隐藏于行尾操作区；窄桌面保留最小 40×40px 触控区域，删除前使用原生确认对话框并附带对象名称。删除控件不得覆盖行的详情跳转区域。
 
 ## 4. API 契约与验收
@@ -7776,7 +7799,7 @@ Mux 的 M1–M5 和两项目边界由[通用设计说明书](../../local-ai-mux/
 
 旧 Local Ai Mux 的 400 已定位到缺少接入类型导致参数协商未启用；修复从当前目录读取有效能力，省略不支持的输出限额及原生 JSON 字段。schema_version=2 的 details 仅使用 effective_support，不把 native/public_interface 声明当有效能力。验收以该已保存模型的真实连通测试及能力探测均通过为准；源码回归/隔离 UI 通过不替代真实准出。
 
-目录元数据先读能力接口、再核对标准模型目录；已观测到 Mux 冷目录刷新约 7.3 秒，因此读取超时从 5 秒调为 20 秒，增加 30 秒总耗时检查，仍限制响应大小/数量、禁止重定向和环境代理。
+目录元数据先读能力接口、再核对标准模型目录；读取等待上限20秒、连接等待上限5秒、总期限30秒，后续请求按剩余预算收紧，仍限制响应大小/数量、禁止重定向和环境代理。2026-10-12修复新模型列表接口误用5秒读取上限（实机冷目录10.16秒），能力读取与模型列表共用实际ID校验：只排除标准目录中Mux拥有的free/cheap/balanced/best虚拟路由，实际型号差异、重复ID仍拒绝，虚拟路由不冒充可绑定的逐模型能力。
 
 2026-10-08 真实准出（隔离进程、直接读取现有配置与 Keychain，未写生产设置）：`model_9840af90390a42ac8e4f9b19a37a3d37 / codebuddy/hy3` 连通 PASS（5.02 秒，非空响应，实际省略 max_tokens）；既有能力 Probe PASS（12.11 秒，CLASSIFICATION/STRUCTURED_EXTRACTION/ENTITY_EXTRACTION/TRANSCRIPT_CORRECTION 为 PASS，其他 NOT_TESTED，无 FAIL）。共 4 次小样推理，无自动重试/备用模型/视频/POI 操作，不外推为整篇笔记或业务质量 Benchmark。隔离 PC/Mobile 验证重复提交可用、保存保护与排队提示。后端完整 259 项、前端 18 项/完整 verify、Ruff、合订脚本与 diff 检查通过。
 

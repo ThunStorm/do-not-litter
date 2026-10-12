@@ -85,7 +85,8 @@ def model_response(payload=None):
     )
 
 
-def test_metadata_read_checks_catalogs_and_does_not_copy_secrets(monkeypatch):
+@pytest.mark.parametrize("virtual_routes", [False, True])
+def test_metadata_read_checks_catalogs_and_does_not_copy_secrets(monkeypatch, virtual_routes):
     requests = []
     original = httpx.Client
 
@@ -96,7 +97,12 @@ def test_metadata_read_checks_catalogs_and_does_not_copy_secrets(monkeypatch):
         if request.url.path.endswith("/api/chat/models"):
             entry["chat"] = {"system": "UNSUPPORTED", "max_tokens": {"support": "UNSUPPORTED"}}
             entry["api_key"] = "do-not-copy-this"
-        return httpx.Response(200, json={"data": [entry]})
+        entries = [entry]
+        if virtual_routes and request.url.path.endswith("/v1/models"):
+            entries.extend(
+                {"id": alias, "owned_by": "localmux"} for alias in ["free", "cheap", "balanced", "best"]
+            )
+        return httpx.Response(200, json={"data": entries})
 
     monkeypatch.setattr(
         httpx, "Client", lambda **kwargs: original(transport=httpx.MockTransport(handle), **kwargs)

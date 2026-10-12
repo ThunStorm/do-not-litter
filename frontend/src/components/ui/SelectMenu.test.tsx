@@ -16,4 +16,15 @@ describe('SelectMenu', () => {
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(screen.queryByRole('listbox', { name: '部署位置' })).not.toBeInTheDocument()
   })
+
+  it('filters searchable options and selects an exact model id', () => {
+    const onChange = vi.fn()
+    render(<SelectMenu label="模型名" searchable value="old/model" onChange={onChange} options={[{ value: 'old/model', label: 'old/model' }, { value: 'codebuddy/hy3', label: 'codebuddy/hy3' }]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'old/model' }))
+    fireEvent.change(screen.getByRole('textbox', { name: '搜索模型名' }), { target: { value: 'HY3' } })
+    expect(screen.queryByRole('option', { name: 'old/model' })).not.toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('textbox', { name: '搜索模型名' }), { key: 'Enter' })
+    expect(onChange).toHaveBeenCalledWith('codebuddy/hy3')
+    expect(screen.queryByRole('listbox', { name: '模型名' })).not.toBeInTheDocument()
+  })
 })

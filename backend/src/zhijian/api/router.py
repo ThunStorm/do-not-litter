@@ -109,6 +109,7 @@ from zhijian.domain.schemas import (
     MapMarker,
     MapMarkerCreate,
     MapOverviewView,
+    ModelCatalogRequest,
     ModelProfileConfig,
     ModelRoutingConfig,
     ModelTestRequest,
@@ -3737,6 +3738,42 @@ def _interactive_interface_config(value: dict, api_key: str | None) -> dict:
         "connection_type": "LOCAL_ROUTER",
         "interface_capabilities": capabilities.model_dump(mode="json"),
     }
+
+
+@router.post("/api/settings/model-catalog")
+def model_catalog(
+    payload: ModelCatalogRequest,
+    _: Protected,
+    db: Session = Depends(get_db),
+    store: SecretStore = Depends(get_secret_store),
+) -> dict:
+    from zhijian.ai.model_catalog import catalog_origin, read_model_catalog
+
+    key = payload.api_key
+    saved = db.get(Setting, f"model-profile:{payload.profile_id}") if payload.profile_id else None
+    if payload.profile_id and saved is None:
+        raise HTTPException(status_code=404, detail="模型配置不存在")
+    try:
+        origin = catalog_origin(payload.base_url)
+        if saved and not key:
+            if (
+                origin != catalog_origin(str(saved.value_json.get("base_url") or ""))
+                or payload.provider.strip().lower()
+                != str(saved.value_json.get("provider") or "").strip().lower()
+            ):
+                raise HTTPException(status_code=422, detail="连接已修改，请填写该连接的 API Key 后刷新目录")
+            key = store.get(f"model-profile:{payload.profile_id}:api-key")
+        result = read_model_catalog(payload.provider, payload.base_url, key, payload.connection_type)
+    except AIProviderError as exc:
+        raise HTTPException(
+            status_code=422 if exc.code == "MODEL_CATALOG_INVALID_URL" else 502,
+            detail=str(exc),
+        ) from exc
+    record_event(
+        db, "model_catalog.read", "模型目录已读取（未调用模型）",
+        detail={"profile_id": payload.profile_id, "model_count": len(result["models"])},
+    )
+    return result
 
 
 @router.post("/api/settings/model-profiles/interface-capabilities-draft")

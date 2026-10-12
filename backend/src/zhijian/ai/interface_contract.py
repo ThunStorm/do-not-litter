@@ -73,6 +73,24 @@ def _parameter(value: Any) -> InterfaceParameter:
     return InterfaceParameter(support=_support(value), minimum=value.get("min"), maximum=value.get("max"))
 
 
+def validate_mux_catalogs(models: list[dict], interfaces: list[dict]) -> set[str]:
+    """Match actual models; Mux-owned virtual routes have no per-model capabilities."""
+    ids = [item["id"] for item in models]
+    interface_ids = [item["id"] for item in interfaces]
+    virtual_ids = {
+        item["id"]
+        for item in models
+        if item.get("owned_by") == "localmux" and item["id"] in {"free", "cheap", "balanced", "best"}
+    }
+    if (
+        len(set(ids)) != len(ids)
+        or len(set(interface_ids)) != len(interface_ids)
+        or set(ids) - virtual_ids != set(interface_ids)
+    ):
+        raise ValueError("catalog mismatch")
+    return set(interface_ids)
+
+
 def read_interface_capabilities(base_url: str, model: str, api_key: str) -> InterfaceCapabilities:
     """Read only metadata, with bounded responses and no redirect of the credential."""
     base_url = base_url.rstrip("/")
@@ -88,9 +106,12 @@ def read_interface_capabilities(base_url: str, model: str, api_key: str) -> Inte
     deadline = monotonic() + 30
 
     def read(client: httpx.Client, url: str) -> tuple[list[dict], int | None]:
-        if monotonic() > deadline:
+        remaining = deadline - monotonic()
+        if remaining <= 0:
             raise ValueError("metadata deadline exceeded")
-        with client.stream("GET", url) as response:
+        with client.stream(
+            "GET", url, timeout=httpx.Timeout(min(20, remaining), connect=min(5, remaining))
+        ) as response:
             response.raise_for_status()
             body = bytearray()
             for chunk in response.iter_bytes():
@@ -117,14 +138,7 @@ def read_interface_capabilities(base_url: str, model: str, api_key: str) -> Inte
         ) as client:
             interfaces, schema_version = read(client, metadata_url)
             models, _ = read(client, f"{base_url}/models")
-        ids = [item["id"] for item in models]
-        interface_ids = [item["id"] for item in interfaces]
-        if (
-            len(set(ids)) != len(ids)
-            or len(set(interface_ids)) != len(interface_ids)
-            or set(ids) != set(interface_ids)
-        ):
-            raise ValueError("catalog mismatch")
+        validate_mux_catalogs(models, interfaces)
         entry = next((item for item in interfaces if item["id"] == model), None)
         if entry is None:
             raise AIProviderError("AI_PROVIDER_NOT_FOUND", "当前凭据的接口目录中没有该模型")
