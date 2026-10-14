@@ -75,6 +75,7 @@ def process_visual_fact_job(db: Session, job: Job, settings: Settings) -> None:
     db.commit()
     provider, provider_name, model = provider_for_role(db, settings, "visual_fact", job)
     image = base64.b64encode(path.read_bytes()).decode()
+    media_type = "image/webp" if path.suffix.lower() == ".webp" else "image/jpeg"
     prompt = (
         "只提取截图中清晰可见的店招、菜单、菜名、价格、营业时间、路牌或告示。"
         '返回 JSON {"facts":[{"fact_type":"PRICE","value":"...","confidence":0.0}]}；'
@@ -85,7 +86,7 @@ def process_visual_fact_job(db: Session, job: Job, settings: Settings) -> None:
         if provider_name == "ollama"
         else [
             {"type": "text", "text": prompt},
-            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image}"}},
+            {"type": "image_url", "image_url": {"url": f"data:{media_type};base64,{image}"}},
         ]
     )
     messages: list[dict[str, Any]] = [

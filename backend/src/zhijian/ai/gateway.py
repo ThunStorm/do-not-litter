@@ -13,7 +13,7 @@ from zhijian.ai.cache import cached_json_result
 from zhijian.ai.capabilities import AIModelLocation
 from zhijian.ai.reliability import check_output_budget
 from zhijian.ai.request_compiler import CompiledRequest
-from zhijian.ai.request_metrics import request_metrics
+from zhijian.ai.request_metrics import provider_cache_metrics, request_metrics
 from zhijian.ai.resource_manager import local_ai_resource_manager
 from zhijian.ai.runtime_hints import runtime_hint_scope
 from zhijian.ai.schemas import AIRequest, AIResult
@@ -321,6 +321,11 @@ class AIWorkloadGateway:
             provider_ms = round((perf_counter() - started) * 1000)
             if attempt_id:
                 advance_model_attempt(db, attempt_id, "VALIDATING")
+            result.metadata["request_metrics"] = {
+                **request_metrics(messages),
+                **result.metadata.get("request_metrics", {}),
+            }
+            result.metadata.update(provider_cache_metrics(result.usage, result.metadata.get("usage_source")))
             result.metadata["provider_ms"] = provider_ms
             result.metadata["queue_ms"] = round((started - queued_at) * 1000)
             return result

@@ -2,6 +2,8 @@
 
 > 来源：video/VIDEO_AI_NOTE_PIPELINE.md，原章节 4.8–4.16（正文保留，2026-09-03 分篇）。返回 [主题索引](VIDEO_AI_NOTE_PIPELINE.md)。本篇是契约/规划，不是已实施清单；当前结论见 [实施状态](../IMPLEMENTATION_STATUS.md)，安全与回归见 [冻结清单](../REGRESSION_AND_CHANGE_GUARD.md)。裸文档路径均以 dev docs/ 为基准。只读取命中章节及其必要约束。
 
+标题时间元数据、Claim/Mention 归属、窗口对账与 Prompt 观测契约见 [标题时间证据](TITLE_TEMPORAL_EVIDENCE.md)。
+
 ## 4.8 GENERATE_AI_NOTE
 
 AI 视频笔记是一级业务产物，不再只是地点抽取的中间文本。
@@ -70,6 +72,12 @@ AI 总结
 - 每次生成保存 provider、model、prompt_version、template_version、input_hash；
 - 同一输入和同一配置可以命中缓存；
 - 用户重跑产生新 Note Version，旧版本可查看，不静默覆盖。
+
+### 笔记风格接口预留与生成模型标注（2026-10-12）
+
+笔记风格暂时退出产品页面：不展示“当前默认 / 精简回看 / 详细记录 / 旅行指南”选择器，前端不维护风格状态、不传风格参数。普通“重新生成”使用系统默认风格。后端保留 `POST /api/video-notes/{note_id}/regenerate` 的 `profile_id` 参数、四种 Render Profile 和已有版本字段，作为预留能力；不删除历史版本或修改已发布迁移。
+
+详情 API 返回当前 `AINoteVersion` 保存的 `model_provider`、`model_name`，右上角以 Caption（11px/16px、muted）显示 `By 模型名`，例如 `By codebuddy/hy3`，不加“AI 生成”字样；保留完整模型身份，长名称截断并通过 title 查看模型名。该标注不读取当前设置或任务最后调用模型，避免把后续地点提取模型误作笔记生成模型；历史版本未记录时显示“模型未记录”，无当前版本时显示“笔记待生成”。PC 与手机均须保持标题和操作可见、无横向溢出。
 
 ## 4.9 EXTRACT_TRAVEL_FACTS
 
@@ -199,6 +207,8 @@ FFmpeg 按计划时间码抽帧，并进行确定性质量过滤：
 - 在目标时间码前后小范围搜索最佳帧；
 - 输出 WebP/JPEG、尺寸、文件哈希与实际时间码；
 - 截图绑定 Note Section、PlaceMention 和 Transcript Segment。
+
+选帧通过后、登记 READY 前，保持选中 JPEG 的原分辨率，依次尝试 WebP quality 85/90/95；解码后与选中 JPEG 的 RGB 像素比较，PSNR 不低于 38 dB 且文件至少缩小 5% 才采用。不满足时再尝试无损 WebP，仍无收益或编码/写入失败则保留 JPEG。压缩文件先完整写入临时文件再原子替换，成功后清理本次 JPEG；`image_path/content_hash` 必须对应最终保存的字节，截图身份、时间码、尺寸和选帧证据绑定保持原契约。图片读取与 Vision 请求按实际扩展名使用 JPEG/WebP MIME；旧截图不自动转码。PSNR 门槛衡量相对已抽取 JPEG 的像素误差，不代表无损还原视频或 OCR/语义质量验收。
 
 本阶段不要求用视觉模型识别截图内容。截图是来源视频的可追溯辅助证据；若未来启用多模态理解，必须新增独立版本和审计，不能覆盖 Transcript Evidence。
 

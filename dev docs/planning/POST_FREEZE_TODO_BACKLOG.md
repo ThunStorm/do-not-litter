@@ -47,3 +47,7 @@
 5. P3 Vision 与视频业务 Benchmark。
 
 任何 Agent 看到本文都不得创建代码、迁移、API、UI、生产操作或新依赖，除非用户明确选定一个工作包。
+
+## P1 — 标题证据真实 A/B 与缓存收益
+
+离线标题解析、传播、物化、Claim 归属和请求观测已实施；[归档计划](../history/planning/ZHIJIAN_TITLE_TEMPORAL_EVIDENCE_AND_PROMPT_OPTIMIZATION_PLAN.md)的真实同模型质量/Token 配对尚需用户授权、Ground Truth 与上游 usage。原生前缀/会话实验须先有协议支持证据；Z8 仍未实施。不得以合成字节节省声称上游计费或订阅额度改善。

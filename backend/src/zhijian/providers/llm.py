@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -22,7 +23,7 @@ from zhijian.ai.reliability import (
     retry_after_seconds,
     retry_wait_seconds,
 )
-from zhijian.ai.request_metrics import request_metrics
+from zhijian.ai.request_metrics import provider_cache_metrics, request_metrics
 from zhijian.ai.token_usage import estimate_tokens
 
 AttemptCallback = Callable[
@@ -390,7 +391,16 @@ class OpenAICompatibleProvider:
             usage=usage,
             metadata={
                 **contract_metadata,
-                "request_metrics": request_metrics(payload["messages"]),
+                "request_metrics": {
+                    **request_metrics(payload["messages"]),
+                    "raw_request_bytes": len(
+                        json.dumps(
+                            payload, ensure_ascii=False, separators=(",", ":"), allow_nan=False
+                        ).encode()
+                    ),
+                    "request_bytes_scope": "PROVIDER_PAYLOAD",
+                },
+                **provider_cache_metrics(usage, usage_source),
                 "localmux": safe_runtime_metadata(data.get("localmux")),
                 "usage_source": usage_source,
                 "estimated_prompt_tokens": estimate_tokens(
@@ -592,11 +602,13 @@ class FallbackLLMProvider:
                 self._remaining_attempts -= 1
                 options = self.fallback_request_options if route == "fallback" else self.request_options
                 queued_before_ms = round((perf_counter() - started) * 1000)
+
                 def dispatch_guard() -> None:
                     nonlocal wait_before
                     wait_before += ReliabilityGuards.before_dispatch(
                         provider_rate_limit_identity(provider), policy, self._sleep
                     )
+
                 self.dispatch_guard = dispatch_guard
                 if self.attempt_runner:
                     result = self.attempt_runner(provider, method, call_messages, model, options)

@@ -677,12 +677,24 @@ def test_video_note_api_returns_versioned_sections(client, app_and_session) -> N
         note = AINote(video_asset_id=asset.id, status="COMPLETED")
         db.add(note)
         db.flush()
+        db.add(
+            AINoteVersion(
+                ai_note_id=note.id,
+                version=1,
+                markdown="# 旧版",
+                transcript_version=1,
+                model_provider="deepseek",
+                model_name="deepseek-chat",
+            )
+        )
         version = AINoteVersion(
             ai_note_id=note.id,
-            version=1,
+            version=2,
             markdown="# 测试视频",
             overview="可回溯的摘要",
             transcript_version=1,
+            model_provider="local_router",
+            model_name="codebuddy/hy3",
         )
         db.add(version)
         db.flush()
@@ -704,10 +716,18 @@ def test_video_note_api_returns_versioned_sections(client, app_and_session) -> N
     assert response.status_code == 200
     assert response.json()["sections"][0]["heading"] == "开场"
     assert response.json()["render_profile_id"] == "CURRENT_DEFAULT"
+    assert response.json()["model_provider"] == "local_router"
+    assert response.json()["model_name"] == "codebuddy/hy3"
     legacy = client.get(f"/api/video-notes/{version.id}")
     assert legacy.status_code == 200
     assert legacy.json()["id"] == note_id
+    assert legacy.json()["model_name"] == "codebuddy/hy3"
     assert client.get("/api/video-notes/ntv_missing").status_code == 404
+    with factory() as db:
+        db.get(AINote, note_id).current_version_id = None
+        db.commit()
+    pending = client.get(f"/api/video-notes/{note_id}").json()
+    assert pending["model_provider"] == pending["model_name"] == ""
 
 
 def test_ollama_requests_release_model_immediately(monkeypatch) -> None:

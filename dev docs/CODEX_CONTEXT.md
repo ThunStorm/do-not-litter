@@ -40,6 +40,7 @@
 | Domain Context、Cache、Budget、资源锁 | [Gateway 公共能力](ai-gateway/02-gateway-context.md) |
 | Job、取消、重试、Replay | [步骤续跑](jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md)；会话/取消问题选 jobs/MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md |
 | 视频阅读、列表、删除 | 分别选 [阅读](video/VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md)、[列表](video/VIDEO_NOTE_LIST_V043_SPEC.md)、[删除](video/VIDEO_NOTE_DELETE_V044_SPEC.md) |
+| 标题时间证据、Mention 归属 | [标题时间证据与请求边界](video/TITLE_TEMPORAL_EVIDENCE.md)；度量选 benchmark/TITLE_TEMPORAL_PROMPT_AB_REPORT.md |
 | Prompt、来源保留、模型设置 | 分别选 ai-gateway/PROMPT_SUPPLEMENTS_V045_SPEC.md、ai-gateway/AI_ROUTING_SOURCE_RETENTION_V046_SPEC.md、ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md |
 | 地图、地点、POI | [旅行领域](product/TRAVEL_FOOD_PIPELINE.md) 命中段；Marker 导航见 [视频视图](video/05-views-safety-acceptance.md) |
 | 前端、UI、视觉、样式、布局、组件、Dropdown、Filter | [前端视觉设计系统](design/FRONTEND_VISUAL_DESIGN_SYSTEM.md) |

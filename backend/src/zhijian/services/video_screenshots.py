@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import hashlib
+import math
 import subprocess
+from contextlib import suppress
+from io import BytesIO
 from pathlib import Path
 
-from PIL import Image, ImageFilter, ImageStat
+from PIL import Image, ImageChops, ImageFilter, ImageStat
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -226,6 +229,7 @@ def extract_screenshots(
             plan.selection_reason = "与已选代表帧重复"
             continue
         perceptual_hashes.add(perceptual)
+        target = _compress_screenshot(target)
         plan.actual_timestamp_ms = round(actual_seconds * 1000)
         plan.image_path = str(target)
         plan.content_hash = hashlib.sha256(target.read_bytes()).hexdigest()
@@ -236,6 +240,45 @@ def extract_screenshots(
     if metrics is not None:
         metrics["screenshot_process_count"] = process_count
     return ready, None
+
+
+def _compress_screenshot(path: Path) -> Path:
+    """Keep full resolution and accept WebP only with >=38 dB PSNR and >=5% savings."""
+    compressed = path.with_suffix(".webp")
+    temporary = path.with_suffix(".webp.tmp")
+    try:
+        max_size = path.stat().st_size * 0.95
+        with Image.open(path) as image:
+            source = image.convert("RGB")
+        for quality, lossless in ((85, False), (90, False), (95, False), (85, True)):
+            output = BytesIO()
+            source.save(output, format="WEBP", quality=quality, method=6, lossless=lossless)
+            data = output.getvalue()
+            if len(data) > max_size:
+                continue
+            with Image.open(BytesIO(data)) as image:
+                decoded = image.convert("RGB")
+            if decoded.size != source.size or _screenshot_psnr(source, decoded) < 38:
+                continue
+            temporary.write_bytes(data)
+            temporary.replace(compressed)
+            # The JPEG remains recoverable until the complete WebP has been installed.
+            with suppress(OSError):
+                path.unlink()
+            return compressed
+    except (OSError, ValueError):
+        # Compression/codec/disk failures must not discard an otherwise usable frame.
+        return path
+    finally:
+        with suppress(OSError):
+            temporary.unlink(missing_ok=True)
+    return path
+
+
+def _screenshot_psnr(source: Image.Image, decoded: Image.Image) -> float:
+    difference = ImageChops.difference(source, decoded)
+    mse = sum(ImageStat.Stat(difference).sum2) / (source.width * source.height * 3)
+    return 10 * math.log10(255**2 / mse) if mse else math.inf
 
 
 def _quality(path: Path) -> tuple[str, float, int, int] | None:

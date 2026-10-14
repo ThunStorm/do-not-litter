@@ -440,7 +440,7 @@ export interface MapOverviewView {
 }
 
 export interface PlaceListView { items: MapMarker[]; next_cursor: string | null; total: number }
-export interface PlaceVisitWindow { id: string; season: string | null; month: number | null; month_segment: string | null; day_time_slot: string | null; period_type: string; suitability: string; source_text: string; segment_ids: string[]; provenance: string; confidence: number; status: string }
+export interface PlaceVisitWindow { id: string; source_id?: string | null; source_kind?: string; season: string | null; month: number | null; month_segment: string | null; day_time_slot: string | null; period_type: string; suitability: string; source_text: string; segment_ids: string[]; provenance: string; confidence: number; status: string }
 
 export interface RouteDraftView {
   id: string
@@ -465,8 +465,6 @@ export interface VideoNoteView {
   uploader: string
   duration_ms: number | null
   current_version_id: string | null
-  render_profile_id: 'CURRENT_DEFAULT' | 'COMPACT' | 'DETAILED' | 'TRAVEL_GUIDE'
-  render_profile_version: string
   overview: string
   search_match?: string
   search_snippet?: string
@@ -475,6 +473,8 @@ export interface VideoNoteView {
 }
 
 export interface VideoNoteDetail extends VideoNoteView {
+  model_provider: string
+  model_name: string
   markdown: string
   warnings: string[]
   needs_regeneration: boolean

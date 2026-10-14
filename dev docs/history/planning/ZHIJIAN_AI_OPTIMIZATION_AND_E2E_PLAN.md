@@ -1,5 +1,7 @@
 # 至简（Zhijian）实施计划：AI 请求瘦身、证据可信度、阶段治理与全链路验收
 
+> 2026-10-14 归档：已授权范围的源码与离线验证已实施；此处保留原计划作为追溯，不是当前执行指令。现状见 [实施状态](../../IMPLEMENTATION_STATUS.md)，未完成真实质量/缓存收益及会话实验须另行授权。
+
 > **交付类型**：可直接交给本项目 Codex/Agent 分阶段执行的实施计划\
 > **目标仓库**：`ThunStorm/do-not-litter`\
 > **目标分支**：`codex/mac-mini-implementation`\
@@ -33,7 +35,7 @@
 | 生产验收文档的预算/Schema 描述过期 | 按当前源码更正累计预算和 0025；旧独立真实毕业门槛没有降低 |
 | 原文/业务 Schema 不应为 Token 指标牺牲 | 只缩短引用、去重结构；拒绝无效链与静默截尾，合成 P/R 不冒充模型质量 |
 
-Z0–Z7 核心代码与离线开发验证完成，实机未验证项保持开放；Z8 只保留第 11 节的独立 backlog，不实施新产品功能。独立报告为 [合成 A/B](../benchmark/AI_REQUEST_OPTIMIZATION_AB_REPORT.md)、[跨项目 E2E](../benchmark/CROSS_PROJECT_E2E_REPORT.md)、[发布门禁](../benchmark/RELEASE_ACCEPTANCE.md)。15:56 已沿用保存型号完成 3 次真实 Text/JSON 小样与单样本请求配对；实际型号/Token、真实视频 GT 与 Ollama 推理退出仍无证据。Mux API 未启动的连接阻塞已解除，有限范围见真实小样报告。不得将本次部署等同于完整 E2E 完成。
+Z0–Z7 核心代码与离线开发验证完成，实机未验证项保持开放；Z8 只保留第 11 节的独立 backlog，不实施新产品功能。独立报告为 [合成 A/B](../../benchmark/AI_REQUEST_OPTIMIZATION_AB_REPORT.md)、[跨项目 E2E](../../benchmark/CROSS_PROJECT_E2E_REPORT.md)、[发布门禁](../../benchmark/RELEASE_ACCEPTANCE.md)。15:56 已沿用保存型号完成 3 次真实 Text/JSON 小样与单样本请求配对；实际型号/Token、真实视频 GT 与 Ollama 推理退出仍无证据。Mux API 未启动的连接阻塞已解除，有限范围见真实小样报告。不得将本次部署等同于完整 E2E 完成。
 
 ---
 
@@ -458,4 +460,4 @@ pnpm verify
 
 ## 本轮指定视频补充（2026-10-10）
 
-BV11Ao7BYE1V真实ASR视频流程已完成，PARTIAL_SUCCESS、6个地点待人审。真实异常暴露Stage0未约束Profile JSON重试，已补修/测试/部署43f42ff，保留旧失败与取消记录后仅从笔记继续；未把离线重解析旧输出作为新生成结果，实际10次尝试。详见 [视频验收及未验证项](../benchmark/VIDEO_E2E_BV11Ao7BYE1V_REPORT.md)，整体验收仍受完整矩阵/人工GT/实际Token/上游退出门禁限制。
+BV11Ao7BYE1V真实ASR视频流程已完成，PARTIAL_SUCCESS、6个地点待人审。真实异常暴露Stage0未约束Profile JSON重试，已补修/测试/部署43f42ff，保留旧失败与取消记录后仅从笔记继续；未把离线重解析旧输出作为新生成结果，实际10次尝试。详见 [视频验收及未验证项](../../benchmark/VIDEO_E2E_BV11Ao7BYE1V_REPORT.md)，整体验收仍受完整矩阵/人工GT/实际Token/上游退出门禁限制。

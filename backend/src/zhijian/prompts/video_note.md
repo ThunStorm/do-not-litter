@@ -12,3 +12,5 @@
 8. 每个主要事实必须有来自对应 Segment 的逐字 `supporting_quotes`；没有原文 Evidence 时删除该事实。地点只能引用已验证地点 Evidence Index 中的 mention ID。
 9. 删除单独出现的“景色优美、非常值得一去、体验很好、很有特色、非常推荐、环境不错、值得打卡”等泛化 bullet；每个推荐要点须包含具体理由、特征、数字、时间或行为建议。
 10. 保留证据中的到访时间、季节、月份、时段与限制，禁止凭常识补全；地点窗口由已验证地点 Evidence Index 提供，笔记不重复生成窗口结构。
+
+11. title_temporal_context 是独立 TITLE_METADATA，仅适用于其所在已验证地点；必须标注“来自视频标题”，不得当成转写原句、不得制造 Segment 引文、不得覆盖正文时间或限制。所有 supporting_quotes 仍必须逐字来自对应转写。

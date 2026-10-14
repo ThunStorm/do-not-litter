@@ -2519,6 +2519,12 @@ def _revision_conflict(current: int) -> HTTPException:
 def _visit_window_view(item: PlaceVisitWindow) -> PlaceVisitWindowView:
     return PlaceVisitWindowView(
         id=item.id,
+        source_id=item.source_id,
+        source_kind="TITLE_METADATA"
+        if item.provenance == "TITLE_CONTEXT"
+        else "TRANSCRIPT"
+        if item.provenance == "SOURCE_FACT"
+        else "USER",
         season=item.season,
         month=item.month,
         month_segment=item.month_segment,
@@ -2645,7 +2651,7 @@ def create_visit_window(
 @router.delete("/api/travel/places/{place_id}/visit-windows/{window_id}")
 def delete_visit_window(place_id: str, window_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
     item = db.get(PlaceVisitWindow, window_id)
-    if item is None or item.place_id != place_id or item.provenance == "SOURCE_FACT":
+    if item is None or item.place_id != place_id or item.provenance in {"SOURCE_FACT", "TITLE_CONTEXT"}:
         raise HTTPException(status_code=409, detail={"code": "CANNOT_DELETE_SOURCE_FACT"})
     item.status = "REMOVED"
     db.commit()
@@ -3623,9 +3629,15 @@ def _model_profile_view(setting: Setting) -> dict:
 
 
 def _model_profiles(db: Session) -> list[Setting]:
-    return db.scalars(
-        select(Setting).where(Setting.key.like("model-profile:%")).order_by(Setting.updated_at.desc())
+    profiles = db.scalars(
+        select(Setting)
+        .where(Setting.key.like("model-profile:%"))
+        .order_by(Setting.updated_at.desc(), Setting.key)
     ).all()
+    saved = db.get(Setting, "model-profile-order")
+    order = saved.value_json if saved and isinstance(saved.value_json, list) else []
+    ranks = {profile_id: index for index, profile_id in enumerate(order) if isinstance(profile_id, str)}
+    return sorted(profiles, key=lambda item: ranks.get(item.key.removeprefix("model-profile:"), len(ranks)))
 
 
 def _routing_value(db: Session) -> dict[str, str | None]:
@@ -3772,7 +3784,9 @@ def model_catalog(
             detail=str(exc),
         ) from exc
     record_event(
-        db, "model_catalog.read", "模型目录已读取（未调用模型）",
+        db,
+        "model_catalog.read",
+        "模型目录已读取（未调用模型）",
         detail={"profile_id": payload.profile_id, "model_count": len(result["models"])},
     )
     return result
@@ -3857,6 +3871,32 @@ def saved_model_tests(_: Protected, db: Session = Depends(get_db)) -> list[dict]
 
 @router.get("/api/settings/model-profiles")
 def list_model_profiles(_: Protected, db: Session = Depends(get_db)) -> list[dict]:
+    profiles = _model_profiles(db)
+    if db.get(Setting, "model-profile-order") is None:
+        db.add(
+            Setting(
+                key="model-profile-order",
+                value_json=[item.key.removeprefix("model-profile:") for item in profiles],
+            )
+        )
+        db.commit()
+    return [_model_profile_view(item) for item in profiles]
+
+
+@router.put("/api/settings/model-profiles/order")
+def save_model_profile_order(
+    profile_ids: list[str], _: Protected, db: Session = Depends(get_db)
+) -> list[dict]:
+    profiles = _model_profiles(db)
+    existing = [item.key.removeprefix("model-profile:") for item in profiles]
+    if len(profile_ids) != len(existing) or set(profile_ids) != set(existing):
+        raise HTTPException(status_code=409, detail="模型列表已变化，请刷新后重试排序")
+    setting = db.get(Setting, "model-profile-order")
+    if setting is None:
+        db.add(Setting(key="model-profile-order", value_json=profile_ids))
+    else:
+        setting.value_json = profile_ids
+    db.commit()
     return [_model_profile_view(item) for item in _model_profiles(db)]
 
 
@@ -3874,6 +3914,9 @@ def create_model_profile(
         store.set(f"model-profile:{profile_id}:api-key", payload.api_key)
         setting.is_secret_ref = True
     db.add(setting)
+    order_setting = db.get(Setting, "model-profile-order")
+    if order_setting is not None:
+        order_setting.value_json = [*order_setting.value_json, profile_id]
     record_event(
         db,
         "model_profile.created",
@@ -3953,6 +3996,9 @@ def delete_model_profile(profile_id: str, _: Protected, db: Session = Depends(ge
         raise HTTPException(status_code=409, detail="该模型正在被 AI 阶段策略使用，请先重置对应阶段")
     name = str(setting.value_json.get("name") or profile_id)
     db.delete(setting)
+    order_setting = db.get(Setting, "model-profile-order")
+    if order_setting is not None:
+        order_setting.value_json = [item for item in order_setting.value_json if item != profile_id]
     record_event(db, "model_profile.deleted", f"已删除自定义模型：{name}", actor="user")
     db.commit()
     return {"status": "DELETED", "id": profile_id}

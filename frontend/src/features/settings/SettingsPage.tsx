@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ArrowDown,
+  ArrowUp,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -8,6 +10,7 @@ import {
   Database,
   ExternalLink,
   FileSearch,
+  GripVertical,
   KeyRound,
   LoaderCircle,
   LockKeyhole,
@@ -46,6 +49,7 @@ import type {
 } from "../../lib/types";
 import { BilibiliLoginPanel } from "./BilibiliLoginPanel";
 import { editablePolicy } from "./stagePolicyForm";
+import { useModelProfileDrag } from "./useModelProfileDrag";
 import {
   applyProviderPreset,
   providerPreset,
@@ -409,6 +413,34 @@ function ModelsPanel() {
     queryKey: ["model-profiles"],
     queryFn: api.modelProfiles,
   });
+  const [sorting, setSorting] = useState(false);
+  const [orderError, setOrderError] = useState("");
+  const saveOrder = useMutation({
+    mutationFn: api.saveModelProfileOrder,
+    onMutate: async (ids) => {
+      await queryClient.cancelQueries({ queryKey: ["model-profiles"] });
+      const previous = queryClient.getQueryData<ModelProfileView[]>(["model-profiles"]);
+      if (previous) queryClient.setQueryData(["model-profiles"], ids.map((id) => previous.find((profile) => profile.id === id)!));
+      return previous;
+    },
+    onSuccess: (ordered) => {
+      queryClient.setQueryData(["model-profiles"], ordered);
+      setOrderError("");
+    },
+    onError: (error, _ids, previous) => {
+      if (previous) queryClient.setQueryData(["model-profiles"], previous);
+      setOrderError(error.message);
+    },
+  });
+  const moveProfile = (sourceId: string, targetId: string) => {
+    const ids = (profiles.data ?? []).map((item) => item.id);
+    const from = ids.indexOf(sourceId);
+    const to = ids.indexOf(targetId);
+    if (from < 0 || to < 0 || from === to || saveOrder.isPending) return;
+    ids.splice(to, 0, ...ids.splice(from, 1));
+    saveOrder.mutate(ids);
+  };
+  const profileDrag = useModelProfileDrag(moveProfile);
   const tests = useQuery({
     queryKey: ["model-tests"], queryFn: api.modelTests,
     refetchInterval: (query) => query.state.data?.some((job) => ["QUEUED", "RUNNING"].includes(job.status)) ? 1000 : false,
@@ -541,6 +573,9 @@ function ModelsPanel() {
       <div className="provider-form__title">
         <h3 id="saved-models-title">已保存模型</h3>
         <div className="provider-form__actions">
+        <button className="button button--outline" aria-pressed={sorting} disabled={saveOrder.isPending || !profiles.data?.length} onClick={() => setSorting((current) => !current)}>
+          <GripVertical />{sorting ? "完成排序" : "调整顺序"}
+        </button>
         <button className="button button--outline" disabled={batch.isPending || batchActive || !profiles.data?.length} onClick={() => batch.mutate()}>
           {batch.isPending || batchActive ? <LoaderCircle className="spin" /> : <RefreshCw />}
           一键测试全部
@@ -556,13 +591,21 @@ function ModelsPanel() {
       </div>
       <p className="settings-note">真实测试与能力探测使用已保存配置；本地模型始终串行，每次调用结束后至少间隔5秒，配置更长时按配置等待。远程同供应商或入口串行，独立入口最多三组并行。重复提交会合并正在进行的同项测试。</p>
       {batch.error && <p className="settings-note" role="alert">{batch.error.message}</p>}
+      {orderError && <p className="settings-note" role="alert">{orderError}</p>}
+      {sorting && <p className="settings-note">拖动模型左侧手柄调整顺序；手机可用上移、下移。调整后自动保存。</p>}
       {batchIds.length > 0 && <p className="settings-note" role="status">本次一键测试：{batchJobs.filter((job) => job.status === "COMPLETED").length}/{batchIds.length} 完成，{batchJobs.filter((job) => job.status === "FAILED").length} 失败，{batchJobs.filter((job) => job.status === "RUNNING").length} 运行，{batchJobs.filter((job) => job.status === "QUEUED").length} 排队。</p>}
       <div className="model-library__list">
       {adding && <ModelProfileEditor onClose={() => setAdding(false)} />}
-      {profiles.data?.map((profile) => (
+      {profiles.data?.map((profile, index) => (
         <ModelProfileEditor
           key={profile.id}
           profile={profile}
+          sortControls={sorting ? {
+            drag: profileDrag,
+            moveUp: index > 0 ? () => moveProfile(profile.id, profiles.data![index - 1].id) : undefined,
+            moveDown: index < profiles.data!.length - 1 ? () => moveProfile(profile.id, profiles.data![index + 1].id) : undefined,
+            disabled: saveOrder.isPending,
+          } : undefined}
           assigned={assignedIds.has(profile.id)}
           testJob={tests.data?.find((job) => job.profile_id === profile.id && ["QUEUED", "RUNNING"].includes(job.status)) ?? tests.data?.find((job) => job.profile_id === profile.id)}
         />
@@ -1579,11 +1622,13 @@ function NumberPolicyField({
 }
 function ModelProfileEditor({
   profile,
+  sortControls,
   assigned = false,
   testJob,
   onClose,
 }: {
   profile?: ModelProfileView;
+  sortControls?: { drag: ReturnType<typeof useModelProfileDrag>; moveUp?: () => void; moveDown?: () => void; disabled: boolean };
   assigned?: boolean;
   testJob?: ModelTestView;
   onClose?: () => void;
@@ -1831,9 +1876,14 @@ function ModelProfileEditor({
   const reliabilityExamples = RELIABILITY_EXAMPLES[values.reliability_mode ?? "STANDARD"];
   return (
     <>
-      <section className={`provider-form${expanded ? "" : " provider-form--collapsed"}`}>
+      <section data-model-profile-id={profile?.id} className={`provider-form${expanded ? "" : " provider-form--collapsed"}`}>
         <div className="provider-form__title">
           <div className="model-profile-heading">
+          {sortControls && <div className="model-profile-sort">
+            <button className="model-profile-sort__handle" type="button" disabled={sortControls.disabled} onPointerDown={(event) => sortControls.drag.start(event, profile!.id)} onPointerMove={sortControls.drag.update} onPointerUp={sortControls.drag.finish} onPointerCancel={(event) => sortControls.drag.finish(event, true)} onLostPointerCapture={(event) => sortControls.drag.finish(event, true)} aria-label={`拖动${profile?.name}调整顺序`} title="拖动整张卡片调整顺序"><GripVertical /></button>
+            <button className="model-profile-sort__step" type="button" onClick={sortControls.moveUp} disabled={!sortControls.moveUp || sortControls.disabled} aria-label={`上移${profile?.name}`} title="上移"><ArrowUp /></button>
+            <button className="model-profile-sort__step" type="button" onClick={sortControls.moveDown} disabled={!sortControls.moveDown || sortControls.disabled} aria-label={`下移${profile?.name}`} title="下移"><ArrowDown /></button>
+          </div>}
           {profile && <IconButton label={`${expanded ? "收起" : "展开"}${profile.name}配置`} aria-expanded={expanded} aria-controls={editorId} onClick={() => setExpanded((current) => !current)}>{expanded ? <ChevronUp /> : <ChevronDown />}</IconButton>}
           <div>
           <h3>
@@ -1887,10 +1937,10 @@ function ModelProfileEditor({
             </div>
           </div>
         </div>
-        {feedbackMessage && (
+        {(feedbackMessage || (profile && capabilities.length > 0)) && (
           <div className={`provider-form__feedback${testJob?.status === "FAILED" ? " provider-form__feedback--error" : ""}`} role="status">
-            {pendingMessage || testActive ? <LoaderCircle className="spin" /> : <CheckCircle2 />}
-            <span className="provider-message">{feedbackMessage}</span>
+            {feedbackMessage && <>{pendingMessage || testActive ? <LoaderCircle className="spin" /> : <CheckCircle2 />}<span className="provider-message">{feedbackMessage}</span></>}
+            {profile && capabilities.length > 0 && <div className="model-probe-tags" aria-label="已通过能力">{capabilities.map((capability) => <span key={capability}>{CAPABILITY_LABELS[capability] ?? capability}</span>)}</div>}
           </div>
         )}
         {profile && <div className={`provider-form__feedback${interfaceProbe?.status === "FAIL" ? " provider-form__feedback--error" : interfaceStatus !== "通过" ? " provider-form__feedback--neutral" : ""}`} role="status">

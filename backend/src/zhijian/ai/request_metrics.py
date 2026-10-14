@@ -3,12 +3,30 @@
 import json
 import re
 from contextlib import suppress
+from hashlib import sha256
 
 from zhijian.ai.token_usage import estimate_tokens
 
 
-def request_metrics(messages: list[dict[str, str]], *, domain_chars: int = 0) -> dict[str, int]:
+def provider_cache_metrics(usage: dict, usage_source: str | None = None) -> dict:
+    value = usage.get("cached_tokens")
+    if value is None and isinstance(usage.get("prompt_tokens_details"), dict):
+        value = usage["prompt_tokens_details"].get("cached_tokens")
+    valid = (
+        isinstance(value, int) and not isinstance(value, bool) and value >= 0 and usage_source != "UNKNOWN"
+    )
+    return {
+        "reported_cached_tokens": value if valid else None,
+        "cache_kind": "PROVIDER_PREFIX_CACHE_HIT" if valid and value > 0 else "UNKNOWN",
+    }
+
+
+def request_metrics(
+    messages: list[dict[str, str]], *, domain_chars: int | None = None
+) -> dict[str, int | str]:
     bodies = [str(item.get("content") or "") for item in messages]
+    if domain_chars is None:
+        domain_chars = sum(len(body) for body in bodies if body.startswith("以下领域上下文"))
     text = "\n".join(bodies)
     keys = re.findall(r'"([^"\\]+)"\s*:', text)
     references = re.findall(r"(?m)^\[segment:([^\s]+) [^\]]+\] (.*)$", text)
@@ -28,7 +46,23 @@ def request_metrics(messages: list[dict[str, str]], *, domain_chars: int = 0) ->
             visit(json.loads(body))
     unique_chars = sum(len(body) for body in dict(references).values())
     quotes = re.findall(r'"(?:quote|supporting_quote)"\s*:\s*("(?:[^"\\]|\\.)*")', text)
+    prefix = []
+    for item in messages:
+        if item.get("role") == "user" or str(item.get("content") or "").startswith("以下领域上下文"):
+            break
+        prefix.append(item)
+    prefix_chars = sum(len(str(item.get("content") or "")) for item in prefix)
+    wire = json.dumps(messages, ensure_ascii=False, separators=(",", ":")).encode()
     return {
+        "metrics_version": "prompt-prefix-v1",
+        "prompt_fingerprint": sha256(wire).hexdigest(),
+        "static_prompt_fingerprint": sha256(
+            json.dumps(prefix, ensure_ascii=False, separators=(",", ":")).encode()
+        ).hexdigest(),
+        "static_prefix_chars": prefix_chars,
+        "dynamic_body_chars": sum(map(len, bodies)) - prefix_chars,
+        "raw_request_bytes": len(wire),
+        "request_bytes_scope": "MESSAGES_JSON",
         "system_chars": sum(
             len(body) for item, body in zip(messages, bodies, strict=True) if item.get("role") == "system"
         )

@@ -1,6 +1,6 @@
 # 文档目录与维护规则
 
-> 目录核对日期：2026-10-09。外部读者先看 [项目概览](../README.md)，开发 Agent 先看 [CODEX_CONTEXT.md](CODEX_CONTEXT.md)。本次同步文档清单、源码契约与历史归档，不重新授予业务验收。
+> 目录核对日期：2026-10-14。外部读者先看 [项目概览](../README.md)，开发 Agent 先看 [CODEX_CONTEXT.md](CODEX_CONTEXT.md)。本次同步文档清单、源码契约与历史归档，不重新授予业务验收。
 
 ## 1. 谁读什么，读到哪里停止
 
@@ -55,7 +55,8 @@
 | Job / Replay / 会话 | [步骤续跑](jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md)、[手机会话与任务控制](jobs/MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md) |
 | 任务表达 / 时间 | [摘要与部分成功](jobs/TASK_SUMMARY_AND_PARTIAL_SUCCESS_SPEC.md)、[状态与北京时间](jobs/TASK_STATUS_AND_BEIJING_TIME_SPEC.md) |
 | AI Gateway | [AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2](ai-gateway/AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md) 六篇索引：模型边界、公共能力、Pipeline/Provider、阶段参数、单任务策略、历史工作包/验收 |
-| 请求优化工作包 | [Z0–Z8/E2E 计划](planning/ZHIJIAN_AI_OPTIMIZATION_AND_E2E_PLAN.md)、[合成 A/B](benchmark/AI_REQUEST_OPTIMIZATION_AB_REPORT.md)、[本包发布门禁](benchmark/RELEASE_ACCEPTANCE.md)；真实 E2E 独立开放 |
+| 标题时间证据 | [契约](video/TITLE_TEMPORAL_EVIDENCE.md)、[离线 A/B](benchmark/TITLE_TEMPORAL_PROMPT_AB_REPORT.md)、[归档计划](history/planning/ZHIJIAN_TITLE_TEMPORAL_EVIDENCE_AND_PROMPT_OPTIMIZATION_PLAN.md)；真实模型质量与缓存收益未验证 |
+| 请求优化工作包 | [Z0–Z8/E2E 计划](history/planning/ZHIJIAN_AI_OPTIMIZATION_AND_E2E_PLAN.md)、[合成 A/B](benchmark/AI_REQUEST_OPTIMIZATION_AB_REPORT.md)、[本包发布门禁](benchmark/RELEASE_ACCEPTANCE.md)；真实 E2E 独立开放 |
 | AI 运行 / 生产验收 | [AI_RUNTIME_AND_PROVIDERS](ai-gateway/AI_RUNTIME_AND_PROVIDERS.md) 运行配置；[AI_GATEWAY_PRODUCTION_ACCEPTANCE](ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md) 真实验收门禁 |
 | 本机路由 Provider | [LocalAiMux 客户端接入](ai-gateway/LOCAL_ROUTER_PROVIDER_COMPATIBILITY_SPEC.md) 至简已实现的参数/消息协商与上游边界；[2026-10-06 参数及 55 型号调查](history/LOCALMUX_PARAMETER_SURVEY_20261006.md) 为有日期的证据快照，不代表真实模型验收 |
 | 模型 / Prompt / 来源保留 | [模型与历史删除](ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md)、[补充 Prompt](ai-gateway/PROMPT_SUPPLEMENTS_V045_SPEC.md)、[转写路由与来源保留](ai-gateway/AI_ROUTING_SOURCE_RETENTION_V046_SPEC.md) |
@@ -112,3 +113,5 @@
 ## 6. Codex 设置说明
 
 本次设置落在仓库 AGENTS.md，未更改用户全局配置、模型或推理档，也未设置会截断安全指令的硬 token 限制。按 [OpenAI 官方 AGENTS.md 文档](https://learn.chatgpt.com/docs/agent-configuration/agents-md)，仓库指令在运行开始时加载；建议在该仓库新建任务使用新规则。本轮未额外启动付费模型任务来测试加载。
+
+2026-10-14 清理：已实施的 Z0–Z7 与标题时间证据计划归入 history/planning，未闭环的真实验收保留在当前状态/验收门禁；保留 ASR 与字幕对齐未完成计划及原有分篇索引。manifest 补齐当前专项、Benchmark 与历史文件；移除误跟踪的 Python 字节码，生成脚本仍保留。

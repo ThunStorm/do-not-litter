@@ -4,15 +4,24 @@
 
 ## 任务续接
 
-- 目标：AI入口隔离、正常批次/重跑参数、能力判定、免费入口真实诊断和 BV1eAew6UEvG 全模型矩阵；Z8未实施。
-- 已完成：源码补修、后端400项/前端21项与静态检查、PC/390px Browser、必要备份无迁移重载。官方DeepSeek最终新Job `job_b218748b83704374a698223c614e90c3` 全16步完成、MODEL笔记12节41引文，引用归属错误0；原受阻Job已恢复。10个保存模型均已真实测试，详见[矩阵报告](benchmark/AI_ENTRY_ISOLATION_BV1eAew6UEvG_REPORT.md)。本轮已本地提交，未推送。
-- 限制：免费DS校对/地图成功但归纳间歇429，HYBRID笔记未算完整模型通过；OR动态免费路由有强制思考400/截断/JSON错误；赞助入口401令牌失效。7b覆盖薄；8b/7b未按用户要求重验纯本地。地点confirmed=0，语义仍待人审。
-- 下一步：若要使失败的免费/赞助入口完整通过，先取得供应商可用配额/有效新凭据，再按矩阵报告定向续跑，勿重跑已验官方/9b。
-- 禁止：不自动确认POI、不改原提交/历史、不突破Job硬预算，不把HYBRID或连接测试写成完整模型验收。现场见下方带日期快照。
+- 目标：完成标题时间证据/Claim归属/分包Prompt开发验证、无迁移部署、开发文档整理与提交推送。
+- 已完成：TITLE_METADATA解析与保守传播、TITLE_CONTEXT窗口对账与出处DTO、标题缓存失效、subject实体归属、笔记fallback标注、请求前缀/缓存观测。后端458/前端24、Ruff/Lint/类型/隔离构建及生产1440/390px目标Browser通过；模拟写入被拦截，44表数据未改。旧截图压缩、模型拖动排序及模型署名改动一并验证；保存点见下方。本轮提交/远程交付在最终Git记录中核对。
+- 文档：95文件清单、链接与合订一致性通过；已实施计划归档history/planning，当前契约[标题时间证据](video/TITLE_TEMPORAL_EVIDENCE.md)，度量[离线A/B](benchmark/TITLE_TEMPORAL_PROMPT_AB_REPORT.md)。
+- 未完成：真实标题质量/Token/上游缓存收益未验，会话阶段未启动；免费/赞助入口条件和旧矩阵/本地取消限制保留，见实施状态及原矩阵报告。
+- 下一步：需要真实验收时，明确授权同模型固定Ground Truth配对A/B；不重复已验证官方视频。
+- 禁止：不自动确认POI、不回写旧笔记/截图/业务数据、不突破原Job预算；本轮无迁移、真实Provider调用或视频重跑。
 
-## 生产快照（最新健康采样2026-10-14 13:54，北京时间；旧条目保留原日期）
+## 生产快照（最新健康采样2026-10-14 23:30，北京时间；旧条目保留原日期）
+
+- 2026-10-14 23:30（标题时间证据与Prompt开发部署）：沿用本次明确部署授权，保存点 `data/backups/title-temporal-20261014-232643/` 含已验逻辑数据库、446文件工作树归档/HEAD/patch、旧静态包、新旧静态与后端源码SHA256、pre/postflight及Browser证据。重载前active Job/lease/RUNNING调用0、integrity=ok/FK0、0025；隔离构建通过后仅复制新哈希资源并最后替换index，保留旧资源。manage.py无迁移重载后API45487/Worker45513 RUNNING，内容/health/新PID心跳READY；实际HTTP JS `index-2CwM4NUJ.js`、CSS `index-BhKjBHc7.css`与index哈希均匹配，旧index595492a8→新9f2277c9，完整值见manifest。OpenAPI确认VisitWindow的source_id/source_kind字段，后端源码hash与保存点一致。生产Playwright/Edge（Browser插件未提供）1440×1000/390×844验证标题/正文标签、仅人工窗口可移除、移除后标题与正文仍在、月份菜单交互，无横向溢出/框架错误/相关console；新时间数据与DELETE响应仅浏览器拦截模拟，生产未写入窗口。44表逐字段聚合hash与逻辑备份一致（settings仅排除runtime键），变动仅system_events；外部Audit仍1409条、active/lease/call0、integrity=ok/FK0/0025。未迁移、真实模型/视频重跑、POI确认或回写历史。源码与自动验证只维护于实施状态，真实业务质量/缓存收益尚未验收。
+
+- 2026-10-14 14:37（截图压缩后端上线）：用户明确授权重载API/Worker，使之后截图自动压缩。重载前active Job/lease/RUNNING外部调用均0，integrity=ok、FK0、0025；保存点 `data/backups/screenshot-compression-20261014-143532/` 含已验逻辑数据库、438文件工作树归档/patch/HEAD、3文件压缩改动回退包、92份后端源码SHA256及preflight。已核对接手的模型固定排序路由此前在线，视频详情附加模型字段与完整441项回归通过；未替换前端静态资源。manage.py无迁移重载后API48349/Worker48372 RUNNING、内容/新PID心跳READY；两进程配置指向当前生产解释器及backend/src，源码哈希与保存点一致，Worker启动预检导入截图抽帧/压缩链路。图片路由在OpenAPI存在，既有JPEG HTTP200、MIME与文件SHA256正确；44张业务表（排除system_events及runtime设置）与逻辑备份逐字段hash一致，外部Audit仍1393条，441张原截图SHA256全匹配，integrity=ok/FK0、0025、active/lease0。新截图在登记READY前保持分辨率，经WebP画质/体积门槛或无损后备，失败保留JPEG；旧图不自动重编码。postflight保留全部核对结果；未触发真实Provider/视频重跑或新增生产截图，首张真实新图尚未采集。本次未提交/推送，上方任务续接保留。
 
 - 2026-10-14 13:54（系统指令传递探测升级复核）：保存点 `data/backups/system-instruction-probe-20261013T160107Z/`（UTC命名）含已验证逻辑数据库、旧静态包、可恢复工作树文件/patch、源码与新旧资源SHA256清单。无迁移发布并经manage.py重载后，本次复核API/Worker RUNNING、内容/新心跳READY（Worker PID38680），OpenAPI的ModelTestRequest含INTERFACE，生产3项静态资源HTTP哈希均与隔离构建一致。旧index哈希c5da65b9、新index哈希595492a8（完整值见manifest）；integrity=ok/FK0、0025，外部调用审计数量与保存点一致。生产Browser1159×876/390×844覆盖五状态、中文目录声明、读取后只入队一次、手机布局及相关console，推理返回与入队均拦截模拟；未真实调用Provider/重跑视频/修改模型或业务结果。源码与自动验证见实施状态，未更改任务续接段。
+
+- 2026-10-13 23:40（模型整卡拖动交互发布）：按持续授权仅发布前端静态包，API/Worker未重启。保存点 `data/backups/model-card-drag-20261013-233447/` 含已验逻辑数据库、旧静态包、源码归档、工作树patch、HEAD及哈希verification；新JS `index-BFEdxVvo.js`/CSS `index-KoCi2ZGx.css`生产HTTP哈希与发布包一致，旧哈希资源保留。指针拖动改为整卡跟随、邻卡动画让位及插入线，松开自动保存/失败回退，取消复位；目标测试、前端23项、全量后端、ESLint/类型/隔离构建通过。生产Browser 1081px实际向下/向上拖动换位成功，刷新证实持久化；390px也拖动换位成功、无横向溢出/相关console错误，最终恢复用户当时GPT-6 Luna首位的顺序并关闭排序、恢复视口。此前手柄拖动未验收项已闭环。API/Worker RUNNING、内容/心跳READY（Worker PID5513）、integrity=ok/FK0、0025、active/lease0；未迁移、真实模型调用、提交或推送。
+
+- 2026-10-13 23:08（已保存模型标签与固定排序部署）：用户要求补全生产验收。重载前active Job/lease=0、0025、integrity=ok、FK0；逻辑备份 `data/backups/app-pre-model-order-20261013-230247.db` 与旧前端包 `frontend-pre-model-order-20261013-230247.tar.gz` 已验证。隔离构建发布后无迁移重启API/Worker，二者RUNNING、首页/health/Worker新心跳READY（Worker PID5513），OpenAPI含PUT `/api/settings/model-profiles/order`，生产JS/CSS HTTP哈希与部署文件一致。Browser 1081/390px见通过能力中文标签、排序开关与按钮，无横向溢出/相关console错误；将首项下移并刷新确认持久化，再上移恢复原顺序并刷新确认。自动化手柄拖动未触发排序，手势尚待人工确认。部署后integrity=ok、FK0、0025、active/lease=0，顺序设置含6个ID；未触发真实模型调用或迁移。本次未提交/推送，原任务续接限制继续有效。
 
 - 2026-10-12 23:54（Mux模型目录读取修复）：用户授权分析、实现、验证、重新部署及提交。只读目录实测标准目录10.16秒、能力目录0.03秒，56个实际ID一致，确认新列表接口5秒读取上限不足；读取改20秒、连接5秒、总期30秒并按剩余预算收紧。列表和保存模型能力读取共用实际ID校验，只排除标准目录中Mux拥有的四种虚拟路由，实际差异/重复仍拒绝。目标69、后端全量424、前端22及Ruff/Lint/类型/隔离构建通过；首次全量在backend工作目录遇到根目录fixture路径问题，改从项目根目录执行后全量通过。重载前active/lease/RUNNING call及Mux任务0、0025、integrity=ok/FK0，逻辑备份 `data/backups/app-pre-model-catalog-fix-20261012-234716.db` 及verification已验。manage.py无迁移重载后API/Worker RUNNING、页面/health READY，新Worker PID93185与心跳一致；生产POST /api/settings/model-catalog HTTP200、56项，设置页刷新/下拉搜索通过，原codebuddy/hy3保持、相关console错误0。隔离构建JS/CSS与部署文件hash一致，无需替换前端资源。43张表对比（运行态设置、事件、访问会话另计）证实模型配置、Job、业务结果不变；Worker按既有保留策略将7条已到期中间产物AVAILABLE→EXPIRED，仅status/updated_at变化，未回写其他历史字段。部署后integrity=ok/FK0、0025、active0，证据 `data/benchmarks/model-catalog-fix-20261012/`。本轮本地提交模型下拉接口及依赖、目录修复和相关文档，未推送；接手时视频页面改动继续保留工作树。只读目录不等于推理/能力探测或模型质量，原任务续接限制保留。
 

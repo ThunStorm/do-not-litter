@@ -1,21 +1,29 @@
 # 当前实施状态
 
-> 状态记录日期：2026-10-12。本文唯一记录当前源码能力与自动验证；生产状态只见带原采样日期的 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
+> 状态记录日期：2026-10-14。本文唯一记录当前源码能力与自动验证；生产状态只见带原采样日期的 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
 
 ## 当前冻结范围
 
-- 当前分支为 `codex/mac-mini-implementation`；本轮交付包含同模型重跑配置与 Z0–Z7 请求优化核心；Z8 保持独立 backlog，不修改 LocalAiMux。
+- 当前分支为 `codex/mac-mini-implementation`；本轮交付包含标题时间证据/分包 Prompt、同模型重跑配置与 Z0–Z7 请求优化核心；Z8 保持独立 backlog，不修改 LocalAiMux。
 - 仓库 Alembic head 为 0025；生产版本由交接现场证明，不由仓库推断。本轮无 Schema 变更；重新部署和已授权真实模型/视频矩阵另由交接及验收报告证明。
 - 唯一支持的后端为 Mac mini，FastAPI、SQLite/WAL 与独立 Worker；单用户通过可信局域网访问。
 - 源码实现、离线验证、生产加载与真实业务验收分别记录。规格中的待实施项、历史工作包和新草案不自动成为已授权任务。
 
 ## 当前能力
 
+2026-10-14 标题时间证据：新增确定性 TITLE_METADATA 解析/范围投影，仅明确推荐且适用的地点继承；行程/记录、背景、否定、地域/主题不匹配及正文时间优先均保守拒绝。TITLE_CONTEXT 窗口保持真实 source_id/标题原文且无伪 Segment，按来源/提及/时间/文本哈希对账，重放保持 ID、地点重新绑定正确迁移且人工窗口不删除；API 区分 source_kind 并保护派生窗口。Ground Map 缓存身份包含标题上下文/解析版本；Claim 优先 subject_entity_ids，歧义不按同段广播，模型包保留 ContentUnit 并仅含当前包相关地点/Segment/引文。笔记摘要/fallback 按地点显示标题来源，前端地点详情区分标题/正文。稳定系统指令前置，请求增加前缀/Prompt 哈希、长度与字节范围观测，应用缓存不冒充 Provider 上报缓存；复用既有编译器、ID/外键/人工 POI 门禁，无 Schema/LocalAiMux 变更。[契约](video/TITLE_TEMPORAL_EVIDENCE.md)、[离线 A/B](benchmark/TITLE_TEMPORAL_PROMPT_AB_REPORT.md)记录合成增量及真实质量/Token UNKNOWN；真实模型/视频和会话缓存未执行。新增17项标题证据回归及1项前端出处/删除保护测试；目标110项、后端全量458项、前端24项与完整源码/测试Ruff、ESLint、TypeScript、隔离Vite构建通过。首次全量的旧分包测试缺失Segment范围，按新证据契约补全并扩展非法范围断言后复跑全量通过。生产1440/390px目标Browser通过，浏览器新增时间与删除响应均拦截模拟；实际服务/资源哈希/历史数据核对只见[交接快照](CURRENT_HANDOFF.md)。
+
+2026-10-14 截图保存前压缩：选帧与去重后保持原分辨率，按 WebP 85/90/95 与无损后备尝试，RGB PSNR≥38 dB 且体积至少减少5%才采用；编码/写入失败或无收益保留JPEG，先完整写入并原子替换后登记最终路径与SHA-256。图片接口及Vision请求兼容JPEG/WebP MIME，无新增依赖/Schema；旧截图不自动重编码。11项新增回归覆盖细小彩字无损后备、普通抽样JPEG压缩、画质/体积拒绝、编码/磁盘失败回退、最终文件哈希及两种格式的读取/模拟Vision请求；相关目标15项、后端全量441项、前端23项及完整后端Ruff、ESLint、TypeScript、隔离Vite构建通过。441张现有JPEG的临时副本离线实测426张采用压缩、15张保留，63,817,940→45,527,644字节，减少28.66%，采用压缩的最低PSNR38.1802 dB、单张编码中位87.54ms；最低PSNR样本标题/字幕可辨认，不替代全面OCR/语义验收。忽略目录 `data/benchmarks/screenshot-compression-20261014/report.json` 保存逐文件哈希与指标，原截图逐张字节核对未改。源码验收阶段未提交/部署或触发真实Provider/视频重跑；后续已按用户授权无迁移重载API/Worker，新截图保存链路已加载压缩逻辑，生产核对及首张真实新图未采集的边界见[交接快照](CURRENT_HANDOFF.md)。契约见[截图与物化](video/03-generation-materialization.md#414-extract_screenshots)。
+
 2026-10-14 系统指令传递纳入独立接口小样和普通能力探测；已保存模型读取目录后将小样加入Worker队列，配置未保存时提示先保存。折叠卡测试反馈处独立展示通过、未通过、未验证、未测试、探测中及目录声明/脱敏错误；保留采样时间与接口指纹，配置变更清除旧结果，执行中变更拒绝保存。角色冲突小样不提升目录声明、不授予业务能力、不解除正式Stage门禁。目标5项、后端全量430项、前端23项及源码Ruff、ESLint、TypeScript、隔离构建通过；PC1159/390px覆盖五状态与入队交互，无溢出或相关console错误（推理返回与入队均模拟，真实Provider未调用）。无Schema迁移；生产现场见交接快照。
+
+2026-10-13 已保存模型显示通过能力中文标签，并提供整卡拖动排序及上移/下移；指针捕获让整张卡片跟随移动，相邻卡片动画让位、目标显示插入线，松开自动保存，失败恢复原顺序，取消清除效果。顺序独立保存，更新/探测不再按更新时间冒泡，新模型排末尾；完整ID排列校验不改变推理路由，无Schema迁移。整卡位移/让位/取消目标测试、后端全量、前端23项及ESLint、TypeScript、隔离Vite构建通过。已发布生产静态包，Browser 1081/390px实际拖动换位成功，刷新持久化后恢复原顺序，页面无横向溢出/相关console错误；此前拖拽未验收项已闭环。未触发真实模型调用；生产现场见交接快照。
 
 2026-10-12 Mux模型目录修复：实机冷标准目录10.16秒、随后能力目录0.03秒，两者56个实际ID一致；确认新下拉刷新接口的5秒读取上限导致失败。读取等待改20秒、连接5秒、总期限30秒并按剩余预算收紧；列表与模型保存能力读取共用实际ID校验，仅排除owned_by=localmux的free/cheap/balanced/best虚拟路由，实际差异/重复仍拒绝，下拉返回实际模型。超时/HTTP状态/目录不一致/异常响应分别给脱敏提示。目标69项、后端全量424项、前端22项及源码/测试Ruff、前端Lint/TypeScript/隔离Vite构建通过；生产接口HTTP200返回56项，设置页刷新/搜索通过，原型号保留，无相关console错误；无迁移部署现场见交接。只读目录验证不代表真实推理或模型质量。
 
 2026-10-12 模型设置收敛：有标题的“已保存模型”父section包含说明、批量反馈、内缩子卡片、新增表单及空态；各模型默认收起、编辑保留、新增默认展开，共享IconButton支持键盘/ARIA。模型名改为可搜索SelectMenu，支持手动填写及显式刷新目录；新增POST /api/settings/model-catalog读取标准/Ollama/Mux元数据，Mux双目录实际ID须一致，标准目录中的虚拟路由独立识别。连接变更不复用跨origin/服务来源的旧Key，响应限时限量/无重定向，精确ID/凭据反射校验，过期结果不覆盖新连接/模型；失败保留原值，不保存配置或创建推理任务。新增目录18项、后端全量418、前端22及源码/测试Ruff、ESLint/TypeScript/隔离Vite构建通过；内置Browser验证父子包含、独立折叠、编辑保留、新增、搜索/选择、模拟刷新/失败、手动输入、长名称与PC/390px，修复长名称撑宽和相邻控件拉伸。沿用部署更新要求完成无迁移发布；真实目录采样及生产页面/数据证据见[交接快照](CURRENT_HANDOFF.md)，完整契约见[模型设置](ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md)。未触发模型推理、真实测试/能力探测、视频生成或POI确认。
+
+2026-10-12 视频笔记风格入口撤下：移除详情页选择器、前端风格状态/类型和生成请求的风格参数，普通重新生成走后端默认；Render Profile 接口/历史版本字段继续预留，契约见 [生成与物化](video/03-generation-materialization.md#笔记风格接口预留与生成模型标注2026-10-12)。详情 API 从当前 Note Version 返回生成 Provider/模型，右上角用 Caption 显示 `By 模型名`，不加“AI 生成”字样；缺失/待生成明确提示，长名称截断并可通过 title 查看模型名。目标 2 项、后端全量 400 项、前端 21 项及源码/测试 Ruff、ESLint/TypeScript/隔离 Vite 构建通过；包含历史迁移的 backend 全目录 Ruff 仍有 28 条既有问题，未修改历史迁移。Edge/Playwright 在隔离 SQLite 快照与构建包上验证 PC 1440px/876px、手机 390px、真实样本的历史模型、模拟长名称/缺失/待生成、菜单展开与拦截重新生成请求，无溢出/相关控制台错误。随后最终 By 文案通过目标 ESLint 和隔离构建，已授权无迁移部署与生产 Browser 验收见 [交接生产快照](CURRENT_HANDOFF.md)；无 Schema 变更或真实模型/视频生成。
 
 | 领域 | 已进入源码的能力 | 契约入口 |
 | --- | --- | --- |
@@ -47,7 +55,7 @@
 
 2026-10-10 真实模型小样：在现有 Mux 标准接口上串行执行 1 次 Text 与 2 次 Ground Map JSON（代码3bebb50、请求型号codebuddy/glm-5.3），两次 JSON DIRECT_VALID、短 ID 还原与逐字 Evidence 通过；两处景点、参考政策和价格/月季/否定/推荐食物/排队事实检查通过。输入为六段自建合成文本，N=1、请求字节3534→3330，不代表真实视频人审质量；实际型号、Token、finish_reason仍UNKNOWN，原生JSON/温度/输出上限不支持。未保存模型能力标记或改配置/历史结果；当前真实验收范围与风险见 [真实小样](benchmark/AI_REQUEST_OPTIMIZATION_LIVE_SAMPLE.json)、[A/B 记录](benchmark/AI_REQUEST_OPTIMIZATION_AB_REPORT.md)。本轮只写验收文档，不重复业务测试或部署。
 
-2026-10-10 请求优化核心：请求编译器仅在模型边界短 ID 化，按 Snapshot/内容/版本/映射绑定 Cache；校对去重上下文、限制 targets，Ground Map 局部事实 ID 按来源区间命名，笔记仅去除可由事实包恢复的重复 quote，完整上下文不静默截尾。格式 smoke 与四类业务小样分开，旧 smoke PASS/过期小样不证明质量，AUTO 未验证路由显式审计；统一等待/请求期限与实际尝试门禁，模型 JSON 修复默认关闭，结果解析质量与执行路径分型。复用 JobStep/Fence，附加 Attempt 状态与数值/哈希诊断；LocalMux 遥测白名单，任务调用明细中文化，旧审计可读。来源/空 quote/越界 Segment 阻止 POI 自动确认，复用现有 Review 与严格 resolver。后端全量 320 项通过，末次诊断目标 74 项与 Ruff 通过；前端 19 项及 ESLint/TypeScript/Vite 通过，隔离 PC/390px 调用明细验收无溢出/错误。18 场景合成请求字节减少 36.77%，只证明表示与往返门禁；真实 Token/POI 质量未验证。入口：[实施计划](planning/ZHIJIAN_AI_OPTIMIZATION_AND_E2E_PLAN.md)、[A/B 报告](benchmark/AI_REQUEST_OPTIMIZATION_AB_REPORT.md)、[E2E 矩阵](benchmark/CROSS_PROJECT_E2E_REPORT.md)、[发布门禁](benchmark/RELEASE_ACCEPTANCE.md)。
+2026-10-10 请求优化核心：请求编译器仅在模型边界短 ID 化，按 Snapshot/内容/版本/映射绑定 Cache；校对去重上下文、限制 targets，Ground Map 局部事实 ID 按来源区间命名，笔记仅去除可由事实包恢复的重复 quote，完整上下文不静默截尾。格式 smoke 与四类业务小样分开，旧 smoke PASS/过期小样不证明质量，AUTO 未验证路由显式审计；统一等待/请求期限与实际尝试门禁，模型 JSON 修复默认关闭，结果解析质量与执行路径分型。复用 JobStep/Fence，附加 Attempt 状态与数值/哈希诊断；LocalMux 遥测白名单，任务调用明细中文化，旧审计可读。来源/空 quote/越界 Segment 阻止 POI 自动确认，复用现有 Review 与严格 resolver。后端全量 320 项通过，末次诊断目标 74 项与 Ruff 通过；前端 19 项及 ESLint/TypeScript/Vite 通过，隔离 PC/390px 调用明细验收无溢出/错误。18 场景合成请求字节减少 36.77%，只证明表示与往返门禁；真实 Token/POI 质量未验证。入口：[实施计划](history/planning/ZHIJIAN_AI_OPTIMIZATION_AND_E2E_PLAN.md)、[A/B 报告](benchmark/AI_REQUEST_OPTIMIZATION_AB_REPORT.md)、[E2E 矩阵](benchmark/CROSS_PROJECT_E2E_REPORT.md)、[发布门禁](benchmark/RELEASE_ACCEPTANCE.md)。
 
 2026-10-09 同模型保存检查与重跑配置：LocalAiMux 保存前自动核对接口目录，失败保留旧配置/凭据；视频提交在创建任务前检查核心文本阶段接口。普通重试、步骤续跑及完整重跑自动刷新同模型必要配置，保持语义/路由/预算上限和原提交快照；执行版本/历史与延迟重跑配置可追溯，身份变更/删除/禁用安全拒绝，Token/远程调用按同 Job 的现存审计累计。最终生产 Python 全量 300 项、完整源码/测试 Ruff 通过；Node 24 前端全量 19 项与 ESLint/TypeScript/Vite 隔离构建通过，末次文字更新后目标 8 项通过。内置 Browser 在隔离 SQLite/模拟目录上验证 1440×1000 与 390×844 的自动保存、目录失败保留原配置、同模型步骤续跑/ASR 复用及无溢出/相关控制台错误，推理请求 0。详尽计划已归档至 [实施计划与验收记录](history/planning/SAME_MODEL_REPLAY_CONFIG_IMPLEMENTATION_PLAN.md)。源码验收阶段未提交/部署或重跑真实视频；后续 2026-10-09 统一重载的生产证据仅见 [交接生产快照](CURRENT_HANDOFF.md)。
 

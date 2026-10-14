@@ -82,12 +82,19 @@ def visit_window_summary(windows: list[Any], month: int | None = None) -> dict[s
         "summary": f"{month} 月：{VISIT_STATE_LABELS[state]}"
         if month
         else f"适宜时间：{VISIT_STATE_LABELS[state]}",
-        "reason": selected.source_text or _default_reason(selected, state),
+        "reason": (selected.source_text or _default_reason(selected, state))
+        + (" · 来自视频标题" if selected.provenance == "TITLE_CONTEXT" else ""),
         "evidence": [
             {
                 "source_id": item.source_id,
                 "segment_ids": list(item.segment_ids_json or []),
                 "source_text": item.source_text,
+                "source_kind": "TITLE_METADATA"
+                if item.provenance == "TITLE_CONTEXT"
+                else "TRANSCRIPT"
+                if item.provenance == "SOURCE_FACT"
+                else "USER",
+                "provenance": item.provenance,
             }
             for item in applicable
         ],

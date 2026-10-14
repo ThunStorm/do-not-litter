@@ -138,6 +138,8 @@ class PlaceInsightView(BaseModel):
 
 class PlaceVisitWindowView(BaseModel):
     id: str
+    source_id: str | None = None
+    source_kind: str = "USER"
     season: str | None = None
     month: int | None = None
     month_segment: str | None = None

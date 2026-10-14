@@ -37,9 +37,18 @@ def test_note_evidence_pack_is_deduplicated_and_bounded() -> None:
 def test_note_pack_only_receives_related_place_evidence() -> None:
     index = [
         {"mention_id": "place-a", "name": "甲", "segment_ids": ["seg-a"]},
-        {"mention_id": "place-b", "name": "乙", "segment_ids": ["seg-b"]},
+        {
+            "mention_id": "place-b",
+            "name": "乙",
+            "segment_ids": ["seg-b", "seg-neighbor"],
+            "quotes": ["乙推荐", "无关邻段"],
+        },
     ]
-    assert _pack_place_evidence(index, [{"place_mention_ids": ["place-b"]}]) == [index[1]]
+    pack = [{"place_mention_ids": ["place-b"], "segment_ids": ["seg-b"], "supporting_quotes": ["乙推荐"]}]
+    assert _pack_place_evidence(index, pack) == [
+        {"mention_id": "place-b", "name": "乙", "segment_ids": ["seg-b"], "quotes": ["乙推荐"]}
+    ]
+    assert _pack_place_evidence(index, [{"place_mention_ids": ["place-b"]}]) == []
 
 
 class FixtureProvider:

@@ -25,8 +25,9 @@ from zhijian.db.models import GroundedMapArtifact, Job, JobStep, Segment, Transc
 from zhijian.providers.llm import FallbackLLMProvider, LLMResult
 from zhijian.services.audit import record_event
 from zhijian.services.jobs import ensure_job_active
+from zhijian.services.title_temporal import title_identity
 
-MAP_PROMPT_VERSION = "semantic-map-v3-compiler2"
+MAP_PROMPT_VERSION = "semantic-map-v3-title1"
 MAP_ARTIFACT_SCHEMA_VERSION = "grounded-map-v3"
 LOCAL_MAP_CHUNK_CHARS = 6_000
 LOCAL_MAP_CHUNK_SEGMENTS = 64
@@ -310,6 +311,7 @@ def get_or_create_grounded_map(
                 "transcript_id": transcript.id,
                 "transcript_version": transcript.version,
                 "content_hash": content_hash,
+                **title_identity(asset.title),
                 "prompt_version": MAP_PROMPT_VERSION,
                 "schema_version": MAP_ARTIFACT_SCHEMA_VERSION,
                 "supplement_hash": supplement_hash,

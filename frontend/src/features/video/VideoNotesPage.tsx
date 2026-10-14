@@ -8,7 +8,6 @@ import { BulkSelectionToolbar } from '../../components/ui/BulkSelection'
 import { MarkdownContent } from '../../components/MarkdownContent'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { SearchField } from '../../components/ui/SearchField'
-import { SelectMenu } from '../../components/ui/SelectMenu'
 import { api, type PlaceReview, type VideoPlace } from '../../lib/api'
 import { useBulkSelection } from '../../lib/useBulkSelection'
 import { PlaceReviewCard } from '../places/PlaceReviewCard'
@@ -68,14 +67,13 @@ export function VideoNoteDetailPage() {
   const client = useQueryClient()
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const [renderProfile, setRenderProfile] = useState('CURRENT_DEFAULT')
   const note = useQuery({ queryKey: ['video-note', noteId], queryFn: () => api.videoNote(noteId) })
   const canonicalNoteId = note.data?.id ?? noteId
   const transcript = useQuery({ queryKey: ['video-transcript', canonicalNoteId], queryFn: () => api.videoTranscript(canonicalNoteId), enabled: Boolean(note.data) })
   const places = useQuery({ queryKey: ['video-places', canonicalNoteId], queryFn: () => api.videoPlaces(canonicalNoteId), enabled: Boolean(note.data) })
   const screenshots = useQuery({ queryKey: ['video-screenshots', canonicalNoteId], queryFn: () => api.videoScreenshots(canonicalNoteId), enabled: Boolean(note.data) })
   const reviews = useQuery({ queryKey: ['place-reviews', canonicalNoteId], queryFn: () => api.placeReviews(canonicalNoteId), enabled: Boolean(note.data) })
-  const regenerate = useMutation({ mutationFn: (profileId: string) => api.regenerateVideoNote(canonicalNoteId, profileId), onSuccess: () => void client.invalidateQueries({ queryKey: ['jobs'] }) })
+  const regenerate = useMutation({ mutationFn: () => api.regenerateVideoNote(canonicalNoteId), onSuccess: () => void client.invalidateQueries({ queryKey: ['jobs'] }) })
   const remove = useMutation({ mutationFn: () => api.deleteVideoNote(canonicalNoteId), onSuccess: () => { setDeleteOpen(false); void client.invalidateQueries({ queryKey: ['video-notes'] }); void client.invalidateQueries({ queryKey: ['sources'] }); window.location.assign('/video-notes') } })
   useEffect(() => {
     if (!lightbox) return
@@ -83,7 +81,6 @@ export function VideoNoteDetailPage() {
     window.addEventListener('keydown', close)
     return () => window.removeEventListener('keydown', close)
   }, [lightbox])
-  useEffect(() => { if (note.data) setRenderProfile(note.data.render_profile_id) }, [note.data])
   const sectionForSegment = useMemo(() => {
     const result = new Map<string, string>()
     note.data?.sections.forEach((section) => section.segment_ids.forEach((id) => result.set(id, section.id)))
@@ -101,9 +98,10 @@ export function VideoNoteDetailPage() {
   if (!note.data) return <div className="detail-loading">视频笔记不存在。</div>
   const legacyNeedsRegeneration = note.data.needs_regeneration
   const requestDelete = () => setDeleteOpen(true)
-  return <div className="video-detail"><header className="detail-topbar"><Link to="/video-notes"><ArrowLeft />返回笔记</Link><span>视频 AI 笔记</span><div><DeleteMenu label={note.data.title} disabled={remove.isPending} onDelete={requestDelete} /><SelectMenu label="笔记风格" value={renderProfile} onChange={setRenderProfile} options={[{ value: 'CURRENT_DEFAULT', label: '当前默认' }, { value: 'COMPACT', label: '精简回看' }, { value: 'DETAILED', label: '详细记录' }, { value: 'TRAVEL_GUIDE', label: '旅行指南' }]} /><button onClick={() => regenerate.mutate(renderProfile)}><RotateCcw />重新生成</button></div></header><article className="video-detail__body">
+  const modelLabel = note.data.model_name ? `By ${note.data.model_name}` : note.data.current_version_id ? '模型未记录' : '笔记待生成'
+  return <div className="video-detail"><header className="detail-topbar"><Link to="/video-notes"><ArrowLeft />返回笔记</Link><span>视频 AI 笔记</span><div className="video-detail__tools"><small className="video-detail__model" title={note.data.model_name || modelLabel}>{modelLabel}</small><div className="video-detail__actions"><DeleteMenu label={note.data.title} disabled={remove.isPending} onDelete={requestDelete} /><button onClick={() => regenerate.mutate()} disabled={regenerate.isPending}><RotateCcw />重新生成</button></div></div></header><article className="video-detail__body">
     <section className={`video-hero ${note.data.cover_image_url ? '' : 'video-hero--no-cover'}`}>{note.data.cover_image_url && <div className="video-hero__cover"><VideoCover url={note.data.cover_image_url} alt={`${note.data.title} 封面`} fallback={false} /><span>{duration(note.data.duration_ms)}</span></div>}<div><h1>{note.data.title}</h1>{note.data.platform === 'LOCAL' ? <span>本地视频 · 时间码仅供定位</span> : <a href={note.data.canonical_url} target="_blank" rel="noreferrer">在来源打开 <ExternalLink size={15} /></a>}</div></section>
-    {legacyNeedsRegeneration && <section className="video-quality-notice"><div><strong>旧版正文已隐藏</strong><span>这份笔记生成于 AI 转写校对工序上线前。为避免口音误读继续影响摘要、目录和地点，请重新生成。</span></div><button className="button button--primary" onClick={() => regenerate.mutate(renderProfile)} disabled={regenerate.isPending}><RotateCcw />应用新版校对流程</button></section>}
+    {legacyNeedsRegeneration && <section className="video-quality-notice"><div><strong>旧版正文已隐藏</strong><span>这份笔记生成于 AI 转写校对工序上线前。为避免口音误读继续影响摘要、目录和地点，请重新生成。</span></div><button className="button button--primary" onClick={() => regenerate.mutate()} disabled={regenerate.isPending}><RotateCcw />应用新版校对流程</button></section>}
     <section className="video-note-prose video-summary"><h2><TextQuote />AI 摘要</h2><div className="video-markdown"><MarkdownContent value={legacyNeedsRegeneration ? '等待按新版 AI 校对流程重新生成，未经校对的旧摘要不再展示。' : note.data.overview || '笔记正在生成，请稍后刷新。'} /></div></section>
     <nav className="video-toc" aria-label="主旨目录"><h2><TextQuote />主旨目录</h2><div>{note.data.sections.map((section, index) => <button key={section.id} onClick={() => jump(section.id)}><time>{timecode(section.start_ms)}</time><span>{legacyNeedsRegeneration ? `章节 ${index + 1} · 待重新归纳` : section.heading}</span></button>)}</div></nav>
     <section className="video-note-prose video-timeline"><h2>按时间线详述</h2>{note.data.sections.length ? note.data.sections.map((section) => {

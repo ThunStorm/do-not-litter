@@ -211,6 +211,7 @@ def _record_cache_hit(
                 "model": entry.model,
                 "location": location or ("LOCAL" if entry.provider.lower() == "ollama" else "REMOTE"),
                 "cache_hit": True,
+                "cache_kind": "APP_RESULT_CACHE_HIT",
                 "cache_entry_id": entry.id,
             },
             response_meta_json={
@@ -218,7 +219,9 @@ def _record_cache_hit(
                 "parse_quality": (entry.result_json.get("metadata") or {}).get("parse_quality"),
                 "prompt_tokens": usage.get("prompt_tokens", usage.get("prompt_eval_count")),
                 "completion_tokens": usage.get("completion_tokens", usage.get("eval_count")),
-                "cached_tokens": usage.get("cached_tokens", usage.get("prompt_tokens", 0)),
+                # Saved usage is historical; an app hit makes no new provider request.
+                "cached_tokens": None,
+                "provider_usage_current": False,
                 "content_length": len(str(entry.result_json.get("content") or "")),
             },
         )
@@ -248,6 +251,7 @@ def _record_invalid_cache(
                 "model": entry.model,
                 "location": location or ("LOCAL" if entry.provider.lower() == "ollama" else "REMOTE"),
                 "cache_hit": True,
+                "cache_kind": "APP_RESULT_CACHE_HIT",
                 "cache_invalid": True,
                 "cache_entry_id": entry.id,
             },

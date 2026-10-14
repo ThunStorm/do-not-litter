@@ -388,3 +388,16 @@ def test_job_ai_usage_groups_stage_model_and_location(client, app_and_session) -
     assert payload["by_stage"]["GENERATE_AI_NOTE"]["cached_tokens"] == 25
     assert payload["total"]["calls"] == 2
     assert payload["cache"]["hits"] == 1
+
+
+def test_saved_model_order_survives_update_and_rejects_stale_ids(client) -> None:
+    first = client.post("/api/settings/model-profiles", json=_profile("甲", "LOCAL", "a")).json()["id"]
+    second = client.post("/api/settings/model-profiles", json=_profile("乙", "LOCAL", "b")).json()["id"]
+    path = "/api/settings/model-profiles"
+    assert [item["id"] for item in client.get(path).json()] == [second, first]
+    assert client.put(f"{path}/order", json=[first, second]).status_code == 200
+    assert client.put(f"{path}/{second}", json=_profile("乙更新", "LOCAL", "b")).status_code == 200
+    assert [item["id"] for item in client.get(path).json()] == [first, second]
+    assert client.put(f"{path}/order", json=[first, first]).status_code == 409
+    third = client.post(path, json=_profile("丙", "LOCAL", "c")).json()["id"]
+    assert [item["id"] for item in client.get(path).json()] == [first, second, third]

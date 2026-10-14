@@ -47,7 +47,10 @@ def test_thinking_control_is_specific_to_actual_entry(monkeypatch, base, model, 
 
     monkeypatch.setattr(httpx, "post", post)
     provider = OpenAICompatibleProvider("openai-compatible", base, "fixture-account")
-    provider.generate_json([], model=model, options=ProviderRequestOptions(thinking=False))
+    result = provider.generate_json([], model=model, options=ProviderRequestOptions(thinking=False))
+    assert result.metadata["request_metrics"]["raw_request_bytes"] == len(
+        httpx.Request("POST", base, json=sent[0]).content
+    )
     assert {k: sent[0][k] for k in ("thinking", "reasoning_effort", "reasoning") if k in sent[0]} == expected
 
 

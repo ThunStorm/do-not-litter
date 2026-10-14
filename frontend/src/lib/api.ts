@@ -204,6 +204,7 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   modelProfiles: () => request<ModelProfileView[]>('/api/settings/model-profiles'),
+  saveModelProfileOrder: (ids: string[]) => request<ModelProfileView[]>('/api/settings/model-profiles/order', { method: 'PUT', headers: jsonHeaders, body: JSON.stringify(ids) }),
   modelTests: () => request<ModelTestView[]>('/api/settings/model-tests'),
   queueModelTests: (profileIds: string[] | null, mode: 'TEST' | 'PROBE' | 'BOTH' | 'INTERFACE') => request<ModelTestView[]>('/api/settings/model-tests', { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ profile_ids: profileIds, mode }) }),
   createModelProfile: (payload: Record<string, unknown>) => request<ModelProfileView>('/api/settings/model-profiles', { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) }),
@@ -264,7 +265,7 @@ export const api = {
   videoTranscriptExportUrl: (id: string, version: 'raw' | 'corrected' = 'corrected') => `/api/video-notes/${id}/transcript/export?version=${version}`,
   videoScreenshots: (id: string) => request<VideoScreenshotView[]>(`/api/video-notes/${id}/screenshots`),
   videoPlaces: (id: string) => request<VideoPlace[]>(`/api/video-notes/${id}/places`),
-  regenerateVideoNote: (id: string, profileId = 'CURRENT_DEFAULT') => request<{ job_id: string }>(`/api/video-notes/${id}/regenerate?profile_id=${encodeURIComponent(profileId)}`, { method: 'POST' }),
+  regenerateVideoNote: (id: string) => request<{ job_id: string }>(`/api/video-notes/${id}/regenerate`, { method: 'POST' }),
   deleteVideoNote: (id: string) => request<{ status: string }>(`/api/video-notes/${id}`, { method: 'DELETE' }),
   deleteVideoNotes: (ids: string[]) => request<{ requested: number; deleted: number; source_deleted_ids: string[] }>('/api/video-notes/bulk', { method: 'DELETE', headers: jsonHeaders, body: JSON.stringify({ ids }) }),
 }

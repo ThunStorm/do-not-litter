@@ -4,6 +4,8 @@
 
 | 归档计划 | 覆盖证据 | 未进入本轮的后续方向 |
 | --- | --- | --- |
+| [标题时间证据与分片 Prompt](ZHIJIAN_TITLE_TEMPORAL_EVIDENCE_AND_PROMPT_OPTIMIZATION_PLAN.md) | 标题来源/范围、Claim 归属、窗口对账、请求观测与离线 A/B 已实施；见当前状态 | 同模型真实 A/B、上游缓存收益、原生会话实验仍未验证。 |
+| [Z0–Z8 请求优化与 E2E](ZHIJIAN_AI_OPTIMIZATION_AND_E2E_PLAN.md) | Z0–Z7 核心及既有有限小样已交付；报告保留 benchmark/ | Z8 未实施；完整质量/E2E 仍由生产验收门禁维护。 |
 | [同模型保存检查与重跑配置](SAME_MODEL_REPLAY_CONFIG_IMPLEMENTATION_PLAN.md) | 2026-10-09：保存自动检查、同模型执行快照/历史、三类重跑、累计预算；后端 300 项与隔离双端 Browser 通过 | 未部署、未运行真实模型/视频；无提交快照旧任务兼容及已清理 Audit 无法追补。 |
 | [Token 用量与任务响应](TOKEN_USAGE_AND_JOB_RESPONSIVENESS_PLAN.md) | 2026-10-08：估算/未知、取消/ASR/超时回归与无迁移部署完成 | 精确账单、上游取消与真实 Provider/视频不外推。 |
 | [Place Intelligence + Interactive Map V2](PLACE_INTELLIGENCE_MAP_V2_IMPLEMENTATION_PLAN.md) | `8a6484b`、`77e37eb`、`161d320` | 推荐评分、自动行程；已转入 [Future Roadmap](../../planning/FUTURE_ROADMAP.md)。 |

@@ -8,3 +8,5 @@
 4. `AREA` 必须使用 AREA_RESOLVE，不得把行政区域编造成政府 POI。`place_type` 只能用 RESTAURANT、SCENIC_AREA、NEIGHBORHOOD、PEDESTRIAN_STREET、BUSINESS_DISTRICT、MARKET、PARK、MUSEUM、TEMPLE、VILLAGE、TOWN、LANDMARK、ACCOMMODATION、TRANSIT、OTHER、AREA。
 5. Claim 只保留有 Evidence 的具体特色、推荐理由、路线、季节、时长、价格、预约、排队、交通、注意事项或比较结论；不输出没有实际信息的泛化评价。不要用固定条数截断有 Evidence 的 Claim。
 6. 所有局部ID引用必须先在本次输出中定义：content_unit_id指向content_units中的ID；anchor_entity_ids、subject_entity_ids以及relations的source_entity_id、target_entity_id只引用entities中的ID。不得引用示例占位ID、其他分块ID或未输出的实体；没有两个有效实体时relations为空。`relations` 只表达语义，不会自动产生 POI；只返回 JSON，不要 Markdown。顶层五个数组都要保留，没有对应项目时返回空数组；不要输出空字符串或重复别名占位。
+
+7. 视频标题仅辅助理解主题，不是 Segment 证据。时间 Claim 必须用 subject_entity_ids 指向具体适用实体；同段多地点不得共享不属于自己的时间事实；标题时间由服务端独立处理，不得伪造转写引文。

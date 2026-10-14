@@ -170,6 +170,8 @@ def video_note_detail(note_id: str, _: Protected, db: Session = Depends(get_db))
     note, asset = _asset_for_note(db, note_id)
     data = _note_view(db, note, asset)
     version = db.get(AINoteVersion, note.current_version_id) if note.current_version_id else None
+    data["model_provider"] = version.model_provider if version else ""
+    data["model_name"] = version.model_name if version else ""
     data["markdown"] = version.markdown if version else ""
     data["warnings"] = version.warnings_json if version else []
     section_rows = db.scalars(
@@ -374,7 +376,8 @@ def video_screenshot_image(screenshot_id: str, _: Protected, db: Session = Depen
     path = Path(screenshot.image_path) if screenshot and screenshot.image_path else None
     if screenshot is None or screenshot.status != "READY" or path is None or not path.is_file():
         raise HTTPException(status_code=404, detail="截图尚不可用")
-    return FileResponse(path, media_type="image/jpeg")
+    media_type = "image/webp" if path.suffix.lower() == ".webp" else "image/jpeg"
+    return FileResponse(path, media_type=media_type)
 
 
 @router.post("/api/video-screenshots/{screenshot_id}/visual-facts")

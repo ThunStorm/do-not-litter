@@ -27,6 +27,7 @@ ORDER = [
     "video/01-scope-upstream.md",
     "video/02-input-transcript.md",
     "video/03-generation-materialization.md",
+    "video/TITLE_TEMPORAL_EVIDENCE.md",
     "video/04-jobs-data-api.md",
     "video/05-views-safety-acceptance.md",
     "video/VIDEO_NOTE_RENDERING_AND_TASK_MODEL_CONTEXT_SPEC.md",

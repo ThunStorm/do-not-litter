@@ -82,6 +82,12 @@ from zhijian.services.audit import record_event
 from zhijian.services.jobs import JobCancelled, ensure_job_active
 from zhijian.services.model_attempts import begin_model_attempt, finish_model_attempt
 from zhijian.services.place_knowledge import aggregate_place_knowledge, normalize_insight
+from zhijian.services.title_temporal import (
+    parse_title_temporal_context,
+    title_context_label,
+    title_projection,
+    verified_title_context,
+)
 from zhijian.services.transcript_retention import retention_deadline
 from zhijian.services.video_note_search import sync_video_note_search_index
 
@@ -276,11 +282,11 @@ TEMPORAL_CUE = re.compile(
     r"最佳(?:观赏|游览|旅行|到访|拍摄)?(?:期|时间|季节)?|最好|最美|最漂亮|最适合|最合适|"
     r"适合.{0,8}(?:去|前往|游览|观赏|拍摄)|建议.{0,8}(?:去|前往|游览|观赏)|"
     r"丰水期|丰水季|汛期|枯水期|枯水季|平水期|休渔期|禁渔期|禁捕期|开渔期|捕捞期|"
-    r"封山期|闭园期|开放期|停航期|封航期|结冰期|融冰期|"
+    r"封山|闭园|开放期|停航|封航|结冰期|融冰期|"
     r"花期|花季|樱花季|赏花期|红叶期|红叶季|赏枫期|雪季|冰雪季|"
     r"候鸟季|迁徙期|雨季|旱季|旺季|淡季"
 )
-MONTH_TOKEN = re.compile(r"(?:(1[0-2]|0?[1-9])|([一二三四五六七八九十]{1,3}))月")
+MONTH_TOKEN = re.compile(r"(?<![0-9])(?:(1[0-2]|0?[1-9])|([一二三四五六七八九十]{1,3}))月")
 
 
 def _chinese_month(value: str) -> int | None:
@@ -328,7 +334,7 @@ def _months_in_text(value: str) -> list[int]:
 def _period_type_from_text(value: str) -> str:
     for pattern, period_type in (
         (r"休渔期|禁渔期|禁捕期|开渔期|捕捞期", "FISHING_CLOSURE"),
-        (r"封山期|闭园期|开放期|停航期|封航期", "SEASONAL_CLOSURE"),
+        (r"封山|闭园|开放期|停航|封航", "SEASONAL_CLOSURE"),
         (r"丰水期|丰水季|汛期", "HIGH_WATER"),
         (r"枯水期|枯水季|平水期", "LOW_WATER"),
         (r"花期|花季|樱花季|赏花期", "BLOOM"),
@@ -543,7 +549,10 @@ def _cached_stage_json(
         job,
         context_text="\n".join(item["content"] for item in messages if item["role"] == "user"),
     )
-    enriched_messages = [messages[0], *domain_messages, *messages[1:]] if messages else domain_messages
+    # Keep invariant task/safety/supplement rules ahead of projected dynamic domain context.
+    stable_messages = [message for message in messages if message["role"] != "user"]
+    user_messages = [message for message in messages if message["role"] == "user"]
+    enriched_messages = [*stable_messages, *domain_messages, *user_messages]
     compiled = (
         compile_request(stage, enriched_messages, request_segments, request_segments[0].snapshot_id)
         if request_segments
@@ -949,6 +958,8 @@ def provider_for_role(
                     "remote_execution_state",
                     "acceptance",
                     "rejected_items",
+                    "cache_kind",
+                    "reported_cached_tokens",
                 )
                 if key in result_metadata
             },
@@ -1480,6 +1491,11 @@ def _place_evidence_index(mentions: list[PlaceMention]) -> list[dict[str, object
             "place_type": mention.place_type,
             "segment_ids": mention.segment_ids_json,
             "quotes": [mention.quote[:500]],
+            **(
+                {"title_temporal_context": (mention.metadata_json or {})["temporal_context"]}
+                if (mention.metadata_json or {}).get("temporal_context", {}).get("status") == "INHERITED"
+                else {}
+            ),
         }
         for mention in sorted(mentions, key=lambda item: item.id)
         if mention.extraction_status != "USER_REJECTED"
@@ -1492,7 +1508,24 @@ def _pack_place_evidence(
     index: list[dict[str, object]], pack: list[dict[str, object]]
 ) -> list[dict[str, object]]:
     mention_ids = {str(value) for fact in pack for value in fact.get("place_mention_ids", [])}
-    return [item for item in index if str(item["mention_id"]) in mention_ids]
+    segment_ids = {str(value) for fact in pack for value in fact.get("segment_ids", [])}
+    quotes = [str(value) for fact in pack for value in fact.get("supporting_quotes", [])]
+    return [
+        {
+            **item,
+            "segment_ids": [value for value in item.get("segment_ids", []) if value in segment_ids],
+            "quotes": list(
+                dict.fromkeys(
+                    quote
+                    for quote in item.get("quotes", [])
+                    if any(_normalized_text(quote) in _normalized_text(value) for value in quotes)
+                )
+            ),
+        }
+        for item in index
+        if str(item["mention_id"]) in mention_ids
+        and set(item.get("segment_ids", [])) & segment_ids
+    ]
 
 
 def _ground_section(
@@ -1509,7 +1542,13 @@ def _ground_section(
     quotes = [quote for quote in requested_quotes if _normalized_text(quote) in _normalized_text(evidence)]
     related = [mention for mention in mentions if set(mention.segment_ids_json) & set(ids)]
     requested_ids = {str(value) for value in item.get("place_mention_ids", [])}
-    related = [mention for mention in related if not requested_ids or mention.id in requested_ids]
+    if requested_ids:
+        related = [mention for mention in related if mention.id in requested_ids]
+    else:
+        if item.get("content_unit_id"):
+            related = [mention for mention in related if mention.content_unit_id == item["content_unit_id"]]
+        if len(related) != 1:
+            related = []
     kind = str(item.get("unit_type") or item.get("section_kind") or "").upper()
     if kind not in NOTE_SECTION_KINDS:
         kind = "PLACE" if related else "SUPPLEMENTAL"
@@ -1583,17 +1622,33 @@ def _ground_map_facts(
                     )
                 )
             ]
+        related = [
+            mention
+            for mention in mentions
+            if mention.poi_policy not in {"REFERENCE_ONLY", "SKIP"}
+            and mention.extraction_status != "USER_REJECTED"
+            and set(mention.segment_ids_json) & set(ids)
+        ]
+        subjects = fact.get("subject_entity_ids", [])
+        if subjects:
+            related = [
+                mention
+                for mention in related
+                if mention.metadata_json.get("semantic", {}).get("entity_id") in subjects
+            ]
+        else:
+            unit = fact.get("content_unit_id")
+            if unit:
+                related = [mention for mention in related if mention.content_unit_id == unit]
+            # Missing subjects cannot distribute a fact to several places in one segment/unit.
+            if len(related) != 1:
+                related = []
         result.append(
             {
                 **fact,
                 "segment_ids": ids,
                 "supporting_quotes": quotes[:8],
-                "place_mention_ids": [
-                    mention.id
-                    for mention in mentions
-                    if mention.poi_policy not in {"REFERENCE_ONLY", "SKIP"}
-                    and set(mention.segment_ids_json) & set(ids)
-                ],
+                "place_mention_ids": [mention.id for mention in related],
                 "places": [],
             }
         )
@@ -1605,6 +1660,7 @@ def _compact_note_facts(facts: list[dict[str, object]]) -> list[dict[str, object
     seen: set[str] = set()
     for fact in facts:
         value = {
+            "content_unit_id": str(fact.get("content_unit_id") or ""),
             "summary": str(fact.get("summary") or "")[:800],
             "key_points": list(dict.fromkeys(str(item)[:300] for item in fact.get("key_points", []) if item))[
                 :8
@@ -2281,6 +2337,16 @@ def generate_note(
     system_text = system.read_text(encoding="utf-8")
     supplement_messages = prompt_supplement_messages(db, "video_note_summary", job)
     place_evidence = _place_evidence_index(mentions)
+    for entry in place_evidence:
+        if not verified_title_context(entry.get("title_temporal_context"), asset.title):
+            entry.pop("title_temporal_context", None)
+    title_labels = list(
+        dict.fromkeys(
+            f"{entry['name']}：{title_context_label(entry['title_temporal_context'])}"
+            for entry in place_evidence
+            if "title_temporal_context" in entry
+        )
+    )
     place_evidence_json = json.dumps(place_evidence, ensure_ascii=False)
     valid_ids = {segment.id for segment in segments}
     raw_sections: list[dict[str, object]] = []
@@ -2293,6 +2359,7 @@ def generate_note(
             "segment_ids": item.get("segment_ids", []),
             "content_unit_id": item.get("content_unit_id", ""),
             "claim_ids": [item.get("claim_id", "")],
+            "subject_entity_ids": item.get("subject_entity_ids", []),
         }
         for item in semantic_claims
         if isinstance(item, dict)
@@ -2588,6 +2655,8 @@ def generate_note(
     ]
     if not overview:
         overview = "已根据完整校对稿整理视频主题、关键地点与注意事项。"
+    if title_labels:
+        overview += " " + "；".join(title_labels) + "。"
     markdown = "# " + asset.title + "\n\n" + overview + "\n"
     version = AINoteVersion(
         ai_note_id=note.id,
@@ -2718,6 +2787,7 @@ def extract_place_mentions(
     segments: list[Segment],
     job: Job | None = None,
     candidates: list[dict[str, Any]] | None = None,
+    claims: list[dict[str, Any]] | None = None,
 ) -> list[PlaceMention]:
     if candidates is None:  # Explicit legacy / force re-extract path only.
         policy = _resolved_stage_policy(db, "EXTRACT_TRAVEL_FACTS", job)
@@ -2803,7 +2873,38 @@ def extract_place_mentions(
         if visit_intent not in {"RECOMMENDED", "OPTIONAL", "NEUTRAL", "NOT_RECOMMENDED", "NOT_APPLICABLE"}:
             visit_intent = "NOT_APPLICABLE"
         insights = _insights_from_candidate(item, ids, segment_texts)
-        visit_windows = _visit_windows_from_candidate(item, ids, segment_texts)
+        # Shared segments need named sentences or explicitly scoped model windows.
+        other_names = [
+            str(other.get("raw_name") or other.get("name") or "")
+            for other in candidates
+            if _normalized_insight_key(other.get("raw_name") or other.get("name"))
+            != _normalized_insight_key(item.get("raw_name") or item.get("name"))
+            and set(other.get("segment_ids", [])) & set(ids)
+        ]
+        shared = bool(other_names)
+        temporal_texts = segment_texts
+        if shared:
+            names = [str(item.get("name") or ""), str(item.get("raw_name") or "")]
+            temporal_texts = {
+                key: "。".join(
+                    part
+                    for part in re.split(r"[。！？!?；;，,]|但|而", text)
+                    if any(name and name in part for name in names)
+                    and not any(name and name in part for name in other_names)
+                )
+                for key, text in segment_texts.items()
+            }
+        visit_windows = _visit_windows_from_candidate(item, ids, temporal_texts)
+        for claim in claims or []:
+            if claim.get("subject_entity_ids") != [item.get("entity_id")]:
+                continue
+            quote = str(claim.get("supporting_quote") or "")
+            claim_ids = [value for value in claim.get("segment_ids", []) if value in ids]
+            evidence = "".join(segment_texts.get(value, "") for value in claim_ids)
+            if quote and _normalized_evidence_text(quote) in _normalized_evidence_text(evidence):
+                visit_windows.extend(
+                    _visit_windows_from_candidate({}, claim_ids, {value: quote for value in claim_ids})
+                )
         mention = PlaceMention(
             video_asset_id=asset.id,
             submission_job_id=job.id if job else None,
@@ -2859,6 +2960,14 @@ def extract_place_mentions(
                 "author_opinion": str(item.get("author_opinion") or "")[:500],
             },
         )
+        body = "\n".join(temporal_texts.get(value, "") for value in ids)
+        mention.metadata_json = {
+            **mention.metadata_json,
+            "temporal_context": title_projection(
+                parse_title_temporal_context(asset.title), mention, body, visit_windows
+            ),
+        }
+        mention.metadata_json = {**mention.metadata_json, "temporal_source_id": asset.source_id}
         db.add(mention)
         created.append(mention)
     db.commit()
@@ -2986,30 +3095,84 @@ def materialize_place_insights(db: Session, mention: PlaceMention) -> None:
                 source_quote=str(item.get("source_quote") or "")[:500],
             )
         )
-    db.query(PlaceVisitWindow).filter(
-        PlaceVisitWindow.place_mention_id == mention.id,
-        PlaceVisitWindow.provenance == "SOURCE_FACT",
-    ).delete(synchronize_session=False)
-    for item in mention.metadata_json.get("visit_windows", []):
-        if not isinstance(item, dict):
+    desired = [
+        {**item, "provenance": "SOURCE_FACT"}
+        for item in mention.metadata_json.get("visit_windows", [])
+        if isinstance(item, dict)
+    ]
+    context = mention.metadata_json.get("temporal_context")
+    if asset and verified_title_context(context, asset.title):
+        desired.extend(
+            {
+                **context,
+                "month": month,
+                "suitability": "RECOMMENDED",
+                "provenance": "TITLE_CONTEXT",
+                "segment_ids": [],
+            }
+            for month in context.get("months", []) or [None]
+        )
+    fields = ("season", "month", "month_segment", "day_time_slot", "period_type", "suitability")
+
+    def key(item):
+        return (
+            item.get("place_id", mention.place_id),
+            item.get("source_id", asset.source_id if asset else None),
+            mention.id,
+            item["provenance"],
+            *(item.get(field) for field in fields),
+            sha256(str(item.get("source_text") or "").encode()).hexdigest(),
+        )
+
+    db.flush()
+    existing = db.scalars(
+        select(PlaceVisitWindow).where(
+            PlaceVisitWindow.place_mention_id == mention.id,
+            PlaceVisitWindow.provenance.in_(("SOURCE_FACT", "TITLE_CONTEXT")),
+        )
+    ).all()
+    by_key = {}
+    for window in existing:
+        data = {
+            field: getattr(window, field)
+            for field in (*fields, "provenance", "source_text", "place_id", "source_id")
+        }
+        identity = key(data)
+        if identity in by_key:
+            db.delete(window)
+        else:
+            by_key[identity] = window
+    keep = set()
+    for raw in desired:
+        item = {
+            **raw,
+            "period_type": raw.get("period_type") or "OTHER",
+            "suitability": raw.get("suitability") or "INFORMATIONAL",
+            "source_text": str(raw.get("source_text") or "")[:500],
+        }
+        identity = key(item)
+        if identity in keep:
+            continue
+        keep.add(identity)
+        if identity in by_key:
             continue
         db.add(
             PlaceVisitWindow(
                 place_id=mention.place_id,
                 place_mention_id=mention.id,
                 source_id=asset.source_id if asset else None,
-                season=item.get("season"),
-                month=item.get("month"),
-                month_segment=item.get("month_segment"),
-                day_time_slot=item.get("day_time_slot"),
-                period_type=item.get("period_type") or "OTHER",
-                suitability=item.get("suitability") or "INFORMATIONAL",
-                source_text=str(item.get("source_text") or "")[:500],
-                segment_ids_json=list(item.get("segment_ids") or mention.segment_ids_json),
-                provenance="SOURCE_FACT",
-                confidence=mention.confidence,
+                **{field: item.get(field) for field in fields},
+                source_text=item["source_text"],
+                segment_ids_json=[]
+                if item["provenance"] == "TITLE_CONTEXT"
+                else list(item.get("segment_ids") or mention.segment_ids_json),
+                provenance=item["provenance"],
+                confidence=float(item.get("confidence", mention.confidence)),
             )
         )
+    for identity, window in by_key.items():
+        if identity not in keep:
+            db.delete(window)
 
 
 def resolve_mentions_with_amap(

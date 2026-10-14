@@ -42,6 +42,8 @@ def test_exact_ai_cache_reuses_result_and_force_refresh_keeps_previous(app_and_s
             row for row in db.query(ExternalCallAudit).all() if row.request_meta_json.get("cache_hit")
         ]
         assert len(cache_audits) == 1
+        assert cache_audits[0].request_meta_json["cache_kind"] == "APP_RESULT_CACHE_HIT"
+        assert cache_audits[0].response_meta_json["cached_tokens"] is None
 
 
 def test_invalid_cache_hit_is_audited_and_replaced(app_and_session) -> None:
@@ -116,6 +118,7 @@ def test_invalid_cache_hit_is_audited_and_replaced(app_and_session) -> None:
             "model": "qwen",
             "location": "LOCAL",
             "cache_hit": True,
+            "cache_kind": "APP_RESULT_CACHE_HIT",
             "cache_invalid": True,
             "cache_entry_id": stale.id,
         }
@@ -179,24 +182,24 @@ def test_local_and_non_llm_calls_do_not_consume_remote_attempt_limit(app_and_ses
         db.add(Setting(key="app:general", value_json={"ai_max_model_attempts_per_job": 1}))
         db.add_all(
             [
-            ExternalCallAudit(
-                job_id=job.id,
-                capability="LLM",
-                provider="ollama",
-                operation="TRANSCRIPT_CORRECTION",
-                status="COMPLETED",
-                request_meta_json={"location": "LOCAL", "model": "qwen"},
-                response_meta_json={},
-            ),
-            ExternalCallAudit(
-                job_id=job.id,
-                capability="VIDEO_MEDIA",
-                provider="yt-dlp",
-                operation="audio-only",
-                status="COMPLETED",
-                request_meta_json={},
-                response_meta_json={},
-            ),
+                ExternalCallAudit(
+                    job_id=job.id,
+                    capability="LLM",
+                    provider="ollama",
+                    operation="TRANSCRIPT_CORRECTION",
+                    status="COMPLETED",
+                    request_meta_json={"location": "LOCAL", "model": "qwen"},
+                    response_meta_json={},
+                ),
+                ExternalCallAudit(
+                    job_id=job.id,
+                    capability="VIDEO_MEDIA",
+                    provider="yt-dlp",
+                    operation="audio-only",
+                    status="COMPLETED",
+                    request_meta_json={},
+                    response_meta_json={},
+                ),
             ]
         )
         db.commit()
@@ -216,9 +219,7 @@ def test_remote_attempt_limit_is_per_profile_and_excludes_cache_hits(app_and_ses
     _, factory = app_and_session
     with factory() as db:
         job = Job(job_type="TRAVEL", status="RUNNING", payload_json={})
-        db.add_all(
-            [job, Setting(key="app:general", value_json={"ai_max_model_attempts_per_job": 1})]
-        )
+        db.add_all([job, Setting(key="app:general", value_json={"ai_max_model_attempts_per_job": 1})])
         db.flush()
         db.add_all(
             [
@@ -246,6 +247,7 @@ def test_remote_attempt_limit_is_per_profile_and_excludes_cache_hits(app_and_ses
                         "model": "model-b",
                         "profile_id": "profile-b",
                         "cache_hit": True,
+                        "cache_kind": "APP_RESULT_CACHE_HIT",
                     },
                     response_meta_json={},
                 ),
