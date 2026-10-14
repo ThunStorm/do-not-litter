@@ -44,6 +44,7 @@ from zhijian.ai.model_registry import (
     model_profile_from_value,
     model_test_groups,
     probe_model_profile,
+    probe_system_instruction,
     queued_model_test,
 )
 from zhijian.ai.model_test_queue import model_test_cancel_check, uses_local_model_hardware
@@ -3610,6 +3611,7 @@ def _model_profile_view(setting: Setting) -> dict:
         "specialties": sorted(profile.specialties),
         "enabled": profile.enabled,
         "business_assessments": value.get("business_assessments") or [],
+        "interface_probe": value.get("interface_probe"),
         "probe_results": {
             key: business_probe_status(value, key)
             if key
@@ -3911,7 +3913,7 @@ def update_model_profile(
         and profile_identity(previous) == profile_identity(value)
         and previous.get("interface_capabilities") == value.get("interface_capabilities")
     ):
-        for field in ("probe_results", "business_assessments"):
+        for field in ("probe_results", "business_assessments", "interface_probe"):
             if field in previous:
                 value[field] = previous[field]
     setting.value_json = value
@@ -4261,6 +4263,56 @@ def test_model_profile_draft(payload: ModelProfileConfig, _: Protected) -> dict:
     }
 
 
+def probe_saved_interface(profile_id: str, db: Session, store: SecretStore) -> dict:
+    setting = db.get(Setting, f"model-profile:{profile_id}")
+    if setting is None:
+        raise HTTPException(status_code=404, detail="模型配置不存在")
+    started_version = setting.updated_at
+    value = _interactive_interface_config(
+        dict(setting.value_json), store.get(f"model-profile:{profile_id}:api-key")
+    )
+    profile = model_profile_from_value(profile_id, value)
+    provider = _model_profile_provider(value, store.get(f"model-profile:{profile_id}:api-key"))
+    with queued_model_test(model_test_groups(value), model_test_cancel_check()):
+
+        def call():
+            return probe_system_instruction(provider, profile)
+
+        result = (
+            local_ai_resource_manager.run("MODEL_TEST", call, cancel_check=model_test_cancel_check())
+            if uses_local_model_hardware(value)
+            else call()
+        )
+    result = {
+        **result,
+        "tested_at": utc_now().isoformat(),
+        "model": profile.model,
+        "interface_fingerprint": profile.interface_capabilities.fingerprint()
+        if profile.interface_capabilities
+        else None,
+    }
+    check = model_test_cancel_check()
+    if check:
+        check()
+    db.refresh(setting)
+    if setting.updated_at != started_version:
+        raise HTTPException(status_code=409, detail="模型配置已变化，请重新探测；旧结果未保存")
+    value["interface_probe"] = result
+    value["probe_results"] = {**(value.get("probe_results") or {}), "SYSTEM_INSTRUCTION": result["status"]}
+    setting.value_json = value
+    record_event(
+        db,
+        "model_profile.interface_probed",
+        "系统指令传递小样已完成",
+        actor="user",
+        entity_type="model_profile",
+        entity_id=profile_id,
+        detail={"status": result["status"], "error_code": result["error_code"]},
+    )
+    db.commit()
+    return {"probe_results": {"SYSTEM_INSTRUCTION": result["status"]}, "interface_probe": result}
+
+
 @router.post("/api/settings/model-profiles/{profile_id}/probe")
 def probe_saved_model_profile(
     profile_id: str,
@@ -4272,6 +4324,7 @@ def probe_saved_model_profile(
     if setting is None or not isinstance(setting.value_json, dict):
         raise HTTPException(status_code=404, detail="模型配置不存在")
     value = dict(setting.value_json)
+    started_version = setting.updated_at
     try:
         api_key = store.get(f"model-profile:{profile_id}:api-key")
         value = _interactive_interface_config(value, api_key)
@@ -4317,6 +4370,15 @@ def probe_saved_model_profile(
         if previous:
             stored_results["GLOBAL_SYNTHESIS"] = previous
     value["probe_results"] = stored_results
+    if "SYSTEM_INSTRUCTION" in diagnostics:
+        value["interface_probe"] = {
+            **diagnostics["SYSTEM_INSTRUCTION"],
+            "tested_at": utc_now().isoformat(),
+            "model": profile.model,
+            "interface_fingerprint": profile.interface_capabilities.fingerprint()
+            if profile.interface_capabilities
+            else None,
+        }
     value["business_assessments"] = assessments
     value["capabilities"] = sorted(
         set(value.get("capabilities") or [])
@@ -4334,6 +4396,9 @@ def probe_saved_model_profile(
     check = model_test_cancel_check()
     if check:
         check()
+    db.refresh(setting)
+    if setting.updated_at != started_version:
+        raise HTTPException(status_code=409, detail="模型配置已变化，请重新探测；旧结果未保存")
     setting.value_json = value
     record_event(
         db,

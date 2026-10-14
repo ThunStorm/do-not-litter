@@ -205,7 +205,7 @@ export const api = {
     }),
   modelProfiles: () => request<ModelProfileView[]>('/api/settings/model-profiles'),
   modelTests: () => request<ModelTestView[]>('/api/settings/model-tests'),
-  queueModelTests: (profileIds: string[] | null, mode: 'TEST' | 'PROBE' | 'BOTH') => request<ModelTestView[]>('/api/settings/model-tests', { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ profile_ids: profileIds, mode }) }),
+  queueModelTests: (profileIds: string[] | null, mode: 'TEST' | 'PROBE' | 'BOTH' | 'INTERFACE') => request<ModelTestView[]>('/api/settings/model-tests', { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ profile_ids: profileIds, mode }) }),
   createModelProfile: (payload: Record<string, unknown>) => request<ModelProfileView>('/api/settings/model-profiles', { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) }),
   updateModelProfile: (id: string, payload: Record<string, unknown>) => request<ModelProfileView>(`/api/settings/model-profiles/${id}`, { method: 'PUT', headers: jsonHeaders, body: JSON.stringify(payload) }),
   deleteModelProfile: (id: string) => request<{ status: string; id: string }>(`/api/settings/model-profiles/${id}`, { method: 'DELETE' }),

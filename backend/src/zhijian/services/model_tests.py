@@ -61,7 +61,8 @@ def enqueue_model_tests(db, profile_ids, mode):
                     job
                     for job in active
                     if job.payload_json.get("profile_id") == profile_id
-                    and job.payload_json.get("mode") in {mode, "BOTH"}
+                    and job.payload_json.get("mode")
+                    in ({mode, "BOTH", "PROBE"} if mode == "INTERFACE" else {mode, "BOTH"})
                 ),
                 None,
             )
@@ -120,7 +121,7 @@ def lease_model_test(db, owner, lease_seconds, busy):
 def run_model_test(factory, job_id, lease_seconds):
     # Reuse the established test/probe handlers so capability persistence and
     # error redaction cannot diverge. They run here in Worker, not an HTTP request.
-    from zhijian.api.router import probe_saved_model_profile, test_model_profile
+    from zhijian.api.router import probe_saved_interface, probe_saved_model_profile, test_model_profile
 
     with factory() as db:
         job = db.get(Job, job_id)
@@ -152,9 +153,15 @@ def run_model_test(factory, job_id, lease_seconds):
                     if phase == "TEST":
                         result = test_model_profile(payload["profile_id"], None, db, store)
                         results[phase] = {"status": result["status"], "message": result["message"]}
+                    elif phase == "INTERFACE":
+                        result = probe_saved_interface(payload["profile_id"], db, store)
+                        results[phase] = result
                     else:
                         result = probe_saved_model_profile(payload["profile_id"], None, db, store)
-                        results[phase] = {"probe_results": result["probe_results"]}
+                        results[phase] = {
+                            "probe_results": result["probe_results"],
+                            "interface_probe": result.get("interface_probe"),
+                        }
                     ensure_job_active(db, job)
                     job.payload_json = {**job.payload_json, "test_results": dict(results)}
                     db.commit()

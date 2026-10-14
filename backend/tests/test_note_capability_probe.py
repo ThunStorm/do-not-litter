@@ -376,14 +376,19 @@ def test_deepseek_probe_actual_requests_satisfy_json_mode_contract(monkeypatch):
         assert payload["thinking"] == {"type": "disabled"}
         assert payload["max_tokens"] == 4096
         content = "PONG"
+        prompt = "\n".join(row["content"] for row in payload["messages"])
+        if payload["messages"][0]["role"] == "system":
+            import re
+
+            content = re.search(r"SYSTEM_[a-f0-9]+", prompt).group()
         if payload.get("response_format"):
             assert payload["response_format"] == {"type": "json_object"}
             assert any("json" in row["content"].lower() for row in payload["messages"])
             content = (
                 '{"id":"evidence_probe_01","ok":true}'
-                if len(captured) == 3
+                if "evidence_probe_01" in prompt
                 else json.dumps(merged_note())
-                if len(captured) == 7
+                if '"sections"' in prompt
                 else "{}"
             )
         return httpx.Response(
@@ -399,5 +404,7 @@ def test_deepseek_probe_actual_requests_satisfy_json_mode_contract(monkeypatch):
     monkeypatch.setattr("zhijian.ai.model_registry.sleep", lambda _: None)
     profile = model_profile_from_value("offline", {**profile_with_assessment(), "max_output_tokens": 4096})
     provider = OpenAICompatibleProvider("deepseek", "https://api.deepseek.com", "offline-fixture-key")
-    assert _probe_model_profile(provider, profile)["GLOBAL_SYNTHESIS"] == "PASS"
-    assert len(captured) == 7
+    results = _probe_model_profile(provider, profile)
+    assert results["GLOBAL_SYNTHESIS"] == "PASS"
+    assert results["SYSTEM_INSTRUCTION"] == "PASS"
+    assert len(captured) == 8

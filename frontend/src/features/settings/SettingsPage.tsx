@@ -55,6 +55,11 @@ import {
 } from "./providerPresets";
 
 type Tab = "general" | "lan" | "models" | "runtime" | "browser" | "map";
+const CAPABILITY_LABELS: Record<string, string> = {
+  SYSTEM_INSTRUCTION: "系统指令传递小样",
+  FORMAT_SMOKE: "格式小样", CLASSIFICATION: "分类", STRUCTURED_EXTRACTION: "结构化抽取",
+  ENTITY_EXTRACTION: "实体识别", TRANSCRIPT_CORRECTION: "转写校对", GLOBAL_SYNTHESIS: "笔记归纳",
+};
 const tabs: Array<{ id: Tab; label: string }> = [
   { id: "general", label: "通用" },
   { id: "lan", label: "局域网访问" },
@@ -1734,10 +1739,20 @@ function ModelProfileEditor({
   });
   const readInterface = useMutation({
     mutationFn: () => api.readInterfaceCapabilities(profile?.id, values),
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       setValues((current) => ({ ...current, interface_capabilities: result,
         supports_json_mode: result.json_object === "SUPPORTED" }));
-      setMessage("接口能力已读取，保存时核对并用于任务及同模型重跑；未调用模型");
+      if (profile && !values.api_key && values.model === profile.model && values.base_url === profile.base_url && values.provider === profile.provider && values.connection_type === profile.connection_type) {
+        try {
+          await api.queueModelTests([profile.id], "INTERFACE");
+          void queryClient.invalidateQueries({ queryKey: ["model-tests"] });
+          setMessage("接口目录已读取，系统指令传递小样已加入队列，将真实调用模型");
+        } catch (error) {
+          setMessage(`接口目录已读取，但探测未入队：${error instanceof Error ? error.message : "请重试"}`);
+        }
+      } else {
+        setMessage("接口目录已读取；请先保存当前模型、地址和凭据，再读取以启动系统指令探测");
+      }
     },
     onError: (error) => setMessage(error.message),
   });
@@ -1796,13 +1811,16 @@ function ModelProfileEditor({
           ? "正在删除模型…"
           : "";
   const testFeedback = !testJob ? "" : testJob.status === "QUEUED" ? "排队中：等待同供应商或入口的前序测试"
-    : testJob.status === "RUNNING" ? testJob.phase === "PROBE" ? "正在等待或执行能力探测" : "正在等待或执行真实测试"
+    : testJob.status === "RUNNING" ? testJob.phase === "INTERFACE" ? "正在探测系统指令传递" : testJob.phase === "PROBE" ? "正在等待或执行能力探测" : "正在等待或执行真实测试"
     : testJob.status === "FAILED" ? `${testJob.phase === "TEST" ? "真实测试失败" : "能力探测失败"}：${testJob.error ?? "请检查配置"}`
     : testJob.status === "CANCELLED" ? "测试已取消"
+    : testJob.results.INTERFACE ? "系统指令探测完成"
     : testJob.results.PROBE ? `能力探测完成：${Object.values(testJob.results.PROBE.probe_results).filter((status) => status === "PASS").length}项通过，${Object.values(testJob.results.PROBE.probe_results).filter((status) => status === "FAIL").length}项未通过`
     : "真实测试完成";
   const feedbackMessage = pendingMessage || testFeedback || message;
   const editorId = `model-editor-${profile?.id ?? "draft"}`;
+  const interfaceProbe = profile?.interface_probe;
+  const interfaceStatus = testActive && testJob?.mode !== "TEST" ? "探测中" : ({ PASS: "通过", FAIL: "未通过", NOT_TESTED: "未验证" } as Record<string, string>)[interfaceProbe?.status ?? ""] ?? "未测试";
   const capabilities = profile
     ? Object.entries(profile.probe_results)
         .filter(([, value]) => value === "PASS")
@@ -1829,7 +1847,7 @@ function ModelProfileEditor({
             <div className="provider-form__action-group">
               {values.connection_type === "LOCAL_ROUTER" && (
                 <button className="button button--outline" disabled={busy} onClick={() => readInterface.mutate()}>
-                  读取接口能力
+                  读取接口能力{profile ? "并探测" : ""}
                 </button>
               )}
               <button
@@ -1875,6 +1893,9 @@ function ModelProfileEditor({
             <span className="provider-message">{feedbackMessage}</span>
           </div>
         )}
+        {profile && <div className={`provider-form__feedback${interfaceProbe?.status === "FAIL" ? " provider-form__feedback--error" : interfaceStatus !== "通过" ? " provider-form__feedback--neutral" : ""}`} role="status">
+          <span className="provider-message">系统指令传递小样：{interfaceStatus}{values.connection_type === "LOCAL_ROUTER" && `；目录声明：${supportLabel(values.interface_capabilities?.system ?? "UNKNOWN")}`}。{interfaceProbe?.reason ?? "尚未完成独立小样，业务能力通过不能替代此项。"}{interfaceProbe?.error_code && `（${interfaceProbe.error_code}）`}</span>
+        </div>}
         <div id={editorId} className="provider-form__body" hidden={!expanded}>
         <div className="field-grid">
           <label>
@@ -2051,7 +2072,7 @@ function ModelProfileEditor({
         </div>
         {values.connection_type === "LOCAL_ROUTER" && (
           <div className="provider-form__body settings-note" role="status">
-            <p>本机地址仅表示路由在本机，模型仍按远程调用管理。读取目录不会调用模型；接口能力与业务能力探测分别记录。</p>
+            <p>本机地址仅表示路由在本机，模型仍按远程调用管理。已保存模型读取接口能力后，会排队真实调用系统指令传递小样；目录声明与实测结果分别记录，小样通过不会自动解除正式任务的接口门禁。</p>
             {values.interface_capabilities ? (
               <>
                 <p>来源：{values.interface_capabilities.source}；系统指令：{supportLabel(values.interface_capabilities.system)}；
@@ -2161,7 +2182,7 @@ function ModelProfileEditor({
           {capabilities.length > 0 ? (
             <div className="provider-capabilities__list">
               {capabilities.map((capability) => (
-                <span key={capability}>{({ FORMAT_SMOKE: "格式小样", CLASSIFICATION: "分类", STRUCTURED_EXTRACTION: "结构化抽取", ENTITY_EXTRACTION: "实体识别", TRANSCRIPT_CORRECTION: "转写校对", GLOBAL_SYNTHESIS: "笔记归纳" } as Record<string, string>)[capability] ?? capability}</span>
+                <span key={capability}>{CAPABILITY_LABELS[capability] ?? capability}</span>
               ))}
             </div>
           ) : (

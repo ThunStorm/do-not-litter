@@ -10,7 +10,9 @@
 - 下一步：若要使失败的免费/赞助入口完整通过，先取得供应商可用配额/有效新凭据，再按矩阵报告定向续跑，勿重跑已验官方/9b。
 - 禁止：不自动确认POI、不改原提交/历史、不突破Job硬预算，不把HYBRID或连接测试写成完整模型验收。现场见下方带日期快照。
 
-## 生产快照（最新健康采样2026-10-12 23:54，北京时间；旧条目保留原日期）
+## 生产快照（最新健康采样2026-10-14 13:54，北京时间；旧条目保留原日期）
+
+- 2026-10-14 13:54（系统指令传递探测升级复核）：保存点 `data/backups/system-instruction-probe-20261013T160107Z/`（UTC命名）含已验证逻辑数据库、旧静态包、可恢复工作树文件/patch、源码与新旧资源SHA256清单。无迁移发布并经manage.py重载后，本次复核API/Worker RUNNING、内容/新心跳READY（Worker PID38680），OpenAPI的ModelTestRequest含INTERFACE，生产3项静态资源HTTP哈希均与隔离构建一致。旧index哈希c5da65b9、新index哈希595492a8（完整值见manifest）；integrity=ok/FK0、0025，外部调用审计数量与保存点一致。生产Browser1159×876/390×844覆盖五状态、中文目录声明、读取后只入队一次、手机布局及相关console，推理返回与入队均拦截模拟；未真实调用Provider/重跑视频/修改模型或业务结果。源码与自动验证见实施状态，未更改任务续接段。
 
 - 2026-10-12 23:54（Mux模型目录读取修复）：用户授权分析、实现、验证、重新部署及提交。只读目录实测标准目录10.16秒、能力目录0.03秒，56个实际ID一致，确认新列表接口5秒读取上限不足；读取改20秒、连接5秒、总期30秒并按剩余预算收紧。列表和保存模型能力读取共用实际ID校验，只排除标准目录中Mux拥有的四种虚拟路由，实际差异/重复仍拒绝。目标69、后端全量424、前端22及Ruff/Lint/类型/隔离构建通过；首次全量在backend工作目录遇到根目录fixture路径问题，改从项目根目录执行后全量通过。重载前active/lease/RUNNING call及Mux任务0、0025、integrity=ok/FK0，逻辑备份 `data/backups/app-pre-model-catalog-fix-20261012-234716.db` 及verification已验。manage.py无迁移重载后API/Worker RUNNING、页面/health READY，新Worker PID93185与心跳一致；生产POST /api/settings/model-catalog HTTP200、56项，设置页刷新/下拉搜索通过，原codebuddy/hy3保持、相关console错误0。隔离构建JS/CSS与部署文件hash一致，无需替换前端资源。43张表对比（运行态设置、事件、访问会话另计）证实模型配置、Job、业务结果不变；Worker按既有保留策略将7条已到期中间产物AVAILABLE→EXPIRED，仅status/updated_at变化，未回写其他历史字段。部署后integrity=ok/FK0、0025、active0，证据 `data/benchmarks/model-catalog-fix-20261012/`。本轮本地提交模型下拉接口及依赖、目录修复和相关文档，未推送；接手时视频页面改动继续保留工作树。只读目录不等于推理/能力探测或模型质量，原任务续接限制保留。
 

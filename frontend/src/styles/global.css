@@ -922,6 +922,7 @@ svg { flex: 0 0 auto; }
 .model-library > .provider-form__title .provider-form__actions { flex-wrap: wrap; }
 .model-library > .provider-form__title svg { width: 16px; height: 16px; }
 .provider-form__feedback--error { color: var(--color-danger); }
+.provider-form__feedback--neutral { color: var(--color-text-muted); }
 @media (max-width: 720px) {
   .model-library > .settings-note { padding: 0 16px 16px; }
   .model-library__list { padding: 0 12px 12px; }

@@ -222,6 +222,7 @@ export interface InterfaceCapabilities {
 }
 
 export interface ModelProfileView {
+  interface_probe?: InterfaceProbe | null
   id: string
   name: string
   provider: string
@@ -257,17 +258,26 @@ export interface ModelProfileView {
   probe_results: Record<string, string>
 }
 
+export interface InterfaceProbe {
+  status: string
+  reason: string
+  error_code: string | null
+  tested_at?: string
+  model?: string
+  interface_fingerprint?: string | null
+}
+
 export interface ModelTestView {
   id: string
   profile_id: string
   name: string
-  mode: 'TEST' | 'PROBE' | 'BOTH'
+  mode: 'TEST' | 'PROBE' | 'BOTH' | 'INTERFACE'
   status: string
   phase: string
   progress: number
   error: string | null
   error_code: string | null
-  results: { TEST?: { status: string; message: string }; PROBE?: { probe_results: Record<string, string> } }
+  results: { TEST?: { status: string; message: string }; PROBE?: { probe_results: Record<string, string>; interface_probe?: InterfaceProbe | null }; INTERFACE?: { probe_results: Record<string, string>; interface_probe: InterfaceProbe } }
 }
 
 export interface AIStagePolicy {

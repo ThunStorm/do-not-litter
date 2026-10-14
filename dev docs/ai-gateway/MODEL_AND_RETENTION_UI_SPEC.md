@@ -70,3 +70,9 @@ Worker 启动时及最多每 24 小时执行幂等清理：正文、Segment 文�
 模型库接口：`GET/POST /api/settings/model-profiles`、`PUT/DELETE /api/settings/model-profiles/{id}`、`POST /api/settings/model-profiles/{id}/test`；通用/转写路由：`GET/PUT /api/settings/model-routing`；转写参数：`GET/PUT /api/settings/transcript-processing`。任务删除：`DELETE /api/jobs/{id}`；内容删除：`DELETE /api/content/{id}`；孤立来源删除：`DELETE /api/sources/{id}`。
 
 验收：新增两个自定义模型后，可分别选为主/备用；已被引用模型无法删除；主模型连接失败时视频笔记记录实际备用模型并写入审计；没有主模型时任务明确需配置。终态任务和内容均可删除，运行中任务返回可理解的冲突提示，删除后刷新不再出现且相关审计日志可查询。
+
+### 系统指令传递探测（2026-10-14）
+
+已保存模型的“读取接口能力并探测”先只读接口目录，再将独立系统指令传递小样提交到现有 Worker 队列（INTERFACE）；不在目录读取 HTTP 请求中执行推理。模型、地址、接入方式或凭据未保存时只读目录并提示先保存；新模型草稿同样不自动调用已保存的其他配置。保存时的目录核对仍为只读，不自动探测。按钮会真实调用模型，说明文案须明确。
+
+普通能力探测也包含 SYSTEM_INSTRUCTION 小样。小样使用合成 system 规则与冲突 user 请求，只有精确匹配 system 内随机标记才 PASS；不符合规则为 FAIL，请求未完成为 NOT_TESTED，附脱敏错误码。未知目录允许在独立小样临时发送 system，不修改上游目录声明或正式 Stage 门禁，也不授予业务能力。结果在折叠卡原测试反馈处展示“系统指令传递小样：通过／未通过／未验证／未测试／探测中”，同时展示目录声明和小样理由。未知与未测使用中性颜色。结果含模型、采样时间及接口指纹；配置/凭据变化清除旧结果，执行期间配置变化拒绝保存。沿用串行、间隔、去重及取消；不把小样通过描述为原生 system 优先级验收。

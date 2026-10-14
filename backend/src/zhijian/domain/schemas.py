@@ -418,4 +418,4 @@ class AMapConfig(BaseModel):
 
 class ModelTestRequest(BaseModel):
     profile_ids: list[str] | None = Field(default=None, max_length=100)
-    mode: Literal["TEST", "PROBE", "BOTH"] = "BOTH"
+    mode: Literal["TEST", "PROBE", "BOTH", "INTERFACE"] = "BOTH"
