@@ -4,14 +4,16 @@
 
 ## 任务续接
 
-- 目标：完成标题时间证据/Claim归属/分包Prompt开发验证、无迁移部署、开发文档整理与提交推送。
-- 已完成：TITLE_METADATA解析与保守传播、TITLE_CONTEXT窗口对账与出处DTO、标题缓存失效、subject实体归属、笔记fallback标注、请求前缀/缓存观测。后端458/前端24、Ruff/Lint/类型/隔离构建及生产1440/390px目标Browser通过；模拟写入被拦截，44表数据未改。旧截图压缩、模型拖动排序及模型署名改动一并验证；保存点见下方。本轮提交/远程交付在最终Git记录中核对。
-- 文档：95文件清单、链接与合订一致性通过；已实施计划归档history/planning，当前契约[标题时间证据](video/TITLE_TEMPORAL_EVIDENCE.md)，度量[离线A/B](benchmark/TITLE_TEMPORAL_PROMPT_AB_REPORT.md)。
-- 未完成：真实标题质量/Token/上游缓存收益未验，会话阶段未启动；免费/赞助入口条件和旧矩阵/本地取消限制保留，见实施状态及原矩阵报告。
-- 下一步：需要真实验收时，明确授权同模型固定Ground Truth配对A/B；不重复已验证官方视频。
-- 禁止：不自动确认POI、不回写旧笔记/截图/业务数据、不突破原Job预算；本轮无迁移、真实Provider调用或视频重跑。
+- 目标：标题时间证据/Claim归属/分包Prompt开发验证、无迁移部署、文档整理与提交推送。
+- 已完成：标题保守传播与窗口对账/出处DTO、标题缓存失效、subject实体归属、fallback标注及前缀/缓存观测。最终后端458/前端24、Ruff/Lint/类型/隔离构建通过，生产1440/390px目标Browser通过（时间数据与DELETE响应拦截模拟）。截图压缩、模型拖动排序与署名在途改动一并交付；源码 `c85d6c4` 已提交并推送。
+- 文档：95文件清单/链接/合订一致；已实施计划归档history/planning。相关入口：[契约](video/TITLE_TEMPORAL_EVIDENCE.md)、[离线AB](benchmark/TITLE_TEMPORAL_PROMPT_AB_REPORT.md)，生产保存点见下方。
+- 未完成：真实标题质量/Token/缓存收益未验，会话阶段未启动；免费/赞助入口与本地取消等旧限制继续保留，见实施状态/矩阵报告。
+- 下一步：需要真实验收时另行授权同模型固定Ground Truth配对AB，不重跑已验官方视频。
+- 禁止：不自动确认POI、不回写旧业务数据、不突破原Job预算；本轮无迁移、真实Provider调用或视频重跑。最终文档提交以本轮Git HEAD为准。
 
-## 生产快照（最新健康采样2026-10-14 23:30，北京时间；旧条目保留原日期）
+## 生产快照（最新健康采样2026-10-14 23:39，北京时间；旧条目保留原日期）
+
+- 2026-10-14 23:39（最终请求字节计量补载与源码交付）：补充六入口与HTTPX实际JSON请求体长度对照回归，目标108项和最终全量458项通过；只修正诊断数字，不改变生成/POI策略。同一保存点补存 `app-pre-wire-metrics.db`（完整性/门禁已验）、`final-worktree.tar.gz`/patch及 `final-backend-source.json`，保留最初旧静态包与源码回退点。无迁移重载后API46765/Worker46783 RUNNING，内容/health/对应新PID心跳READY；后台源码与最终哈希一致，生产JS/CSS/index沿用23:30已验资源且HTTP哈希再次匹配，OpenAPI出处字段存在。44表与初始逻辑备份hash一致，仅system_events改变，runtime设置另计；active/lease/call0、integrity=ok/FK0、0025。前端未再修改，沿用同版本生产双端Browser证据，无重复业务重跑或真实Provider调用。源码提交 `c85d6c4` 已推送至origin/codex/mac-mini-implementation，最终交接/状态记录随文档提交交付。
 
 - 2026-10-14 23:30（标题时间证据与Prompt开发部署）：沿用本次明确部署授权，保存点 `data/backups/title-temporal-20261014-232643/` 含已验逻辑数据库、446文件工作树归档/HEAD/patch、旧静态包、新旧静态与后端源码SHA256、pre/postflight及Browser证据。重载前active Job/lease/RUNNING调用0、integrity=ok/FK0、0025；隔离构建通过后仅复制新哈希资源并最后替换index，保留旧资源。manage.py无迁移重载后API45487/Worker45513 RUNNING，内容/health/新PID心跳READY；实际HTTP JS `index-2CwM4NUJ.js`、CSS `index-BhKjBHc7.css`与index哈希均匹配，旧index595492a8→新9f2277c9，完整值见manifest。OpenAPI确认VisitWindow的source_id/source_kind字段，后端源码hash与保存点一致。生产Playwright/Edge（Browser插件未提供）1440×1000/390×844验证标题/正文标签、仅人工窗口可移除、移除后标题与正文仍在、月份菜单交互，无横向溢出/框架错误/相关console；新时间数据与DELETE响应仅浏览器拦截模拟，生产未写入窗口。44表逐字段聚合hash与逻辑备份一致（settings仅排除runtime键），变动仅system_events；外部Audit仍1409条、active/lease/call0、integrity=ok/FK0/0025。未迁移、真实模型/视频重跑、POI确认或回写历史。源码与自动验证只维护于实施状态，真实业务质量/缓存收益尚未验收。
 
