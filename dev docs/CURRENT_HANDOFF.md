@@ -11,7 +11,9 @@
 - 下一步：需要真实验收时另行授权同模型固定Ground Truth配对AB，不重跑已验官方视频。
 - 禁止：不自动确认POI、不回写旧业务数据、不突破原Job预算；本轮无迁移、真实Provider调用或视频重跑。最终文档提交以本轮Git HEAD为准。
 
-## 生产快照（最新健康采样2026-10-14 23:39，北京时间；旧条目保留原日期）
+## 生产快照（最新采样2026-10-22 16:23，北京时间）
+
+- 2026-10-22 16:23 阶段说明留白：保存点 `data/backups/stage-spacing-20261022-161400/` 含完整工作树tar/HEAD/patch/源码哈希、已验逻辑DB备份、旧新静态及HTTP哈希、回退脚本和生产Browser截图/结果。修改前前端与2026-10-21已上线源码一致，本次仅SettingsPage.tsx/global.css变化；只发布静态，未重启API/Worker。active Job/lease/RUNNING调用0、integrity=ok/FK0/0025，发布前后业务表含设置摘要一致，ExternalCallAudit保持1465；API/Worker RUNNING、内容及PID14508心跳READY。实际index SHA256 `7a01211786a315fda9f209cf1be170e5cc00852abd891a3cbfe09e7a6bbcc8ef`，引用 `assets/index-BF7WMer9.js`/`assets/index-C7cAXCXy.css`，三项HTTP哈希与隔离构建一致。生产970×876/390×844核对7阶段对齐并验证说明折叠，PC20px/手机16px、入口40px，无溢出/框架错误/相关console。无设置保存、迁移、Provider调用、视频重跑或POI确认；本次只提交设置说明及留白和相关文档，其他在途改动保留未提交。
 
 - 2026-10-14 23:39（最终请求字节计量补载与源码交付）：补充六入口与HTTPX实际JSON请求体长度对照回归，目标108项和最终全量458项通过；只修正诊断数字，不改变生成/POI策略。同一保存点补存 `app-pre-wire-metrics.db`（完整性/门禁已验）、`final-worktree.tar.gz`/patch及 `final-backend-source.json`，保留最初旧静态包与源码回退点。无迁移重载后API46765/Worker46783 RUNNING，内容/health/对应新PID心跳READY；后台源码与最终哈希一致，生产JS/CSS/index沿用23:30已验资源且HTTP哈希再次匹配，OpenAPI出处字段存在。44表与初始逻辑备份hash一致，仅system_events改变，runtime设置另计；active/lease/call0、integrity=ok/FK0、0025。前端未再修改，沿用同版本生产双端Browser证据，无重复业务重跑或真实Provider调用。源码提交 `c85d6c4` 已推送至origin/codex/mac-mini-implementation，最终交接/状态记录随文档提交交付。
 

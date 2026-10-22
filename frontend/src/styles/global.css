@@ -548,6 +548,13 @@ svg { flex: 0 0 auto; }
 .runtime-dot { width: 9px; height: 9px; border-radius: 50%; background: #999; }
 .runtime-dot--ready { background: var(--green); }.runtime-dot--degraded { background: #c78b25; }.runtime-dot--missing, .runtime-dot--unavailable { background: var(--accent); }
 .settings-note { color: var(--muted); font-size: 11px; line-height: 1.8; }.settings-note--inset { margin: 15px 19px -3px; padding: 9px 12px; border-left: 2px solid #d8a49d; background: #f8f3ee; }
+.stage-policy { --stage-policy-inset: 20px; }
+.stage-policy > .field-grid { padding: 20px var(--stage-policy-inset); }
+.stage-policy > .settings-note { display: grid; gap: 8px; padding: 0 var(--stage-policy-inset) 20px; color: var(--color-text-muted); font-size: 11px; line-height: 16px; overflow-wrap: anywhere; }
+.stage-policy > .settings-note p { margin: 0; }
+.stage-policy > .settings-note details > p { margin-top: 8px; }
+.stage-policy > .settings-note summary { align-content: center; min-height: 40px; cursor: pointer; }
+@media (max-width: 720px) { .stage-policy { --stage-policy-inset: 16px; } }
 .provider-local-note { grid-column: 1 / -1; margin: -2px 0 0; padding: 10px 12px; border-left: 2px solid var(--green); background: #f2f6ed; color: #52763d; font-size: 11px; line-height: 1.7; }
 .settings-link { display: flex; align-items: center; gap: 9px; margin-top: 16px; color: var(--accent); }
 .settings-link svg { width: 16px; }

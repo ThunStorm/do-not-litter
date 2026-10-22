@@ -83,6 +83,8 @@
 
 统一 4px 基础网格：`4 / 8 / 12 / 16 / 20 / 24 / 32 / 40 / 48`。新页面禁止随意新增 7/13/17/19px 等随机间距。
 
+设置页阶段说明与同阶段表单共用内边距：PC 20px、Mobile 16px；说明底部留白20px、段落间距8px，折叠入口点击高度至少40px。展开内容保持相同对齐，沿用 Caption 字号和 muted Token，不贴容器边缘。
+
 圆角：输入/小按钮 6px；Icon Button / Dropdown Trigger 8px；Panel 8px；Popover/Dialog 10px；Mobile Bottom Sheet 顶部 16px；Badge/Chip 999px。
 
 边框默认 1px `--color-border`；分割线 `--color-border-soft`。常规 Panel 不使用重阴影，只有 Dropdown、Popover、Dialog、地图浮层使用 floating shadow。

@@ -1162,6 +1162,18 @@ function StagePoliciesPanel({ profiles }: { profiles: ModelProfileView[] }) {
   );
 }
 
+const STAGE_MODE_LABELS: Record<string, string> = {
+  AUTO: "自动选择（AUTO）", LOCAL_ONLY: "仅本地（LOCAL_ONLY）", LOCAL_FIRST: "本地优先（LOCAL_FIRST）",
+  REMOTE_FIRST: "远程优先（REMOTE_FIRST）", REMOTE_ONLY: "仅远程（REMOTE_ONLY）",
+};
+const STAGE_MODE_HINTS: Record<string, string> = {
+  AUTO: "自动选择：按阶段能力、质量偏好与预算，在通用主/备用和阶段候选中选择；通用主/备用的顺序不保证沿用。",
+  LOCAL_ONLY: "仅本地：只使用本地候选，不配置备用；远程候选和通用备用不会用于失败切换。",
+  REMOTE_ONLY: "仅远程：只使用远程候选，不配置备用；即使通用备用也是远程模型，也不会用于失败切换。",
+  LOCAL_FIRST: "本地优先：有本地候选时先用本地，远程候选作备用；没有本地候选时可直接用远程。没有相反位置备用时，才尝试保留符合条件且不同于主模型的通用备用。",
+  REMOTE_FIRST: "远程优先：有远程候选时先用远程，本地候选作备用；没有远程候选时可直接用本地。没有相反位置备用时，才尝试保留符合条件且不同于主模型的通用备用。",
+};
+
 function StagePolicyEditor({
   policy,
   profiles,
@@ -1219,7 +1231,7 @@ function StagePolicyEditor({
   );
   const busy = save.isPending || reset.isPending;
   return (
-    <section className="provider-form__body">
+    <section className="provider-form__body stage-policy">
       <div className="provider-form__title">
         <h4>{label}</h4>
         <div className="provider-form__actions">
@@ -1261,16 +1273,16 @@ function StagePolicyEditor({
             "REMOTE_ONLY",
           ].map((item) => (
             <option key={item} value={item}>
-              {item}
+              {STAGE_MODE_LABELS[item]}
             </option>
           ))}
         </SelectField>
         <SelectField
-          label="本地模型"
+          label="本地候选模型"
           value={values.local_profile_id ?? ""}
           onChange={(value) => update("local_profile_id", value || null)}
         >
-          <option value="">自动选择</option>
+          <option value="">从通用主/备用中按位置选择</option>
           {local.map((item) => (
             <option key={item.id} value={item.id}>
               {item.name} · {item.model}
@@ -1278,11 +1290,11 @@ function StagePolicyEditor({
           ))}
         </SelectField>
         <SelectField
-          label="远程模型"
+          label="远程候选模型"
           value={values.remote_profile_id ?? ""}
           onChange={(value) => update("remote_profile_id", value || null)}
         >
-          <option value="">自动选择</option>
+          <option value="">从通用主/备用中按位置选择</option>
           {remote.map((item) => (
             <option key={item.id} value={item.id}>
               {item.name} · {item.model}
@@ -1297,6 +1309,13 @@ function StagePolicyEditor({
           <option value="ON">开启</option>
           <option value="OFF">关闭</option>
         </SelectField>
+      </div>
+      <div className="settings-note">
+        <p aria-live="polite">{STAGE_MODE_HINTS[values.execution_mode ?? "AUTO"]}</p>
+        <details><summary>候选来源与备用规则</summary>
+        <p>本地 / 远程按模型配置中的位置划分。LocalMux 的地址在本机，不代表上游模型在本地运行；两个候选槽位也不固定等于主模型 / 备用模型。留空只从通用主/备用候选中按位置和阶段能力筛选，不会遍历所有已保存模型。</p>
+        <p>切换须满足模型启用、阶段能力和剩余预算；未测试不等于已通过。阶段设置只影响新任务，已有任务保留提交时快照。</p></details>
+        {policy.stage === "GROUND_MAP" && <p>证据地图的歧义升级单独使用远程候选，不再接通用备用；仅本地模式保留待审核。</p>}
       </div>
       {advanced && (
         <div className="field-grid route-field-grid">
