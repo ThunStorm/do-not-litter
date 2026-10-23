@@ -37,7 +37,7 @@ STAGE_SPECS = {
     "TRANSCRIPT_CORRECTION": StageParameterSpec(
         "TRANSCRIPT_CORRECTION",
         AICapability.TRANSCRIPT_CORRECTION,
-        _COMMON | {"chunk_size", "neighbor_segments", "force_full_correction"},
+        _COMMON | {"chunk_size", "batch_size", "neighbor_segments", "force_full_correction"},
     ),
     "GENERATE_AI_NOTE": StageParameterSpec(
         "GENERATE_AI_NOTE",

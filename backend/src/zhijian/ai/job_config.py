@@ -270,9 +270,14 @@ def build_execution_config(
         )
         + 1
     )
-    fingerprint = hashlib.sha256(json.dumps(values, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    fingerprint = hashlib.sha256(
+        json.dumps(
+            {"settings": values, "limits_policy_version": 2}, sort_keys=True, ensure_ascii=False
+        ).encode()
+    ).hexdigest()
     return {
         "version": 1,
+        "limits_policy_version": 2,
         "revision": version,
         "sampled_at": utc_now().isoformat(),
         "settings": execution_values,
@@ -326,6 +331,7 @@ def capture_ai_config(db: Session, settings: Settings) -> dict[str, Any]:
     return {
         "version": 1,
         "settings": values,
+        "limits_policy_version": 2,
         "default_asr_provider": default_asr_provider(db, settings),
         "video_note_chunk_chars": settings.video_note_chunk_chars,
     }

@@ -1188,25 +1188,29 @@ def provider_for_role(
             },
             commit=False,
         )
-    timeout_cap = (
-        transcript_processing_config(db, job).timeout_seconds if role == "transcript_correction" else None
-    )
-    if resolved_policy and resolved_policy.timeout_seconds:
-        timeout_cap = (
-            min(timeout_cap, resolved_policy.timeout_seconds)
-            if timeout_cap
-            else resolved_policy.timeout_seconds
+    from zhijian.ai.stage_limits import limits_policy_version, request_timeout
+
+    def configured_provider(config, profile_id):
+        limit = request_timeout(
+            float(config.get("timeout_seconds") or 300),
+            resolved_policy.timeout_seconds if resolved_policy else None,
+            (transcript_processing_config(db, job).timeout_seconds
+             if role == "transcript_correction" else None),
+            limits_policy_version(job),
         )
+        result = _provider_from_config(config, settings, profile_id, limit["seconds"])
+        if hasattr(result[0], "timeout"):
+            result[0].timeout = limit["seconds"]
+        if hasattr(result[0], "__dict__"):
+            result[0].timeout_source = limit["source"]
+        return result
+
     try:
-        primary, primary_name, primary_model = _provider_from_config(
-            primary_config, settings, primary_id, timeout_cap
-        )
+        primary, primary_name, primary_model = configured_provider(primary_config, primary_id)
     except ProviderUnavailable:
         if fallback_config is None:
             raise
-        fallback, fallback_name, fallback_model = _provider_from_config(
-            fallback_config, settings, fallback_id, timeout_cap
-        )
+        fallback, fallback_name, fallback_model = configured_provider(fallback_config, fallback_id)
         return (
             with_policy(
                 fallback,
@@ -1222,9 +1226,7 @@ def provider_for_role(
     fallback_model: str | None = None
     if fallback_config and fallback_id:
         try:
-            fallback, _, fallback_model = _provider_from_config(
-                fallback_config, settings, fallback_id, timeout_cap
-            )
+            fallback, _, fallback_model = configured_provider(fallback_config, fallback_id)
         except ProviderUnavailable:
             fallback = None
             fallback_model = None
@@ -1879,7 +1881,12 @@ def correct_transcript(
     processing = transcript_processing_config(db, job)
     correction_wall = _resolved_stage_policy(db, "TRANSCRIPT_CORRECTION", job).wall_time_seconds
     correction_deadline = perf_counter() + correction_wall if correction_wall else None
-    configured_batch_size = _correction_batch_size(provider_name, processing.batch_size)
+    from zhijian.ai.stage_limits import correction_batch_limits, limits_policy_version
+
+    configured_chars, configured_segments = correction_batch_limits(
+        _resolved_stage_policy(db, "TRANSCRIPT_CORRECTION", job), processing, limits_policy_version(job)
+    )
+    configured_batch_size = _correction_batch_size(provider_name, configured_segments)
     runtime_hints = (job.payload_json.get("ai_runtime_hints") or {}) if job else {}
     correction_hints = (
         runtime_hints.get("transcript_correction")
@@ -1898,7 +1905,7 @@ def correct_transcript(
     )
     chunks = _transcript_chunks(
         candidates,
-        min(processing.chunk_chars, saved_max_chars) if saved_max_chars else processing.chunk_chars,
+        min(configured_chars, saved_max_chars) if saved_max_chars else configured_chars,
         adaptive_batch_size,
     )
     planned_calls = max(1, len(chunks))
@@ -2336,7 +2343,16 @@ def generate_note(
     provider, provider_name, model = provider_for_role(
         db, settings, "note_reduce" if grounded_map else "video_note_summary", job
     )
-    chunk_chars = job_video_note_chunk_chars(job, settings.video_note_chunk_chars)
+    from zhijian.ai.stage_limits import limits_policy_version
+
+    modern_limits = limits_policy_version(job) >= 2
+    note_policy = _resolved_stage_policy(db, "GENERATE_AI_NOTE", job)
+    note_started = perf_counter()
+    note_deadline = note_started + note_policy.wall_time_seconds if note_policy.wall_time_seconds else None
+    chunk_chars = int(
+        (note_policy.chunk_size if modern_limits else None)
+        or job_video_note_chunk_chars(job, settings.video_note_chunk_chars)
+    )
     chunks = _transcript_chunks(segments, chunk_chars)
     system = Path(__file__).resolve().parents[1] / "prompts" / "video_note.md"
     system_text = system.read_text(encoding="utf-8")
@@ -2406,6 +2422,7 @@ def generate_note(
                 db,
                 job=job,
                 stage="GENERATE_AI_NOTE",
+                stage_deadline=note_deadline,
                 capability="GLOBAL_SYNTHESIS",
                 provider=provider,
                 provider_name=provider_name,
@@ -2468,7 +2485,11 @@ def generate_note(
         )
         packs = _note_evidence_packs(
             compact_facts,
-            max_chars=max(1000, max_input_tokens * 4 - fixed_chars),
+            max_chars=min(
+                max(1000, max_input_tokens * 4 - fixed_chars),
+                int((reduce_policy.chunk_size if modern_limits else None)
+                    or max(1000, max_input_tokens * 4 - fixed_chars)),
+            ),
             max_facts=max_facts,
         )
         planned_calls = max(1, len(packs))
@@ -2802,6 +2823,10 @@ def extract_place_mentions(
         prompt = (Path(__file__).resolve().parents[1] / "prompts" / "travel_place_extraction.md").read_text(
             encoding="utf-8"
         )
+        extraction_started = perf_counter()
+        extraction_deadline = (
+            extraction_started + policy.wall_time_seconds if policy.wall_time_seconds else None
+        )
         candidates = []
         chunks = _overlapped_transcript_chunks(segments, chunk_chars, neighbor_segments)
         for chunk_index, chunk in enumerate(chunks):
@@ -2809,6 +2834,7 @@ def extract_place_mentions(
                 db,
                 job=job,
                 stage="EXTRACT_TRAVEL_FACTS",
+                stage_deadline=extraction_deadline,
                 capability="ENTITY_EXTRACTION",
                 provider=provider,
                 provider_name=provider_name,

@@ -47,7 +47,6 @@ import type {
   ModelTestView,
   ModelRoutingView,
   PromptSupplementsView,
-  TranscriptProcessingView,
 } from "../../lib/types";
 import { BilibiliLoginPanel } from "./BilibiliLoginPanel";
 import { catalogRequestIdentity } from "./catalogCredentials";
@@ -318,7 +317,7 @@ function GeneralPanel() {
             />
           </label>
           <label>
-            AI 最大处理时长（秒）
+            任务处理总时限（秒，包含前序处理与等待）
             <input
               type="number"
               min="60"
@@ -570,7 +569,6 @@ function ModelsPanel() {
         </div>
       </section>
       <StagePoliciesPanel profiles={profiles.data ?? []} />
-      <TranscriptProcessingPanel />
       <PromptSupplementsPanel />
       <section className="model-library" aria-labelledby="saved-models-title">
       <div className="provider-form__title">
@@ -624,96 +622,6 @@ function ModelsPanel() {
   );
 }
 
-function TranscriptProcessingPanel() {
-  const processing = useQuery({
-    queryKey: ["transcript-processing"],
-    queryFn: api.transcriptProcessing,
-  });
-  const [values, setValues] = useState<TranscriptProcessingView>({
-    chunk_chars: 12_000,
-    batch_size: 128,
-    timeout_seconds: 180,
-  });
-  const [message, setMessage] = useState("");
-  useEffect(() => {
-    if (processing.data) setValues(processing.data);
-  }, [processing.data]);
-  const save = useMutation({
-    mutationFn: () => api.saveTranscriptProcessing(values),
-    onSuccess: (data) => {
-      setValues(data);
-      setMessage("转写参数已保存");
-    },
-    onError: (error) => setMessage(error.message),
-  });
-  const update = (key: keyof TranscriptProcessingView, value: number) =>
-    setValues((current) => ({ ...current, [key]: value }));
-  return (
-    <form
-      className="provider-form transcript-processing"
-      onSubmit={(event: FormEvent) => {
-        event.preventDefault();
-        save.mutate();
-      }}
-    >
-      <div className="provider-form__title">
-        <div>
-          <h3>转写分段参数</h3>
-          <small>缺省值已经过当前样本的稳定性与额度平衡验证</small>
-        </div>
-      </div>
-      <div className="field-grid field-grid--three">
-        <label>
-          每批字符预算
-          <input
-            type="number"
-            min="2000"
-            max="24000"
-            step="500"
-            value={values.chunk_chars}
-            onChange={(event) =>
-              update("chunk_chars", Number(event.target.value))
-            }
-          />
-          <small>2,000–24,000，默认 12,000</small>
-        </label>
-        <label>
-          每批最多 Segment
-          <input
-            type="number"
-            min="16"
-            max="256"
-            step="8"
-            value={values.batch_size}
-            onChange={(event) =>
-              update("batch_size", Number(event.target.value))
-            }
-          />
-          <small>16–256，默认 128</small>
-        </label>
-        <label>
-          单次超时（秒）
-          <input
-            type="number"
-            min="30"
-            max="300"
-            step="10"
-            value={values.timeout_seconds}
-            onChange={(event) =>
-              update("timeout_seconds", Number(event.target.value))
-            }
-          />
-          <small>30–300，默认 180</small>
-        </label>
-      </div>
-      <p className="settings-note settings-note--inset">
-        增大批次可减少固定 Prompt 与 Schema
-        的重复开销；过大可能增加响应截断风险。建议优先保留默认值。
-      </p>
-      <FormActions message={message} pending={save.isPending} />
-    </form>
-  );
-}
 
 const promptRoles: Array<{
   key: keyof Pick<
@@ -1177,7 +1085,7 @@ const STAGE_MODE_HINTS: Record<string, string> = {
   REMOTE_FIRST: "远程优先：有远程候选时先用远程，本地候选作备用；没有远程候选时可直接用本地。没有相反位置备用时，才尝试保留符合条件且不同于主模型的通用备用。",
 };
 
-function StagePolicyEditor({
+export function StagePolicyEditor({
   policy,
   profiles,
   packs,
@@ -1191,10 +1099,16 @@ function StagePolicyEditor({
     editablePolicy(policy),
   );
   const [advanced, setAdvanced] = useState(false);
+  const limits = useQuery({
+    queryKey: ["stage-limits-preview", values],
+    queryFn: () => api.stageLimitsPreview(values),
+    enabled: advanced,
+    retry: false,
+  });
   const [message, setMessage] = useState("");
   useEffect(() => setValues(editablePolicy(policy)), [policy]);
   const saved = () => {
-    void queryClient.invalidateQueries({ queryKey: ["model-credentials"] });
+    void queryClient.invalidateQueries({ queryKey: ["stage-limits-preview"] });
     void queryClient.invalidateQueries({ queryKey: ["ai-stage-policies"] });
     setMessage("阶段策略已保存");
   };
@@ -1219,11 +1133,11 @@ function StagePolicyEditor({
     (
       {
         TRANSCRIPT_CORRECTION: "转写校对",
-        GROUND_MAP: "证据地图",
-        EXTRACT_TRAVEL_FACTS: "地点物化",
+        GROUND_MAP: "证据地图（提取地点与事实）",
+        EXTRACT_TRAVEL_FACTS: "地点物化 / 兼容重提取",
         NOTE_REDUCE: "笔记归纳",
-        GENERATE_AI_NOTE: "视频笔记",
-        SCREENSHOT_UNDERSTANDING: "截图理解",
+        GENERATE_AI_NOTE: "视频笔记（兼容路径）",
+        SCREENSHOT_UNDERSTANDING: "截图理解（预留策略）",
         VISION_FACT: "视觉事实",
       } as Record<string, string>
     )[policy.stage] ?? "未命名阶段";
@@ -1318,9 +1232,23 @@ function StagePolicyEditor({
         <p aria-live="polite">{STAGE_MODE_HINTS[values.execution_mode ?? "AUTO"]}</p>
         <details><summary>候选来源与备用规则</summary>
         <p>本地 / 远程按模型配置中的位置划分。LocalMux 的地址在本机，不代表上游模型在本地运行；两个候选槽位也不固定等于主模型 / 备用模型。留空只从通用主/备用候选中按位置和阶段能力筛选，不会遍历所有已保存模型。</p>
-        <p>切换须满足模型启用、阶段能力和剩余预算；未测试不等于已通过。阶段设置只影响新任务，已有任务保留提交时快照。</p></details>
+        <p>切换须满足模型启用、阶段能力和剩余预算；未测试不等于已通过。设置用于新任务；已有任务不自动改变，明确重跑后按已冻结模型刷新执行参数。</p></details>
         {policy.stage === "GROUND_MAP" && <p>证据地图的歧义升级单独使用远程候选，不再接通用备用；仅本地模式保留待审核。</p>}
       </div>
+      {advanced && <div className="settings-note stage-limits" role="status" aria-label={`${label}预算预览`}>
+        <p>新任务预算预览（含未保存修改）：阶段显式超时覆盖模型默认；排队、限流等待计入本次预算。实际调用仍受阶段和任务剩余时限约束，上游服务也可能更早超时。</p>
+        {limits.isPending ? <p>正在读取预算来源…</p> : limits.error ? <p className="form-error">{limits.error.message}</p> : limits.data && <>
+          {limits.data.request_timeouts.map((item) => <p key={item.profile_id}>{item.name}：单次 {item.seconds} 秒，来源：{({ STAGE_POLICY: "阶段设置", MODEL_PROFILE: "模型默认", LEGACY_TRANSCRIPT: "旧校对超时兼容值" } as Record<string, string>)[item.source] ?? item.source}；计入总时限后初始上限 {item.initial_ceiling_seconds} 秒。</p>)}
+          {!limits.data.request_timeouts.length && <p>当前未找到可用候选模型，请先核对路由、部署位置和能力。</p>}
+          <p>阶段总时限：{limits.data.wall_time_seconds ? `${limits.data.wall_time_seconds} 秒` : "未单独设置"}；整个任务总时限：{limits.data.job_wall_time_seconds} 秒。候选预览不代表最终选路；旧任务保持已冻结配置及超时规则，明确重跑后刷新执行配置。</p>
+          {policy.stage === "TRANSCRIPT_CORRECTION" && <p>转写已取得后再分批校对，不控制语音识别。正文预算 {limits.data.chunk_chars} 字符，每批最多 {limits.data.batch_size} 个转写段；还会附加提示词与上下文，实际可能根据稳定批次经验缩小。留空沿用旧校对参数。</p>}
+          {policy.stage === "GROUND_MAP" && <p>任务页“提取地点”的主要模型调用在这里，处理分块转写并提取地点与事实。地点物化通常直接使用这些结果。</p>}
+          {policy.stage === "NOTE_REDUCE" && <p>主流程按已验证证据分包归纳；正文字符预算与输入/输出容量、稳定批次经验共同约束，不把整篇转写重复发送。</p>}
+          {policy.stage === "GENERATE_AI_NOTE" && <p>此项用于旧版兼容笔记生成；当前主流程的归纳预算请配置“笔记归纳”。</p>}
+          {policy.stage === "EXTRACT_TRAVEL_FACTS" && <p>通常只物化已有地点；仅兼容/强制重提取路径使用此处的模型预算，不替代证据地图设置。</p>}
+          {policy.stage === "SCREENSHOT_UNDERSTANDING" && <p>此项尚无独立执行入口；当前截图识别请配置“视觉事实”，不要用此处替代。</p>}
+        </>}
+      </div>}
       {advanced && (
         <div className="field-grid route-field-grid">
           <NumberPolicyField
@@ -1332,14 +1260,14 @@ function StagePolicyEditor({
             onChange={(value) => update("temperature", value)}
           />
           <NumberPolicyField
-            label="最大输入 Token"
+            label="单次最大输入 Token（含提示词）"
             value={values.max_input_tokens}
             min="1"
             max="131072"
             onChange={(value) => update("max_input_tokens", value)}
           />
           <NumberPolicyField
-            label="最大输出 Token"
+            label="单次最大输出 Token"
             value={values.max_output_tokens}
             min="1"
             max="32768"
@@ -1359,14 +1287,15 @@ function StagePolicyEditor({
             <option value="ON">开启</option>
           </SelectField>
           <NumberPolicyField
-            label="超时（秒）"
+            label="单次请求超时（秒，留空继承）"
+            placeholder="留空使用模型默认值"
             value={values.timeout_seconds}
             min="5"
             max="900"
             onChange={(value) => update("timeout_seconds", value)}
           />
           <NumberPolicyField
-            label="阶段总时限（秒）"
+            label="阶段总时限（秒，包含所有批次）"
             value={values.wall_time_seconds}
             min="5"
             max="3600"
@@ -1402,13 +1331,15 @@ function StagePolicyEditor({
             step="0.05"
             onChange={(value) => update("escalation_threshold", value)}
           />
-          <NumberPolicyField
-            label="分块大小"
+          {["TRANSCRIPT_CORRECTION", "GROUND_MAP", "NOTE_REDUCE", "GENERATE_AI_NOTE", "EXTRACT_TRAVEL_FACTS"].includes(policy.stage) && <NumberPolicyField
+            label={policy.stage === "TRANSCRIPT_CORRECTION" ? "每批校对字符预算" : "每包正文字符预算"}
             value={values.chunk_size}
+            placeholder={limits.data?.chunk_chars ? `留空沿用 ${limits.data.chunk_chars}` : "留空自动分包"}
             min="1"
             max="100000"
             onChange={(value) => update("chunk_size", value)}
-          />
+          />}
+          {policy.stage === "TRANSCRIPT_CORRECTION" && <NumberPolicyField label="每批最多转写段（Segment）" value={values.batch_size ?? null} placeholder={limits.data?.batch_size ? `留空沿用 ${limits.data.batch_size}` : "留空沿用旧校对参数"} min="16" max="256" onChange={(value) => update("batch_size", value)} />}
           <NumberPolicyField
             label="相邻片段"
             value={values.neighbor_segments}
@@ -2078,7 +2009,7 @@ export function ModelProfileEditor({
             ))}
           </SelectField>
           <label>
-            超时（秒）
+            默认请求超时（秒，阶段可覆盖）
             <input
               type="number"
               min="5"

@@ -298,6 +298,7 @@ export interface AIStagePolicy {
   escalation_threshold: number | null
   context_strategy: string | null
   chunk_size: number | null
+  batch_size?: number | null
   neighbor_segments: number | null
   domain: string | null
   domain_pack_ids: string[]
@@ -497,4 +498,13 @@ export interface VideoScreenshotView {
   caption: string
   content_role: string
   status: 'PLANNED' | 'READY' | 'REJECTED'
+}
+
+export interface StageLimitsPreview {
+  limits_policy_version: number
+  request_timeouts: Array<{profile_id: string; name: string; seconds: number; source: string; initial_ceiling_seconds: number}>
+  wall_time_seconds: number | null
+  job_wall_time_seconds: number
+  chunk_chars: number | null
+  batch_size: number | null
 }

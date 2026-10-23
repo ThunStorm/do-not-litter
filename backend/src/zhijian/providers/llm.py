@@ -543,6 +543,7 @@ class FallbackLLMProvider:
         timeout = getattr(provider, "timeout", None)
         if timeout is not None:
             metadata["timeout_seconds"] = timeout
+            metadata["timeout_source"] = getattr(provider, "timeout_source", None)
         profile_id = getattr(provider, "profile_id", None)
         if profile_id:
             metadata["profile_id"] = profile_id

@@ -112,6 +112,7 @@ class AIStagePolicy(BaseModel):
     escalation_threshold: float | None = Field(default=None, ge=0, le=1)
     context_strategy: str | None = Field(default=None, max_length=80)
     chunk_size: int | None = Field(default=None, ge=1, le=100_000)
+    batch_size: int | None = Field(default=None, ge=16, le=256)
     neighbor_segments: int | None = Field(default=None, ge=0, le=10)
     domain: str | None = Field(default=None, max_length=80)
     domain_pack_ids: list[str] = Field(default_factory=list, max_length=20)

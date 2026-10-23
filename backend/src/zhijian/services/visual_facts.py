@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 from pathlib import Path
+from time import perf_counter
 from typing import Any
 
 from sqlalchemy import select
@@ -18,7 +19,12 @@ from zhijian.core.time import utc_now
 from zhijian.db.models import Job, JobStep, PlaceMention, VideoAsset, VideoScreenshot, VisualFact
 from zhijian.domain.enums import JobStatus
 from zhijian.services.audit import record_event
-from zhijian.services.video_support import normalized_confidence, parse_model_json, provider_for_role
+from zhijian.services.video_support import (
+    _resolved_stage_policy,
+    normalized_confidence,
+    parse_model_json,
+    provider_for_role,
+)
 
 FACT_TYPES = {"STORE_SIGN", "MENU", "DISH", "PRICE", "OPENING_HOURS", "ROAD_SIGN", "NOTICE"}
 
@@ -73,6 +79,8 @@ def process_visual_fact_job(db: Session, job: Job, settings: Settings) -> None:
         JobStep(job_id=job.id, step_name="VISION_FACT", status="RUNNING", progress=0, started_at=utc_now())
     )
     db.commit()
+    policy = _resolved_stage_policy(db, "VISION_FACT", job)
+    stage_started = perf_counter()
     provider, provider_name, model = provider_for_role(db, settings, "visual_fact", job)
     image = base64.b64encode(path.read_bytes()).decode()
     media_type = "image/webp" if path.suffix.lower() == ".webp" else "image/jpeg"
@@ -101,6 +109,8 @@ def process_visual_fact_job(db: Session, job: Job, settings: Settings) -> None:
         db,
         job=job,
         stage="VISION_FACT",
+        stage_deadline=stage_started + policy.wall_time_seconds if policy.wall_time_seconds else None,
+        max_input_tokens=policy.max_input_tokens,
         capability="SCREENSHOT_UNDERSTANDING",
         provider=provider,
         provider_name=provider_name,

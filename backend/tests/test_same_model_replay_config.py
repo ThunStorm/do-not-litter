@@ -239,6 +239,7 @@ def test_replay_refreshes_original_models_parameters_and_freezes_this_run(client
         job = db.get(Job, job_id)
         execution = job.payload_json[EXECUTION_KEY]
         assert job.payload_json[SNAPSHOT_KEY] == original and execution["revision"] == 1
+        assert execution["limits_policy_version"] == 2
         assert "replay_from_step" not in job.payload_json
         assert (
             db.scalar(select(JobStepArtifact).where(JobStepArtifact.job_id == job.id)).status == "INVALIDATED"

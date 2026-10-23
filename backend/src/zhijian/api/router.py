@@ -4145,6 +4145,29 @@ def list_ai_stage_policies(_: Protected, db: Session = Depends(get_db)) -> list[
     return [_resolved_stage_policy_view(db, stage) for stage in STAGE_SPECS]
 
 
+@router.post("/api/ai/stage-policies/limits-preview")
+def preview_ai_stage_limits(
+    payload: AIStagePolicy, _: Protected, db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> dict:
+    from zhijian.ai.stage_limits import preview_stage_limits
+
+    profiles = _stage_profiles(db)
+    try:
+        validate_stage_policy(payload, profiles)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    def value(key):
+        row = db.get(Setting, key)
+        return (row.value_json or {}) if row else {}
+    return preview_stage_limits(
+        payload, profiles, value("model-routing"),
+        TranscriptProcessingConfig(**value("transcript-processing")),
+        GeneralConfig(**value("app:general")).ai_max_wall_time_seconds_per_job,
+        8000 if payload.stage == "EXTRACT_TRAVEL_FACTS" else settings.video_note_chunk_chars,
+    )
+
+
 @router.get("/api/ai/stage-policies/{stage}")
 def get_ai_stage_policy(stage: str, _: Protected, db: Session = Depends(get_db)) -> dict:
     return _resolved_stage_policy_view(db, stage)

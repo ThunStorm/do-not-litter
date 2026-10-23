@@ -4,14 +4,17 @@
 
 ## 任务续接
 
-- 目标：标题时间证据/Claim归属/分包Prompt开发验证、无迁移部署、文档整理与提交推送。
-- 已完成：标题保守传播与窗口对账/出处DTO、标题缓存失效、subject实体归属、fallback标注及前缀/缓存观测。最终后端458/前端24、Ruff/Lint/类型/隔离构建通过，生产1440/390px目标Browser通过（时间数据与DELETE响应拦截模拟）。截图压缩、模型拖动排序与署名在途改动一并交付；源码 `c85d6c4` 已提交并推送。
-- 文档：95文件清单/链接/合订一致；已实施计划归档history/planning。相关入口：[契约](video/TITLE_TEMPORAL_EVIDENCE.md)、[离线AB](benchmark/TITLE_TEMPORAL_PROMPT_AB_REPORT.md)，生产保存点见下方。
-- 未完成：真实标题质量/Token/缓存收益未验，会话阶段未启动；免费/赞助入口与本地取消等旧限制继续保留，见实施状态/矩阵报告。
-- 下一步：需要真实验收时另行授权同模型固定Ground Truth配对AB，不重跑已验官方视频。
-- 禁止：不自动确认POI、不回写旧业务数据、不突破原Job预算；本轮无迁移、真实Provider调用或视频重跑。最终文档提交以本轮Git HEAD为准。
+- 目标：统一阶段分批/请求超时入口，补齐deadline与可解释预算预览；无迁移发布。
+- 完成：Stage覆盖模型默认、校对批次Stage优先/旧值回退，v2新提交/明确重跑，旧快照不改；兼容笔记/地点/视觉期限补齐。论证在ai-gateway/04-stage-policy.md。
+- 验证：后端558/前端36、Lint/类型/隔离与HEAD副本构建通过；隔离保存/刷新、生产970/390px只读通过。已部署；本包提交/推送结果见最终交付与保存点release-result.json。
+- 未闭环：未真实调用模型验证660秒效果或上游限时；既有真实JSON纠错质量、取消、地图F等未扩大验收。
+- 下一步：如需真实验收，明确代表视频、模型与调用范围后执行。
+- 文件：ai/stage_limits.py、ai/job_config.py、services/video_support.py、SettingsPage.tsx、test_stage_limits.py。
+- 禁止：不自动重跑视频/确认POI/改历史数据或凭据；无快照历史任务保留兼容规则。
 
-## 生产快照（最新采样2026-10-23 15:41，北京时间）
+## 生产快照（最新采样2026-10-23 16:49，北京时间）
+
+- 2026-10-23 16:49 阶段预算统一：保存点 `data/backups/stage-budgets-20261023-161625/` 含工作树/HEAD/patch/源码清单、仅本包隔离副本、已验逻辑DB、旧新静态/HTTP哈希、源文件与静态回退脚本及隔离/生产Browser证据。变更前源码逐项匹配上一发布清单；无迁移按门禁重载API/Worker。发布前及Browser后active Job/lease/RUNNING调用0、integrity=ok/FK0/0025，业务表含设置摘要一致、ExternalCallAudit仍1486。API/Worker RUNNING，内容与新PID17184心跳READY。index SHA256 `d8da9ff8a1393f055930ee8117f301c5f446e60c1907cdae77218828c0733068`，JS `assets/index-DPopxQaf.js`/CSS `assets/index-DUWdGot1.css`与HTTP一致。隔离970/390px保存及刷新通过；生产相同断点只读预算预览、入口合并与阶段说明通过，无溢出或相关应用错误（浏览器扩展警告另计）。生产设置/历史Job/笔记未改，无真实Provider/视频/POI操作；新任务规则不自动套用旧执行快照。仅提交本包，其他在途工作保留。
 
 - 2026-10-23 15:41 概览长URL：保存点 `data/backups/dashboard-width-20261023-153729/` 含工作树/HEAD/patch/源码哈希、已验逻辑DB备份、旧新静态与HTTP哈希、回退脚本及Browser截图。与前次发布清单核对前端仅global.css变化；只发布静态，API/Worker未重启且RUNNING、内容/心跳READY（PID47403）。发布前后integrity=ok/FK0/0025、active Job/lease/RUNNING调用0，调用审计仍1482。index SHA256 `3e84e8ef3a79280514f64c94f4480bde3b2751e777e1f160069b1f0ca64185cd`、CSS `assets/index-DUWdGot1.css`/JS `assets/index-ChCzMUFV.js` HTTP哈希匹配；JS内容哈希与前版相同。隔离1277字符URL在1208/970/390px验证截断与列比例，生产1208/390px真实数据无溢出/相关应用错误，未将模拟地址写入生产。无Schema/API变化、真实模型/视频调用或业务写操作。
 
