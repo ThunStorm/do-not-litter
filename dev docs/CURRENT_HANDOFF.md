@@ -11,7 +11,9 @@
 - 下一步：需要真实验收时另行授权同模型固定Ground Truth配对AB，不重跑已验官方视频。
 - 禁止：不自动确认POI、不回写旧业务数据、不突破原Job预算；本轮无迁移、真实Provider调用或视频重跑。最终文档提交以本轮Git HEAD为准。
 
-## 生产快照（最新采样2026-10-22 16:23，北京时间）
+## 生产快照（最新采样2026-10-23 14:22，北京时间）
+
+- 2026-10-23 14:22 LocalAiMux共享凭据与模型输入：保存点 `data/backups/mux-shared-20261023-141202/` 含源码快照、仅本包HEAD隔离提交副本、旧新静态/HTTP哈希、已验逻辑DB及门禁、源文件与静态回退脚本和Browser证据。变更前后端与2026-10-21已部署源码逐项一致；本次仅包内源码变化，无迁移按门禁重载API/Worker。发布前及Browser后活跃Job/lease/调用0、integrity=ok/FK0/0025，业务表（含设置）摘要不变；ExternalCallAudit仍1477。API/Worker RUNNING、内容与新PID47403心跳READY。实际index SHA256 `cffe1203fdc7a39417357e57e307a24aba27c68efda5736122ed5acf88b04496`，JS `assets/index-Cy7H1LMP.js`/CSS `assets/index-DNUqpQRj.css`与HTTP一致。生产970×876/390×844自动凭据、自动只读49模型、搜索/选择qoder/Kimi-K3、右侧图标和原位输入保值、缺Key提示通过，无横向溢出或相关应用错误（扩展消息另计）。未保存新模型、改写Keychain/历史业务或真实调用模型。提交只纳本包，其他在途改动保留。
 
 - 2026-10-22 16:23 阶段说明留白：保存点 `data/backups/stage-spacing-20261022-161400/` 含完整工作树tar/HEAD/patch/源码哈希、已验逻辑DB备份、旧新静态及HTTP哈希、回退脚本和生产Browser截图/结果。修改前前端与2026-10-21已上线源码一致，本次仅SettingsPage.tsx/global.css变化；只发布静态，未重启API/Worker。active Job/lease/RUNNING调用0、integrity=ok/FK0/0025，发布前后业务表含设置摘要一致，ExternalCallAudit保持1465；API/Worker RUNNING、内容及PID14508心跳READY。实际index SHA256 `7a01211786a315fda9f209cf1be170e5cc00852abd891a3cbfe09e7a6bbcc8ef`，引用 `assets/index-BF7WMer9.js`/`assets/index-C7cAXCXy.css`，三项HTTP哈希与隔离构建一致。生产970×876/390×844核对7阶段对齐并验证说明折叠，PC20px/手机16px、入口40px，无溢出/框架错误/相关console。无设置保存、迁移、Provider调用、视频重跑或POI确认；本次只提交设置说明及留白和相关文档，其他在途改动保留未提交。
 

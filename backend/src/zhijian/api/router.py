@@ -3754,6 +3754,42 @@ def _interactive_interface_config(value: dict, api_key: str | None) -> dict:
     }
 
 
+def _profile_api_key(
+    db: Session,
+    store: SecretStore,
+    value: dict,
+    supplied: str | None = None,
+    profile_id: str | None = None,
+) -> str | None:
+    from zhijian.ai.model_credentials import resolve_model_key
+
+    try:
+        return resolve_model_key(db, store, value, supplied, profile_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/api/settings/model-credentials/status")
+def model_credentials_status(
+    payload: ModelCatalogRequest,
+    _: Protected,
+    db: Session = Depends(get_db),
+    store: SecretStore = Depends(get_secret_store),
+) -> dict:
+    from zhijian.ai.model_credentials import mux_credential_account, resolve_model_key
+
+    value = payload.model_dump(exclude={"api_key"})
+    try:
+        if not mux_credential_account(value):
+            return {"api_key_saved": False, "conflict": False}
+        key = resolve_model_key(db, store, value)
+        return {"api_key_saved": bool(key), "conflict": False}
+    except ValueError:
+        return {"api_key_saved": False, "conflict": True}
+    except AIProviderError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
 @router.post("/api/settings/model-catalog")
 def model_catalog(
     payload: ModelCatalogRequest,
@@ -3769,14 +3805,17 @@ def model_catalog(
         raise HTTPException(status_code=404, detail="模型配置不存在")
     try:
         origin = catalog_origin(payload.base_url)
-        if saved and not key:
-            if (
-                origin != catalog_origin(str(saved.value_json.get("base_url") or ""))
-                or payload.provider.strip().lower()
-                != str(saved.value_json.get("provider") or "").strip().lower()
-            ):
-                raise HTTPException(status_code=422, detail="连接已修改，请填写该连接的 API Key 后刷新目录")
-            key = store.get(f"model-profile:{payload.profile_id}:api-key")
+        if saved and not key and (
+            origin != catalog_origin(str(saved.value_json.get("base_url") or ""))
+            or payload.provider.strip().lower()
+            != str(saved.value_json.get("provider") or "").strip().lower()
+        ):
+            raise HTTPException(status_code=422, detail="连接已修改，请填写该连接的 API Key 后刷新目录")
+        key = _profile_api_key(
+            db, store, payload.model_dump(exclude={"api_key"}), key, payload.profile_id
+        )
+        if payload.provider.strip().lower() == "localaimux" and not key:
+            raise HTTPException(status_code=422, detail="请填写 LocalAiMux API Key 后读取模型目录")
         result = read_model_catalog(payload.provider, payload.base_url, key, payload.connection_type)
     except AIProviderError as exc:
         raise HTTPException(
@@ -3793,11 +3832,21 @@ def model_catalog(
 
 
 @router.post("/api/settings/model-profiles/interface-capabilities-draft")
-def read_draft_interface_capabilities(payload: ProviderConfig, _: Protected) -> dict:
+def read_draft_interface_capabilities(
+    payload: ProviderConfig,
+    _: Protected,
+    db: Session = Depends(get_db),
+    store: SecretStore = Depends(get_secret_store),
+) -> dict:
     if payload.connection_type != "LOCAL_ROUTER":
         raise HTTPException(status_code=422, detail="请先选择本机模型路由接入方式")
     try:
-        value = _interactive_interface_config(payload.model_dump(exclude={"api_key"}), payload.api_key)
+        value = _interactive_interface_config(
+            payload.model_dump(exclude={"api_key"}),
+            _profile_api_key(
+                db, store, payload.model_dump(exclude={"api_key"}), payload.api_key
+            ),
+        )
     except AIProviderError as exc:
         raise _model_test_http_error("接口能力读取未完成", exc) from exc
     if not value.get("interface_capabilities"):
@@ -3815,8 +3864,8 @@ def read_saved_interface_capabilities(
 ) -> dict:
     if db.get(Setting, f"model-profile:{profile_id}") is None:
         raise HTTPException(status_code=404, detail="模型配置不存在")
-    key = payload.api_key or store.get(f"model-profile:{profile_id}:api-key")
-    return read_draft_interface_capabilities(payload.model_copy(update={"api_key": key}), _)
+    key = _profile_api_key(db, store, payload.model_dump(exclude={"api_key"}), payload.api_key, profile_id)
+    return read_draft_interface_capabilities(payload.model_copy(update={"api_key": key}), _, db, store)
 
 
 def _prepare_model_profile_save(payload: ModelProfileConfig, previous: dict, api_key: str | None) -> dict:
@@ -3908,10 +3957,15 @@ def create_model_profile(
     store: SecretStore = Depends(get_secret_store),
 ) -> dict:
     profile_id = new_id("model")
-    value = _prepare_model_profile_save(payload, {}, payload.api_key)
+    from zhijian.ai.model_credentials import save_model_key
+
+    key = _profile_api_key(db, store, payload.model_dump(exclude={"api_key"}), payload.api_key)
+    if payload.provider.strip().lower() == "localaimux" and not key:
+        raise HTTPException(status_code=422, detail="请填写 LocalAiMux API Key 后保存")
+    value = _prepare_model_profile_save(payload, {}, key)
     setting = Setting(key=f"model-profile:{profile_id}", value_json=value)
-    if payload.api_key:
-        store.set(f"model-profile:{profile_id}:api-key", payload.api_key)
+    if key:
+        save_model_key(store, value, profile_id, key)
         setting.is_secret_ref = True
     db.add(setting)
     order_setting = db.get(Setting, "model-profile-order")
@@ -3946,7 +4000,7 @@ def update_model_profile(
     setting = db.get(Setting, f"model-profile:{profile_id}")
     if setting is None:
         raise HTTPException(status_code=404, detail="模型配置不存在")
-    key = payload.api_key or store.get(f"model-profile:{profile_id}:api-key")
+    key = _profile_api_key(db, store, payload.model_dump(exclude={"api_key"}), payload.api_key, profile_id)
     previous = setting.value_json or {}
     value = _prepare_model_profile_save(payload, previous, key)
     from zhijian.ai.job_config import profile_identity
@@ -3960,8 +4014,10 @@ def update_model_profile(
             if field in previous:
                 value[field] = previous[field]
     setting.value_json = value
-    if payload.api_key:
-        store.set(f"model-profile:{profile_id}:api-key", payload.api_key)
+    if key:
+        from zhijian.ai.model_credentials import save_model_key
+
+        save_model_key(store, value, profile_id, key)
         setting.is_secret_ref = True
     record_event(
         db,
@@ -4274,14 +4330,24 @@ def test_model_profile(
         raise HTTPException(status_code=404, detail="模型配置不存在")
     value = setting.value_json
     try:
-        result = _test_model_connection(value, store.get(f"model-profile:{profile_id}:api-key"))
+        result = _test_model_connection(
+            value,
+            _profile_api_key(db, store, setting.value_json, profile_id=profile_id),
+        )
     except HTTPException:
         raise
     except AIProviderError as exc:
         raise _model_test_http_error("模型连通测试失败", exc) from exc
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"模型连通测试失败：{str(exc)[:240]}") from exc
-    record_event(db, "model_profile.tested", f"真实测试成功：{value.get('name', profile_id)}", actor="user")
+        raise HTTPException(
+            status_code=502, detail=f"模型连通测试失败：{str(exc)[:240]}"
+        ) from exc
+    record_event(
+        db,
+        "model_profile.tested",
+        f"真实测试成功：{value.get('name', profile_id)}",
+        actor="user",
+    )
     db.commit()
     return {
         "status": "READY",
@@ -4291,17 +4357,26 @@ def test_model_profile(
 
 
 @router.post("/api/settings/model-profiles/test-draft")
-def test_model_profile_draft(payload: ModelProfileConfig, _: Protected) -> dict:
+def test_model_profile_draft(
+    payload: ModelProfileConfig,
+    _: Protected,
+    db: Session = Depends(get_db),
+    store: SecretStore = Depends(get_secret_store),
+) -> dict:
     """Run a transient model connectivity test without persisting the draft or its secret."""
     value = payload.model_dump(mode="json", exclude={"api_key"})
     try:
-        result = _test_model_connection(value, payload.api_key)
+        result = _test_model_connection(
+            value, _profile_api_key(db, store, value, payload.api_key)
+        )
     except HTTPException:
         raise
     except AIProviderError as exc:
         raise _model_test_http_error("模型连通测试失败", exc) from exc
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"模型连通测试失败：{str(exc)[:240]}") from exc
+        raise HTTPException(
+            status_code=502, detail=f"模型连通测试失败：{str(exc)[:240]}"
+        ) from exc
     return {
         "status": "READY",
         "message": "草稿已完成真实推理连通测试，尚未保存配置。",
@@ -4315,17 +4390,22 @@ def probe_saved_interface(profile_id: str, db: Session, store: SecretStore) -> d
         raise HTTPException(status_code=404, detail="模型配置不存在")
     started_version = setting.updated_at
     value = _interactive_interface_config(
-        dict(setting.value_json), store.get(f"model-profile:{profile_id}:api-key")
+        dict(setting.value_json),
+        _profile_api_key(db, store, setting.value_json, profile_id=profile_id),
     )
     profile = model_profile_from_value(profile_id, value)
-    provider = _model_profile_provider(value, store.get(f"model-profile:{profile_id}:api-key"))
+    provider = _model_profile_provider(
+        value, _profile_api_key(db, store, setting.value_json, profile_id=profile_id)
+    )
     with queued_model_test(model_test_groups(value), model_test_cancel_check()):
 
         def call():
             return probe_system_instruction(provider, profile)
 
         result = (
-            local_ai_resource_manager.run("MODEL_TEST", call, cancel_check=model_test_cancel_check())
+            local_ai_resource_manager.run(
+                "MODEL_TEST", call, cancel_check=model_test_cancel_check()
+            )
             if uses_local_model_hardware(value)
             else call()
         )
@@ -4342,9 +4422,14 @@ def probe_saved_interface(profile_id: str, db: Session, store: SecretStore) -> d
         check()
     db.refresh(setting)
     if setting.updated_at != started_version:
-        raise HTTPException(status_code=409, detail="模型配置已变化，请重新探测；旧结果未保存")
+        raise HTTPException(
+            status_code=409, detail="模型配置已变化，请重新探测；旧结果未保存"
+        )
     value["interface_probe"] = result
-    value["probe_results"] = {**(value.get("probe_results") or {}), "SYSTEM_INSTRUCTION": result["status"]}
+    value["probe_results"] = {
+        **(value.get("probe_results") or {}),
+        "SYSTEM_INSTRUCTION": result["status"],
+    }
     setting.value_json = value
     record_event(
         db,
@@ -4356,7 +4441,10 @@ def probe_saved_interface(profile_id: str, db: Session, store: SecretStore) -> d
         detail={"status": result["status"], "error_code": result["error_code"]},
     )
     db.commit()
-    return {"probe_results": {"SYSTEM_INSTRUCTION": result["status"]}, "interface_probe": result}
+    return {
+        "probe_results": {"SYSTEM_INSTRUCTION": result["status"]},
+        "interface_probe": result,
+    }
 
 
 @router.post("/api/settings/model-profiles/{profile_id}/probe")
@@ -4372,7 +4460,7 @@ def probe_saved_model_profile(
     value = dict(setting.value_json)
     started_version = setting.updated_at
     try:
-        api_key = store.get(f"model-profile:{profile_id}:api-key")
+        api_key = _profile_api_key(db, store, setting.value_json, profile_id=profile_id)
         value = _interactive_interface_config(value, api_key)
         profile = model_profile_from_value(profile_id, value)
         provider = _model_profile_provider(value, api_key)
@@ -4464,18 +4552,27 @@ def probe_saved_model_profile(
 
 
 @router.post("/api/settings/model-profiles/probe-draft")
-def probe_model_profile_draft(payload: ModelProfileConfig, _: Protected) -> dict:
+def probe_model_profile_draft(
+    payload: ModelProfileConfig,
+    _: Protected,
+    db: Session = Depends(get_db),
+    store: SecretStore = Depends(get_secret_store),
+) -> dict:
     """Probe a draft without persisting its profile or API key."""
     value = payload.model_dump(mode="json", exclude={"api_key"})
     try:
-        value = _interactive_interface_config(value, payload.api_key)
+        key = _profile_api_key(db, store, value, payload.api_key)
+        value = _interactive_interface_config(value, key)
         profile = model_profile_from_value("draft", value)
-        provider = _model_profile_provider(value, payload.api_key)
+        provider = _model_profile_provider(value, key)
         diagnostics: dict = {}
 
         def probe() -> dict[str, str]:
             return probe_model_profile(
-                provider, profile, diagnostics=diagnostics, groups=model_test_groups(value)
+                provider,
+                profile,
+                diagnostics=diagnostics,
+                groups=model_test_groups(value),
             )
 
         with queued_model_test(model_test_groups(value)):
@@ -4490,7 +4587,9 @@ def probe_model_profile_draft(payload: ModelProfileConfig, _: Protected) -> dict
     except AIProviderError as exc:
         raise _model_test_http_error("草稿能力探测未完成", exc) from exc
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"草稿能力探测失败：{str(exc)[:240]}") from exc
+        raise HTTPException(
+            status_code=502, detail=f"草稿能力探测失败：{str(exc)[:240]}"
+        ) from exc
     capabilities = sorted(
         set(value.get("capabilities") or [])
         | {
@@ -4503,7 +4602,9 @@ def probe_model_profile_draft(payload: ModelProfileConfig, _: Protected) -> dict
         "status": "READY",
         "message": "草稿能力探测已完成，保存后才会写入模型配置。",
         "probe_results": results,
-        "business_assessments": business_assessments(profile.model, results, diagnostics),
+        "business_assessments": business_assessments(
+            profile.model, results, diagnostics
+        ),
         "capabilities": capabilities,
         "supports_json_mode": profile.interface_capabilities.json_object == "SUPPORTED"
         if profile.connection_type == "LOCAL_ROUTER" and profile.interface_capabilities

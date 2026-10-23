@@ -143,6 +143,12 @@ def test_save_binding_or_key_change_reads_again(client, monkeypatch, change):
     monkeypatch.setattr("zhijian.ai.interface_contract.read_interface_capabilities", read)
     saved = client.post("/api/settings/model-profiles", json=router_profile(api_key="old-key")).json()
     result = client.put(f"/api/settings/model-profiles/{saved['id']}", json={**router_profile(), **change})
+    if "base_url" in change:
+        assert result.status_code == 422 and len(calls) == 1
+        result = client.put(
+            f"/api/settings/model-profiles/{saved['id']}",
+            json={**router_profile(), **change, "api_key": "new-address-key"},
+        )
     assert result.status_code == 200 and len(calls) == 2
     assert result.json()["interface_capabilities"]["model"] == change.get("model", router_profile()["model"])
 
@@ -179,7 +185,10 @@ def test_direct_save_does_not_read_router_catalog(client, monkeypatch):
 
     monkeypatch.setattr("zhijian.ai.interface_contract.read_interface_capabilities", fail)
     assert (
-        client.post("/api/settings/model-profiles", json=router_profile(connection_type="DIRECT")).status_code
+        client.post(
+            "/api/settings/model-profiles",
+            json=router_profile(connection_type="DIRECT", api_key="fixture-key"),
+        ).status_code
         == 200
     )
 

@@ -695,7 +695,12 @@ def _provider_from_config(
         provider.profile_id = profile_id
         return provider, "ollama", model
     store = build_secret_store(settings.secret_store, settings.data_dir)
-    api_key = store.get(f"model-profile:{profile_id}:api-key")
+    from zhijian.ai.model_credentials import mux_credential_account
+
+    shared_account = mux_credential_account(config)
+    api_key = (store.get(shared_account) if shared_account else None) or store.get(
+        f"model-profile:{profile_id}:api-key"
+    )
     if not api_key:
         raise ProviderUnavailable("尚未保存模型的 API Key")
     provider = OpenAICompatibleProvider(

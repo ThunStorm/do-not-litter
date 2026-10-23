@@ -925,8 +925,11 @@ svg { flex: 0 0 auto; }
 .model-picker .ui-select-menu { min-width: 0; grid-template-columns: minmax(0, 1fr); }
 .model-picker .ui-select-menu > button { min-width: 0; max-width: 100%; }
 .model-picker .ui-select-menu > button > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.model-picker__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.model-picker__actions .button { min-height: 36px; padding: 0 12px; font-size: 12px; }
+.model-picker__row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 8px; min-width: 0; }
+.model-picker__manual { min-width: 0; }
+.model-picker__manual input { width: 100%; min-width: 0; }
+.model-picker__actions { display: flex; align-items: center; gap: 4px; }
+.model-picker__actions .ui-icon-button { flex: 0 0 var(--control-height-default); }
 .model-picker__actions svg { width: 16px; height: 16px; }
 .model-picker > small { color: var(--color-text-muted); font-size: 11px; line-height: 16px; overflow-wrap: anywhere; }
 .model-picker > .form-error { color: var(--color-danger); }

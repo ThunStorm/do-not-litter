@@ -139,6 +139,8 @@
 
 ### Trigger
 
+模型名控件同排保留一个可伸缩输入/选择区域和两个40px共享IconButton（刷新、切换输入）；PC/Mobile不把动作另起一行。手动输入替换原选择框并保留模型名，不新增第二个字段；Keychain自动凭据仅显示掩码状态。
+
 - 高度 40px；min-width 112px；水平 padding 12px；radius 8px。
 - surface 背景、1px border、13px secondary text、16px muted Chevron。
 - Hover 用 strong border。

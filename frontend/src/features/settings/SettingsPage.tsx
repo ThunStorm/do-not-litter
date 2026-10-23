@@ -6,6 +6,8 @@ import {
   ChevronDown,
   ChevronUp,
   Copy,
+  Pencil,
+  List,
   Cpu,
   Database,
   ExternalLink,
@@ -48,6 +50,7 @@ import type {
   TranscriptProcessingView,
 } from "../../lib/types";
 import { BilibiliLoginPanel } from "./BilibiliLoginPanel";
+import { catalogRequestIdentity } from "./catalogCredentials";
 import { editablePolicy } from "./stagePolicyForm";
 import { useModelProfileDrag } from "./useModelProfileDrag";
 import {
@@ -1191,6 +1194,7 @@ function StagePolicyEditor({
   const [message, setMessage] = useState("");
   useEffect(() => setValues(editablePolicy(policy)), [policy]);
   const saved = () => {
+    void queryClient.invalidateQueries({ queryKey: ["model-credentials"] });
     void queryClient.invalidateQueries({ queryKey: ["ai-stage-policies"] });
     setMessage("阶段策略已保存");
   };
@@ -1639,7 +1643,7 @@ function NumberPolicyField({
     </label>
   );
 }
-function ModelProfileEditor({
+export function ModelProfileEditor({
   profile,
   sortControls,
   assigned = false,
@@ -1820,9 +1824,28 @@ function ModelProfileEditor({
     },
     onError: (error) => setMessage(error.message),
   });
-  const modelCatalog = useMutation({
-    mutationFn: (request: ModelFormValues) => api.modelCatalog(profile?.id, request),
+  const isMux = values.provider.trim().toLowerCase() === "localaimux";
+  const credentialStatus = useQuery({
+    queryKey: ["model-credentials", values.provider, values.base_url],
+    queryFn: () => api.modelCredentialStatus({ provider: values.provider, base_url: values.base_url }),
+    enabled: isMux && !!values.base_url,
+    staleTime: 0,
+    retry: false,
   });
+  const sharedKeySaved = isMux && credentialStatus.data?.api_key_saved;
+  const catalogRequest = { ...values, profile_id: profile?.id };
+  const modelCatalog = useMutation({
+    mutationFn: (request: ModelFormValues & { profile_id?: string }) => api.modelCatalog(request.profile_id, request),
+  });
+  const autoCatalogIdentity = useRef("");
+  const connectionIdentity = catalogRequestIdentity(catalogRequest);
+  const refreshCatalog = modelCatalog.mutate;
+  useEffect(() => {
+    if (isMux && sharedKeySaved && !profile && !values.api_key && autoCatalogIdentity.current !== connectionIdentity) {
+      autoCatalogIdentity.current = connectionIdentity;
+      refreshCatalog({ provider: values.provider, base_url: values.base_url, connection_type: values.connection_type, api_key: "" } as ModelFormValues);
+    }
+  }, [isMux, sharedKeySaved, profile, values.api_key, connectionIdentity, refreshCatalog, values.provider, values.base_url, values.connection_type]);
   const remove = useMutation({
     mutationFn: () => api.deleteModelProfile(profile!.id),
     onSuccess: () => {
@@ -1848,8 +1871,7 @@ function ModelProfileEditor({
     }));
   };
   const activePreset = providerPreset(values.provider);
-  const catalogIdentity = (request: ModelFormValues) => JSON.stringify([request.provider, request.base_url, request.connection_type, request.api_key]);
-  const catalogMatches = !!modelCatalog.variables && catalogIdentity(modelCatalog.variables) === catalogIdentity(values);
+  const catalogMatches = !!modelCatalog.variables && catalogRequestIdentity(modelCatalog.variables) === catalogRequestIdentity(catalogRequest);
   const catalogModels = catalogMatches ? modelCatalog.data?.models : undefined;
   const modelNames = [...new Set([
     values.model,
@@ -2030,9 +2052,14 @@ function ModelProfileEditor({
             <option value="TEXT_IMAGE">文本与图像</option>
           </SelectField>
           <div className="model-picker">
-            <SelectMenu label="模型名" searchable disabled={modelCatalog.isPending} value={values.model} options={[{ value: "", label: "请选择模型或手动填写" }, ...modelNames.map((model) => ({ value: model, label: model }))]} onChange={(value) => { setManual((current) => ({ ...current, model: true })); update("model", value); }} />
-            <div className="model-picker__actions"><button className="button button--outline" disabled={busy || !values.base_url} onClick={() => modelCatalog.mutate({ ...values })}>{modelCatalog.isPending ? <LoaderCircle className="spin" /> : <RefreshCw />}刷新模型列表</button><button className="text-action" onClick={() => setManualModel((current) => !current)}>{manualModel ? "收起手动填写" : "手动填写"}</button></div>
-            {manualModel && <label>手动模型名<input value={values.model} onChange={(event) => { setManual((current) => ({ ...current, model: true })); update("model", event.target.value); }} placeholder="填写完整模型 ID" /></label>}
+            <div className="model-picker__row">
+              {manualModel ? <label className="model-picker__manual">模型名<input autoFocus aria-label="模型名" value={values.model} onChange={(event) => { setManual((current) => ({ ...current, model: true })); update("model", event.target.value); }} placeholder="填写完整模型 ID" /></label> : <SelectMenu label="模型名" searchable disabled={modelCatalog.isPending} value={values.model} options={[{ value: "", label: "请选择模型或手动填写" }, ...modelNames.map((model) => ({ value: model, label: model }))]} onChange={(value) => { setManual((current) => ({ ...current, model: true })); update("model", value); }} />}
+              <div className="model-picker__actions">
+                <IconButton type="button" label={modelCatalog.isPending ? "正在刷新模型列表" : "刷新模型列表"} disabled={busy || !values.base_url || (isMux && !values.api_key && !sharedKeySaved)} onClick={() => modelCatalog.mutate(catalogRequest)}>{modelCatalog.isPending ? <LoaderCircle className="spin" /> : <RefreshCw />}</IconButton>
+                <IconButton type="button" label={manualModel ? "选择模型" : "手动填写模型名"} aria-pressed={manualModel} onClick={() => setManualModel((current) => !current)}>{manualModel ? <List /> : <Pencil />}</IconButton>
+              </div>
+            </div>
+            {isMux && !values.api_key && !sharedKeySaved && !credentialStatus.isPending && <small className="form-error">{credentialStatus.data?.conflict ? "LocalAiMux 已保存凭据不一致，请在下方填写统一 API Key。" : "请先在下方填写 LocalAiMux API Key。"}</small>}
             {catalogMatches && modelCatalog.error && <small className="form-error" role="alert">{modelCatalog.error.message}</small>}
             {catalogModels && values.model && !catalogModels.some((model) => model.id === values.model) && <small>当前模型未出现在目录中，已保留原值。</small>}
             <small>{catalogModels ? `已读取 ${catalogModels.length} 个模型；选择后请保存。` : "可选择或手动填写；刷新目录不会调用模型。"}</small>
@@ -2122,23 +2149,27 @@ function ModelProfileEditor({
             </p>
           ) : (
             <label className="field-grid__wide">
-              API Key（留空沿用 Keychain）
+              {isMux ? "API Key（LocalAiMux 共享凭据）" : profile?.api_key_saved ? "API Key（留空沿用此模型的 Keychain）" : "API Key"}
               <div className="masked-key">
                 <KeyRound />
                 <input
                   type="password"
+                  autoComplete="new-password"
+                  aria-label={isMux ? "API Key（LocalAiMux 共享凭据）" : undefined}
                   value={values.api_key}
                   onChange={(event) => update("api_key", event.target.value)}
                   placeholder={
-                    profile?.api_key_saved
+                    sharedKeySaved ? "••••••••（已自动使用共享凭据）" : profile?.api_key_saved
                       ? "已保存，留空不修改"
-                      : "真实测试前需要填写"
+                      : "刷新目录、保存或真实测试前填写"
                   }
                 />
               </div>
+              {isMux && <small>{sharedKeySaved ? "已自动使用此 LocalAiMux 地址的共享凭据；填写新 Key 并保存后，同地址模型统一使用。" : "保存后此 LocalAiMux 地址下的模型统一使用该凭据。"}</small>}
             </label>
           )}
         </div>
+        {isMux && <p className="settings-note">LocalAiMux 建议使用“本机模型路由”：按能力目录协商参数；“直连接口”用于普通 OpenAI 兼容服务。本机路由不代表模型在本机推理。</p>}
         {values.connection_type === "LOCAL_ROUTER" && (
           <div className="provider-form__body settings-note" role="status">
             <p>本机地址仅表示路由在本机，模型仍按远程调用管理。已保存模型读取接口能力后，会排队真实调用系统指令传递小样；目录声明与实测结果分别记录，小样通过不会自动解除正式任务的接口门禁。</p>

@@ -347,7 +347,7 @@
 
 # 当前实施状态
 
-> 状态记录日期：2026-10-22。本文唯一记录当前源码能力与自动验证；生产状态只见带原采样日期的 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
+> 状态记录日期：2026-10-23。本文唯一记录当前源码能力与自动验证；生产状态只见带原采样日期的 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
 
 ## 当前冻结范围
 
@@ -357,6 +357,8 @@
 - 源码实现、离线验证、生产加载与真实业务验收分别记录。规格中的待实施项、历史工作包和新草案不自动成为已授权任务。
 
 ## 当前能力
+
+2026-10-23 LocalAiMux共享凭据与模型输入：同Provider/规范化完整服务地址共享Keychain凭据；自动复用一致的历史Key，无凭据或冲突提示填写，不再选择模型凭据。新Key保存后同地址模型与Worker统一优先使用；目录/能力/草稿测试/探测/保存均复用，凭据状态API只返回布尔值，页面显示掩码状态不回传明文。新增草稿选择Mux后自动只读目录，其他服务不自动读取；换地址不携带旧Key。模型框右侧两图标刷新/切换输入，原位手动输入保值，补充接入方式说明。后端全量547、前端34、Ruff/ESLint/类型/隔离构建通过；HEAD隔离提交副本目标回归与构建通过。生产970×876/390×844自动读取49模型、搜索选择Kimi、原位输入/切换保值、缺Key提示及无溢出通过；备份/哈希/服务现场见交接。无迁移、真实模型调用、配置保存或历史数据改写。
 
 2026-10-22 阶段说明留白：阶段表单与说明共用PC 20px/Mobile 16px内边距，底部20px、段落8px，折叠入口40px；重置说明段落默认margin，复用Caption与muted Token，7个阶段同步对齐。当前工作树后端543/前端31、Ruff/ESLint/TypeScript/隔离构建通过；本次提交范围另在HEAD隔离副本通过类型与构建。隔离与生产970×876/390×844验证展开/收起、键盘及自然换行，无横向溢出/框架覆盖层/相关控制台错误；仅浏览读取和折叠，未保存模型设置或发起真实调用。无Schema/API改动；生产保存点与静态资源哈希见交接。其他在途工作包不随本次提交。
 
@@ -5439,7 +5441,7 @@ Worker 启动时及最多每 24 小时执行幂等清理：正文、Segment 文�
 
 模型名使用可搜索的共享 SelectMenu，可从当前值/预置候选或手动刷新的服务目录选择，并保留独立的“手动填写”。刷新不会自动换模型、修改路由或保存配置；目录缺少当前模型时明确提示并保留原值。目录响应只适用于提交时的服务来源、地址、接入方式及填写凭据，连接变化或过期响应不会覆盖新选择。长模型名在按钮中截断、在列表中换行，PC/390px不得撑宽页面。
 
-`POST /api/settings/model-catalog` 接受当前连接草稿与可选 `profile_id`，不要求先选定模型；只读取元数据，没有推理、任务或探测调用。已保存模型留空Key时从Secret Store读取；服务来源或地址origin变化后不得复用旧Key，须填写新连接凭据。返回精确 `models[].id` 与采样时间，不返回Key或完整上游元数据，只审计Profile ID及模型数量。页面不自动刷新，不把目录存在当作业务能力通过；短期结果只保留在页面内，不写localStorage或SQLite配置。
+`POST /api/settings/model-catalog` 接受当前连接草稿与可选 `profile_id`，不要求先选定模型；只读取元数据，没有推理、任务或探测调用。非LocalAiMux已保存模型留空Key时从自身Secret Store读取；服务来源或地址origin变化后不得复用旧Key，须填写新连接凭据。LocalAiMux共享规则见本节下文。返回精确 `models[].id` 与采样时间，不返回Key或完整上游元数据，只审计Profile ID及模型数量。除新增LocalAiMux草稿自动读取目录外，页面不自动刷新，不把目录存在当作业务能力通过；短期结果只保留在页面内，不写localStorage或SQLite配置。
 
 | 连接 | 目录入口 | 已核对的来源 |
 | --- | --- | --- |
@@ -5449,6 +5451,8 @@ Worker 启动时及最多每 24 小时执行幂等清理：正文、Segment 文�
 | LocalAiMux | `GET /v1/models` + `GET /api/chat/models` | `ai/model_catalog.py` 校验两个目录的实际模型ID一致；仅忽略标准目录中 owned_by=localmux 且ID为 free/cheap/balanced/best 的虚拟路由，选择器返回实际模型；逐模型能力复用同一校验 |
 
 后端连接等待上限5秒、读取等待上限20秒、整个读取期限30秒；第二次HTTP等待按剩余总预算收紧，响应上限1MB/1000条，拒绝重复/非法ID、凭据反射、不含凭据的地址校验失败及Mux目录不一致；不跟随重定向、不使用环境代理、不自动重试。超时、HTTP状态错误、实际模型目录不一致与其他异常响应分别返回脱敏错误，保留原模型并允许手动填写。2026-10-12只读采样：Mux冷标准目录10.16秒、随后能力目录0.03秒，两者56个实际ID一致；原5秒读取上限不足。源码修复与部署后现场验收分别记录，不能以离线样例代替。回归入口：`backend/tests/test_model_catalog.py`、`frontend/src/components/ui/SelectMenu.test.tsx`；Browser涵盖选择/搜索/刷新、失败保留、连接变更、手动填写和超长模型名。
+
+LocalAiMux采用同Provider与规范化完整Base URL（协议/Host/有效端口/路径，忽略尾斜线）共享的Keychain凭据，不跨地址发送。优先读共享Key；无共享Key时只读复用该地址下一致的历史模型Key；历史Key冲突或缺失则提示填写统一API Key，无凭据选择步骤。填写新Key并保存后统一供同地址模型、草稿能力/测试/探测与Worker使用；新建模型空Key可沿用已有Key，成功保存持有自己的Secret引用以兼容旧数据，不改写其他历史配置。状态端点`POST /api/settings/model-credentials/status`只返回`api_key_saved/conflict`，Key不回传前端；密码框以掩码占位及说明呈现自动沿用。新增Mux草稿凭据可用时自动读取目录，其他服务仍手动刷新；无凭据先本地提示，不发匿名目录请求。模型选择框与刷新、输入模式两个共享IconButton同排，输入模式在原框位置编辑并保留值；共享SelectMenu搜索/键盘语义保持。DIRECT按普通OpenAI兼容接口发送参数；LOCAL_ROUTER读取能力并协商可选参数、保持业务必需能力门禁，两者不决定模型实际运行位置或费用。回归入口：`backend/tests/test_model_credentials.py`、`backend/tests/test_same_model_replay_config.py`、`frontend/src/features/settings/ModelProfileEditor.catalog.test.tsx`。
 
 ### 3.3 已保存模型能力标签与固定排序（2026-10-13）
 
