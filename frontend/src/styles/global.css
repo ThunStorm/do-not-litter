@@ -124,7 +124,8 @@ svg { flex: 0 0 auto; }
 .session-card input { min-width: 0; height: 46px; padding: 0 13px; border: 0; background: #f7f5f0; outline: 0; }
 .session-card form button { border: 0; background: var(--accent); color: white; }
 .session-card > small { display: block; margin-top: 22px; padding-top: 17px; border-top: 1px solid var(--line-soft); color: var(--muted); line-height: 1.6; }
-.dashboard-grid { display: grid; grid-template-columns: 1.55fr 1fr; gap: 18px; margin-top: 24px; }
+.dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 18px; margin-top: 24px; }
+.dashboard-grid > * { min-width: 0; }
 .pairing-card { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 24px; margin-top: 18px; padding: 17px 20px; border: 1px solid #d7b5af; border-radius: 8px; background: linear-gradient(90deg, #fbf6f2, #fbfaf7); }
 .pairing-card__title { display: flex; min-width: 0; align-items: center; gap: 13px; }
 .pairing-card__title > svg { color: var(--accent); }
@@ -156,8 +157,8 @@ svg { flex: 0 0 auto; }
 .job-list { padding: 5px 18px; }
 .job-row { display: block; padding: 18px 0; border-bottom: 1px solid var(--line-soft); }
 .job-row:last-child { border-bottom: 0; }
-.job-row__heading { display: flex; gap: 12px; justify-content: space-between; }
-.job-row__heading strong { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.job-row__heading { display: flex; min-width: 0; gap: 12px; justify-content: space-between; }
+.job-row__heading strong { flex: 1; min-width: 0; overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .job-row__heading span { flex: 0 0 auto; color: var(--accent); font-size: 11px; }
 .job-row p { margin-top: 8px; }
 .progress-track { overflow: hidden; height: 3px; margin-top: 11px; border-radius: 99px; background: #dedbd5; }

@@ -11,7 +11,9 @@
 - 下一步：需要真实验收时另行授权同模型固定Ground Truth配对AB，不重跑已验官方视频。
 - 禁止：不自动确认POI、不回写旧业务数据、不突破原Job预算；本轮无迁移、真实Provider调用或视频重跑。最终文档提交以本轮Git HEAD为准。
 
-## 生产快照（最新采样2026-10-23 14:22，北京时间）
+## 生产快照（最新采样2026-10-23 15:41，北京时间）
+
+- 2026-10-23 15:41 概览长URL：保存点 `data/backups/dashboard-width-20261023-153729/` 含工作树/HEAD/patch/源码哈希、已验逻辑DB备份、旧新静态与HTTP哈希、回退脚本及Browser截图。与前次发布清单核对前端仅global.css变化；只发布静态，API/Worker未重启且RUNNING、内容/心跳READY（PID47403）。发布前后integrity=ok/FK0/0025、active Job/lease/RUNNING调用0，调用审计仍1482。index SHA256 `3e84e8ef3a79280514f64c94f4480bde3b2751e777e1f160069b1f0ca64185cd`、CSS `assets/index-DUWdGot1.css`/JS `assets/index-ChCzMUFV.js` HTTP哈希匹配；JS内容哈希与前版相同。隔离1277字符URL在1208/970/390px验证截断与列比例，生产1208/390px真实数据无溢出/相关应用错误，未将模拟地址写入生产。无Schema/API变化、真实模型/视频调用或业务写操作。
 
 - 2026-10-23 14:22 LocalAiMux共享凭据与模型输入：保存点 `data/backups/mux-shared-20261023-141202/` 含源码快照、仅本包HEAD隔离提交副本、旧新静态/HTTP哈希、已验逻辑DB及门禁、源文件与静态回退脚本和Browser证据。变更前后端与2026-10-21已部署源码逐项一致；本次仅包内源码变化，无迁移按门禁重载API/Worker。发布前及Browser后活跃Job/lease/调用0、integrity=ok/FK0/0025，业务表（含设置）摘要不变；ExternalCallAudit仍1477。API/Worker RUNNING、内容与新PID47403心跳READY。实际index SHA256 `cffe1203fdc7a39417357e57e307a24aba27c68efda5736122ed5acf88b04496`，JS `assets/index-Cy7H1LMP.js`/CSS `assets/index-DNUqpQRj.css`与HTTP一致。生产970×876/390×844自动凭据、自动只读49模型、搜索/选择qoder/Kimi-K3、右侧图标和原位输入保值、缺Key提示通过，无横向溢出或相关应用错误（扩展消息另计）。未保存新模型、改写Keychain/历史业务或真实调用模型。提交只纳本包，其他在途改动保留。
 
