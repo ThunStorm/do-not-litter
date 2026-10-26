@@ -30,6 +30,7 @@ API 生成或接受 X-Request-ID 并在响应头返回；业务动作关联 syst
 
 - 不记录配对码、Session Cookie、API Key、正文、文件内容、完整个人档案；Secret 仅进 Keychain/Secret Store。URL 保留在 Source 域，HTTP 日志只记路径，不记查询串/请求体。
 - Provider 日志只含 Provider、模型及脱敏摘要；页面与导出共用脱敏层。
+- Ground Map 本地 Claim ID 修复用 `local_id_repair` 保存版本、总数及最多32项字段路径/原因/原编号SHA256/新命名空间编号，原响应仅存哈希；调用审计、应用缓存及缓存命中审计保留同一血缘。`DETERMINISTIC_REPAIRED` 不代表新增模型调用或额外Token，也不代表事实质量通过。结构错误的 `json_error.schema_error` 只含固定类别、可信字段路径、冲突路径及可选编号哈希；原编号仅可进入有界、不可信的重试定位数据，不进入日志/审计。
 - JSONL 按大小轮换；审计保留期由 `app:general.data_retention_days` 控制，默认 90 天，由 Worker 每日维护任务执行清理。
 - 备份 SQLite 要有 WAL/SHM 的一致性快照及永久文件；可再生 JSONL 无强制备份要求。Worker 每日按 `app:general.data_retention_days` 清理过期 `system_events` 与 `external_call_audits`，并记录清理摘要；不得为日志升级直接执行删除审计表的历史 downgrade。
 

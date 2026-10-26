@@ -157,6 +157,8 @@ def cached_json_result(
             "content_length",
             "response_id",
             "parse_quality",
+            "json_repair",
+            "local_id_repair",
             "repair_rules",
             "execution_path",
             "original_result_hash",
@@ -216,6 +218,11 @@ def _record_cache_hit(
             },
             response_meta_json={
                 "execution_path": "CACHE_HIT",
+                **{
+                    key: value
+                    for key, value in (entry.result_json.get("metadata") or {}).items()
+                    if key in {"local_id_repair", "repair_rules", "original_result_hash"}
+                },
                 "parse_quality": (entry.result_json.get("metadata") or {}).get("parse_quality"),
                 "prompt_tokens": usage.get("prompt_tokens", usage.get("prompt_eval_count")),
                 "completion_tokens": usage.get("completion_tokens", usage.get("eval_count")),

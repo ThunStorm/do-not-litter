@@ -72,7 +72,7 @@ class AIWorkloadGateway:
                 if compiled_request:
                     already_decoded = bool(result.metadata.get("canonical_decoded"))
                     result.content = compiled_request.decode(
-                        result.content, namespace_ids=not already_decoded
+                        result.content, namespace_ids=not already_decoded, metadata=result.metadata
                     )
                     result.metadata["canonical_decoded"] = True
                     if not already_decoded:

@@ -40,6 +40,7 @@ def test_remote_first_keeps_eligible_global_backup(
                     "execution_mode": mode,
                     "remote_profile_id": "primary",
                     "retry_count": 0,
+                    "json_retry_count": 0,
                 },
             )
         )

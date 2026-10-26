@@ -9,6 +9,7 @@ from hashlib import sha256
 from typing import Any
 
 from zhijian.ai.reliability import AIProviderError
+from zhijian.ai.structured_ids import ID_REPAIR_VERSION, child_path, repair_claim_ids, schema_issue
 from zhijian.ai.structured_output import parse_json_object
 from zhijian.db.models import Segment
 
@@ -34,18 +35,20 @@ class CompiledRequest:
     stage: str
     targets: set[str] | None = None
 
-    def decode(self, content: str, *, namespace_ids: bool = True) -> str:
+    def decode(
+        self, content: str, *, namespace_ids: bool = True, metadata: dict[str, Any] | None = None
+    ) -> str:
         reverse = {value: key for key, value in self.ids.items()}
 
-        def restore(value: Any, key: str = "") -> Any:
+        def restore(value: Any, key: str = "", path: str = "$") -> Any:
             if isinstance(value, dict):
-                return {field: restore(item, field) for field, item in value.items()}
+                return {field: restore(item, field, child_path(path, field)) for field, item in value.items()}
             if isinstance(value, list):
-                return [restore(item, key) for item in value]
+                return [restore(item, key, child_path(path, index)) for index, item in enumerate(value)]
             if key in SEGMENT_FIELDS | MENTION_FIELDS and isinstance(value, str):
                 canonical = reverse.get(value, value)
                 if canonical not in self.allowed:
-                    raise AIProviderError("AI_PROVIDER_SCHEMA_INVALID", "模型引用未知或越界 Evidence ID")
+                    raise schema_issue("UNKNOWN_EVIDENCE_ID", path, identifier=value)
                 return canonical
             return value
 
@@ -64,19 +67,31 @@ class CompiledRequest:
                 or any(item not in self.targets for item in identifiers)
             ):
                 raise AIProviderError("AI_PROVIDER_SCHEMA_INVALID", "校对输出包含重复或只读上下文 ID")
-        if namespace_ids and self.stage == "GROUND_MAP" and "entities" in payload:
+        if self.stage == "GROUND_MAP" and "entities" in payload:
             # Namespace model-created IDs by stable source interval, never chunk number/split path.
             scope = fingerprint([self.identity, sorted(self.allowed)])[:12]
+            repairs = repair_claim_ids(payload, scope) if namespace_ids else []
             definitions = {"content_unit_id": "content_units", "entity_id": "entities", "claim_id": "claims"}
             local: dict[str, str] = {}
             for field, collection in definitions.items():
-                seen: set[str] = set()
-                for item in payload.get(collection, []):
-                    identifier = str(item.get(field) or "") if isinstance(item, dict) else ""
-                    if not identifier or identifier in seen:
-                        raise AIProviderError("AI_PROVIDER_SCHEMA_INVALID", "局部事实 ID 缺省或重复")
-                    seen.add(identifier)
-                    local[f"{field}:{identifier}"] = f"{scope}:{fingerprint([field, identifier])[:16]}"
+                seen: dict[str, str] = {}
+                for index, item in enumerate(payload.get(collection, [])):
+                    path = f"$.{collection}[{index}].{field}"
+                    if not isinstance(item, dict):
+                        raise schema_issue("INVALID_LOCAL_ITEM", f"$.{collection}[{index}]")
+                    identifier = item.get(field)
+                    if identifier is None or isinstance(identifier, str) and not identifier.strip():
+                        raise schema_issue("MISSING_LOCAL_ID", path)
+                    if not isinstance(identifier, str):
+                        raise schema_issue("INVALID_LOCAL_ID", path)
+                    if identifier in seen:
+                        raise schema_issue(
+                            "DUPLICATE_LOCAL_ID", path, related_path=seen[identifier], identifier=identifier
+                        )
+                    seen[identifier] = path
+                    local[f"{field}:{identifier}"] = (
+                        f"{scope}:{fingerprint([field, identifier])[:16]}" if namespace_ids else identifier
+                    )
 
             references = {
                 "unit_id": "content_unit_id",
@@ -86,19 +101,36 @@ class CompiledRequest:
                 "subject_entity_ids": "entity_id",
             }
 
-            def namespace(value: Any, key: str = "") -> Any:
+            def namespace(value: Any, key: str = "", path: str = "$") -> Any:
                 if isinstance(value, dict):
-                    return {field: namespace(item, field) for field, item in value.items()}
+                    return {
+                        field: namespace(item, field, child_path(path, field))
+                        for field, item in value.items()
+                    }
                 if isinstance(value, list):
-                    return [namespace(item, key) for item in value]
+                    return [namespace(item, key, child_path(path, index)) for index, item in enumerate(value)]
                 field = references.get(key, key)
                 if field in definitions and isinstance(value, str) and value:
                     if f"{field}:{value}" not in local:
-                        raise AIProviderError("AI_PROVIDER_SCHEMA_INVALID", "事实关系指向不存在的实体或单元")
+                        raise schema_issue("UNKNOWN_LOCAL_REFERENCE", path, identifier=value)
                     return local[f"{field}:{value}"]
                 return value
 
             payload = namespace(payload)
+            if repairs and metadata is not None:
+                for repair in repairs:
+                    repair["new_id"] = local[f"claim_id:{repair['new_id']}"]
+                metadata["local_id_repair"] = {
+                    "version": ID_REPAIR_VERSION,
+                    "count": len(repairs),
+                    "items": repairs[:32],
+                    "omitted_items": max(0, len(repairs) - 32),
+                }
+                rules = metadata.setdefault("repair_rules", [])
+                if ID_REPAIR_VERSION not in rules:
+                    rules.append(ID_REPAIR_VERSION)
+                if metadata.get("parse_quality") != "MODEL_REPAIRED":
+                    metadata["parse_quality"] = "DETERMINISTIC_REPAIRED"
         return compact(payload)
 
 
@@ -206,7 +238,7 @@ def compile_request(
         }
     identity = {
         "compiler_version": COMPILER_VERSION,
-        "stage_projection_version": f"{stage}-v1",
+        "stage_projection_version": ID_REPAIR_VERSION if stage == "GROUND_MAP" else f"{stage}-v1",
         "snapshot_identity": snapshot_identity,
         "source_content_hash": fingerprint([[item.id, texts[item.id]] for item in ordered]),
         "short_id_map_fingerprint": fingerprint(ids),

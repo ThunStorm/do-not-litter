@@ -261,7 +261,8 @@ def test_json_retry_retains_all_instructions_before_user():
     assert result.content == '{"ok":true}'
     assert [m["role"] for m in calls[1]] == ["system", "user"]
     assert "Evidence core" in calls[1][0]["content"] and "只返回合法 JSON" in calls[1][0]["content"]
-    assert calls[1][1]["content"] == "id_01"
+    assert calls[1][1]["content"].endswith("id_01")
+    assert "JSON纠错定位数据" in calls[1][1]["content"]
 
 
 def test_probe_uses_optional_profile_limit_instead_of_fixed_64():

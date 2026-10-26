@@ -4,15 +4,17 @@
 
 ## 任务续接
 
-- 目标：统一阶段分批/请求超时入口，补齐deadline与可解释预算预览；无迁移发布。
-- 完成：Stage覆盖模型默认、校对批次Stage优先/旧值回退，v2新提交/明确重跑，旧快照不改；兼容笔记/地点/视觉期限补齐。论证在ai-gateway/04-stage-policy.md。
-- 验证：后端558/前端36、Lint/类型/隔离与HEAD副本构建通过；隔离保存/刷新、生产970/390px只读通过。已部署；本包提交/推送结果见最终交付与保存点release-result.json。
-- 未闭环：未真实调用模型验证660秒效果或上游限时；既有真实JSON纠错质量、取消、地图F等未扩大验收。
-- 下一步：如需真实验收，明确代表视频、模型与调用范围后执行。
-- 文件：ai/stage_limits.py、ai/job_config.py、services/video_support.py、SettingsPage.tsx、test_stage_limits.py。
-- 禁止：不自动重跑视频/确认POI/改历史数据或凭据；无快照历史任务保留兼容规则。
+- 目标：发布并交付Ground Map局部ID恢复，不扩大真实模型/视频验收。
+- 完成：无歧义Claim ID本地修复；实体/单元冲突拒绝，精确诊断、原预算纠错及审计/缓存血缘闭环。新增20项，工作树后端589/前端43及Lint/类型/隔离构建及提交副本目标72项通过；真实响应40条Claim离线保留，修复1处，调用0。
+- 发布：无迁移重载API/Worker，0025、内容/新PID心跳READY，业务/静态哈希不变；保存点data/backups/claim-id-recovery-20261026。提交含JSON纠错依赖，隔离验证及提交/推送结果见保存点release-result.json；其他在途改动保留。
+- 未闭环：真实恢复率、歧义纠错质量及既有取消/地图F未验。原任务部署前19:24已PARTIAL_SUCCESS，本次未重跑。
+- 下一步：明确视频、模型与调用范围后验实际恢复质量。
+- 文件：ai/structured_ids.py、request_compiler.py、json_recovery.py、services/video_support.py；契约ai-gateway/04-stage-policy.md。
+- 禁止：不自动调用模型、重跑视频、确认POI、迁移或改历史/凭据；旧快照、显式0重试与REMOTE_ONLY保持。
 
-## 生产快照（最新采样2026-10-23 16:49，北京时间）
+## 生产快照（最新采样2026-10-26 19:59，北京时间）
+
+- 2026-10-26 19:59 局部ID恢复：保存点data/backups/claim-id-recovery-20261026含485文件源码tar/patch/HEAD/哈希、已验逻辑DB、旧静态及HTTP哈希、6文件runtime-changes与带漂移/空闲门禁的rollback.py。对最近发布108文件清单核对，运行源码仅本包5文件变化及新增structured_ids.py；无迁移重载API/Worker。前后active Job/lease/在途调用0、integrity=ok/FK0/0025，业务表（含非runtime设置、历史任务、缓存及调用审计）摘要一致，ExternalCallAudit=1746。API PID63636/Worker PID63681 RUNNING，内容与新PID心跳READY；原index SHA256 c676fb6adbb82ac397b30b4a86e968400644b2389b23e242edcdb3b3a3f75999及JS/CSS HTTP哈希不变。发布工作树后端589/前端43及Lint/类型/隔离构建通过，无前端交互变化，未扩大Browser验收。指定任务在发布前已续跑一次并于19:24 PARTIAL_SUCCESS，本次API/DB与备份一致；未触发真实Provider/视频/POI操作。准确提交范围含必要已上线JSON纠错依赖，隔离副本目标72项及Ruff通过，提交/推送结果见保存点release-result.json；其他在途改动不纳入。
 
 - 2026-10-23 16:49 阶段预算统一：保存点 `data/backups/stage-budgets-20261023-161625/` 含工作树/HEAD/patch/源码清单、仅本包隔离副本、已验逻辑DB、旧新静态/HTTP哈希、源文件与静态回退脚本及隔离/生产Browser证据。变更前源码逐项匹配上一发布清单；无迁移按门禁重载API/Worker。发布前及Browser后active Job/lease/RUNNING调用0、integrity=ok/FK0/0025，业务表含设置摘要一致、ExternalCallAudit仍1486。API/Worker RUNNING，内容与新PID17184心跳READY。index SHA256 `d8da9ff8a1393f055930ee8117f301c5f446e60c1907cdae77218828c0733068`，JS `assets/index-DPopxQaf.js`/CSS `assets/index-DUWdGot1.css`与HTTP一致。隔离970/390px保存及刷新通过；生产相同断点只读预算预览、入口合并与阶段说明通过，无溢出或相关应用错误（浏览器扩展警告另计）。生产设置/历史Job/笔记未改，无真实Provider/视频/POI操作；新任务规则不自动套用旧执行快照。仅提交本包，其他在途工作保留。
 

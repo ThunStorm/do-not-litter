@@ -12,6 +12,7 @@ from urllib.parse import urlsplit
 import httpx
 
 from zhijian.ai.interface_contract import InterfaceCapabilities, normalize_messages, router_payload
+from zhijian.ai.json_recovery import json_error_details, targeted_json_retry
 from zhijian.ai.reliability import (
     AIProviderError,
     ModelReliabilityPolicy,
@@ -123,6 +124,8 @@ def provider_error_details(exc: Exception) -> dict[str, Any]:
         retry_after = headers.get("retry-after")
         if retry_after:
             details["retry_after"] = str(retry_after)[:32]
+    if isinstance(getattr(exc, "json_error", None), dict):
+        details["json_error"] = exc.json_error
     classified = classify_provider_error(exc)
     details["code"] = classified.code
     reliability = getattr(exc, "reliability_metadata", None)
@@ -568,6 +571,7 @@ class FallbackLLMProvider:
                     "AI_PROVIDER_ATTEMPT_BUDGET", "本次模型调用已达到尝试上限", switch_model=True
                 )
             attempt += 1
+            input_chars = sum(len(str(message.get("content") or "")) for message in call_messages)
             semaphore = None
             wait_before = 0.0
             circuit_state = "CLOSED"
@@ -588,7 +592,17 @@ class FallbackLLMProvider:
                 if route == "fallback" and self.before_fallback:
                     self.before_fallback()
                 if self.before_attempt:
-                    self.before_attempt(provider, model, call_messages)
+                    try:
+                        self.before_attempt(provider, model, call_messages)
+                    except AIProviderError as budget_error:
+                        if json_retries and budget_error.code == "AI_STAGE_INPUT_BUDGET":
+                            raise AIProviderError(
+                                "AI_JSON_REPAIR_INPUT_BUDGET",
+                                "JSON修复上下文超过输入预算",
+                                switch_model=True,
+                                cause=budget_error,
+                            ) from budget_error
+                        raise
                 attempt_metadata = self._attempt_metadata(provider, policy)
                 if self.on_attempt_start:
                     attempt_id = self.on_attempt_start(
@@ -645,6 +659,8 @@ class FallbackLLMProvider:
                 if error.code == "AI_BUDGET_EXCEEDED":
                     raise error from exc
                 is_json_error = error.code in {"AI_PROVIDER_INVALID_JSON", "AI_PROVIDER_SCHEMA_INVALID"}
+                if is_json_error and result is not None:
+                    error.json_error = json_error_details(result.content, error)
                 retry_json = is_json_error and json_retries < policy.json_retry_count
                 retry_http = (
                     not is_json_error
@@ -655,17 +671,10 @@ class FallbackLLMProvider:
                 retry = retry_json or retry_http
                 if retry_json:
                     json_retries += 1
-                    repair = {
-                        "role": "system",
-                        "content": (
-                            "上一次响应无法被解析。只返回合法 JSON 对象，不要 Markdown、"
-                            "解释或代码块，并保持原字段契约。"
-                        ),
-                    }
-                    prefix = 0
-                    while prefix < len(messages) and messages[prefix].get("role") == "system":
-                        prefix += 1
-                    call_messages = normalize_messages([*messages[:prefix], repair, *messages[prefix:]])
+                    diagnostic = getattr(error, "json_error", {})
+                    call_messages = normalize_messages(
+                        targeted_json_retry(messages, result.content if result else "", diagnostic)
+                    )
                 elif retry_http:
                     http_retries += 1
                 circuit_state = ReliabilityGuards.failure(key, policy, error)
@@ -686,6 +695,11 @@ class FallbackLLMProvider:
                     ),
                     "recovery": "retry_same_model" if retry_json else None,
                     "json_attempt": json_retries or None,
+                    **(
+                        {"json_error": error.json_error}
+                        if is_json_error and hasattr(error, "json_error")
+                        else {}
+                    ),
                     "remote_execution_state": "UNKNOWN"
                     if error.code
                     in {"AI_PROVIDER_TIMEOUT", "AI_PROVIDER_READ_TIMEOUT", "AI_STAGE_WALL_TIME_EXCEEDED"}
@@ -723,6 +737,11 @@ class FallbackLLMProvider:
                 ReliabilityGuards.success(key)
                 if json_retries:
                     result.metadata["parse_quality"] = "MODEL_REPAIRED"
+                    result.metadata["json_repair"] = {
+                        "strategy": "targeted_reask",
+                        "attempts": json_retries,
+                        "original_error": self._attempt_context.get("json_error", {}),
+                    }
                 result.metadata = {
                     **result.metadata,
                     "circuit_state": circuit_state,
@@ -759,6 +778,7 @@ class FallbackLLMProvider:
     def _call(self, method: str, messages: list[dict[str, str]]) -> LLMResult:
         if not self._legacy_reliability:
             self.primary_disabled = False
+            self._attempt_context = {}
         free_tier = "FREE_TIER" in {self.primary_reliability.mode, self.fallback_reliability.mode}
         self._remaining_attempts = (
             4

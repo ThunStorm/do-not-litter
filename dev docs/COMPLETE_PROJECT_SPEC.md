@@ -260,6 +260,7 @@
 | 笔记归纳恢复 | `GLOBAL_SYNTHESIS` 是内部阶段契约；版本有效的 `FAIL` 仍拦截，旧版笔记小样/过期结果为未验证而非通过。显式阶段选定或非AUTO首选槽位留空继承通用主模型可尝试 `NOT_TESTED`，不扩大自动候选/备用声明；保存/执行/恢复统一判定，同模型续跑刷新最新评估；每个阶段重新核对同身份模型最新已保存能力结果，执行参数与历史快照保留。小样允许合并/拆分章节，严格验证来源和事实证据，歧义不误判失败。DeepSeek 笔记默认关闭思考，保留原 JSON/Evidence/预算；续跑仍须 lease 释放、上游有效且无待执行完整重跑 | `ai-gateway/01-architecture-models.md`、`services/video_support.py`、`services/job_replay.py`、`jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md` |
 | 请求优化与能力诊断 | 短 ID 仅在模型边界，Snapshot/内容/编译器/投影/映射绑定缓存；原文/quote 不变，未知或越界引用拒绝，校对只返回 target_ids；不静默截尾；格式 smoke 不授业务 PASS，模型修复默认关闭；解析质量与回退/重试/缓存分开，等待后复核 Deadline；POI 空证据/跨来源不得自动确认，合成字节收益不冒称真实 Token/质量 | `ai/request_compiler.py`、`benchmark/RELEASE_ACCEPTANCE.md` |
 | AI Gateway 稳定性 | 精确 Cache hit 不重复调用 Provider；`force_regenerate` 绕过命中并保留结果链；本机 ASR/文本/视觉/模型测试必须跨 API/Worker 进程串行；本地模型测试不论直连/入口，每子调用结束后至少5秒，配置/RPM更长取更长，共享完成时间并统一分组锁→硬件锁顺序；LOCAL/REMOTE Token 分账只依据审计路由位置；Cache hit 不计模型调用或预算；Ollama `keep_alive: 0` 与本地重任务低并发不得回退；未经真实 E2E 与 Benchmark Gate 不得宣称生产验证 | `ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md`、`ai/resource_manager.py`、`ai/budget.py`、`ai-gateway/AI_RUNTIME_AND_PROVIDERS.md` |
+| Ground Map 局部 ID 恢复 | 仅无反向引用的缺省/重复 Claim ID 可确定性重编号，保留全部事实与原句/归属；实体/单元冲突、非法条目、越界引用仍拒绝，缓存命中重新校验且修复血缘幂等。结构错误只记安全路径/编号哈希，纠错不改变显式0、备用语义或预算；不回写旧任务、不冒称语义质量通过 | `ai/structured_ids.py`、`ai/request_compiler.py`、`ai/json_recovery.py`、`tests/test_ground_map_id_recovery.py` |
 | 可取消本地路由 HTTP | LOCAL_ROUTER 的 `trust_env=False` 在异步路径必须配置到 AsyncClient 构造函数；成功请求和 DIRECT/LOCAL_ROUTER 取消均须通过离线回归。客户端取消不等于上游停止，Ollama 显式清理缺口不得被健康或 Mock 测试抹掉 | `providers/llm.py`、`tests/test_local_router_contract.py`、`tests/test_job_runtime_optimization.py`、`ai-gateway/AI_RUNTIME_AND_PROVIDERS.md` |
 | 任务控制 | 当前标记只属于运行中的当前 JobStep；终态不固定高亮最后一步；时间线按 Pipeline 排序、阶段中文化并显示步骤用时；普通步骤 90 秒、LLM 步骤 500 秒预警，900 秒才终止；模型/重试/资源锁等待与 ASR 每 250ms 观察取消，ASR 每 30 秒报告等待，确认停止前不开始重跑 | `jobs/MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md`、`jobs/TASK_SUMMARY_AND_PARTIAL_SUCCESS_SPEC.md`、`jobs/TASK_STATUS_AND_BEIJING_TIME_SPEC.md` |
 | Token 用量 | 实测字段与本地字符估算/未知独立；缺省不冒充 0，失败输出不编造、Cache 不重复计消耗；估算参与预算，历史 Audit 只读推导不回填；超时不重复相同模型请求，备用受路由/能力/预算门禁约束 | `ai/token_usage.py`、`operations/LOGGING.md#41-token-口径2026-10-08` |
@@ -348,7 +349,7 @@
 
 # 当前实施状态
 
-> 状态记录日期：2026-10-23。本文唯一记录当前源码能力与自动验证；生产状态只见带原采样日期的 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
+> 状态记录日期：2026-10-26。本文唯一记录当前源码能力与自动验证；生产状态只见带原采样日期的 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
 
 ## 当前冻结范围
 
@@ -358,6 +359,8 @@
 - 源码实现、离线验证、生产加载与真实业务验收分别记录。规格中的待实施项、历史工作包和新草案不自动成为已授权任务。
 
 ## 当前能力
+
+2026-10-26 Ground Map 局部ID恢复：按[阶段恢复流程](ai-gateway/04-stage-policy.md#ground-map-局部-id-恢复流程与实施计划2026-10-26)先落计划后实施。仅无反向引用的缺省/重复Claim ID本地确定性重编号，保留全部事实、引文及归属；实体/单元冲突、非法条目与越界引用仍拒绝，完整既有Evidence门禁继续执行。结构错误新增精确路径/冲突位置与安全编号哈希，纠错仅携带有界用户定位数据；审计/缓存保留修复版本及最多32项血缘，缓存命中重新检查ID且不重复修复。仅升级Ground Map编译投影，不回写旧任务或语义Artifact，不增加默认重试或改变REMOTE_ONLY备用关系。新增20项回归，完整工作树全量后端589/前端43、Ruff/ESLint/TypeScript及隔离构建通过；准确提交副本目标72项及Ruff通过；已保存真实失败响应只读离线核对哈希一致，40条Claim全部保留并修复1处重复，ID稳定与缓存规范结果幂等通过，真实模型调用0。该样本仅证明编号恢复，不证明全部语义/POI质量；无Schema、历史改写、配置保存或视频重跑；后续授权发布与交付结果见[交接](CURRENT_HANDOFF.md)。
 
 2026-10-23 阶段分批/时限统一：校对字符预算与Segment数并入阶段高级参数，旧API/配置保留回退；新任务及有快照任务明确重跑使用limits_policy_version=2，Stage显式超时覆盖模型默认，阶段/Job剩余时限始终硬上限，旧快照保留旧取小与分批行为，不自动改历史/重跑。后端共用解析器提供未保存草稿只读预算预览，显示候选单次时限/来源与初始硬上限；校对/地图/归纳分包生效，兼容笔记/强制地点重提取/视觉事实补齐deadline，调用审计保留timeout_source。界面明确提取地点由证据地图执行、地点物化/笔记兼容路径及截图理解预留策略，模型超时标为默认。新增11后端及2前端回归，后端全量558/前端36、Ruff/ESLint/类型/隔离构建通过；仅本包HEAD副本目标回归/构建通过。隔离970/390px保存660/3000/16并刷新、手机保存700通过；生产同断点只读显示地图660/阶段1200/任务1800、校对旧值5000/24，零溢出/相关应用错误。无Schema迁移或生产配置保存，未真实调用模型/重跑视频；备份/服务/HTTP哈希见交接。完整决策见[阶段预算契约](ai-gateway/04-stage-policy.md#分批与请求时限统一规则2026-10-23)。
 
@@ -8023,6 +8026,7 @@ class AIStagePolicy(BaseModel):
     # Runtime
     timeout_seconds: int | None = None
     retry_count: int | None = None
+    json_retry_count: int | None = None
 
     # Quality / Escalation
     confidence_threshold: float | None = None
@@ -8182,6 +8186,7 @@ StageParameterSpec(
         "thinking",
         "timeout_seconds",
         "retry_count",
+        "json_retry_count",
         "confidence_threshold",
         "escalation_threshold",
         "chunk_size",
@@ -8386,9 +8391,9 @@ cache
 
 LOCAL_FIRST/REMOTE_FIRST 优先使用相反位置候选作为备用；没有相反位置候选时，保留全局 model-routing 已保存且符合当前阶段能力的 fallback_id。候选须启用、不同于主模型且能力 Probe 不为 FAIL；不自动扩大未声明的能力。LOCAL_ONLY/REMOTE_ONLY 和 Ground Map semantic escalation 不采用此回退。Job 使用提交时快照中的全局备用，修改当前 Settings 不改旧 Job 的备用。参数与验收见[订阅 CLI 稳定性](ai-gateway/LOCAL_ROUTER_PROVIDER_COMPATIBILITY_SPEC.md#12-订阅-cli-稳定性实施与验收2026-10-08)。
 
-## 阶段重试上限补充（2026-10-10）
+## 阶段独立重试预算（2026-10-21 修订）
 
-显式 Stage `retry_count` 优先于 Model Profile：同时限制 HTTP 重试及 JSON 修复重试，JSON 上限取 Profile 与 Stage 的较小值。因此 `retry_count=0` 禁止两类模型重发；没有阶段覆盖时沿用 Profile。确定性 JSON 规范化不算模型重试，最多两个多余尾部闭合括号只在完整对象已经可解析时移除；不丢弃第二个文档或额外字段，修复后继续完整 Schema/Evidence 校验并记录规则。历史失败/修复审计不回填。
+Stage `retry_count`只覆盖HTTP重试，`json_retry_count`独立覆盖JSON格式/结构重试；两者留空分别继承同身份Model Profile，显式0只关闭对应类别。旧Stage没有json_retry_count时不再通过HTTP重试值间接关闭JSON恢复；需要禁用JSON重发须显式json_retry_count=0。DIRECT仍可显式配置JSON重试，不因切换STANDARD/GUARDED/FREE_TIER自动启用。两类实际调用均受单批尝试、阶段输入/墙钟与Job累计硬预算约束，预算压力仍可同时关闭重发。确定性 JSON 规范化不算模型重试，最多两个多余尾部闭合括号只在完整对象已经可解析时移除；不丢弃第二个文档或额外字段，修复后继续完整 Schema/Evidence 校验并记录规则。历史失败/修复审计不回填。
 
 
 ## 正常批次与调用经验隔离（2026-10-12）
@@ -8406,6 +8411,30 @@ LOCAL_FIRST/REMOTE_FIRST 优先使用相反位置候选作为备用；没有相�
 笔记分包保留256 Token基础余量，按每事实384 Token有界估算，结合输入容量形成初始包；真正正文截断再自适应拆分，阶段额度随叶子批次增长。首包Provider失败且无有效AI章节必须暂停，不能遍历大量熔断包并把事实提纲标成AI归纳成功；已有有效AI章节时保留混合结果和未归纳范围。历史确定性提纲可以显式续跑笔记阶段，沿用原模型身份并刷新该模型参数。
 
 保护模式在等待资源/任务检查后、实际发起Provider调用前再次核对同入口间隔；预约槽位晚到不能压缩下一次实际发出的间隔。取消和阶段/任务墙钟在额外等待后仍复核，DIRECT不借用免费入口等待/熔断。手动测试/探测也关闭思考并按实际入口协议发送，使用独立的跨进程排队与本地完成后冷却。
+
+
+### 定点JSON恢复与审计（2026-10-21）
+
+JSON格式或结构错误可在同模型上限内重答。保持原始系统指令与完整Evidence，增加可信格式约束和用户角色的限长失败片段/错误行列，不增加assistant历史轮次，不把失败输出作为事实来源。只发送最多320字符错误片段，既有输入预算校验仍执行；修复上下文超输入预算时不发该修复调用，可用原始输入交已配置备用，不能绕过Job/墙钟/总尝试硬限制。超时、截断和思考预算错误不进入JSON恢复。
+
+不猜测性改写未转义引号，不改变逐字Evidence；已有确定性规范化保持。原创摘要可使用中文引号，原句的英文引号只能按JSON编码转义。模型修复成功仍走完整Schema/ID/Quote/覆盖门禁，记录MODEL_REPAIRED、定点重答策略与原失败响应哈希；失败记录行/列/位置和哈希，不把响应全文写入审计或日志。每个新逻辑调用清理上一次修复上下文，重试输入字符数按实际消息计量，缓存保留恢复血缘。
+
+
+### Ground Map 局部 ID 恢复流程与实施计划（2026-10-26）
+
+目标：避免无歧义的 Claim 编号缺省或重复使整个任务失败；不改事实、Evidence、实体归属、历史任务或重试默认值。触发样本为同一响应两条不同事实共用 `claim_23`；仅本地编号处理不增加 Provider 调用或 Token。
+
+实施顺序：
+1. 在模型响应编译边界区分缺省、重复及非法 ID，诊断给出可信错误类别、JSON 字段路径和首次冲突路径；审计只保留编号哈希，不保存原编号或正文。
+2. 仅当当前输出没有 Claim 反向引用时，为缺省或重复 Claim ID 分配来源范围内确定性的唯一编号，保留全部事实及原句、Segment 和实体/单元引用。实体或单元 ID 冲突、未知引用、非对象条目仍拒绝；不合并记录、不猜测归属。已有合法编号沿用现有命名空间转换。
+3. 本地修复后继续既有 Schema、ID、逐字引文和覆盖门禁；记录修复版本、数量、有界逐项路径/原因/原编号哈希/新编号及原响应哈希，并经调用审计与缓存保留。缓存重读不重复修复；只升级 Ground Map 编译投影身份，隔离新旧原始结果缓存，已有语义 Artifact 不回写或自动重跑。
+4. 对不能确定性恢复的结构错误，复用现有 `json_retry_count`，将字段路径及至多320字符相关错误数据放入不可信用户定位包，保留完整原始证据。显式0仍禁止重发；输入、次数、Token、阶段/Job时限与取消门禁保持；`REMOTE_ONLY` 的备用语义不改。
+
+验收：缺省/重复 Claim 在单次模型响应内修复、两条事实均保留；相同输入/来源输出稳定且缓存重读幂等；反向引用、实体/单元重复、越界 Evidence 和无效引文不会被修复绕过；诊断不泄露正文/原编号且精准定位后部条目；纠错0/1、输入预算、失败备用与恢复血缘按现有上限执行。增加合成回归，并对已保存真实失败响应做只读离线验证；最后一次全量后端/前端验证。无 Schema、前端交互、真实 Provider 调用、视频重跑、生产配置保存、部署、提交或推送。
+
+### 阶段模式与备用提示（2026-10-21）
+
+设置页五种模式显示中文与枚举；模式变化即时说明首选位置及备用关系。LOCAL_ONLY/REMOTE_ONLY 不做失败切换，即使通用备用同位置也不使用；LOCAL_FIRST/REMOTE_FIRST 优先相反位置备用，无该候选时才保留合格且不同于主模型的通用备用。AUTO 由阶段/质量/预算选路，不保证沿用全局主备顺序。两槽命名为本地/远程候选；留空仅从通用主备中按位置/能力筛选，不遍历全部模型。LocalMux 回环地址与模型实际运行位置分开说明；Ground Map 歧义升级仍单独使用远程且无通用回退。候选来源/能力/历史任务快照边界按需展开。本次只改说明，不改 resolver、保存字段、默认模式、模型参数或现存任务。
 
 ## 分批与请求时限统一规则（2026-10-23）
 
@@ -10638,6 +10667,7 @@ API 生成或接受 X-Request-ID 并在响应头返回；业务动作关联 syst
 
 - 不记录配对码、Session Cookie、API Key、正文、文件内容、完整个人档案；Secret 仅进 Keychain/Secret Store。URL 保留在 Source 域，HTTP 日志只记路径，不记查询串/请求体。
 - Provider 日志只含 Provider、模型及脱敏摘要；页面与导出共用脱敏层。
+- Ground Map 本地 Claim ID 修复用 `local_id_repair` 保存版本、总数及最多32项字段路径/原因/原编号SHA256/新命名空间编号，原响应仅存哈希；调用审计、应用缓存及缓存命中审计保留同一血缘。`DETERMINISTIC_REPAIRED` 不代表新增模型调用或额外Token，也不代表事实质量通过。结构错误的 `json_error.schema_error` 只含固定类别、可信字段路径、冲突路径及可选编号哈希；原编号仅可进入有界、不可信的重试定位数据，不进入日志/审计。
 - JSONL 按大小轮换；审计保留期由 `app:general.data_retention_days` 控制，默认 90 天，由 Worker 每日维护任务执行清理。
 - 备份 SQLite 要有 WAL/SHM 的一致性快照及永久文件；可再生 JSONL 无强制备份要求。Worker 每日按 `app:general.data_retention_days` 清理过期 `system_events` 与 `external_call_audits`，并记录清理摘要；不得为日志升级直接执行删除审计表的历史 downgrade。
 

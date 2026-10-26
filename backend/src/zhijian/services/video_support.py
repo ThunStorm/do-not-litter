@@ -895,6 +895,7 @@ def provider_for_role(
                         "max_output_tokens": resolved_policy.max_output_tokens,
                         "timeout_seconds": resolved_policy.timeout_seconds,
                         "retry_count": resolved_policy.retry_count,
+                        "json_retry_count": resolved_policy.json_retry_count,
                         "confidence_threshold": resolved_policy.confidence_threshold,
                         "escalation_threshold": resolved_policy.escalation_threshold,
                         "domain": resolved_policy.domain,
@@ -949,6 +950,9 @@ def provider_for_role(
                 key: result_metadata[key]
                 for key in (
                     "parse_quality",
+                    "json_error",
+                    "json_repair",
+                    "local_id_repair",
                     "repair_rules",
                     "response_keys",
                     "schema_defaults",
@@ -1062,8 +1066,9 @@ def provider_for_role(
                 resolved = replace(
                     resolved,
                     retry_count=resolved_policy.retry_count,
-                    json_retry_count=min(resolved.json_retry_count, resolved_policy.retry_count),
                 )
+            if resolved_policy and resolved_policy.json_retry_count is not None:
+                resolved = replace(resolved, json_retry_count=resolved_policy.json_retry_count)
             if budget_pressure:
                 resolved = replace(resolved, retry_count=0, json_retry_count=0)
             return resolved

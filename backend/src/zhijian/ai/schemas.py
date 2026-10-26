@@ -108,6 +108,7 @@ class AIStagePolicy(BaseModel):
     wall_time_seconds: int | None = Field(default=None, ge=5, le=3600)
     max_attempts: int | None = Field(default=None, ge=1, le=20)
     retry_count: int | None = Field(default=None, ge=0, le=3)
+    json_retry_count: int | None = Field(default=None, ge=0, le=3)
     confidence_threshold: float | None = Field(default=None, ge=0, le=1)
     escalation_threshold: float | None = Field(default=None, ge=0, le=1)
     context_strategy: str | None = Field(default=None, max_length=80)

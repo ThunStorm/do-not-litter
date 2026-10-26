@@ -23,6 +23,7 @@ _COMMON = frozenset(
         "wall_time_seconds",
         "max_attempts",
         "retry_count",
+        "json_retry_count",
         "confidence_threshold",
         "escalation_threshold",
         "domain",
