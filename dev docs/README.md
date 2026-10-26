@@ -1,6 +1,6 @@
 # 文档目录与维护规则
 
-> 目录核对日期：2026-10-14。外部读者先看 [项目概览](../README.md)，开发 Agent 先看 [CODEX_CONTEXT.md](CODEX_CONTEXT.md)。本次同步文档清单、源码契约与历史归档，不重新授予业务验收。
+> 目录核对日期：2026-10-27。外部读者先看 [项目概览](../README.md)，开发 Agent 先看 [CODEX_CONTEXT.md](CODEX_CONTEXT.md)。本次同步文档清单、源码契约与历史归档，不重新授予业务验收。
 
 ## 1. 谁读什么，读到哪里停止
 
@@ -8,6 +8,7 @@
 | --- | --- | --- |
 | 外部了解项目 | 根 README → 有需要再选 PRODUCT_REQUIREMENTS 或 SYSTEM_ARCHITECTURE 的相关章 | 能说明用途、架构、支持范围与限制 |
 | Codex 继续开发 | AGENTS → CODEX_CONTEXT → 当前状态 → 相关冻结行 → 一个专项分篇 | 能说明目标、现状、代码位置、约束与验收 |
+| 存储 / 文件日志 | [数据目录与日志生命周期](operations/STORAGE_AND_LOG_LIFECYCLE.md)；原计划归入history/planning | 能确认生效根、维护门禁与独立验收边界 |
 | 运维 / 部署 | CURRENT_HANDOFF → DEPLOYMENT_OPTIONS 或 deploy/macos/README | 已区分历史快照与本次现场证据 |
 | 审计 / 追溯 | 当前状态 → 指定 history 章节 / ADR | 得到所需历史证据，不扫描全部历史 |
 | 对外完整导出 | 构建 COMPLETE_PROJECT_SPEC | 只生成，不把合订本加载进 Agent 上下文 |
@@ -40,7 +41,8 @@
 | ai-gateway/ | Gateway 分篇、模型与 Prompt、运行配置、AI 验收 |
 | operations/ | 部署、日志、运维交互、运行监控 |
 | testing/、benchmark/ | 测试策略与样本说明；机器可读验收样本 |
-| planning/ | 待办池、未来路线与[字幕一致性优化方案](planning/VIDEO_TRANSCRIPT_ALIGNMENT_OPTIMIZATION_PLAN.md)；不自动授权实施 |
+| design/ | 前端视觉设计契约；设计资源仍在仓库 design/ui/ |
+| planning/ | 待办池、未来路线、[字幕一致性优化方案](planning/VIDEO_TRANSCRIPT_ALIGNMENT_OPTIMIZATION_PLAN.md)、[多平台链接 Adapter 调研计划](planning/SOCIAL_LINK_ADAPTER_FEASIBILITY_PLAN.md)；不自动授权实施 |
 | history/ | 历史实施记录和已覆盖的旧计划；仅追溯时读取 |
 
 | 领域 | 文档与职责 |
@@ -115,3 +117,7 @@
 本次设置落在仓库 AGENTS.md，未更改用户全局配置、模型或推理档，也未设置会截断安全指令的硬 token 限制。按 [OpenAI 官方 AGENTS.md 文档](https://learn.chatgpt.com/docs/agent-configuration/agents-md)，仓库指令在运行开始时加载；建议在该仓库新建任务使用新规则。本轮未额外启动付费模型任务来测试加载。
 
 2026-10-14 清理：已实施的 Z0–Z7 与标题时间证据计划归入 history/planning，未闭环的真实验收保留在当前状态/验收门禁；保留 ASR 与字幕对齐未完成计划及原有分篇索引。manifest 补齐当前专项、Benchmark 与历史文件；移除误跟踪的 Python 字节码，生成脚本仍保留。
+
+2026-10-20 整理：地图修复与演进计划落入[当前计划](planning/MAP_EXPERIENCE_REPAIR_AND_EVOLUTION_PLAN.md)；旧生产快照归入[历史快照](history/PRODUCTION_SNAPSHOTS.md)，较早实施过程移入既有实施历史。主题索引保留，历史证据不删除，不把未来计划作为本轮自动授权。
+
+2026-10-27 整理：两份已实施计划归入history/planning，稳定存储契约归入operations，地点态度归入旅行领域；保留未完成的地图F/社交平台/字幕计划。旧生产现场继续按原日期归档，export-evaluation-doc仅本地。

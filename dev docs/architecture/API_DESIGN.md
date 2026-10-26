@@ -439,3 +439,7 @@ API 返回给产品前端的是 ViewModel，而不是 ORM Row。
 - 未授权请求统一返回稳定错误码 `AUTH_REQUIRED` / `AUTH_INVALID`。
 
 未来远程访问再引入完整认证。
+
+## 存储维护与作者态度（2026-10-27）
+
+Session保护的GET /api/settings/storage返回当前根/加载代次、后台方案与日志维护结果；POST /plan只启动受限本机清点并保存待应用方案；POST /logs/preview与/logs/apply以清单token约束策略应用，不提供任意shell或请求内切库。详见[存储契约](../operations/STORAGE_AND_LOG_LIFECYCLE.md)。地点/审核/地图DTO新增可选recommendation_summary，UNKNOWN为兼容默认；共享投影不改历史。确认位置与作者态度、个人偏好独立，详情保留所有有效态度来源的笔记链接。

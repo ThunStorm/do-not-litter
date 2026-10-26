@@ -197,6 +197,16 @@ def model_test_worker_loop(factory, owner, settings, stopped):
     with ThreadPoolExecutor(max_workers=MAX_PARALLEL, thread_name_prefix="model-test") as pool:
         running = {}
         while not stopped.is_set():
+            from zhijian.core.storage import read_json
+
+            if read_json(settings.storage_config.with_name("maintenance-state.json")).get("stage") in {
+                "COPYING",
+                "SWITCHED",
+                "VERIFYING",
+                "FAILED",
+            }:
+                stopped.wait(0.5)
+                continue
             for future in list(running):
                 if future.done():
                     try:

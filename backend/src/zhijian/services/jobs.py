@@ -6,6 +6,8 @@ from pathlib import Path
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
+from zhijian.core.config import Settings, get_settings
+from zhijian.core.storage import gated, maintenance_lock, resolve_ref
 from zhijian.core.time import as_utc, utc_now
 from zhijian.db.models import ExternalCallAudit, Job, JobStep, JobStepArtifact
 from zhijian.domain.enums import JobStatus
@@ -23,14 +25,54 @@ def purge_expired_step_artifacts(db: Session) -> int:
             JobStepArtifact.replayable_until <= utc_now(),
         )
     ).all()
-    for artifact in expired:
-        cache_path = artifact.artifact_ref_json.get("cache_path")
-        if cache_path:
-            Path(str(cache_path)).unlink(missing_ok=True)
-        artifact.status = "EXPIRED"
-    if expired:
-        db.commit()
-    return len(expired)
+    settings = get_settings()
+    database = db.get_bind().url.database
+    if database and Path(database).resolve() != settings.database_path.resolve():
+        root = Path(database).resolve().parent
+        settings = Settings(
+            _env_file=None, data_dir=root, storage_config=root / "maintenance/control/storage.json"
+        )
+    try:
+        with maintenance_lock(settings.storage_config):
+            if gated(settings.storage_config):
+                return 0
+            artifacts = db.scalars(select(JobStepArtifact).where(JobStepArtifact.status == "AVAILABLE")).all()
+            active_jobs = set(
+                db.scalars(
+                    select(Job.id).where(
+                        (Job.status.in_(["QUEUED", "RUNNING"])) | Job.lease_owner.is_not(None)
+                    )
+                ).all()
+            )
+            count = 0
+            for artifact in expired:
+                if artifact.job_id in active_jobs:
+                    continue
+                reference = artifact.artifact_ref_json.get("cache_path")
+                if reference:
+                    try:
+                        path = resolve_ref(reference, settings)
+                        if not path.is_relative_to(settings.cache_dir.resolve()):
+                            continue
+                        shared = any(
+                            a.id != artifact.id
+                            and a.artifact_ref_json.get("cache_path")
+                            and resolve_ref(a.artifact_ref_json["cache_path"], settings) == path
+                            and (a.job_id in active_jobs or as_utc(a.replayable_until) > utc_now())
+                            for a in artifacts
+                        )
+                        if shared:
+                            continue
+                        path.unlink(missing_ok=True)
+                    except (ValueError, OSError):
+                        continue  # Unknown/external ownership is never a deletion candidate.
+                artifact.status = "EXPIRED"
+                count += 1
+            if count:
+                db.commit()
+            return count
+    except BlockingIOError:
+        return 0
 
 
 def ensure_job_active(db: Session, job: Job) -> None:
@@ -38,12 +80,19 @@ def ensure_job_active(db: Session, job: Job) -> None:
         select(Job.status, Job.lease_owner, Job.retry_count, Job.started_at).where(Job.id == job.id),
         execution_options={"autoflush": False},
     ).one_or_none()
-    if persisted and persisted.status == JobStatus.CANCELLED.value or (
-        job.lease_owner and (
-            persisted is None or persisted.status != JobStatus.RUNNING.value
-            or persisted.lease_owner != job.lease_owner or persisted.retry_count != job.retry_count
-            or (as_utc(persisted.started_at) if persisted.started_at else None)
-            != (as_utc(job.started_at) if job.started_at else None)
+    if (
+        persisted
+        and persisted.status == JobStatus.CANCELLED.value
+        or (
+            job.lease_owner
+            and (
+                persisted is None
+                or persisted.status != JobStatus.RUNNING.value
+                or persisted.lease_owner != job.lease_owner
+                or persisted.retry_count != job.retry_count
+                or (as_utc(persisted.started_at) if persisted.started_at else None)
+                != (as_utc(job.started_at) if job.started_at else None)
+            )
         )
     ):
         raise JobCancelled("任务已取消或本次执行权已失效")
@@ -104,9 +153,7 @@ def _fail_active_job(db: Session, job: Job, code: str, reason: str, event_type: 
     job.finished_at = now
     job.lease_owner = None
     job.lease_expire_at = None
-    step = db.scalar(
-        select(JobStep).where(JobStep.job_id == job.id, JobStep.step_name == job.current_step)
-    )
+    step = db.scalar(select(JobStep).where(JobStep.job_id == job.id, JobStep.step_name == job.current_step))
     if step and step.status == "RUNNING":
         step.status = "FAILED"
         step.error = reason
@@ -131,9 +178,7 @@ def recover_stale_jobs(
 ) -> int:
     now = utc_now()
     timed_out = 0
-    for attempt in db.scalars(
-        select(ExternalCallAudit).where(ExternalCallAudit.status == "RUNNING")
-    ).all():
+    for attempt in db.scalars(select(ExternalCallAudit).where(ExternalCallAudit.status == "RUNNING")).all():
         metadata = attempt.request_meta_json or {}
         job = db.get(Job, attempt.job_id) if attempt.job_id else None
         fence = metadata.get("run_fence") if isinstance(metadata.get("run_fence"), dict) else {}

@@ -4,7 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
@@ -21,7 +21,9 @@ class Settings(BaseSettings):
     app_env: str = Field(default="development", alias="ENV")
     host: str = "127.0.0.1"
     port: int = 8787
-    data_dir: Path = Path("./data")
+    data_dir: Path = PROJECT_ROOT / "data"
+    storage_config: Path = Path.home() / "Library/Application Support/Zhijian/storage.json"
+    storage_generation: int = 0
     frontend_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
     secret_store: str = "file"
     session_cookie_name: str = "zhijian_session"
@@ -46,9 +48,7 @@ class Settings(BaseSettings):
     qwen_asr_python: Path = PROJECT_ROOT / "data/runtime/qwen-asr/venv/bin/python"
     qwen_asr_runner: Path = PROJECT_ROOT / "scripts/qwen_asr_runner.py"
     qwen_asr_model: Path = Path("/Volumes/D/Projects/ollama-models/ASR/Qwen3-ASR-0.6B")
-    qwen_asr_aligner_model: Path = Path(
-        "/Volumes/D/Projects/ollama-models/ASR/Qwen3-ForcedAligner-0.6B"
-    )
+    qwen_asr_aligner_model: Path = Path("/Volumes/D/Projects/ollama-models/ASR/Qwen3-ForcedAligner-0.6B")
     qwen_asr_timeout_seconds: int = 3600
     deepseek_base_url: str = "https://api.deepseek.com/v1"
     mimo_base_url: str = ""
@@ -67,6 +67,29 @@ class Settings(BaseSettings):
     video_note_model: str = ""
     travel_extraction_model: str = ""
     place_note_model: str = ""
+
+    @model_validator(mode="after")
+    def resolve_storage(self):
+        from zhijian.core.storage import read_json, validate_root
+
+        config = (
+            read_json(self.storage_config)
+            if self.is_production or "storage_config" in self.model_fields_set
+            else {}
+        )
+        if config:
+            root = validate_root(config)
+            if self.is_production and "data_dir" in self.model_fields_set and self.data_dir.resolve() != root:
+                raise ValueError("生产环境与启动存储配置冲突")
+            if self.is_production or "data_dir" not in self.model_fields_set:
+                self.data_dir = root
+                self.storage_generation = config["generation"]
+        self.data_dir = self.data_dir.expanduser().resolve()
+        if config and self.data_dir == root:
+            self.storage_generation = config["generation"]
+        if "whisper_model" not in self.model_fields_set:
+            self.whisper_model = self.data_dir / "models/whisper/ggml-base.bin"
+        return self
 
     @field_validator("frontend_origins", mode="before")
     @classmethod
@@ -92,6 +115,8 @@ class Settings(BaseSettings):
         return self.app_env == "production"
 
     def ensure_directories(self) -> None:
+        if self.is_production and not self.database_path.is_file():
+            raise ValueError("生产数据库缺失；必须显式初始化，拒绝建空库")
         for path in (
             self.data_dir,
             self.permanent_dir / "sources",

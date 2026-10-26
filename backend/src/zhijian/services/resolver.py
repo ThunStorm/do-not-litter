@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import re
 from html.parser import HTMLParser
-from pathlib import Path
 
 import httpx
 
+from zhijian.core.config import get_settings
+from zhijian.core.storage import resolve_ref
 from zhijian.services.documents import read_document
 
 
@@ -49,7 +50,9 @@ def resolve_payload(payload: dict) -> tuple[str, list[dict], dict]:
 
     file_path = payload.get("file_path")
     if file_path:
-        text, segments = read_document(Path(file_path), asr_provider=payload.get("asr_provider"))
+        text, segments = read_document(
+            resolve_ref(file_path, get_settings(), owned=False), asr_provider=payload.get("asr_provider")
+        )
         return text, segments, {"resolver": "document", "file_path": file_path}
 
     locator = str(payload.get("locator") or "")

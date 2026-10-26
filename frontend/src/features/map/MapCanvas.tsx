@@ -8,19 +8,21 @@ interface MapCanvasProps {
   markers: MapMarker[]
   selectedId: string | null
   onSelect: (id: string) => void
+  onClusterSelect?: (markers: MapMarker[]) => void
+  onClustersChange?: (groups: MapMarker[][]) => void
   viewport: { bbox: number[]; zoom: number }
   onViewportChange: (viewport: { bbox: number[]; zoom: number }) => void
   onStartPlaceSearch: () => void
   chinaReset: number
 }
 
-export function MapCanvas({ markers, selectedId, onSelect, viewport, onViewportChange, onStartPlaceSearch, chinaReset }: MapCanvasProps) {
+export function MapCanvas({ markers, selectedId, onSelect, onClusterSelect, onClustersChange, viewport, onViewportChange, onStartPlaceSearch, chinaReset }: MapCanvasProps) {
   const controller = useRef<MapController>(null)
   const [ready, setReady] = useState(false)
   useEffect(() => { if (chinaReset) controller.current?.fitChina() }, [chinaReset])
   return (
     <div className="map-canvas" aria-label="中国大陆地点地图总览">
-      <AmapLayer ref={controller} markers={markers} selectedId={selectedId} onSelect={onSelect} viewport={viewport} onReady={setReady} onViewportChange={onViewportChange} />
+      <AmapLayer ref={controller} markers={markers} selectedId={selectedId} onSelect={onSelect} onClusterSelect={onClusterSelect} onClustersChange={onClustersChange} viewport={viewport} onReady={setReady} onViewportChange={onViewportChange} />
       <div className="map-canvas__tools">
         <button aria-label="定位" disabled={!ready} onClick={() => controller.current?.locate()}><LocateFixed /></button>
         <button aria-label="放大" disabled={!ready} onClick={() => controller.current?.zoomIn()}><Plus /></button>

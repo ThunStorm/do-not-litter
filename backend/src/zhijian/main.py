@@ -10,6 +10,7 @@ from uuid import uuid4
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -18,6 +19,7 @@ from zhijian.api.video_notes import router as video_notes_router
 from zhijian.core.config import get_settings
 from zhijian.core.logging import configure_logging
 from zhijian.core.secret_store import build_secret_store
+from zhijian.core.storage import gated
 from zhijian.db.session import SessionLocal, init_database
 from zhijian.services.audit import record_event
 from zhijian.services.auth import ensure_lan_token
@@ -61,12 +63,15 @@ async def lifespan(_: FastAPI):
     if settings.app_env == "development":
         with SessionLocal() as db:
             seed_demo_data(db)
+
     async def sample_runtime_metrics() -> None:
         while True:
             try:
+
                 def persist() -> None:
                     with SessionLocal() as db:
                         persist_runtime_metrics_sample(db, settings)
+
                 await asyncio.to_thread(persist)
             except Exception:
                 logging.getLogger("zhijian.runtime-monitor").exception("runtime metric sampling failed")
@@ -84,6 +89,14 @@ async def lifespan(_: FastAPI):
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title="至简 API", version="0.2.0", lifespan=lifespan)
+
+    @app.middleware("http")
+    async def storage_write_gate(request, call_next):
+        if request.method not in {"GET", "HEAD", "OPTIONS"} and gated(get_settings().storage_config):
+            return JSONResponse(
+                status_code=503, content={"detail": "存储维护中，暂不接受写操作；已有任务不会被取消"}
+            )
+        return await call_next(request)
 
     @app.middleware("http")
     async def request_log(request, call_next):

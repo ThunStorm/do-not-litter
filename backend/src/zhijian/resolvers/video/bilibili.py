@@ -10,11 +10,9 @@ import httpx
 
 from zhijian.core.url_policy import HttpsHostPolicy
 
-from .url_parser import parse_bilibili_url
+from .url_parser import ALLOWED_HOSTS, PAGE_URL_POLICY, normalize_bilibili_url, parse_bilibili_url
 
-ALLOWED_HOSTS = {"www.bilibili.com", "m.bilibili.com", "bilibili.com", "b23.tv", "www.b23.tv"}
 API_HOSTS = {"api.bilibili.com"}
-PAGE_URL_POLICY = HttpsHostPolicy(exact_hosts=frozenset(ALLOWED_HOSTS))
 API_URL_POLICY = HttpsHostPolicy(exact_hosts=frozenset(ALLOWED_HOSTS | API_HOSTS))
 SUBTITLE_URL_POLICY = HttpsHostPolicy(host_suffixes=frozenset({"hdslb.com"}))
 
@@ -60,7 +58,7 @@ class ResolvedVideo:
 
 
 def is_bilibili_url(url: str) -> bool:
-    return PAGE_URL_POLICY.allows(url)
+    return PAGE_URL_POLICY.allows(normalize_bilibili_url(url))
 
 
 class BilibiliResolver:
@@ -76,13 +74,15 @@ class BilibiliResolver:
     def resolve(self, raw_url: str, cookie: str | None = None) -> ResolvedVideo:
         candidate = self._resolve_short_url(raw_url)
         parsed = parse_bilibili_url(candidate)
-        if not parsed.bvid:
-            raise VideoResolveError("VIDEO_UNSUPPORTED_URL", "未识别到 BV 号，请粘贴常规 Bilibili 视频链接")
+        if not parsed.bvid and not parsed.aid:
+            raise VideoResolveError("VIDEO_UNSUPPORTED_URL", "未识别到 BV 或 av 号，请粘贴 Bilibili 视频链接")
         headers = {"User-Agent": "Mozilla/5.0 (Zhijian local video note)"}
         if cookie:
             headers["Cookie"] = cookie
         data = self._get_json(
-            "https://api.bilibili.com/x/web-interface/view?" + urlencode({"bvid": parsed.bvid}), headers
+            "https://api.bilibili.com/x/web-interface/view?"
+            + urlencode({"bvid": parsed.bvid} if parsed.bvid else {"aid": parsed.aid}),
+            headers,
         )
         if data.get("code") != 0 or not data.get("data"):
             code = (
@@ -92,6 +92,9 @@ class BilibiliResolver:
             )
             raise VideoResolveError(code, str(data.get("message") or "无法读取视频元数据"))
         video = data["data"]
+        bvid = str(video.get("bvid") or parsed.bvid or "")
+        if not bvid:
+            raise VideoResolveError("VIDEO_METADATA_FAILED", "视频元数据未提供 BV 号")
         pages = video.get("pages") or []
         if parsed.page_number > len(pages):
             raise VideoResolveError("VIDEO_PAGE_NOT_FOUND", "视频分 P 不存在")
@@ -99,13 +102,13 @@ class BilibiliResolver:
         cid = str(page.get("cid") or "")
         if not cid:
             raise VideoResolveError("VIDEO_METADATA_FAILED", "视频未提供可处理的分 P")
-        canonical = f"https://www.bilibili.com/video/{video.get('bvid') or parsed.bvid}"
+        canonical = f"https://www.bilibili.com/video/{bvid}"
         if parsed.page_number > 1:
             canonical += f"?p={parsed.page_number}"
-        subtitles = self._fetch_subtitles(video.get("bvid") or parsed.bvid, cid, headers)
+        subtitles = self._fetch_subtitles(bvid, cid, headers)
         return ResolvedVideo(
             canonical_url=canonical,
-            bvid=str(video.get("bvid") or parsed.bvid),
+            bvid=bvid,
             aid=str(video.get("aid")) if video.get("aid") else None,
             cid=cid,
             page_number=parsed.page_number,
@@ -154,22 +157,41 @@ class BilibiliResolver:
         return urlunparse(parsed._replace(query=urlencode(params, doseq=True)))
 
     def _resolve_short_url(self, raw_url: str) -> str:
+        raw_url = normalize_bilibili_url(raw_url)
         parsed = parse_bilibili_url(raw_url)
         if not parsed.is_short:
             return raw_url
         current = raw_url
-        with httpx.Client(timeout=self.timeout, follow_redirects=False, proxy=self.proxy_url) as client:
-            for _ in range(self.max_redirects):
-                response = client.get(current, headers={"User-Agent": "Mozilla/5.0"})
-                if response.status_code not in {301, 302, 303, 307, 308}:
-                    break
-                target = urljoin(current, response.headers.get("location", ""))
-                if not PAGE_URL_POLICY.allows(target):
-                    raise VideoResolveError("VIDEO_REDIRECT_BLOCKED", "短链跳转目标不在 Bilibili 许可范围")
-                current = target
-            else:
-                raise VideoResolveError("VIDEO_TOO_MANY_REDIRECTS", "短链重定向次数超出限制")
-        return current
+        try:
+            with httpx.Client(timeout=self.timeout, follow_redirects=False, proxy=self.proxy_url) as client:
+                for _ in range(self.max_redirects):
+                    response = client.get(current, headers={"User-Agent": "Mozilla/5.0"})
+                    if response.status_code in {404, 410}:
+                        raise VideoResolveError("VIDEO_SHORT_URL_EXPIRED", "Bilibili 短链已失效")
+                    if response.status_code not in {301, 302, 303, 307, 308}:
+                        response.raise_for_status()
+                        raise VideoResolveError("VIDEO_SHORT_URL_EXPIRED", "Bilibili 短链未指向可处理的视频")
+                    location = response.headers.get("location")
+                    if not location:
+                        raise VideoResolveError("VIDEO_SHORT_URL_EXPIRED", "Bilibili 短链缺少跳转目标")
+                    target = urljoin(current, location)
+                    if not PAGE_URL_POLICY.allows(target):
+                        raise VideoResolveError(
+                            "VIDEO_REDIRECT_BLOCKED", "短链跳转目标不在 Bilibili 许可范围"
+                        )
+                    resolved = parse_bilibili_url(target)
+                    if not resolved.is_short and (resolved.bvid or resolved.aid):
+                        params = parse_qs(urlparse(target).query, keep_blank_values=True)
+                        if "p" not in params and "p" in parse_qs(urlparse(raw_url).query):
+                            params["p"] = [str(parsed.page_number)]
+                            target = urlunparse(
+                                urlparse(target)._replace(query=urlencode(params, doseq=True))
+                            )
+                        return target
+                    current = target
+        except httpx.HTTPError as exc:
+            raise VideoResolveError("VIDEO_NETWORK_FAILED", "Bilibili 短链解析请求失败") from exc
+        raise VideoResolveError("VIDEO_TOO_MANY_REDIRECTS", "短链重定向次数超出限制")
 
     def _get_json(
         self,

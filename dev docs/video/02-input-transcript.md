@@ -93,12 +93,13 @@ MULTIPLE_URLS
 
 ## 4.2 VALIDATE_AND_CANONICALIZE_URL
 
-MVP 接受：
+接受的 Bilibili 视频链接：
 
-- `https://www.bilibili.com/video/BV...`
-- 带 query 的 BV 链接；
-- `https://b23.tv/...`
-- `?p=N` 分 P 链接。
+- 桌面 `www.bilibili.com/video/BV...`、主域 `bilibili.com/video/BV...` 和移动端 `m.bilibili.com/video/BV...`；
+- `b23.tv/...`、`www.b23.tv/...` 短链；
+- 旧式 `/video/av数字`、`/s/video/BV...` 和官方 `player.bilibili.com/player.html?bvid=...` / `?aid=...` 播放器链接；
+- 上述域名的无协议链接及混合标题、换行、Markdown 的分享文案。已知许可域名的旧 HTTP 输入仅在本地升级为 HTTPS，禁止实际发出 HTTP 请求；
+- URL 提取保留完整 query、fragment 和百分号编码，尤其是 `?p=N` 分 P 参数，不在问号处截断。
 
 输出：
 
@@ -110,6 +111,10 @@ part_number
 ```
 
 短链只允许跟随有限次数的 HTTPS 重定向。最终 host 必须仍在平台 allowlist；拒绝本地地址、内网地址和非 HTTP(S) Scheme，避免 SSRF。
+
+每一跳在发请求前校验精确域名、HTTPS、无 userinfo 和标准端口；不向短链转发登录 Cookie。取得合法 BV/av 视频目标后直接读取平台元数据，不再额外加载目标网页；到达最后允许跳数时取得视频目标也算成功。短链自身的 `p` 仅在目标未声明 `p` 时补入，目标声明优先。av 通过平台元数据解析成 BV/CID，最终统一到标准 BV URL 与对应分 P。失效、无 Location、无视频目标、网络失败和超限使用可区分错误。
+
+此支持范围为普通视频；番剧、直播、专栏等页面不会推测或伪造 BV 身份。Capture 请求仅提取链接并入队，网络解析仍由 Worker 完成。回归入口：`backend/tests/test_bilibili_links.py`。
 
 无法识别的链接返回稳定错误 `VIDEO_URL_UNSUPPORTED`；短链失效为 `VIDEO_SHORT_URL_EXPIRED`。
 

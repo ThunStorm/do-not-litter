@@ -31,3 +31,8 @@ request_metrics 增加 metrics_version、prompt_fingerprint、static_prompt_fing
 应用命中记 `APP_RESULT_CACHE_HIT`，不生成当前上游 cached_tokens；可信非负整数 cached_tokens 或 prompt_tokens_details.cached_tokens 大于零才记 `PROVIDER_PREFIX_CACHE_HIT`，否则 UNKNOWN。UNKNOWN 入口不得借历史 usage 宣称节省订阅配额。真实缓存、计费与质量必须由授权的同模型配对 A/B 证明；原生会话/resume 实验尚未启动。
 
 验证与度量入口：[离线 A/B 报告](../benchmark/TITLE_TEMPORAL_PROMPT_AB_REPORT.md)、`backend/tests/test_title_temporal_evidence.py`、`scripts/benchmark_title_temporal.py`。当前通过数只维护在 [实施状态](../IMPLEMENTATION_STATUS.md)，生产现场只维护在 [交接](../CURRENT_HANDOFF.md)。
+
+
+## 地图展示补充（2026-10-20）
+
+地图以统一时间判断过滤无时间语义的历史派生记录，仅改变读取投影，不改历史Evidence。明确日期范围从source_text保真展示；来源详情对不可用旧窗口显示待核实。新提取允许读取同一Mention已绑定且相邻的Segment拼接句子，保存全部原Segment ID与连续引文；不读取其他地点片段。NO_TIME_MENTIONED仅在完整转写与正式标题均无时间语义时记录，历史无窗口不自动补造此状态。无Schema迁移，未触发真实模型/视频重跑。

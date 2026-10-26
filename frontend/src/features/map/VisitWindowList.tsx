@@ -1,6 +1,19 @@
 import type { PlaceVisitWindow } from '../../lib/types'
 import { visitWindowLabel } from './placeLabels'
 
-export function VisitWindowList({ windows, onRemove }: { windows: PlaceVisitWindow[]; onRemove: (id: string) => void }) {
-  return <ul className="place-insights">{windows.map((item) => <li key={item.id}><b>{visitWindowLabel(item)}</b>{item.source_text || '用户补充'}{item.provenance === 'TITLE_CONTEXT' ? ' · 来自视频标题' : item.provenance === 'SOURCE_FACT' ? ' · 正文原句佐证' : ''}{!['SOURCE_FACT', 'TITLE_CONTEXT'].includes(item.provenance) ? <button className="text-action" onClick={() => onRemove(item.id)}>移除</button> : null}</li>)}</ul>
+const derived = new Set(['SOURCE_FACT', 'TITLE_CONTEXT', 'SEMANTIC_CONTEXT'])
+export function VisitWindowList({ windows, onRemove }: { windows: PlaceVisitWindow[]; onRemove?: (id: string) => void }) {
+  const seen = new Set<string>()
+  const items = windows.filter((item) => {
+    if (!derived.has(item.provenance)) return true
+    const key = `${item.provenance}:${item.source_id}:${item.source_text}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+  return <ul className="place-insights">{items.map((item) => <li key={item.id}>
+    <b>{item.valid_as_time === false ? '原有时间记录，尚待核对' : item.provenance === 'SEMANTIC_CONTEXT' ? '同篇笔记中的季节背景' : item.provenance === 'TITLE_CONTEXT' ? '视频标题中的时间线索' : item.provenance === 'SOURCE_FACT' ? '视频原句' : visitWindowLabel(item)}</b>
+    <q>{item.source_text || '用户补充'}</q>
+    {onRemove && !derived.has(item.provenance) ? <button className="text-action" onClick={() => onRemove(item.id)}>移除</button> : null}
+  </li>)}</ul>
 }

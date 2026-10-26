@@ -906,3 +906,7 @@ invalidated_at nullable
 - payments
 
 它们均属于未来能力，不提前实现。
+
+## 既有JSON与技术引用补充（2026-10-27）
+
+本包无Schema迁移，Alembic仍0025。PlaceMention.metadata_json.recommendation_evidence使用recommendation-v1记录整体/局部态度的逐字证据、主体、条件、校验状态；只读来源投影不写共享Place单一态度。受管截图、封面和Artifact文件引用使用storage:相对根格式；旧绝对技术路径按登记旧根解析，不改Source.locator或正文。独立启动配置和迁移状态位于稳定控制目录，不放入要搬迁的数据库；数据库、永久资料、缓存、审计和转录分别保留，详见[存储契约](../operations/STORAGE_AND_LOG_LIFECYCLE.md)。

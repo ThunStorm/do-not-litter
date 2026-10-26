@@ -76,13 +76,26 @@ from zhijian.services.video_support import (
 
 
 def test_compact_note_facts_drops_only_duplicate_points_and_empty_fields():
-    result = video_support._compact_note_facts([
-        {"summary": "票价20元", "key_points": ["票价20元", "不建议周末"],
-         "warnings": [], "segment_ids": ["s1"], "supporting_quotes": ["门票20元不推荐周末。"],
-         "place_mention_ids": []}
-    ])
-    assert result == [{"summary": "票价20元", "key_points": ["不建议周末"],
-                       "segment_ids": ["s1"], "supporting_quotes": ["门票20元不推荐周末。"]}]
+    result = video_support._compact_note_facts(
+        [
+            {
+                "summary": "票价20元",
+                "key_points": ["票价20元", "不建议周末"],
+                "warnings": [],
+                "segment_ids": ["s1"],
+                "supporting_quotes": ["门票20元不推荐周末。"],
+                "place_mention_ids": [],
+            }
+        ]
+    )
+    assert result == [
+        {
+            "summary": "票价20元",
+            "key_points": ["不建议周末"],
+            "segment_ids": ["s1"],
+            "supporting_quotes": ["门票20元不推荐周末。"],
+        }
+    ]
 
 
 def test_bilibili_parser_keeps_bvid_and_selected_page() -> None:
@@ -718,6 +731,24 @@ def test_video_note_api_returns_versioned_sections(client, app_and_session) -> N
     assert response.json()["render_profile_id"] == "CURRENT_DEFAULT"
     assert response.json()["model_provider"] == "local_router"
     assert response.json()["model_name"] == "codebuddy/hy3"
+    for url in ("/api/video-notes", "/api/video-notes?query=测试视频"):
+        if "?" in url:
+            # Search uses the same DTO, with an explicitly indexed fixture.
+            from zhijian.services.video_note_search import sync_video_note_search_index
+
+            with factory() as db:
+                stored_note = db.get(AINote, note_id)
+                sync_video_note_search_index(
+                    db,
+                    stored_note,
+                    db.get(AINoteVersion, stored_note.current_version_id),
+                    db.get(VideoAsset, stored_note.video_asset_id),
+                )
+                db.commit()
+        listed = next(item for item in client.get(url).json() if item["id"] == note_id)
+        assert listed["model_name"] == "codebuddy/hy3"
+        assert listed["model_provider"] == "local_router"
+
     legacy = client.get(f"/api/video-notes/{version.id}")
     assert legacy.status_code == 200
     assert legacy.json()["id"] == note_id
@@ -1598,7 +1629,16 @@ def test_note_map_reduce_persists_compact_facts(app_and_session, monkeypatch) ->
                         {
                             "overview": "紧凑总览",
                             "warnings": [],
-                            "sections": [{"heading": "市场", "summary": "总结", "segment_ids": ids}],
+                            "sections": [
+                                {
+                                    "heading": "市场",
+                                    "summary": "总结",
+                                    "segment_ids": ids,
+                                    "supporting_quotes": [
+                                        segment.text for segment in segments if segment.text in content
+                                    ],
+                                }
+                            ],
                             "section_facts": [
                                 {
                                     "summary": "事实",
@@ -1773,12 +1813,15 @@ def test_transcript_export_and_retention_purge(client, app_and_session) -> None:
         exported = client.get(f"/api/video-notes/{note.id}/transcript/export")
         assert exported.status_code == 200
         assert "完整转写" in exported.text
+        segments[0].raw_text = "原始转写正文"
+        segments[0].corrected_text = "校对正文"
         transcript.retention_until = transcript.created_at - timedelta(days=1)
         db.commit()
         assert purge_expired_transcripts(db) == 1
         db.refresh(transcript)
         assert transcript.purged_at is not None and transcript.text == ""
-        assert db.get(type(segments[0]), segments[0].id).text == ""
+        purged_segment = db.get(type(segments[0]), segments[0].id)
+        assert purged_segment.text == purged_segment.raw_text == purged_segment.corrected_text == ""
     assert client.get(f"/api/video-notes/{note.id}/transcript").status_code == 410
     assert client.get(f"/api/video-notes/{note.id}/transcript/export").status_code == 410
 

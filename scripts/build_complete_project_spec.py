@@ -58,6 +58,7 @@ ORDER = [
     "architecture/SECURITY_PRIVACY.md",
     "testing/TESTING_AND_ACCEPTANCE.md",
     "operations/LOGGING.md",
+    "operations/STORAGE_AND_LOG_LIFECYCLE.md",
     "architecture/ARCHITECTURE_DECISIONS.md",
     "testing/GOLDEN_SAMPLES.md",
 ]

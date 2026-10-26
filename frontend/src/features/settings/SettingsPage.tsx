@@ -1,3 +1,4 @@
+import { StoragePanel } from "./StoragePanel";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowDown,
@@ -60,7 +61,7 @@ import {
   type ModelFormValues,
 } from "./providerPresets";
 
-type Tab = "general" | "lan" | "models" | "runtime" | "browser" | "map";
+type Tab = "storage" | "general" | "lan" | "models" | "runtime" | "browser" | "map";
 const CAPABILITY_LABELS: Record<string, string> = {
   SYSTEM_INSTRUCTION: "系统指令传递小样",
   FORMAT_SMOKE: "格式小样", CLASSIFICATION: "分类", STRUCTURED_EXTRACTION: "结构化抽取",
@@ -68,6 +69,7 @@ const CAPABILITY_LABELS: Record<string, string> = {
 };
 const tabs: Array<{ id: Tab; label: string }> = [
   { id: "general", label: "通用" },
+  { id: "storage", label: "存储与日志" },
   { id: "lan", label: "局域网访问" },
   { id: "models", label: "AI 模型" },
   { id: "runtime", label: "语音与 OCR" },
@@ -99,6 +101,7 @@ export function SettingsPage() {
         </nav>
         <div className="settings-main">
           {tab === "general" && <GeneralPanel />}
+          {tab === "storage" && <StoragePanel />}
           {tab === "lan" && <LanPanel />}
           {tab === "models" && <ModelsPanel />}
           {tab === "runtime" && <RuntimePanel />}
@@ -180,7 +183,7 @@ function GeneralPanel() {
             />
           </label>
           <label>
-            日志保留天数
+            系统事件与调用审计保留天数
             <input
               type="number"
               min="7"
@@ -438,7 +441,7 @@ function ModelsPanel() {
     const ids = (profiles.data ?? []).map((item) => item.id);
     const from = ids.indexOf(sourceId);
     const to = ids.indexOf(targetId);
-    if (from < 0 || to < 0 || from === to || saveOrder.isPending) return;
+    if (from < 0 || to < 0 || from === to || saveOrder.isPending || assignedIds.has(sourceId) || assignedIds.has(targetId)) return;
     ids.splice(to, 0, ...ids.splice(from, 1));
     saveOrder.mutate(ids);
   };
@@ -483,8 +486,10 @@ function ModelsPanel() {
         primary_id: route.primary_id || null,
         fallback_id: route.fallback_id || null,
       }),
-    onSuccess: () =>
-      void queryClient.invalidateQueries({ queryKey: ["model-routing"] }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["model-routing"] });
+      await queryClient.invalidateQueries({ queryKey: ["model-profiles"] });
+    },
   });
   const selectedName = (id: string | null | undefined) =>
     profiles.data?.find((item) => item.id === id)?.name ?? "未选择";
@@ -495,7 +500,7 @@ function ModelsPanel() {
     <>
       <PanelTitle
         title="AI 模型与 Provider"
-        detail="通用主/备用模型作为默认候选池；各工作负载阶段在下方单独配置。"
+        detail="通用主/备用提供默认候选；是否使用备用，由各阶段执行模式和能力校验决定。"
       />
       <div className="provider-summary">
         <ProviderSummary
@@ -527,7 +532,7 @@ function ModelsPanel() {
         </div>
         <div className="provider-form__body">
           <p className="settings-note settings-note--inset">
-            主模型耗尽有限重试后才调用备用模型。转写校对及其他工作负载阶段请在下方阶段策略中单独配置。
+            可恢复错误按各自 HTTP / JSON 重试预算处理；仍失败时，仅在阶段允许且备用符合能力、预算要求时切换。仅本地 / 仅远程模式不使用备用，超时不重复请求同一模型。
           </p>
           <div className="field-grid route-field-grid">
             <SelectField
@@ -593,7 +598,7 @@ function ModelsPanel() {
       <p className="settings-note">真实测试与能力探测使用已保存配置；本地模型始终串行，每次调用结束后至少间隔5秒，配置更长时按配置等待。远程同供应商或入口串行，独立入口最多三组并行。重复提交会合并正在进行的同项测试。</p>
       {batch.error && <p className="settings-note" role="alert">{batch.error.message}</p>}
       {orderError && <p className="settings-note" role="alert">{orderError}</p>}
-      {sorting && <p className="settings-note">拖动模型左侧手柄调整顺序；手机可用上移、下移。调整后自动保存。</p>}
+      {sorting && <p className="settings-note">主模型、备用模型固定置顶；新增模型排在其后。其余模型可拖动左侧手柄或上移、下移，调整后自动保存。</p>}
       {batchIds.length > 0 && <p className="settings-note" role="status">本次一键测试：{batchJobs.filter((job) => job.status === "COMPLETED").length}/{batchIds.length} 完成，{batchJobs.filter((job) => job.status === "FAILED").length} 失败，{batchJobs.filter((job) => job.status === "RUNNING").length} 运行，{batchJobs.filter((job) => job.status === "QUEUED").length} 排队。</p>}
       <div className="model-library__list">
       {adding && <ModelProfileEditor onClose={() => setAdding(false)} />}
@@ -603,9 +608,9 @@ function ModelsPanel() {
           profile={profile}
           sortControls={sorting ? {
             drag: profileDrag,
-            moveUp: index > 0 ? () => moveProfile(profile.id, profiles.data![index - 1].id) : undefined,
+            moveUp: index > 0 && !assignedIds.has(profiles.data![index - 1].id) ? () => moveProfile(profile.id, profiles.data![index - 1].id) : undefined,
             moveDown: index < profiles.data!.length - 1 ? () => moveProfile(profile.id, profiles.data![index + 1].id) : undefined,
-            disabled: saveOrder.isPending,
+            disabled: saveOrder.isPending || assignedIds.has(profile.id),
           } : undefined}
           assigned={assignedIds.has(profile.id)}
           testJob={tests.data?.find((job) => job.profile_id === profile.id && ["QUEUED", "RUNNING"].includes(job.status)) ?? tests.data?.find((job) => job.profile_id === profile.id)}
@@ -1309,11 +1314,18 @@ export function StagePolicyEditor({
             onChange={(value) => update("max_attempts", value)}
           />
           <NumberPolicyField
-            label="重试次数（留空继承模型）"
+            label="HTTP 重试次数（留空继承模型）"
             value={values.retry_count}
             min="0"
             max="3"
             onChange={(value) => update("retry_count", value)}
+          />
+          <NumberPolicyField
+            label="JSON 重试次数（留空继承模型）"
+            value={values.json_retry_count ?? null}
+            min="0"
+            max="3"
+            onChange={(value) => update("json_retry_count", value)}
           />
           <NumberPolicyField
             label="置信度阈值"
@@ -2247,7 +2259,7 @@ function supportLabel(value: string) {
 
 function reliabilitySummary(mode: NonNullable<ModelFormValues["reliability_mode"]>) {
   return {
-    DIRECT: "直连：不主动排队或延迟，失败后立即交给备用模型。",
+    DIRECT: "直连：不做保护性排队；按独立重试设置恢复，是否切换备用仍由阶段模式和能力、预算门禁决定。",
     STANDARD: "标准：对临时错误和结构化输出进行一次轻量恢复。",
     GUARDED: "受保护：启用请求间隔、退避和熔断保护。",
     FREE_TIER: "免费模型：单并发限速，并对 429 退避。",

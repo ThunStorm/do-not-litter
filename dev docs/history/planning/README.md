@@ -4,6 +4,8 @@
 
 | 归档计划 | 覆盖证据 | 未进入本轮的后续方向 |
 | --- | --- | --- |
+| [数据目录与日志生命周期](DATA_STORAGE_AND_LOG_LIFECYCLE_PLAN.md) | 统一启动配置、受管引用、维护协调器、分卷压缩/保留、设置与隔离故障矩阵；见当前状态及存储专项 | 生产数据根未搬迁，物理介质故障未验；旧副本不自动删。 |
+| [地点推荐态度贯通](PLACE_RECOMMENDATION_INTENT_PLAN.md) | 逐字证据/主体、合并、POI门禁、来源投影、笔记保真及双端界面；见旅行领域 | 真实模型召回率/误报及真实视频未验；不回写历史。 |
 | [标题时间证据与分片 Prompt](ZHIJIAN_TITLE_TEMPORAL_EVIDENCE_AND_PROMPT_OPTIMIZATION_PLAN.md) | 标题来源/范围、Claim 归属、窗口对账、请求观测与离线 A/B 已实施；见当前状态 | 同模型真实 A/B、上游缓存收益、原生会话实验仍未验证。 |
 | [Z0–Z8 请求优化与 E2E](ZHIJIAN_AI_OPTIMIZATION_AND_E2E_PLAN.md) | Z0–Z7 核心及既有有限小样已交付；报告保留 benchmark/ | Z8 未实施；完整质量/E2E 仍由生产验收门禁维护。 |
 | [同模型保存检查与重跑配置](SAME_MODEL_REPLAY_CONFIG_IMPLEMENTATION_PLAN.md) | 2026-10-09：保存自动检查、同模型执行快照/历史、三类重跑、累计预算；后端 300 项与隔离双端 Browser 通过 | 未部署、未运行真实模型/视频；无提交快照旧任务兼容及已清理 Audit 无法追补。 |

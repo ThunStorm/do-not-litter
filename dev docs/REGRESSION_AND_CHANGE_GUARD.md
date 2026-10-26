@@ -33,10 +33,13 @@
 | 终态与时间 | 终态不显示预估；展示层强制北京时间，持久化 ISO 时间仍保持 UTC | `jobs/TASK_STATUS_AND_BEIJING_TIME_SPEC.md` |
 | 运维 | CPU/内存/磁盘与 Worker 心跳为 SQLite 持久化快照；内存百分比使用可回收页口径；日志支持筛选、关联 Job、分页与脱敏 | `operations/OPERATIONS_UI_SPEC.md`、`operations/LOGGING.md` |
 | 步骤续跑 | ERROR/CRITICAL 事件先查询 Replay Options；Artifact 有效时从失败步骤继续，上游 REUSED、当前/下游顺次执行；过期后只允许完整重跑；日志页不直接改步骤 | `jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md`、`operations/LOGGING.md`、ADR-026 |
+| 存储与日志生命周期 | 启动根/锁统一；缺卷/实例不符拒绝建空库；搬迁保持旧副本，放行后不回旧库；日志只删已登记封卷，gzip核验后删原件；转录180天与永久资料独立 | `operations/STORAGE_AND_LOG_LIFECYCLE.md`、`test_storage_lifecycle.py`、`test_storage_api.py` |
+| 作者地点态度 | 整体态度需逐字证据/主体/版本，局部限制不建地点；合并顺序无关，负向/存疑自动POI零调用，确认位置/个人偏好不改作者；负向来源不被体验筛选吞掉，旧记录不升级有效推荐 | `product/TRAVEL_FOOD_PIPELINE.md` 10.25、`services/recommendation_intent.py`、`test_recommendation_intent.py` |
 | 内容保留 | 终态任务和内容可删除；删除不破坏共享来源、地点、路线或证据；密钥只进 Keychain/Secret Store | `ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md`、`architecture/SECURITY_PRIVACY.md` |
 | 视频 v0.3 | Bilibili 元数据/字幕优先/受控音频/Whisper 转写；同一视频的每次提交产生独立 Note/Content/Transcript Version，重跑只给所属 Note 增新版本；Place 按 Provider POI ID 复用，地点与笔记证据不跨任务串联；章节、时间码、POI、Place Note 和失败/部分成功均为真实数据 | `video/04-jobs-data-api.md`、`services/video_pipeline.py` |
 | Bilibili 登录与字幕 | 登录只走站内二维码与 Keychain；登录失效必须进入 `NEEDS_USER` 并提供可用的续跑/非核心跳过选择；字幕 CDN 使用用途级 HTTPS Host Policy，安全支持官方子域；人工中文、AI 中文、其他语言依次尝试，单轨失败不得击穿整个 Job。AI/自动字幕不可单独成为权威 Transcript，必须保留 BV/CID、轨道与非敏感哈希审计并回退 ASR；生成 Note 前校验来源身份、验证状态与时间轴 | `video/VIDEO_AI_NOTE_PIPELINE.md` 4.4–4.7、`core/url_policy.py`、`services/video_pipeline.py` |
 | 视频 v0.4 截图 | 笔记先综合元数据与 Transcript；`PLAN_SCREENSHOTS → DOWNLOAD_VIDEO_FOR_FRAMES → EXTRACT_SCREENSHOTS → MATERIALIZE` 为显式步骤；3–12 张全文截图、主要地点优先，绑定章节/地点候选/Segment/时间码；过滤黑帧、曝光异常、低清晰度和重复帧 | `video/VIDEO_AI_NOTE_PIPELINE.md` 4.12–4.15、`services/video_screenshots.py` |
+| 地点笔记与确认同步 | 多地点笔记按已验证地点/主题组织，跨包合并但比较不广播；模型引用必须局限当前包，逐字引文与要点覆盖校验，缺项明确HYBRID；历史阅读投影不改版本/证据，旧anchor与截图可达；确认后跨页面通知/焦点刷新/前台15秒兜底，定位入口清旧筛选且选中Marker从聚合拆出且原生层级更高、PC/Mobile预览避让并能实点，隐藏/删除边界保留 | `services/note_structure.py`、`services/video_support.py`、`features/places/PlaceReviewCard.tsx`、`lib/travelChanges.ts` |
 | 视频 v0.4.2 阅读返工 | Hero 有真实封面、缺省为空；摘要/主体目录/正文优先，地点候选与完整转写放底部；默认使用 AI corrected Transcript；截图以侧排缩略图嵌入并支持 contain Lightbox；TXT 按钮使用统一视觉 | `video/VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md` |
 | 视频 v0.4.3 列表封面 | 主按钮为“添加视频链接”并使用统一 40px/14px Token；Card 展示本地持久真实封面、16:9 cover 和时长徽标；封面失败只显示占位，不阻塞 Note | `video/VIDEO_NOTE_LIST_V043_SPEC.md` |
 | 视频笔记删除 | 列表/详情共用删除；删除 Note/Version/Section/TOC/Content 投影，保留共享 Source/Asset/Cover/Transcript/Place/Evidence；活跃 Job 阻止删除 | `video/VIDEO_NOTE_DELETE_V044_SPEC.md` |
@@ -66,3 +69,15 @@
 保护请求预约与实际发出分别核对间隔；取消检查耗时计入墙钟等待，不能额外放大配置间隔；等待后复核取消/截止时间。手动探测统一关闭思考，由实际入口映射协议，LOCAL_ROUTER继续按接口契约省略。归纳保留时间/限制在笔记中的事实表达，使用已验证地点窗口，不重复提取地点窗口结构；地点提取与窗口校验契约不变。
 
 标题时间必须区分 TITLE_METADATA/TITLE_CONTEXT 与转写 SOURCE_FACT，不伪造 Segment；正文时间/限制优先，比较/否定/记录/范围不明不继承。Semantic Claim 先按 subject_entity_ids 绑定地点，无效或多地点歧义不能 Segment 广播；派生窗口重放保持唯一并保护人工窗口。标题/解析版本必须进入 Map 缓存身份，Prompt 分片保持完整系统守卫；应用结果缓存不冒充上游前缀缓存。契约见 [标题时间证据](video/TITLE_TEMPORAL_EVIDENCE.md)。
+
+2026-10-21 JSON恢复：定点错误行列/限长用户数据+原始完整Evidence，同模型有界重答，重验Schema/ID/引文/覆盖；不猜修双引号、不以失败输出作事实、不向无历史接口添加assistant轮次。修复上下文超输入预算不得发出，备用仍用原始请求；取消、时限及总尝试硬门禁保持。审计只记错误位置/哈希和恢复血缘，不落响应全文；新逻辑调用不继承旧修复状态。
+
+地图定位点阅读（2026-10-23）：浮窗先显示地点、适合时节和有据简短理由，路线收起，管理/编辑在详情保存。主地点允许同版本PLACE_GUIDE完整单元投影；跨单元共同季节须按旅行领域10.24的同Note版本/重复地点/共同景观/无冲突门禁，具体日期时刻不广播，历史日期不升级年度最佳，地图筛选和详情使用相同有效窗口。保留旧记录与修订号冲突保护，PC/Mobile验证编辑草稿和保存刷新。
+
+2026-10-24 地图直读：浮窗外层展示有据自然语言时节、限制和看点；不以内部适宜度/偏好分代替业务说明。地点级NOT_RECOMMENDED进入人工复核且自动POI调用0；天气级否定只显示条件限制。数字聚合点击放大并列成员，仅同一Note版本可展示有据共同看点；成员散开或聚合失效立即关闭，不保留过期列表。
+
+2026-10-25 地点阅读：展示层去除视频叙述外壳必须保留否定、日期、程度和不确定限定；来源/继承关系/原句与超链接收进查看更多，不能删除依据。详情业务信息优先，空资料不占大区块，元数据/历史/管理次级收起；按需读取历史，编辑保存与聚合散开关闭继续回归。
+
+2026-10-26 详情阅读不可整体折叠：关联笔记/时间依据/来源默认可读，时间锚点仍能定位；资料/历史维持紧凑辅助层级，历史独立按需加载，管理按钮直接可达。PC要点卡片同行等高等分，Mobile边缘对齐且长内容不裁切；高德入口沿用共享按钮水平留白，业务主操作不得被导航遮挡。
+
+2026-10-26 底部操作/历史：五个状态偏好按钮须在同一底栏且不在正文重复；移动端不得换行/溢出/被导航遮挡。历史默认展开自动加载，保存后刷新，资料与历史都固定160px并内部滚动；长历史样例不得撑高辅助区或写入生产。

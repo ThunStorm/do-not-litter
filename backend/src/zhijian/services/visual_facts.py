@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import base64
-from pathlib import Path
 from time import perf_counter
 from typing import Any
 
@@ -15,6 +14,7 @@ from zhijian.ai.job_config import job_setting
 from zhijian.ai.model_registry import model_profile_from_value
 from zhijian.ai.policies import resolve_stage_policy
 from zhijian.core.config import Settings
+from zhijian.core.storage import resolve_ref
 from zhijian.core.time import utc_now
 from zhijian.db.models import Job, JobStep, PlaceMention, VideoAsset, VideoScreenshot, VisualFact
 from zhijian.domain.enums import JobStatus
@@ -65,7 +65,7 @@ def process_visual_fact_job(db: Session, job: Job, settings: Settings) -> None:
     if not _vision_profile(db, job):
         _finish(db, job, "SKIPPED_UNSUPPORTED", "未配置显式 Vision-capable Profile")
         return
-    path = Path(screenshot.image_path)
+    path = resolve_ref(screenshot.image_path, settings)
     if not path.is_file():
         _finish(db, job, "SKIPPED_UNSUPPORTED", "截图文件已不可用，未执行视觉识别")
         return

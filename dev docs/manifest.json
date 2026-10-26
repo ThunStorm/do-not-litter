@@ -82,9 +82,11 @@
     "design/FRONTEND_VISUAL_DESIGN_SYSTEM.md",
     "history/IMPLEMENTATION_HISTORY.md",
     "history/LOCALMUX_PARAMETER_SURVEY_20261006.md",
+    "history/PRODUCTION_SNAPSHOTS.md",
     "history/PROJECT_PLAN.md",
     "history/VIDEO_AI_NOTE_IMPLEMENTATION_GUIDE.md",
     "history/planning/AGENT_IMPLEMENTATION_PLAN_UI_VIDEO_POI_V2.md",
+    "history/planning/DATA_STORAGE_AND_LOG_LIFECYCLE_PLAN.md",
     "history/planning/LLM_TOKEN_AND_AUTOMATION_OPTIMIZATION_PLAN.md",
     "history/planning/MAP_PLACE_MANAGEMENT_AND_UI_REFINEMENT_PLAN.md",
     "history/planning/MODEL_RELIABILITY_PLAN.md",
@@ -92,6 +94,7 @@
     "history/planning/PIPELINE_RUNTIME_RESILIENCE_AND_LIVE_PROGRESS_UPGRADE_PLAN.md",
     "history/planning/PLACE_INTELLIGENCE_MAP_V2_IMPLEMENTATION_PLAN.md",
     "history/planning/PLACE_MAP_STABILIZATION_AND_TRAVEL_DECISION_PLAN.md",
+    "history/planning/PLACE_RECOMMENDATION_INTENT_PLAN.md",
     "history/planning/PLAN_A_AI_BENCHMARK_AND_LOCAL_ROUTING.md",
     "history/planning/PLAN_B_PLACE_POI_KNOWLEDGE_QUALITY.md",
     "history/planning/PLAN_C_TRAVEL_RECOMMENDATION_AND_VISION.md",
@@ -112,9 +115,12 @@
     "operations/OPERATIONS_UI_SPEC.md",
     "operations/RUNTIME_MONITOR_AND_MODEL_PRESETS_SPEC.md",
     "operations/RUNTIME_MONITOR_AND_PROVIDER_SWITCH_V06_SPEC.md",
+    "operations/STORAGE_AND_LOG_LIFECYCLE.md",
     "planning/ASR_BENCHMARK_AND_INTEGRATION_PLAN.md",
     "planning/FUTURE_ROADMAP.md",
+    "planning/MAP_EXPERIENCE_REPAIR_AND_EVOLUTION_PLAN.md",
     "planning/POST_FREEZE_TODO_BACKLOG.md",
+    "planning/SOCIAL_LINK_ADAPTER_FEASIBILITY_PLAN.md",
     "planning/VIDEO_TRANSCRIPT_ALIGNMENT_OPTIMIZATION_PLAN.md",
     "product/CONTROL_CENTER.md",
     "product/PRODUCT_REQUIREMENTS.md",
@@ -138,6 +144,6 @@
   "generated_documents": {
     "COMPLETE_PROJECT_SPEC.md": ".venv/bin/python scripts/build_complete_project_spec.py"
   },
-  "documentation_inventory_date": "2026-10-14",
+  "documentation_inventory_date": "2026-10-27",
   "repository_snapshot_note": "repository_snapshot_date/commit describe the historical freeze only; use git HEAD for the current delivered revision."
 }

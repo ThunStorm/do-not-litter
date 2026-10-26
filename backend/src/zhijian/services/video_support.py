@@ -81,7 +81,9 @@ from zhijian.providers.llm import (
 from zhijian.services.audit import record_event
 from zhijian.services.jobs import JobCancelled, ensure_job_active
 from zhijian.services.model_attempts import begin_model_attempt, finish_model_attempt
+from zhijian.services.note_structure import organize_sections, structured_overview
 from zhijian.services.place_knowledge import aggregate_place_knowledge, normalize_insight
+from zhijian.services.recommendation_intent import assess, mention_opinion, merge_evidence
 from zhijian.services.title_temporal import (
     parse_title_temporal_context,
     title_context_label,
@@ -89,6 +91,7 @@ from zhijian.services.title_temporal import (
     verified_title_context,
 )
 from zhijian.services.transcript_retention import retention_deadline
+from zhijian.services.travel_timing import has_temporal_scope
 from zhijian.services.video_note_search import sync_video_note_search_index
 
 TRANSCRIPT_CORRECTION_TIMEOUT_SECONDS = 180.0
@@ -284,7 +287,7 @@ TEMPORAL_CUE = re.compile(
     r"丰水期|丰水季|汛期|枯水期|枯水季|平水期|休渔期|禁渔期|禁捕期|开渔期|捕捞期|"
     r"封山|闭园|开放期|停航|封航|结冰期|融冰期|"
     r"花期|花季|樱花季|赏花期|红叶期|红叶季|赏枫期|雪季|冰雪季|"
-    r"候鸟季|迁徙期|雨季|旱季|旺季|淡季"
+    r"候鸟季|迁徙期|雨季|旱季|旺季|淡季|雪后|下雪|冬天|冬季|晴天|早晨|\d{1,2}月|[一二三四五六七八九十]{1,3}月"
 )
 MONTH_TOKEN = re.compile(r"(?<![0-9])(?:(1[0-2]|0?[1-9])|([一二三四五六七八九十]{1,3}))月")
 
@@ -339,7 +342,7 @@ def _period_type_from_text(value: str) -> str:
         (r"枯水期|枯水季|平水期", "LOW_WATER"),
         (r"花期|花季|樱花季|赏花期", "BLOOM"),
         (r"红叶期|红叶季|赏枫期", "FOLIAGE"),
-        (r"雪季|冰雪季|结冰期|融冰期", "SNOW"),
+        (r"雪季|冰雪季|结冰期|融冰期|雪后|下雪|赏雪", "SNOW"),
         (r"候鸟季|迁徙期", "MIGRATION"),
         (r"雨季|旱季", "WEATHER_SEASON"),
         (r"旺季", "PEAK_SEASON"),
@@ -356,7 +359,7 @@ def _suitability_from_text(value: str, period_type: str) -> str:
         r"休渔|禁渔|禁捕|封山|闭园|停航|封航", value
     ):
         return "RESTRICTED"
-    if re.search(r"避开|不建议|不适合|不要|谨慎", value):
+    if re.search(r"避开|不推荐|不建议|不适合|不要|谨慎", value):
         return "AVOID"
     if re.search(r"最佳|最好|最美|最漂亮|最适合|最合适|推荐|适宜|值得", value):
         return "RECOMMENDED"
@@ -410,6 +413,8 @@ def _visit_windows_from_candidate(
             evidence
         ):
             return
+        if not has_temporal_scope(source_text):
+            return
         period_type = str(raw.get("period_type") or "OTHER").upper()
         suitability = str(raw.get("suitability") or "INFORMATIONAL").upper()
         season = str(raw.get("season") or "").upper() or None
@@ -434,7 +439,7 @@ def _visit_windows_from_candidate(
                 "month": month,
                 "month_segment": month_segment,
                 "day_time_slot": day_time_slot,
-                "source_text": source_text[:500],
+                "source_text": source_text,
                 "segment_ids": evidence_ids,
             }
             key = tuple(candidate[field] for field in candidate if field != "segment_ids")
@@ -449,15 +454,27 @@ def _visit_windows_from_candidate(
         add(raw, evidence_ids, str(raw.get("source_text") or "").strip())
 
     covered_sources = {_normalized_evidence_text(window["source_text"]) for window in windows}
+    ordered_ids = list(segment_texts)
     for segment_id in segment_ids:
         text = segment_texts.get(segment_id, "")
+        evidence_ids = [segment_id]
+        # Read a split sentence only across adjacent segments already owned by this mention.
+        position = ordered_ids.index(segment_id) if segment_id in ordered_ids else -1
+        if position >= 0 and TEMPORAL_CUE.search(text) and not re.search(r"[。！？!?；;]$", text):
+            for following in ordered_ids[position + 1 : position + 3]:
+                if following not in segment_ids:
+                    break
+                text += segment_texts[following]
+                evidence_ids.append(following)
+                if re.search(r"[。！？!?；;]", segment_texts[following]):
+                    break
         if not TEMPORAL_CUE.search(text):
             continue
         for sentence in (part.strip() for part in re.split(r"[。！？!?；;]", text)):
             if (
                 not sentence
                 or not TEMPORAL_CUE.search(sentence)
-                or _normalized_evidence_text(sentence) in covered_sources
+                or any(_normalized_evidence_text(sentence) in covered for covered in covered_sources)
             ):
                 continue
             period_type = _period_type_from_text(sentence)
@@ -469,7 +486,7 @@ def _visit_windows_from_candidate(
                     "suitability": _suitability_from_text(sentence, period_type),
                     "months": _months_in_text(sentence),
                 },
-                [segment_id],
+                evidence_ids,
                 sentence,
             )
             covered_sources.add(_normalized_evidence_text(sentence))
@@ -1199,8 +1216,11 @@ def provider_for_role(
         limit = request_timeout(
             float(config.get("timeout_seconds") or 300),
             resolved_policy.timeout_seconds if resolved_policy else None,
-            (transcript_processing_config(db, job).timeout_seconds
-             if role == "transcript_correction" else None),
+            (
+                transcript_processing_config(db, job).timeout_seconds
+                if role == "transcript_correction"
+                else None
+            ),
             limits_policy_version(job),
         )
         result = _provider_from_config(config, settings, profile_id, limit["seconds"])
@@ -1464,6 +1484,21 @@ def _merge_place_candidates(candidates: list[dict[str, Any]]) -> list[dict[str, 
                 "segment_ids": list(candidate.get("segment_ids") or []),
             }
             continue
+        current["recommendation_evidence"] = merge_evidence(
+            current.get("recommendation_evidence"), candidate.get("recommendation_evidence")
+        )
+        intents = sorted(
+            set(current.get("_merged_intents", [current.get("visit_intent", "NEUTRAL")]))
+            | {candidate.get("visit_intent", "NEUTRAL")}
+        )
+        current["_merged_intents"] = intents
+        current["visit_intent"] = (
+            "NOT_RECOMMENDED"
+            if "NOT_RECOMMENDED" in intents
+            else "OPTIONAL"
+            if "OPTIONAL" in intents
+            else intents[0]
+        )
         current["segment_ids"] = list(
             dict.fromkeys([*current["segment_ids"], *candidate.get("segment_ids", [])])
         )
@@ -1499,6 +1534,7 @@ def _place_evidence_index(mentions: list[PlaceMention]) -> list[dict[str, object
     return [
         {
             "mention_id": mention.id,
+            "recommendation_summary": mention_opinion(mention),
             "name": mention.name,
             "place_type": mention.place_type,
             "segment_ids": mention.segment_ids_json,
@@ -1520,40 +1556,69 @@ def _pack_place_evidence(
     index: list[dict[str, object]], pack: list[dict[str, object]]
 ) -> list[dict[str, object]]:
     mention_ids = {str(value) for fact in pack for value in fact.get("place_mention_ids", [])}
-    segment_ids = {str(value) for fact in pack for value in fact.get("segment_ids", [])}
-    quotes = [str(value) for fact in pack for value in fact.get("supporting_quotes", [])]
     return [
         {
             **item,
-            "segment_ids": [value for value in item.get("segment_ids", []) if value in segment_ids],
+            "recommendation_summary": {
+                **item.get("recommendation_summary", {}),
+                "statements": [
+                    s
+                    for s in item.get("recommendation_summary", {}).get("statements", [])
+                    if set(s["segment_ids"])
+                    <= {str(sid) for fact in pack for sid in fact.get("segment_ids", [])}
+                ],
+            },
+            "segment_ids": list(
+                dict.fromkeys(
+                    v
+                    for fact in pack
+                    if item["mention_id"] in fact.get("place_mention_ids", [])
+                    for v in fact.get("segment_ids", [])
+                )
+            ),
             "quotes": list(
                 dict.fromkeys(
-                    quote
-                    for quote in item.get("quotes", [])
-                    if any(_normalized_text(quote) in _normalized_text(value) for value in quotes)
+                    v
+                    for fact in pack
+                    if item["mention_id"] in fact.get("place_mention_ids", [])
+                    for v in fact.get("supporting_quotes", [])
                 )
             ),
         }
         for item in index
         if str(item["mention_id"]) in mention_ids
-        and set(item.get("segment_ids", [])) & segment_ids
+        and any(
+            item["mention_id"] in fact.get("place_mention_ids", []) and fact.get("segment_ids")
+            for fact in pack
+        )
     ]
 
 
 def _ground_section(
-    item: dict[str, object], segments: list[Segment], mentions: list[PlaceMention]
+    item: dict[str, object],
+    segments: list[Segment],
+    mentions: list[PlaceMention],
+    place_scopes: dict[str, set[str]] | None = None,
 ) -> dict[str, object] | None:
     valid_ids = {segment.id for segment in segments}
     ids = [str(value) for value in item.get("segment_ids", []) if value in valid_ids]
-    if not ids:
+    if not ids or set(item.get("segment_ids", [])) - valid_ids:
         return None
     evidence = "\n".join(
         str(segment.corrected_text or segment.text) for segment in segments if segment.id in ids
     )
     requested_quotes = [str(value).strip() for value in item.get("supporting_quotes", []) if value]
     quotes = [quote for quote in requested_quotes if _normalized_text(quote) in _normalized_text(evidence)]
-    related = [mention for mention in mentions if set(mention.segment_ids_json) & set(ids)]
+    if requested_quotes and len(quotes) != len(requested_quotes):
+        return None
+    related = [
+        mention
+        for mention in mentions
+        if (set(mention.segment_ids_json) | (place_scopes or {}).get(mention.id, set())) & set(ids)
+    ]
     requested_ids = {str(value) for value in item.get("place_mention_ids", [])}
+    if requested_ids - {mention.id for mention in mentions}:
+        return None
     if requested_ids:
         related = [mention for mention in related if mention.id in requested_ids]
     else:
@@ -1564,7 +1629,7 @@ def _ground_section(
     kind = str(item.get("unit_type") or item.get("section_kind") or "").upper()
     if kind not in NOTE_SECTION_KINDS:
         kind = "PLACE" if related else "SUPPLEMENTAL"
-    if kind in {"PLACE", "AREA", "ROUTE"} and not related:
+    if kind in {"PLACE", "PLACE_GUIDE", "AREA", "ROUTE"} and not related:
         return None
     if not quotes:
         quotes = [
@@ -1634,19 +1699,19 @@ def _ground_map_facts(
                     )
                 )
             ]
-        related = [
+        eligible = [
             mention
             for mention in mentions
             if mention.poi_policy not in {"REFERENCE_ONLY", "SKIP"}
-            and mention.extraction_status != "USER_REJECTED"
-            and set(mention.segment_ids_json) & set(ids)
+            and mention.extraction_status not in {"USER_REJECTED", "SUPERSEDED"}
         ]
         subjects = fact.get("subject_entity_ids", [])
+        related = [mention for mention in eligible if set(mention.segment_ids_json) & set(ids)]
         if subjects:
             related = [
                 mention
-                for mention in related
-                if mention.metadata_json.get("semantic", {}).get("entity_id") in subjects
+                for mention in eligible
+                if (mention.metadata_json or {}).get("semantic", {}).get("entity_id") in subjects
             ]
         else:
             unit = fact.get("content_unit_id")
@@ -1673,6 +1738,8 @@ def _compact_note_facts(facts: list[dict[str, object]]) -> list[dict[str, object
     for fact in facts:
         value = {
             "content_unit_id": str(fact.get("content_unit_id") or ""),
+            "claim_ids": list(fact.get("claim_ids") or []),
+            "subject_entity_ids": list(fact.get("subject_entity_ids") or []),
             "summary": str(fact.get("summary") or "")[:800],
             "key_points": list(dict.fromkeys(str(item)[:300] for item in fact.get("key_points", []) if item))[
                 :8
@@ -1701,7 +1768,10 @@ def _note_evidence_packs(
     packs: list[list[dict[str, object]]] = []
     current: list[dict[str, object]] = []
     used = 0
-    for fact in facts:
+    for fact in sorted(
+        facts,
+        key=lambda fact: tuple(sorted(str(v) for v in fact.get("place_mention_ids", []))) or ("~unassigned",),
+    ):
         size = len(json.dumps(fact, ensure_ascii=False))
         if current and (used + size > max_chars or len(current) >= max_facts):
             packs.append(current)
@@ -1730,7 +1800,7 @@ def _fallback_sections(chunks: list[list[Segment]]) -> list[dict[str, object]]:
                 "thesis": thesis,
                 "summary": thesis,
                 "bullets": bullets,
-                "body_markdown": "\n".join(f"- {value}" for value in bullets),
+                "body_markdown": "原文整理（未完成模型归纳）：\n\n" + "\n\n".join(texts),
                 "segment_ids": [segment.id for segment in chunk],
             }
         )
@@ -2374,7 +2444,6 @@ def generate_note(
         )
     )
     place_evidence_json = json.dumps(place_evidence, ensure_ascii=False)
-    valid_ids = {segment.id for segment in segments}
     raw_sections: list[dict[str, object]] = []
     semantic_claims = list(grounded_map.claims_json or []) if grounded_map else []
     claim_facts = [
@@ -2492,8 +2561,10 @@ def generate_note(
             compact_facts,
             max_chars=min(
                 max(1000, max_input_tokens * 4 - fixed_chars),
-                int((reduce_policy.chunk_size if modern_limits else None)
-                    or max(1000, max_input_tokens * 4 - fixed_chars)),
+                int(
+                    (reduce_policy.chunk_size if modern_limits else None)
+                    or max(1000, max_input_tokens * 4 - fixed_chars)
+                ),
             ),
             max_facts=max_facts,
         )
@@ -2616,16 +2687,29 @@ def generate_note(
                     return
             payload = parse_model_json(reduced.content)
             sections = payload.get("sections")
-            accepted = (
-                [
-                    item
-                    for item in sections
-                    if isinstance(item, dict)
-                    and any(value in valid_ids for value in item.get("segment_ids", []))
-                ]
-                if isinstance(sections, list)
-                else []
-            )
+            pack_ids = {str(value) for fact in pack for value in fact.get("segment_ids", [])}
+            scopes: dict[str, set[str]] = {}
+            for fact in pack:
+                for mid in fact.get("place_mention_ids", []):
+                    scopes.setdefault(mid, set()).update(fact.get("segment_ids", []))
+            accepted = []
+            for item in sections if isinstance(sections, list) else []:
+                if not isinstance(item, dict) or not item.get("supporting_quotes"):
+                    continue
+                ids = set(item.get("segment_ids", []))
+                mids = set(item.get("place_mention_ids", []))
+                if not ids or not ids <= pack_ids or not mids <= set(scopes):
+                    continue
+                if mids and not ids <= set().union(*(scopes[mid] for mid in mids)):
+                    continue
+                if _ground_section(item, segments, mentions, scopes) is not None:
+                    accepted.append(item)
+            if not accepted:
+                raise AIProviderError(
+                    "AI_NOTE_EVIDENCE_INVALID",
+                    "笔记章节未通过当前分包的来源与地点归属校验",
+                    switch_model=False,
+                )
             reduced_sections.extend(accepted)
             if payload.get("overview"):
                 overview_parts.append(str(payload["overview"]).strip())
@@ -2673,6 +2757,106 @@ def generate_note(
                 note_generation_mode = "HYBRID"
         else:
             note_generation_mode = "DETERMINISTIC_FALLBACK"
+    place_scopes: dict[str, set[str]] = {}
+    for fact in map_facts:
+        for mid in fact.get("place_mention_ids", []):
+            place_scopes.setdefault(mid, set()).update(fact.get("segment_ids", []))
+    grounded_sections = [
+        value
+        for item in raw_sections
+        if (value := _ground_section(item, segments, mentions, place_scopes)) is not None
+    ]
+    missing = []
+    for fact in map_facts:
+        relevant = [
+            section
+            for section in grounded_sections
+            if set(fact.get("place_mention_ids", [])) <= set(section.get("place_mention_ids", []))
+        ]
+        covered = {sid for section in relevant for sid in section["segment_ids"]}
+        quotes = [str(q) for section in relevant for q in section.get("supporting_quotes", [])]
+        if not set(fact.get("segment_ids", [])) <= covered or any(
+            not any(_normalized_text(q) in _normalized_text(value) for value in quotes)
+            for q in fact.get("supporting_quotes", [])
+        ):
+            missing.append(fact)
+    if missing:
+        note_generation_mode = "HYBRID"
+        warnings.append(f"{len(missing)}条证据要点未被模型章节完整覆盖，已保留为待归纳原文")
+        for fact in missing:
+            mids = fact.get("place_mention_ids", [])
+            item = {
+                "heading": "待归纳的证据要点",
+                "section_kind": "PLACE_GUIDE" if len(mids) == 1 else "SUPPLEMENTAL",
+                "segment_ids": fact.get("segment_ids", []),
+                "place_mention_ids": mids,
+                "supporting_quotes": fact.get("supporting_quotes", []),
+                "body_markdown": "以下原文尚未形成完整归纳：\n\n"
+                + "\n\n".join("> " + str(v) for v in fact.get("supporting_quotes", [])),
+            }
+            if (value := _ground_section(item, segments, mentions, place_scopes)) is not None:
+                grounded_sections.append(value)
+    for mention in mentions:
+        opinion = mention_opinion(mention)
+        statements = opinion.get("statements", [])
+        for statement in statements:
+            related = [
+                section for section in grounded_sections if mention.id in section.get("place_mention_ids", [])
+            ]
+            quote = statement["quote"]
+            # Exact evidence coverage is stronger than a polarity keyword in an unrelated section.
+            if not any(quote in str(section.get("body_markdown", "")) for section in related):
+                item = {
+                    "heading": f"{mention.name} · 作者意见与限制",
+                    "section_kind": "PLACE_GUIDE",
+                    "segment_ids": statement["segment_ids"],
+                    "place_mention_ids": [mention.id],
+                    "supporting_quotes": [quote],
+                    "body_markdown": "作者原文（保留意见、条件与局部限制）：\n\n> " + quote,
+                }
+                if (value := _ground_section(item, segments, mentions, place_scopes)) is not None:
+                    grounded_sections.append(value)
+                    note_generation_mode = "HYBRID"
+                    warnings.append(f"{mention.name}的作者意见/限制以原文保留，未宣称归纳覆盖")
+    unsafe = {
+        m.id: m
+        for m in mentions
+        if mention_opinion(m)["status"] in {"NOT_RECOMMENDED", "CONFLICT"}
+        or mention_opinion(m)["review_required"]
+    }
+    for section in grounded_sections:
+        owners = [unsafe[mid] for mid in section.get("place_mention_ids", []) if mid in unsafe]
+        if owners:
+            evidence_quotes = list(
+                dict.fromkeys(
+                    [
+                        *section.get("supporting_quotes", []),
+                        *(
+                            s["quote"]
+                            for m in owners
+                            for s in mention_opinion(m).get("statements", [])
+                            if set(s["segment_ids"]) <= set(section["segment_ids"])
+                        ),
+                    ]
+                )
+            )
+            section["body_markdown"] = "作者意见或归纳待核对，以原文为准：\n\n" + "\n\n".join(
+                "> " + q for q in evidence_quotes
+            )
+            section["summary"] = section["thesis"] = "作者意见或归纳待核对"
+            section["bullets"] = []
+            note_generation_mode = "HYBRID"
+    attitude_lines = [
+        m.name + "：" + "；".join(s["quote"] for s in mention_opinion(m).get("statements", []))
+        for m in mentions
+        if mention_opinion(m).get("statements")
+    ]
+    if unsafe:
+        overview = "作者地点意见以原文为准：\n" + "\n".join(attitude_lines)
+        warnings.append("存在整体负向、分歧或态度证据疑点，相关归纳按原文保留待核对")
+    elif attitude_lines:
+        overview += "\n\n作者意见与条件：\n" + "\n".join(attitude_lines)
+    raw_sections = organize_sections(grounded_sections, mentions, map_facts)
     note = note_for_job(db, asset, job)
     if note is None:
         note = AINote(video_asset_id=asset.id, submission_job_id=job.id if job else None)
@@ -2686,6 +2870,7 @@ def generate_note(
     ]
     if not overview:
         overview = "已根据完整校对稿整理视频主题、关键地点与注意事项。"
+    overview = structured_overview(raw_sections, overview, min(int(render_profile["overview_limit"]), 420))
     if title_labels:
         overview += " " + "；".join(title_labels) + "。"
     markdown = "# " + asset.title + "\n\n" + overview + "\n"
@@ -2698,7 +2883,7 @@ def generate_note(
         map_facts_json=map_facts,
         model_provider=response.provider,
         model_name=response.model,
-        prompt_version=f"video-note-v2+{prompt_supplement_hash(db, 'video_note_summary', job)[:8]}",
+        prompt_version=f"video-note-v3-place+{prompt_supplement_hash(db, 'video_note_summary', job)[:8]}",
         render_profile_id=profile_id,
         render_profile_version=str(render_profile["version"]),
         transcript_version=transcript.version,
@@ -2709,8 +2894,8 @@ def generate_note(
     created_sections = 0
     low_information_removed = 0
     for ordinal, raw_item in enumerate(raw_sections):
-        item = _ground_section(raw_item, segments, mentions)
-        if item is None:
+        item = raw_item
+        if not item:
             continue
         segment_ids = list(item["segment_ids"])
         body = str(item.get("body_markdown") or item.get("body") or "")
@@ -2883,6 +3068,16 @@ def extract_place_mentions(
     }
     created: list[PlaceMention] = []
     for item in _merge_place_candidates(candidates)[:80]:
+        if str(item.get("raw_name") or item.get("name") or "").strip() in {
+            "游船",
+            "菜品",
+            "天气",
+            "时节",
+            "费用",
+            "门票",
+            "玩法",
+        }:
+            continue  # Local detail is not an independent geographic entity.
         ids = [value for value in item.get("segment_ids", []) if value in valid_ids]
         if not ids or not item.get("name") or not _candidate_has_evidence(item, ids, segment_texts):
             record_event(
@@ -2908,6 +3103,26 @@ def extract_place_mentions(
         visit_intent = str(item.get("visit_intent") or "NOT_APPLICABLE").upper()
         if visit_intent not in {"RECOMMENDED", "OPTIONAL", "NEUTRAL", "NOT_RECOMMENDED", "NOT_APPLICABLE"}:
             visit_intent = "NOT_APPLICABLE"
+        if visit_intent == "NOT_RECOMMENDED":
+            poi_policy = "RESOLVE"  # Review queue eligibility; resolver gates out actual lookup.
+        item["_peer_names"] = [
+            str(other.get("raw_name") or other.get("name") or "")
+            for other in candidates
+            if other.get("entity_id") != item.get("entity_id")
+        ]
+        recommendation_evidence = assess(item, segment_texts)
+        ids = list(
+            dict.fromkeys(
+                [
+                    *ids,
+                    *(
+                        sid
+                        for statement in recommendation_evidence["statements"]
+                        for sid in statement["segment_ids"]
+                    ),
+                ]
+            )
+        )
         insights = _insights_from_candidate(item, ids, segment_texts)
         # Shared segments need named sentences or explicitly scoped model windows.
         other_names = [
@@ -2969,8 +3184,17 @@ def extract_place_mentions(
                 else ResolutionStatus.UNRESOLVED.value
             ),
             metadata_json={
+                "recommendation_evidence": recommendation_evidence,
                 "insights": insights,
                 "visit_windows": visit_windows,
+                "temporal_analysis": {
+                    "version": "map-timing-v2",
+                    "status": "ANALYZED"
+                    if visit_windows
+                    or has_temporal_scope("".join(segment_texts.values()))
+                    or has_temporal_scope(asset.title or "")
+                    else "NO_TIME_MENTIONED",
+                },
                 "semantic": {
                     "entity_id": str(item.get("entity_id") or "")[:96],
                     "content_unit_id": str(item.get("content_unit_id") or "")[:96],
@@ -3218,9 +3442,29 @@ def resolve_mentions_with_amap(
     api_key: str | None = None,
     metrics: dict[str, int] | None = None,
 ) -> tuple[int, int]:
-    actionable = [item for item in mentions if (item.poi_policy or "LEGACY") in {"RESOLVE", "LEGACY"}]
+    negative = [
+        m for m in mentions if m.visit_intent == "NOT_RECOMMENDED" or mention_opinion(m)["review_required"]
+    ]
+    for mention in negative:
+        mention.poi_policy = "RESOLVE"
+        mention.resolution_status = "REVIEW"
+        mention.metadata_json = {
+            **(mention.metadata_json or {}),
+            "poi_decision": "REVIEW",
+            "reason": "视频明确不推荐此地点，等待人工二次检核"
+            if mention.visit_intent == "NOT_RECOMMENDED"
+            else "作者态度证据或意见分歧待人工核对",
+            "reason_codes": ["AUTHOR_NOT_RECOMMENDED"],
+        }
+    actionable = [
+        item
+        for item in mentions
+        if item not in negative and (item.poi_policy or "LEGACY") in {"RESOLVE", "LEGACY"}
+    ]
     skipped = [item for item in mentions if item not in actionable]
     for mention in skipped:
+        if mention in negative:
+            continue
         if mention.poi_policy in {"REFERENCE_ONLY", "SKIP"}:
             mention.resolution_status = "SKIPPED"
         elif mention.poi_policy == "AREA_RESOLVE":
@@ -3235,13 +3479,18 @@ def resolve_mentions_with_amap(
             metrics["amap_request_count"] = 0
             metrics["amap_cache_hit_count"] = 0
         return 0, 0
+    if not actionable:
+        if metrics is not None:
+            metrics.update(amap_request_count=0, amap_cache_hit_count=0, poi_review=len(negative))
+        db.commit()
+        return 0, len(negative)
     effective_key = api_key or settings.amap_api_key
     if not effective_key:
         if metrics is not None:
             metrics["amap_request_count"] = 0
             metrics["amap_cache_hit_count"] = 0
         db.commit()
-        return 0, len(actionable)
+        return 0, len(actionable) + len(negative)
     provider = AMapPOIProvider(
         effective_key,
         cache_ttl_seconds=settings.amap_cache_ttl_seconds,
@@ -3444,13 +3693,13 @@ def resolve_mentions_with_amap(
         metrics["poi_auto_normalized"] = sum(
             item.metadata_json.get("poi_decision") == "AUTO_NORMALIZED" for item in actionable
         )
-        metrics["poi_review"] = sum(
+        metrics["poi_review"] = len(negative) + sum(
             item.resolution_status == ResolutionStatus.REVIEW.value for item in actionable
         )
         metrics["poi_unresolved"] = sum(
             item.resolution_status == ResolutionStatus.UNRESOLVED.value for item in actionable
         )
-    return confirmed, len(actionable) - confirmed
+    return confirmed, len(actionable) - confirmed + len(negative)
 
 
 def materialize_destinations(db: Session, asset: VideoAsset, mentions: list[PlaceMention]) -> tuple[int, int]:

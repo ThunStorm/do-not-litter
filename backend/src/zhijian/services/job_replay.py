@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -15,6 +14,8 @@ from zhijian.ai.job_config import (
     secret_free_model_profile,
 )
 from zhijian.ai.model_registry import business_probe_status, profile_supports_capability
+from zhijian.core.config import get_settings
+from zhijian.core.storage import resolve_ref
 from zhijian.core.time import as_utc, utc_now
 from zhijian.db.models import GroundedMapArtifact, Job, JobStep, JobStepArtifact, Setting, SystemEvent
 from zhijian.domain.enums import JobStatus
@@ -330,7 +331,7 @@ def replay_options(db: Session, job: Job) -> dict:
         name
         for name in required
         if artifacts[name].artifact_ref_json.get("cache_path")
-        and not Path(str(artifacts[name].artifact_ref_json["cache_path"])).is_file()
+        and not resolve_ref(artifacts[name].artifact_ref_json["cache_path"], get_settings()).is_file()
     ]
     if missing_files:
         return _unavailable(job, "REPLAY_ARTIFACT_MISSING", f"中间产物文件已不存在：{missing_files[0]}")

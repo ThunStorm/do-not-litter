@@ -42,9 +42,12 @@
 | 视频阅读、列表、删除 | 分别选 [阅读](video/VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md)、[列表](video/VIDEO_NOTE_LIST_V043_SPEC.md)、[删除](video/VIDEO_NOTE_DELETE_V044_SPEC.md) |
 | 标题时间证据、Mention 归属 | [标题时间证据与请求边界](video/TITLE_TEMPORAL_EVIDENCE.md)；度量选 benchmark/TITLE_TEMPORAL_PROMPT_AB_REPORT.md |
 | Prompt、来源保留、模型设置 | 分别选 ai-gateway/PROMPT_SUPPLEMENTS_V045_SPEC.md、ai-gateway/AI_ROUTING_SOURCE_RETENTION_V046_SPEC.md、ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md |
+| 地图体验修复 | [当前实施计划](planning/MAP_EXPERIENCE_REPAIR_AND_EVOLUTION_PLAN.md) A–E及验收；F仍为候选 |
 | 地图、地点、POI | [旅行领域](product/TRAVEL_FOOD_PIPELINE.md) 命中段；Marker 导航见 [视频视图](video/05-views-safety-acceptance.md) |
 | 前端、UI、视觉、样式、布局、组件、Dropdown、Filter | [前端视觉设计系统](design/FRONTEND_VISUAL_DESIGN_SYSTEM.md) |
 | 地图 V2 草案（仅用户指定时） | [文档目录](README.md#地图-v2-草案的按需路由) 选章节，不能推断已冻结或已实现 |
+| 数据目录、搬迁、日志压缩/保留 | [存储与日志生命周期](operations/STORAGE_AND_LOG_LIFECYCLE.md)；实际搬迁需明确目标授权，不由设置保存代替 |
+| 地点推荐态度、整体/局部否定 | [旅行领域](product/TRAVEL_FOOD_PIPELINE.md#1025-地点整体态度与局部限制2026-10-27)；真实模型质量仍需独立验收 |
 | 运维日志、监控、北京时间 | [日志](operations/LOGGING.md)；监控选 operations/OPERATIONS_UI_SPEC.md，时间选 jobs/TASK_STATUS_AND_BEIJING_TIME_SPEC.md |
 | 数据迁移、API、安全 | 分别在 architecture/DATA_MODEL.md、architecture/API_DESIGN.md、architecture/SECURITY_PRIVACY.md 中按表/路由/威胁定位 |
 | 真实 AI 验收 | [生产验收门禁](ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md)；不因自动测试通过而跳过 |

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import hashlib
-from pathlib import Path
 
 import httpx
 from PIL import Image
 from sqlalchemy.orm import Session
 
 from zhijian.core.config import Settings
+from zhijian.core.storage import resolve_ref, storage_ref
 from zhijian.core.url_policy import HttpsHostPolicy
 from zhijian.db.models import VideoAsset, VideoCoverAsset
 
@@ -30,7 +30,7 @@ def materialize_cover(db: Session, settings: Settings, asset: VideoAsset) -> Vid
         existing
         and existing.status == "READY"
         and existing.derivative_path
-        and Path(existing.derivative_path).is_file()
+        and resolve_ref(existing.derivative_path, settings).is_file()
     ):
         return existing
     source_url = normalize_cover_url(asset.cover_url)
@@ -70,7 +70,9 @@ def materialize_cover(db: Session, settings: Settings, asset: VideoAsset) -> Vid
         with Image.open(original) as image:
             width, height = image.size
             image.convert("RGB").resize((672, 378)).save(derivative, "WEBP", quality=84)
-        cover.source_url, cover.local_path, cover.derivative_path = source_url, str(original), str(derivative)
+        cover.source_url = source_url
+        cover.local_path = storage_ref(original, settings)
+        cover.derivative_path = storage_ref(derivative, settings)
         cover.content_hash = digest
         cover.content_type = content_type
         cover.width, cover.height, cover.byte_size = width, height, len(content)

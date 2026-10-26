@@ -62,3 +62,28 @@ describe('AmapLayer lifecycle', () => {
     expect(onSelect).toHaveBeenCalledWith('place-1')
   })
 })
+it('keeps a selected confirmed place outside a nearby cluster', async () => {
+  const markerOptions: Array<{ content: HTMLButtonElement }> = []
+  const map = { add: vi.fn(), remove: vi.fn(), destroy: vi.fn(), on: vi.fn(), off: vi.fn(), getBounds: vi.fn(), getZoom: vi.fn(() => 4), setZoomAndCenter: vi.fn(), zoomIn: vi.fn(), zoomOut: vi.fn(), setFitView: vi.fn() }
+  window.AMap = { Map: vi.fn(() => map), Marker: vi.fn((options) => { markerOptions.push(options); return { on: vi.fn() } }), Pixel: vi.fn() } as never
+  vi.mocked(api.mapBootstrap).mockResolvedValue({ js_key: 'test-key', security_code: '', security_code_configured: false, web_service_configured: false, default_viewport: { bbox: [73.5, 18, 135.1, 53.6], zoom: 4 }, diagnostics: [] })
+  render(<AmapLayer markers={[markers[0], { ...markers[0], id: 'new-confirmed', name: '新确认地点' }]} selectedId="new-confirmed" onSelect={vi.fn()} onReady={vi.fn()} onViewportChange={vi.fn()} viewport={{ bbox: [73.5, 18, 135.1, 53.6], zoom: 4 }} />)
+  await waitFor(() => expect(markerOptions.some((option) => option.content.getAttribute('aria-label') === '查看 新确认地点')).toBe(true))
+  expect(markerOptions.some((option) => option.content.className.includes('amap-cluster'))).toBe(false)
+})
+it('zooms and opens the actual clicked cluster, and reports its split', async () => {
+  const options: Array<{ content: HTMLButtonElement }> = []
+  const map = { add: vi.fn(), remove: vi.fn(), destroy: vi.fn(), on: vi.fn(), off: vi.fn(), getBounds: vi.fn(), getZoom: vi.fn(() => 4), setZoomAndCenter: vi.fn(), zoomIn: vi.fn(), zoomOut: vi.fn(), setFitView: vi.fn() }
+  window.AMap = { Map: vi.fn(() => map), Marker: vi.fn((o) => { options.push(o); return { on: vi.fn() } }), Pixel: vi.fn() } as never
+  vi.mocked(api.mapBootstrap).mockResolvedValue({ js_key: 'test-key', security_code: '', security_code_configured: false, web_service_configured: false, default_viewport: { bbox: [73.5, 18, 135.1, 53.6], zoom: 4 }, diagnostics: [] })
+  const onClusterSelect = vi.fn(), onClustersChange = vi.fn()
+  const nearby = [markers[0], { ...markers[0], id: 'second', longitude: markers[0].longitude + .2 }]
+  const props = { markers: nearby, selectedId: null, onSelect: vi.fn(), onReady: vi.fn(), onViewportChange: vi.fn(), onClusterSelect, onClustersChange }
+  const view = render(<AmapLayer {...props} viewport={{ bbox: [73.5, 18, 135.1, 53.6], zoom: 4 }} />)
+  await waitFor(() => expect(options.some((o) => o.content.className === 'amap-cluster')).toBe(true))
+  fireEvent.click(options.find((o) => o.content.className === 'amap-cluster')!.content)
+  expect(onClusterSelect).toHaveBeenCalledWith(nearby)
+  expect(map.setZoomAndCenter).toHaveBeenCalledWith(5, expect.any(Array))
+  view.rerender(<AmapLayer {...props} viewport={{ bbox: [73.5, 18, 135.1, 53.6], zoom: 14 }} />)
+  await waitFor(() => expect(onClustersChange).toHaveBeenLastCalledWith([]))
+})

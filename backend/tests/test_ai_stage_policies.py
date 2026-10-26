@@ -401,4 +401,15 @@ def test_saved_model_order_survives_update_and_rejects_stale_ids(client) -> None
     assert [item["id"] for item in client.get(path).json()] == [first, second]
     assert client.put(f"{path}/order", json=[first, first]).status_code == 409
     third = client.post(path, json=_profile("丙", "LOCAL", "c")).json()["id"]
+    assert [item["id"] for item in client.get(path).json()] == [third, first, second]
+    route = "/api/settings/model-routing"
+    assert client.put(route, json={"primary_id": first, "fallback_id": second}).status_code == 200
     assert [item["id"] for item in client.get(path).json()] == [first, second, third]
+    ordered = client.put(f"{path}/order", json=[third, second, first]).json()
+    assert [item["id"] for item in ordered] == [first, second, third]
+    fourth = client.post(path, json=_profile("丁", "LOCAL", "d")).json()["id"]
+    assert [item["id"] for item in client.get(path).json()] == [first, second, fourth, third]
+    ordered = client.put(f"{path}/order", json=[first, second, third, fourth]).json()
+    assert [item["id"] for item in ordered] == [first, second, third, fourth]
+    assert client.put(route, json={"primary_id": None, "fallback_id": None}).status_code == 200
+    assert [item["id"] for item in client.get(path).json()] == [third, fourth, first, second]

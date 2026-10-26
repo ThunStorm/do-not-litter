@@ -22,7 +22,7 @@ def test_screenshot_search_uses_one_ffmpeg_process_per_plan(tmp_path, monkeypatc
         lambda path: (path.name, float(path.stem[-2:]), 960, 540),
     )
     db = SimpleNamespace(commit=lambda: None)
-    settings = SimpleNamespace(permanent_dir=tmp_path)
+    settings = SimpleNamespace(permanent_dir=tmp_path, data_dir=tmp_path)
     asset = SimpleNamespace(id="video")
     plan = SimpleNamespace(
         id="shot",

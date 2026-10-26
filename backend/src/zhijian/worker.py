@@ -5,12 +5,15 @@ import os
 import socket
 import time
 from datetime import timedelta
+from pathlib import Path
 from threading import Event, Thread
 
 from sqlalchemy import select
 
 from zhijian.core.config import get_settings
+from zhijian.core.file_logs import maintain
 from zhijian.core.logging import configure_logging
+from zhijian.core.storage import gated, read_json
 from zhijian.core.time import utc_now
 from zhijian.db.models import Job, JobStep, Setting, VideoAsset, VideoCoverAsset
 from zhijian.db.session import SessionLocal, init_database
@@ -77,7 +80,14 @@ def _persist_worker_heartbeat(owner: str) -> None:
     with SessionLocal() as db:
         heartbeat = db.get(Setting, "runtime:worker-heartbeat")
         now = utc_now()
-        value = {"owner": owner, "pid": os.getpid(), "at": now.isoformat()}
+        active = get_settings()
+        value = {
+            "owner": owner,
+            "pid": os.getpid(),
+            "at": now.isoformat(),
+            "storage_root": str(active.data_dir),
+            "storage_generation": active.storage_generation,
+        }
         if heartbeat is None:
             db.add(Setting(key="runtime:worker-heartbeat", value_json=value))
         else:
@@ -134,6 +144,7 @@ def worker_loop(once: bool = False) -> None:
         raise
     owner = f"{socket.gethostname()}:{os.getpid()}"
     last_transcript_cleanup = utc_now() - timedelta(days=1)
+    last_file_cleanup = 0.0
     repaired_legacy_timing = False
     planned_legacy_screenshots = False
     backfilled_covers = False
@@ -179,10 +190,30 @@ def worker_loop(once: bool = False) -> None:
         model_tests_thread.start()
     try:
         while True:
+            stage = read_json(settings.storage_config.with_name("maintenance-state.json")).get("stage")
+            if stage in {"COPYING", "SWITCHED", "VERIFYING", "FAILED"}:
+                if once:
+                    return
+                time.sleep(settings.worker_poll_seconds)
+                continue
+            if not gated(settings.storage_config) and time.monotonic() - last_file_cleanup >= 60:
+                with SessionLocal() as idle_db:
+                    busy = idle_db.scalar(
+                        select(Job.id).where(Job.status.in_(["QUEUED", "RUNNING"])).limit(1)
+                    )
+                if not busy:
+                    try:
+                        maintain(settings.data_dir / "logs", settings.storage_config)
+                        maintain(Path.home() / "Library/Logs/Zhijian", settings.storage_config)
+                    except (OSError, ValueError):
+                        logger.exception("文件日志维护失败，原文件保留")
+                last_file_cleanup = time.monotonic()
             with SessionLocal() as db:
                 release_expired_cancelled_jobs(db)
                 resume_deferred_full_replays(db)
-                if utc_now() - last_transcript_cleanup >= timedelta(days=1):
+                if not gated(settings.storage_config) and utc_now() - last_transcript_cleanup >= timedelta(
+                    days=1
+                ):
                     purge_expired_transcripts(db)
                     purge_expired_step_artifacts(db)
                     purge_expired_logs(db)

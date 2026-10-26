@@ -294,6 +294,7 @@ export interface AIStagePolicy {
   wall_time_seconds: number | null
   max_attempts: number | null
   retry_count: number | null
+  json_retry_count: number | null
   confidence_threshold: number | null
   escalation_threshold: number | null
   context_strategy: string | null
@@ -396,6 +397,7 @@ export interface PlaceObservation {
 }
 
 export interface PlacePreview {
+  recommendation_summary?: Recommendation
   id: string
   name: string
   address: string
@@ -405,7 +407,16 @@ export interface PlacePreview {
   observations: PlaceObservation[]
 }
 
+export interface TravelBriefData {
+  timing?: string
+  conditions?: string[]
+  highlights?: string[]
+  warnings?: string[]
+  inherited?: boolean
+}
+
 export interface MapMarker {
+  recommendation_summary?: Recommendation
   id: string
   marker_id: string | null
   place_id: string | null
@@ -425,7 +436,12 @@ export interface MapMarker {
   visit_window_summary?: string
   visit_window_state?: string
   visit_window_reason?: string
-  recommendation?: { tier?: string; label?: string; reasons?: Array<{ text: string }> }
+  timing_status?: string
+  travel_brief?: TravelBriefData
+  source_notes?: Array<{ note_id: string; version_id: string; title: string }>
+  recording_reasons?: string[]
+  visit_window_evidence?: Array<{ source_kind: string; source_text: string; source_id?: string; segment_ids?: string[] }>
+  recommendation?: { tier?: string; label?: string; reasons?: Array<{ kind?: string; text: string; trace?: { summary?: string } }> }
 }
 
 export interface MapOverviewView {
@@ -441,7 +457,7 @@ export interface MapOverviewView {
 }
 
 export interface PlaceListView { items: MapMarker[]; next_cursor: string | null; total: number }
-export interface PlaceVisitWindow { id: string; source_id?: string | null; source_kind?: string; season: string | null; month: number | null; month_segment: string | null; day_time_slot: string | null; period_type: string; suitability: string; source_text: string; segment_ids: string[]; provenance: string; confidence: number; status: string }
+export interface PlaceVisitWindow { valid_as_time?: boolean; id: string; source_id?: string | null; source_kind?: string; season: string | null; month: number | null; month_segment: string | null; day_time_slot: string | null; period_type: string; suitability: string; source_text: string; segment_ids: string[]; provenance: string; confidence: number; status: string }
 
 export interface RouteDraftView {
   id: string
@@ -466,6 +482,8 @@ export interface VideoNoteView {
   uploader: string
   duration_ms: number | null
   current_version_id: string | null
+  model_provider: string
+  model_name: string
   overview: string
   search_match?: string
   search_snippet?: string
@@ -473,13 +491,16 @@ export interface VideoNoteView {
   place_summary: { total: number; confirmed: number }
 }
 
+export type VideoNoteSection = { id: string; heading: string; section_kind: 'PLACE' | 'AREA' | 'ROUTE' | 'SUPPLEMENTAL'; thesis: string; summary: string; bullets: string[]; anchor_id: string; body_markdown: string; segment_ids: string[]; place_mention_ids: string[]; evidence_quotes: string[]; start_ms: number | null; end_ms: number | null } & { source_section_ids?: string[]; source_ranges?: Array<{ start_ms: number; end_ms: number | null }> }
+
 export interface VideoNoteDetail extends VideoNoteView {
-  model_provider: string
-  model_name: string
   markdown: string
   warnings: string[]
   needs_regeneration: boolean
-  sections: Array<{ id: string; heading: string; section_kind: 'PLACE' | 'AREA' | 'ROUTE' | 'SUPPLEMENTAL'; thesis: string; summary: string; bullets: string[]; anchor_id: string; body_markdown: string; segment_ids: string[]; place_mention_ids: string[]; evidence_quotes: string[]; start_ms: number | null; end_ms: number | null }>
+  sections: VideoNoteSection[]
+  reading_sections?: VideoNoteSection[]
+  reading_overview?: string
+  reading_organization?: string
   transcript_status: 'AVAILABLE' | 'EXPIRED' | 'NOT_READY'
   transcript_segment_count: number
   transcript_retention_until: string | null
@@ -508,3 +529,9 @@ export interface StageLimitsPreview {
   chunk_chars: number | null
   batch_size: number | null
 }
+
+export interface RecommendationStatement { statement_id: string; quote: string; speaker: string; scope: string; segment_ids: string[] }
+export interface Recommendation { status: string; review_required?: boolean; source_opinions?: Array<{ mention_id?: string; assessment_status?: string; note_id?: string; title?: string; statements?: RecommendationStatement[] }> }
+export interface LogPolicy { version: number; compress: boolean; compression_delay_hours: number; retention_days: number; volume_bytes: number; capacity_bytes: number; bootstrap_retention_days: number; bootstrap_capacity_bytes: number; low_space_bytes: number }
+export interface LogPreview { token: string; delete_count: number; delete_bytes: number; oldest_closed_at: number | null; archived_bytes: number }
+export interface StorageStatus { root: string; generation: number; configured_generation: number; registered: boolean; plan: { stage?: string; error?: string; target?: string; required_bytes?: number; free_bytes?: number; categories?: Record<string, number> }; state: { stage?: string }; policy: LogPolicy; handler_versions: number[]; exceptions: string[]; log_summary: LogPreview; maintenance: { at?: number; compressed?: number; deleted?: number; errors?: string[] } }

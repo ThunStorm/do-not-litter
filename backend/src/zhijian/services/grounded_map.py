@@ -27,7 +27,7 @@ from zhijian.services.audit import record_event
 from zhijian.services.jobs import ensure_job_active
 from zhijian.services.title_temporal import title_identity
 
-MAP_PROMPT_VERSION = "semantic-map-v3-title1"
+MAP_PROMPT_VERSION = "semantic-map-v5-recommendation-evidence"
 MAP_ARTIFACT_SCHEMA_VERSION = "grounded-map-v3"
 LOCAL_MAP_CHUNK_CHARS = 6_000
 LOCAL_MAP_CHUNK_SEGMENTS = 64
@@ -106,9 +106,26 @@ def _canonical_payload(
         policy = str(value.get("poi_policy") or "RESOLVE").upper()
         role = str(value.get("subject_role") or "PRIMARY").upper()
         intent = str(value.get("visit_intent") or "NEUTRAL").upper()
+        evidence = value.get("recommendation_evidence")
+        if isinstance(evidence, dict) and isinstance(evidence.get("statements"), list):
+            entity_id = str(value.get("entity_id") or f"entity-{chunk[0].id}-{index}")
+            evidence = {
+                **evidence,
+                "statements": [
+                    {
+                        **statement,
+                        "statement_id": f"{entity_id}:{statement.get('statement_id', '')}",
+                        "supersedes": [f"{entity_id}:{sid}" for sid in statement.get("supersedes", [])],
+                    }
+                    if isinstance(statement, dict)
+                    else statement
+                    for statement in evidence["statements"]
+                ],
+            }
         entities.append(
             {
                 **value,
+                "recommendation_evidence": evidence,
                 "entity_id": str(value.get("entity_id") or f"entity-{chunk[0].id}-{index}")[:96],
                 "content_unit_id": str(value.get("content_unit_id") or unit_default)[:96],
                 "raw_name": raw_name[:300],

@@ -46,7 +46,13 @@ def test_note_pack_only_receives_related_place_evidence() -> None:
     ]
     pack = [{"place_mention_ids": ["place-b"], "segment_ids": ["seg-b"], "supporting_quotes": ["乙推荐"]}]
     assert _pack_place_evidence(index, pack) == [
-        {"mention_id": "place-b", "name": "乙", "segment_ids": ["seg-b"], "quotes": ["乙推荐"]}
+        {
+            "mention_id": "place-b",
+            "name": "乙",
+            "segment_ids": ["seg-b"],
+            "quotes": ["乙推荐"],
+            "recommendation_summary": {"statements": []},
+        }
     ]
     assert _pack_place_evidence(index, [{"place_mention_ids": ["place-b"]}]) == []
 

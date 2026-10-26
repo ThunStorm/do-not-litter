@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 
 import { api } from '../../lib/api'
 import type { MapMarker } from '../../lib/types'
@@ -15,6 +15,8 @@ interface AmapLayerProps {
   markers: MapMarker[]
   selectedId: string | null
   onSelect: (id: string) => void
+  onClusterSelect?: (markers: MapMarker[]) => void
+  onClustersChange?: (groups: MapMarker[][]) => void
   viewport: { bbox: number[]; zoom: number }
   onReady: (ready: boolean) => void
   onViewportChange: (viewport: { bbox: number[]; zoom: number }) => void
@@ -81,11 +83,12 @@ function fitChina(map: AmapMap, AMap: AmapRuntime) {
   else map.setZoomAndCenter(4, [104.3, 35.8])
 }
 
-export const AmapLayer = forwardRef<MapController, AmapLayerProps>(function AmapLayer({ markers, selectedId, onSelect, viewport, onReady, onViewportChange }, ref) {
+export const AmapLayer = forwardRef<MapController, AmapLayerProps>(function AmapLayer({ markers, selectedId, onSelect, onClusterSelect, onClustersChange, viewport, onReady, onViewportChange }, ref) {
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<AmapMap | null>(null)
   const runtimeRef = useRef<AmapRuntime | null>(null)
   const mapMarkersRef = useRef<AmapMarker[]>([])
+  const lastMobileFocus = useRef<string | null>(null)
   const clusterMarkersRef = useRef<AmapMarker[]>([])
   const markerElementsRef = useRef(new Map<string, HTMLButtonElement>())
   const lastViewportRef = useRef(viewport)
@@ -172,6 +175,7 @@ export const AmapLayer = forwardRef<MapController, AmapLayerProps>(function Amap
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config?.js_key, config?.security_code])
 
+  const clusteredSelection = useMemo(() => selectedId && groupMarkersByPixel(markers, viewport.zoom).some((group) => group.length > 1 && group.some((marker) => marker.id === selectedId)) ? selectedId : null, [markers, viewport.zoom, selectedId])
   useEffect(() => {
     const map = mapRef.current
     const AMap = runtimeRef.current
@@ -179,7 +183,9 @@ export const AmapLayer = forwardRef<MapController, AmapLayerProps>(function Amap
     map.remove(mapMarkersRef.current)
     map.remove(clusterMarkersRef.current)
     markerElementsRef.current.clear()
-    const groups = groupMarkersByPixel(markers, viewport.zoom)
+    const groups = groupMarkersByPixel(markers.filter((marker) => marker.id !== clusteredSelection), viewport.zoom)
+    const focused = markers.find((marker) => marker.id === clusteredSelection)
+    if (focused) groups.push([focused])
     const mapMarkers = groups.filter((group) => group.length === 1).map(([marker]) => {
       const element = document.createElement('button')
       element.className = `amap-marker${marker.id === selectedIdRef.current ? ' is-selected' : ''}`
@@ -188,10 +194,11 @@ export const AmapLayer = forwardRef<MapController, AmapLayerProps>(function Amap
       element.setAttribute('aria-label', `查看 ${marker.name}`)
       element.addEventListener('click', () => onSelect(marker.id))
       markerElementsRef.current.set(marker.id, element)
-      const item = new AMap.Marker({ position: [marker.longitude, marker.latitude], content: element, offset: new AMap.Pixel(-13, -26), title: marker.name })
+      const item = new AMap.Marker({ position: [marker.longitude, marker.latitude], content: element, offset: new AMap.Pixel(-13, -26), title: marker.name, zIndex: marker.id === selectedIdRef.current ? 200 : 100 })
       item.on('click', () => onSelect(marker.id))
       return item
     })
+    onClustersChange?.(groups.filter((group) => group.length > 1))
     const clusterMarkers = groups.filter((group) => group.length > 1).map((group) => {
       const longitude = group.reduce((sum, marker) => sum + marker.longitude, 0) / group.length
       const latitude = group.reduce((sum, marker) => sum + marker.latitude, 0) / group.length
@@ -200,8 +207,8 @@ export const AmapLayer = forwardRef<MapController, AmapLayerProps>(function Amap
       element.type = 'button'
       element.textContent = String(group.length)
       element.setAttribute('aria-label', `${group.length} 个地点，点击放大查看`)
-      const item = new AMap.Marker({ position: [longitude, latitude], content: element, offset: new AMap.Pixel(-17, -17) })
-      item.on('click', () => map.setZoomAndCenter(Math.min(map.getZoom() + 1, 20), [longitude, latitude]))
+      const item = new AMap.Marker({ position: [longitude, latitude], content: element, offset: new AMap.Pixel(-17, -17), zIndex: 90 })
+      element.addEventListener('click', (event) => { event.stopPropagation(); onClusterSelect?.(group); map.setZoomAndCenter(Math.min(map.getZoom() + 1, 20), [longitude, latitude]) })
       return item
     })
     mapMarkersRef.current = mapMarkers
@@ -212,7 +219,7 @@ export const AmapLayer = forwardRef<MapController, AmapLayerProps>(function Amap
       map.remove(mapMarkers)
       map.remove(clusterMarkers)
     }
-  }, [mapVersion, markers, onSelect, viewport.zoom])
+  }, [mapVersion, markers, onSelect, onClusterSelect, onClustersChange, viewport.zoom, clusteredSelection])
 
   useEffect(() => {
     for (const [id, element] of markerElementsRef.current) element.classList.toggle('is-selected', id === selectedId)
@@ -226,7 +233,25 @@ export const AmapLayer = forwardRef<MapController, AmapLayerProps>(function Amap
     map.setZoomAndCenter(viewport.zoom, [(west + east) / 2, (south + north) / 2])
   }, [viewport])
 
+  useEffect(() => {
+    if (!selectedId) { lastMobileFocus.current = null; return }
+    const map = mapRef.current
+    const marker = markers.find((item) => item.id === selectedId)
+    const height = container.current?.clientHeight ?? 0
+    if (!map || !marker || window.innerWidth > 760 || !height || lastMobileFocus.current === selectedId) return
+    lastMobileFocus.current = selectedId
+    // Place the selected coordinate in the clear area above the mobile preview sheet.
+    const size = 256 * 2 ** map.getZoom()
+    const sine = Math.sin(Math.max(-85, Math.min(85, marker.latitude)) * Math.PI / 180)
+    const pointY = (0.5 - Math.log((1 + sine) / (1 - sine)) / (4 * Math.PI)) * size
+    const targetY = Math.max(160, height * 0.28)
+    const centerY = pointY + height / 2 - targetY
+    const latitude = Math.atan(Math.sinh(Math.PI * (1 - 2 * centerY / size))) * 180 / Math.PI
+    map.setZoomAndCenter(map.getZoom(), [marker.longitude, latitude])
+  }, [mapVersion, markers, selectedId])
+
   if (error) return <p className="map-runtime-state" role="status">{error}。请前往设置检查高德地图配置。</p>
   if (config && !config.js_key) return <p className="map-runtime-state" role="status">尚未配置高德 JS API Key。请前往设置完成地图配置。</p>
+
   return <div className="amap-layer" ref={container} aria-label="高德地图底图" />
 })

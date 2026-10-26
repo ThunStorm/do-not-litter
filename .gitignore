@@ -20,3 +20,6 @@ deploy/windows/generated/
 frontend/.vite/
 playwright-report/
 test-results/
+
+# Local evaluation exports must not be published.
+/dev docs/export-evaluation-doc/

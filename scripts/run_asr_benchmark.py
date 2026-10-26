@@ -23,6 +23,7 @@ if str(BACKEND_SRC) not in sys.path:
 
 import benchmark_asr_providers as scorer
 from zhijian.providers.asr import WhisperCppProvider
+from zhijian.core.config import get_settings
 
 PROVIDERS = (
     "WHISPER_CPP_BASE",
@@ -477,17 +478,18 @@ def _example_manifest() -> dict[str, Any]:
 
 
 def main() -> None:
+    settings = get_settings()
     parser = argparse.ArgumentParser(description="运行与生产 ASR Registry 隔离的本地 Benchmark")
-    parser.add_argument("manifest", type=Path, nargs="?", default=Path("data/benchmarks/asr/manifest.json"))
-    parser.add_argument("--output-dir", type=Path, default=Path("data/benchmarks/asr"))
+    parser.add_argument("manifest", type=Path, nargs="?", default=settings.data_dir / "benchmarks/asr/manifest.json")
+    parser.add_argument("--output-dir", type=Path, default=settings.data_dir / "benchmarks/asr")
     parser.add_argument("--provider", choices=PROVIDERS, action="append", default=[])
     parser.add_argument("--whisper-binary", default="whisper-cli")
-    parser.add_argument("--whisper-base-model", type=Path, default=Path("data/models/whisper/ggml-base.bin"))
-    parser.add_argument("--whisper-turbo-model", type=Path, default=Path("data/models/whisper/ggml-large-v3-turbo-q5_0.bin"))
+    parser.add_argument("--whisper-base-model", type=Path, default=settings.whisper_model)
+    parser.add_argument("--whisper-turbo-model", type=Path, default=settings.data_dir / "models/whisper/ggml-large-v3-turbo-q5_0.bin")
     parser.add_argument(
         "--qwen-python",
         type=Path,
-        default=Path("data/runtime/qwen-asr/venv/bin/python"),
+        default=settings.qwen_asr_python,
         help="隔离 Qwen Runtime 的 Python；Qwen provider 未指定 adapter-command 时使用",
     )
     parser.add_argument("--adapter-command", action="append", default=[], metavar="PROVIDER=COMMAND")

@@ -48,6 +48,57 @@ def test_health(client) -> None:
     assert response.json()["status"] == "ok"
 
 
+@pytest.mark.parametrize("audit_status", ["COMPLETED", "FAILED", "RUNNING", None])
+def test_job_model_comes_from_execution_not_current_settings(client, app_and_session, audit_status):
+    _, factory = app_and_session
+    with factory() as db:
+        job = Job(
+            job_type="TRAVEL",
+            status="RUNNING" if audit_status == "RUNNING" else "COMPLETED",
+            current_step="GENERATE_AI_NOTE" if audit_status == "RUNNING" else "CLEAN_CACHE",
+        )
+        db.add(job)
+        db.flush()
+        db.add(
+            JobStep(
+                job_id=job.id,
+                step_name="GENERATE_AI_NOTE",
+                status="COMPLETED",
+                input_json={"provider": "old-step", "model": "step-model"} if audit_status else {},
+            )
+        )
+        db.add_all(
+            [
+                Setting(key="model-routing", value_json={"primary_id": "current"}),
+                Setting(
+                    key="model-profile:current", value_json={"provider": "new-provider", "model": "new-model"}
+                ),
+            ]
+        )
+        if audit_status:
+            db.add(
+                ExternalCallAudit(
+                    job_id=job.id,
+                    capability="LLM",
+                    provider="historical-provider",
+                    operation="note_reduce",
+                    status=audit_status,
+                    request_meta_json={"stage": "NOTE_REDUCE", "model": "historical-model"},
+                )
+            )
+            db.add(
+                ExternalCallAudit(
+                    job_id=job.id, capability="MAP", provider="AMap", operation="resolve", status="COMPLETED"
+                )
+            )
+        db.commit()
+        job_id = job.id
+    view = client.get(f"/api/jobs/{job_id}").json()
+    assert view["model"] == ("historical-model" if audit_status else None)
+    assert view["provider"] == ("historical-provider" if audit_status else None)
+    assert view["model_step"] == "GENERATE_AI_NOTE"
+
+
 def test_job_view_prefers_metadata_title_and_exposes_only_web_source_url(client, app_and_session) -> None:
     _, factory = app_and_session
     with factory() as db:
@@ -1409,7 +1460,12 @@ def test_visit_window_is_correlated_and_hard_delete_preserves_mentions(client, a
                 ),
                 PlaceVisitWindow(place_id=split.id, season="AUTUMN", provenance="USER_ADDED", confidence=1),
                 PlaceVisitWindow(
-                    place_id=split.id, month=10, month_segment="MID", provenance="USER_ADDED", confidence=1
+                    place_id=split.id,
+                    season="WINTER",
+                    month=10,
+                    month_segment="MID",
+                    provenance="USER_ADDED",
+                    confidence=1,
                 ),
             ]
         )

@@ -107,6 +107,7 @@ max_input_tokens
 max_output_tokens
 timeout
 retry_count
+json_retry_count
 confidence_threshold
 escalation_threshold
 domain_pack_version
@@ -146,6 +147,7 @@ stage semantic parameters
 ```text
 timeout
 retry_count
+json_retry_count
 ```
 
 通常不需要进入内容 Cache Key。
@@ -262,6 +264,7 @@ Audit 能看到最终 resolved policy
 ```text
 temperature: 0.0 ~ 2.0
 retry_count: 0 ~ 3
+json_retry_count: 0 ~ 3
 timeout_seconds: 10 ~ 600
 neighbor_segments: 0 ~ 10
 ```
@@ -340,3 +343,5 @@ max_output_tokens = 5000
 实现完成后，系统必须满足：
 
 > 同一条 Pipeline 中，用户可以让字幕纠错由 `qwen2.5:7b` 以低 temperature、本地 non-thinking 执行；让 Note Chunk 由 `qwen3:8b` 本地执行；让 Final Note 使用指定远程强模型并单独设置更高输出预算；让专业 Place Extraction 使用另一个远程 Specialist + Domain Pack。所有 Stage 的配置互不污染，并可被单次 Job 覆盖。
+
+2026-10-21：HTTP与JSON重试覆盖独立解析、独立继承并随同模型执行配置刷新，原Job提交快照不改写；见[独立重试预算](04-stage-policy.md#阶段独立重试预算2026-10-21-修订)。

@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 import logging
 from datetime import UTC, datetime
-from logging.handlers import RotatingFileHandler
 
 from zhijian.core.config import Settings
+from zhijian.core.file_logs import SealedLogHandler
 
 
 class JsonFormatter(logging.Formatter):
@@ -38,12 +38,7 @@ def configure_logging(settings: Settings, service: str) -> None:
     if any(getattr(handler, "_zhijian", False) for handler in root.handlers):
         return
     root.setLevel(logging.INFO)
-    handler = RotatingFileHandler(
-        settings.data_dir / "logs" / f"{service}.jsonl",
-        maxBytes=10 * 1024 * 1024,
-        backupCount=5,
-        encoding="utf-8",
-    )
+    handler = SealedLogHandler(settings.data_dir / "logs", service, settings.storage_config)
     handler.setFormatter(JsonFormatter())
     handler._zhijian = True  # type: ignore[attr-defined]
     root.addHandler(handler)

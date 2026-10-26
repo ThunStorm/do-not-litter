@@ -174,14 +174,24 @@ from zhijian.services.job_replay import (
     replay_options,
     reset_job_for_full_replay,
 )
+from zhijian.services.place_experience import effective_windows, experience_projection
 from zhijian.services.place_knowledge import aggregate_place_knowledge, normalize_insight
+from zhijian.services.recommendation_intent import (
+    projection as intent_projection,
+)
+from zhijian.services.recommendation_intent import source_links as intent_source_links
+from zhijian.services.recommendation_intent import (
+    summarize as intent_summary,
+)
 from zhijian.services.runtime_monitor import read_runtime_metrics_sample
 from zhijian.services.source_retention import prune_source_if_orphan, source_deletion_state
+from zhijian.services.travel_brief import travel_brief
 from zhijian.services.travel_recommendations import (
     group_by_place,
     recommendation_for_place,
     visit_window_summary,
 )
+from zhijian.services.travel_timing import matches_window, valid_window
 from zhijian.services.video_note_search import remove_video_note_search_index
 from zhijian.services.video_support import (
     PROMPT_CORE_CONTRACTS,
@@ -252,14 +262,25 @@ def job_view(job: Job, db: Session | None = None) -> JobView:
         active_attempt.provider if active_attempt else step_input.get("provider") if model_step else None
     )
     model = active_meta.get("model") if active_attempt else (step_input.get("model") if model_step else None)
-    if db and model_step and not (provider and model):
-        routing = db.get(Setting, "model-routing")
-        route = routing.value_json if routing and isinstance(routing.value_json, dict) else {}
-        profile_id = route.get("primary_id")
-        profile = db.get(Setting, f"model-profile:{profile_id}") if profile_id else None
-        profile_value = profile.value_json if profile and isinstance(profile.value_json, dict) else {}
-        provider = profile_value.get("provider") or provider
-        model = profile_value.get("model") or model
+    # Execution audits are historical facts; mutable global routing is not.
+    latest_call = (active_attempt if active_attempt and active_attempt.capability == "LLM" else None) or (
+        db.scalar(
+            select(ExternalCallAudit)
+            .where(ExternalCallAudit.job_id == job.id, ExternalCallAudit.capability == "LLM")
+            .order_by(ExternalCallAudit.created_at.desc(), ExternalCallAudit.id.desc())
+        )
+        if db
+        else None
+    )
+    if latest_call:
+        meta = latest_call.request_meta_json or {}
+        provider, model = latest_call.provider, meta.get("model")
+        stage = meta.get("stage") or latest_call.operation.upper()
+        model_step = {
+            "TRANSCRIPT_CORRECTION": "CORRECT_TRANSCRIPT",
+            "GROUND_MAP": "EXTRACT_TRAVEL_FACTS",
+            "NOTE_REDUCE": "GENERATE_AI_NOTE",
+        }.get(stage, stage if stage in LLM_JOB_STEPS else model_step)
     completion_summary = None
     if job.status == JobStatus.PARTIAL_SUCCESS.value and db and job.result_content_id:
         content = db.get(ContentItem, job.result_content_id)
@@ -341,6 +362,7 @@ def preview_for_place(db: Session, place: Place) -> PlacePreview:
         select(PlaceObservation).where(PlaceObservation.place_id == place.id).limit(5)
     ).all()
     return PlacePreview(
+        recommendation_summary=intent_projection(db, [place.id]).get(place.id, {}),
         id=place.id,
         name=place.name,
         address=place.address,
@@ -499,9 +521,7 @@ def dashboard(_: Protected, db: Session = Depends(get_db)) -> dict:
     contents = db.scalars(select(ContentItem).order_by(ContentItem.updated_at.desc()).limit(6)).all()
     counts = dict(
         db.execute(
-            select(Job.status, func.count(Job.id))
-            .where(Job.job_type != "MODEL_TEST")
-            .group_by(Job.status)
+            select(Job.status, func.count(Job.id)).where(Job.job_type != "MODEL_TEST").group_by(Job.status)
         ).all()
     )
     return {
@@ -1789,6 +1809,7 @@ def list_logs(
 
 def _place_query(
     *,
+    db: Session,
     city: str | None = None,
     place_type: str | None = None,
     user_state: str | None = None,
@@ -1816,18 +1837,30 @@ def _place_query(
     if origin:
         statement = statement.where(Place.origin == origin)
     if any(value is not None for value in (season, month, month_segment, day_time_slot)):
-        window = select(PlaceVisitWindow.id).where(
-            PlaceVisitWindow.place_id == Place.id, PlaceVisitWindow.status == "ACTIVE"
-        )
-        if season:
-            window = window.where(PlaceVisitWindow.season == season)
-        if month is not None:
-            window = window.where(PlaceVisitWindow.month == month)
-        if month_segment:
-            window = window.where(PlaceVisitWindow.month_segment == month_segment)
-        if day_time_slot:
-            window = window.where(PlaceVisitWindow.day_time_slot == day_time_slot)
-        statement = statement.where(window.exists())
+        windows = effective_windows(db)
+        matching = {
+            item.place_id
+            for item in windows
+            if matches_window(
+                item, season=season, month=month, month_segment=month_segment, day_time_slot=day_time_slot
+            )
+        }
+        if month and not any((season, month_segment, day_time_slot)):
+            # Only a completed, explicitly recorded analysis may supply the default.
+            analyses = group_by_place(
+                db.scalars(select(PlaceMention).where(PlaceMention.place_id.is_not(None))).all()
+            )
+            covered = {w.place_id for w in windows}
+            matching.update(
+                key
+                for key, records in analyses.items()
+                if key not in covered
+                and all(
+                    (m.metadata_json or {}).get("temporal_analysis", {}).get("status") == "NO_TIME_MENTIONED"
+                    for m in records
+                )
+            )
+        statement = statement.where(Place.id.in_(matching))
     if source_id:
         statement = statement.where(
             select(PlaceInsightItem.id)
@@ -1891,6 +1924,7 @@ def map_overview(
         except ValueError as exc:
             raise HTTPException(status_code=422, detail="bbox 格式应为 west,south,east,north") from exc
     statement = _place_query(
+        db=db,
         city=city,
         place_type=place_type,
         user_state=user_state,
@@ -1926,24 +1960,6 @@ def map_overview(
     ordered_places = db.scalars(statement.order_by(Place.name.asc())).all()
     places = list({place.id: place for place in ordered_places}.values())
     place_ids = [place.id for place in places]
-    # A place is its durable domain record; its map projection has an explicit
-    # lifecycle.  Backfill projections lazily for places created before v0.4,
-    # so every visible marker can be hidden/restored without touching evidence.
-    existing_states = (
-        db.scalars(select(MapMarkerState).where(MapMarkerState.place_id.in_(place_ids))).all()
-        if place_ids
-        else []
-    )
-    existing_by_place = {item.place_id: item for item in existing_states}
-    missing_states = [
-        MapMarkerState(place_id=place.id, origin=place.origin or "AI_EXTRACTED", visibility="VISIBLE")
-        for place in places
-        if place.id not in existing_by_place
-    ]
-    if missing_states:
-        db.add_all(missing_states)
-        db.flush()
-        db.commit()
     states = (
         {
             item.place_id: item
@@ -1952,15 +1968,18 @@ def map_overview(
         if places
         else {}
     )
-    windows_by_place = group_by_place(
-        db.scalars(
-            select(PlaceVisitWindow).where(
-                PlaceVisitWindow.place_id.in_(place_ids), PlaceVisitWindow.status == "ACTIVE"
-            )
-        ).all()
-        if place_ids
-        else []
-    )
+    windows_by_place = group_by_place(effective_windows(db, place_ids) if place_ids else [])
+    if season or month_segment or day_time_slot:
+        windows_by_place = {
+            key: [
+                w
+                for w in values
+                if matches_window(
+                    w, season=season, month=month, month_segment=month_segment, day_time_slot=day_time_slot
+                )
+            ]
+            for key, values in windows_by_place.items()
+        }
     temporal_by_place = {
         place.id: visit_window_summary(windows_by_place.get(place.id, []), month) for place in places
     }
@@ -1988,6 +2007,7 @@ def map_overview(
         if place_ids
         else {}
     )
+    source_intents = intent_projection(db, place_ids)
     recommendations = {
         place.id: recommendation_for_place(
             place,
@@ -1996,6 +2016,7 @@ def map_overview(
             events=events_by_place.get(place.id, []),
             month=month,
             tags=tags_by_place.get(place.id, []),
+            source_summary=source_intents.get(place.id, {}),
         )
         for place in places
     }
@@ -2021,6 +2042,7 @@ def map_overview(
         ]
     selected = next((place for place in visible_places if place.id == selected_place_id), None)
     route_count = db.scalar(select(func.count(RouteDraftItem.id))) or 0
+    projection = _map_projection(db, place_ids)
     return MapOverviewView(
         total_places=len(places),
         visible_places=len(visible_places),
@@ -2031,6 +2053,7 @@ def map_overview(
                 states.get(place.id),
                 visit_window=temporal_by_place[place.id],
                 recommendation=recommendations[place.id],
+                projection=projection,
             )
             for place in visible_places
         ],
@@ -2061,6 +2084,7 @@ def travel_places(
     db: Session = Depends(get_db),
 ) -> PlaceListView:
     statement = _place_query(
+        db=db,
         city=city,
         place_type=place_type,
         user_state=user_state,
@@ -2220,6 +2244,57 @@ def export_travel_places(
     )
 
 
+def _map_projection(db: Session, place_ids: list[str]) -> dict:
+    mentions = db.scalars(
+        select(PlaceMention)
+        .where(PlaceMention.place_id.in_(place_ids))
+        .order_by(PlaceMention.updated_at.desc(), PlaceMention.id.desc())
+    ).all()
+    latest = {}
+    for mention in mentions:
+        latest.setdefault(mention.place_id, mention)
+    images = {}
+    for image in db.scalars(
+        select(VideoScreenshot)
+        .where(
+            VideoScreenshot.place_mention_id.in_([m.id for m in latest.values()]),
+            VideoScreenshot.status == "READY",
+        )
+        .order_by(VideoScreenshot.created_at.desc())
+    ).all():
+        images.setdefault(image.place_mention_id, image)
+    overlays = {
+        o.place_id: o
+        for o in db.scalars(select(PlaceUserOverlay).where(PlaceUserOverlay.place_id.in_(place_ids))).all()
+    }
+    counts = dict(
+        db.execute(
+            select(PlaceMention.place_id, func.count(func.distinct(VideoAsset.source_id)))
+            .join(VideoAsset, PlaceMention.video_asset_id == VideoAsset.id)
+            .where(PlaceMention.place_id.in_(place_ids))
+            .group_by(PlaceMention.place_id)
+        ).all()
+    )
+    defaults = {
+        key: all(
+            (m.metadata_json or {}).get("temporal_analysis", {}).get("status") == "NO_TIME_MENTIONED"
+            for m in records
+        )
+        for key, records in group_by_place(mentions).items()
+    }
+    experiences = experience_projection(db, place_ids)
+    return {
+        "windows": group_by_place(effective_windows(db, place_ids, experiences=experiences)),
+        "mentions": latest,
+        "images": images,
+        "overlays": overlays,
+        "counts": counts,
+        "defaults": defaults,
+        "experiences": experiences,
+        "intents": intent_projection(db, place_ids),
+    }
+
+
 def _map_marker_view(
     db: Session,
     place: Place,
@@ -2227,19 +2302,31 @@ def _map_marker_view(
     *,
     visit_window: dict | None = None,
     recommendation: dict | None = None,
+    projection: dict | None = None,
 ) -> MapMarker:
-    mention = db.scalar(
-        select(PlaceMention).where(PlaceMention.place_id == place.id).order_by(PlaceMention.updated_at.desc())
-    )
-    screenshot = db.scalar(
-        select(VideoScreenshot)
-        .where(
-            VideoScreenshot.place_mention_id == (mention.id if mention else ""),
-            VideoScreenshot.status == "READY",
-        )
-        .order_by(VideoScreenshot.created_at.desc())
-    )
-    overlay = db.scalar(select(PlaceUserOverlay).where(PlaceUserOverlay.place_id == place.id))
+    projection = projection if projection is not None else _map_projection(db, [place.id])
+    mention = projection["mentions"].get(place.id)
+    screenshot = projection["images"].get(mention.id) if mention else None
+    overlay = projection["overlays"].get(place.id)
+    if visit_window is None:
+        windows = db.scalars(
+            select(PlaceVisitWindow).where(
+                PlaceVisitWindow.place_id == place.id, PlaceVisitWindow.status == "ACTIVE"
+            )
+        ).all()
+        visit_window = visit_window_summary(windows)
+    timing_status = "EVIDENCE" if visit_window.get("evidence") else "UNANALYZED"
+    if not visit_window.get("record_count") and projection["defaults"].get(place.id):
+        timing_status = "DEFAULT_ALL_YEAR"
+        visit_window = {
+            "state": "UNKNOWN",
+            "summary": "全年适合 · 默认",
+            "reason": "来源未提及季节限制，按全年展示；不代表全年最佳。",
+            "evidence": [],
+        }
+    experience = projection.get("experiences", {}).get(place.id, {})
+    brief = mention.brief_json if mention else {}
+    summary = str(brief.get("feature") or place.summary or "").strip()
     return MapMarker(
         id=place.id,
         marker_id=state.id if state else None,
@@ -2258,16 +2345,26 @@ def _map_marker_view(
         latitude=place.latitude,
         longitude=place.longitude,
         user_state=place.user_state,
-        summary=place.summary,
+        summary=summary,
+        recommendation_summary=projection["intents"].get(place.id, {}),
+        recording_reasons=experience.get("reasons", [])[:3],
+        source_notes=intent_source_links(projection["intents"].get(place.id, {}))
+        or experience.get("sources", []),
+        travel_brief=travel_brief(
+            experience,
+            projection["windows"].get(place.id, []),
+            default_all_year=timing_status == "DEFAULT_ALL_YEAR",
+            recommendation_summary=projection["intents"].get(place.id, {}),
+        ),
         address=place.address,
         preview_image=f"/api/video-screenshots/{screenshot.id}/image" if screenshot else None,
         brief=mention.brief_json if mention else {},
-        source_count=(
-            db.scalar(select(func.count(PlaceMention.id)).where(PlaceMention.place_id == place.id)) or 0
-        ),
+        source_count=projection["counts"].get(place.id, 0),
         visit_window_summary=str((visit_window or {}).get("summary") or "时间未知"),
         visit_window_state=str((visit_window or {}).get("state") or "UNKNOWN"),
         visit_window_reason=str((visit_window or {}).get("reason") or "尚无可追溯的适宜时间证据"),
+        visit_window_evidence=visit_window.get("evidence", []),
+        timing_status=timing_status,
         recommendation=recommendation or {},
     )
 
@@ -2381,11 +2478,10 @@ def place_detail(place_id: str, _: Protected, db: Session = Depends(get_db)) -> 
     overlay = db.scalar(select(PlaceUserOverlay).where(PlaceUserOverlay.place_id == place.id))
     note = db.scalar(select(PlaceUserNote).where(PlaceUserNote.place_id == place.id))
     marker = db.scalar(select(MapMarkerState).where(MapMarkerState.place_id == place.id))
-    visit_windows = db.scalars(
-        select(PlaceVisitWindow)
-        .where(PlaceVisitWindow.place_id == place.id, PlaceVisitWindow.status == "ACTIVE")
-        .order_by(PlaceVisitWindow.created_at)
-    ).all()
+    experience = experience_projection(db, [place.id]).get(place.id, {})
+    visit_windows = effective_windows(
+        db, [place.id], experiences={place.id: experience} if experience else {}
+    )
     source_titles = {
         source.id: source.title or "来源未命名"
         for source in db.scalars(
@@ -2425,6 +2521,7 @@ def place_detail(place_id: str, _: Protected, db: Session = Depends(get_db)) -> 
         insights=insights,
         events=preference_events,
         tags=overlay.custom_tags_json if overlay else [],
+        source_summary=intent_projection(db, [place.id]).get(place.id, {}),
     )
     visual_facts = [
         {
@@ -2481,6 +2578,13 @@ def place_detail(place_id: str, _: Protected, db: Session = Depends(get_db)) -> 
         if marker
         else {},
         recommendation=recommendation,
+        travel_brief=travel_brief(
+            experience,
+            visit_windows,
+            recommendation_summary=intent_projection(db, [place.id]).get(place.id, {}),
+        ),
+        source_notes=intent_source_links(intent_projection(db, [place.id]).get(place.id, {}))
+        or experience.get("sources", []),
         visual_facts=visual_facts,
     )
 
@@ -2518,10 +2622,13 @@ def _revision_conflict(current: int) -> HTTPException:
 
 def _visit_window_view(item: PlaceVisitWindow) -> PlaceVisitWindowView:
     return PlaceVisitWindowView(
+        valid_as_time=valid_window(item),
         id=item.id,
         source_id=item.source_id,
         source_kind="TITLE_METADATA"
         if item.provenance == "TITLE_CONTEXT"
+        else "SEMANTIC_CONTEXT"
+        if item.provenance == "SEMANTIC_CONTEXT"
         else "TRANSCRIPT"
         if item.provenance == "SOURCE_FACT"
         else "USER",
@@ -2599,6 +2706,7 @@ def travel_recommendations(
         if place_ids
         else {}
     )
+    source_intents = intent_projection(db, place_ids)
     values = [
         recommendation_for_place(
             place,
@@ -2607,10 +2715,16 @@ def travel_recommendations(
             events=events.get(place.id, []),
             month=month,
             tags=overlays.get(place.id, []),
+            source_summary=source_intents.get(place.id, {}),
         )
         for place in places
     ]
-    return [item for item in values if include_mismatch or item["tier"] != "MISMATCH"]
+    return [
+        item
+        for item in values
+        if item["source_recommendation"].get("status") == "RECOMMENDED"
+        and (include_mismatch or item["tier"] != "MISMATCH")
+    ]
 
 
 @router.post("/api/travel/places/{place_id}/visit-windows", response_model=PlaceVisitWindowView)
@@ -2881,7 +2995,7 @@ def update_place_marker(place_id: str, action: str, _: Protected, db: Session = 
         db.add(marker)
     marker.visibility, marker.revision, marker.updated_by = (
         ("HIDDEN" if action == "hide" else "VISIBLE"),
-        marker.revision + 1,
+        (marker.revision or 0) + 1,
         "local-user",
     )
     record_event(
@@ -3154,6 +3268,7 @@ def _place_review_view(db: Session, mention: PlaceMention) -> dict:
     )
     return {
         "mention_id": mention.id,
+        "recommendation_summary": intent_summary([mention]),
         "name": mention.name,
         "raw_name": mention.raw_name,
         "suggested_name": mention.suggested_name,
@@ -3383,7 +3498,12 @@ def confirm_place_review(
         db.add(place)
         db.flush()
     else:
+        if place.deleted_at is not None:
+            raise HTTPException(status_code=409, detail={"code": "PLACE_DELETED"})
         place.poi_binding_status = "USER_CONFIRMED"
+    place.resolution_status = ResolutionStatus.CONFIRMED.value
+    if db.scalar(select(MapMarkerState).where(MapMarkerState.place_id == place.id)) is None:
+        db.add(MapMarkerState(place_id=place.id, origin=place.origin, visibility="VISIBLE"))
     mention.place_id, mention.resolution_status, mention.revision = (
         place.id,
         ResolutionStatus.CONFIRMED.value,
@@ -3805,15 +3925,17 @@ def model_catalog(
         raise HTTPException(status_code=404, detail="模型配置不存在")
     try:
         origin = catalog_origin(payload.base_url)
-        if saved and not key and (
-            origin != catalog_origin(str(saved.value_json.get("base_url") or ""))
-            or payload.provider.strip().lower()
-            != str(saved.value_json.get("provider") or "").strip().lower()
+        if (
+            saved
+            and not key
+            and (
+                origin != catalog_origin(str(saved.value_json.get("base_url") or ""))
+                or payload.provider.strip().lower()
+                != str(saved.value_json.get("provider") or "").strip().lower()
+            )
         ):
             raise HTTPException(status_code=422, detail="连接已修改，请填写该连接的 API Key 后刷新目录")
-        key = _profile_api_key(
-            db, store, payload.model_dump(exclude={"api_key"}), key, payload.profile_id
-        )
+        key = _profile_api_key(db, store, payload.model_dump(exclude={"api_key"}), key, payload.profile_id)
         if payload.provider.strip().lower() == "localaimux" and not key:
             raise HTTPException(status_code=422, detail="请填写 LocalAiMux API Key 后读取模型目录")
         result = read_model_catalog(payload.provider, payload.base_url, key, payload.connection_type)
@@ -3843,9 +3965,7 @@ def read_draft_interface_capabilities(
     try:
         value = _interactive_interface_config(
             payload.model_dump(exclude={"api_key"}),
-            _profile_api_key(
-                db, store, payload.model_dump(exclude={"api_key"}), payload.api_key
-            ),
+            _profile_api_key(db, store, payload.model_dump(exclude={"api_key"}), payload.api_key),
         )
     except AIProviderError as exc:
         raise _model_test_http_error("接口能力读取未完成", exc) from exc
@@ -3929,6 +4049,17 @@ def list_model_profiles(_: Protected, db: Session = Depends(get_db)) -> list[dic
             )
         )
         db.commit()
+    return _model_profile_list_view(db)
+
+
+def _model_profile_list_view(db: Session) -> list[dict]:
+    routing = _routing_value(db)
+    pinned = [value for value in (routing["primary_id"], routing["fallback_id"]) if value]
+    ranks = {profile_id: index for index, profile_id in enumerate(pinned)}
+    profiles = sorted(
+        _model_profiles(db),
+        key=lambda item: ranks.get(item.key.removeprefix("model-profile:"), len(ranks)),
+    )
     return [_model_profile_view(item) for item in profiles]
 
 
@@ -3940,13 +4071,16 @@ def save_model_profile_order(
     existing = [item.key.removeprefix("model-profile:") for item in profiles]
     if len(profile_ids) != len(existing) or set(profile_ids) != set(existing):
         raise HTTPException(status_code=409, detail="模型列表已变化，请刷新后重试排序")
+    pinned = set(_routing_value(db).values())
+    movable = iter(profile_id for profile_id in profile_ids if profile_id not in pinned)
+    profile_ids = [profile_id if profile_id in pinned else next(movable) for profile_id in existing]
     setting = db.get(Setting, "model-profile-order")
     if setting is None:
         db.add(Setting(key="model-profile-order", value_json=profile_ids))
     else:
         setting.value_json = profile_ids
     db.commit()
-    return [_model_profile_view(item) for item in _model_profiles(db)]
+    return _model_profile_list_view(db)
 
 
 @router.post("/api/settings/model-profiles")
@@ -3970,7 +4104,7 @@ def create_model_profile(
     db.add(setting)
     order_setting = db.get(Setting, "model-profile-order")
     if order_setting is not None:
-        order_setting.value_json = [*order_setting.value_json, profile_id]
+        order_setting.value_json = [profile_id, *order_setting.value_json]
     record_event(
         db,
         "model_profile.created",
@@ -4147,7 +4281,9 @@ def list_ai_stage_policies(_: Protected, db: Session = Depends(get_db)) -> list[
 
 @router.post("/api/ai/stage-policies/limits-preview")
 def preview_ai_stage_limits(
-    payload: AIStagePolicy, _: Protected, db: Session = Depends(get_db),
+    payload: AIStagePolicy,
+    _: Protected,
+    db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> dict:
     from zhijian.ai.stage_limits import preview_stage_limits
@@ -4157,11 +4293,15 @@ def preview_ai_stage_limits(
         validate_stage_policy(payload, profiles)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
     def value(key):
         row = db.get(Setting, key)
         return (row.value_json or {}) if row else {}
+
     return preview_stage_limits(
-        payload, profiles, value("model-routing"),
+        payload,
+        profiles,
+        value("model-routing"),
         TranscriptProcessingConfig(**value("transcript-processing")),
         GeneralConfig(**value("app:general")).ai_max_wall_time_seconds_per_job,
         8000 if payload.stage == "EXTRACT_TRAVEL_FACTS" else settings.video_note_chunk_chars,
@@ -4362,9 +4502,7 @@ def test_model_profile(
     except AIProviderError as exc:
         raise _model_test_http_error("模型连通测试失败", exc) from exc
     except Exception as exc:
-        raise HTTPException(
-            status_code=502, detail=f"模型连通测试失败：{str(exc)[:240]}"
-        ) from exc
+        raise HTTPException(status_code=502, detail=f"模型连通测试失败：{str(exc)[:240]}") from exc
     record_event(
         db,
         "model_profile.tested",
@@ -4389,17 +4527,13 @@ def test_model_profile_draft(
     """Run a transient model connectivity test without persisting the draft or its secret."""
     value = payload.model_dump(mode="json", exclude={"api_key"})
     try:
-        result = _test_model_connection(
-            value, _profile_api_key(db, store, value, payload.api_key)
-        )
+        result = _test_model_connection(value, _profile_api_key(db, store, value, payload.api_key))
     except HTTPException:
         raise
     except AIProviderError as exc:
         raise _model_test_http_error("模型连通测试失败", exc) from exc
     except Exception as exc:
-        raise HTTPException(
-            status_code=502, detail=f"模型连通测试失败：{str(exc)[:240]}"
-        ) from exc
+        raise HTTPException(status_code=502, detail=f"模型连通测试失败：{str(exc)[:240]}") from exc
     return {
         "status": "READY",
         "message": "草稿已完成真实推理连通测试，尚未保存配置。",
@@ -4426,9 +4560,7 @@ def probe_saved_interface(profile_id: str, db: Session, store: SecretStore) -> d
             return probe_system_instruction(provider, profile)
 
         result = (
-            local_ai_resource_manager.run(
-                "MODEL_TEST", call, cancel_check=model_test_cancel_check()
-            )
+            local_ai_resource_manager.run("MODEL_TEST", call, cancel_check=model_test_cancel_check())
             if uses_local_model_hardware(value)
             else call()
         )
@@ -4445,9 +4577,7 @@ def probe_saved_interface(profile_id: str, db: Session, store: SecretStore) -> d
         check()
     db.refresh(setting)
     if setting.updated_at != started_version:
-        raise HTTPException(
-            status_code=409, detail="模型配置已变化，请重新探测；旧结果未保存"
-        )
+        raise HTTPException(status_code=409, detail="模型配置已变化，请重新探测；旧结果未保存")
     value["interface_probe"] = result
     value["probe_results"] = {
         **(value.get("probe_results") or {}),
@@ -4610,9 +4740,7 @@ def probe_model_profile_draft(
     except AIProviderError as exc:
         raise _model_test_http_error("草稿能力探测未完成", exc) from exc
     except Exception as exc:
-        raise HTTPException(
-            status_code=502, detail=f"草稿能力探测失败：{str(exc)[:240]}"
-        ) from exc
+        raise HTTPException(status_code=502, detail=f"草稿能力探测失败：{str(exc)[:240]}") from exc
     capabilities = sorted(
         set(value.get("capabilities") or [])
         | {
@@ -4625,9 +4753,7 @@ def probe_model_profile_draft(
         "status": "READY",
         "message": "草稿能力探测已完成，保存后才会写入模型配置。",
         "probe_results": results,
-        "business_assessments": business_assessments(
-            profile.model, results, diagnostics
-        ),
+        "business_assessments": business_assessments(profile.model, results, diagnostics),
         "capabilities": capabilities,
         "supports_json_mode": profile.interface_capabilities.json_object == "SUPPORTED"
         if profile.connection_type == "LOCAL_ROUTER" and profile.interface_capabilities
@@ -4732,3 +4858,8 @@ def test_provider(
         "model": payload.model,
         "response_preview": result.content[:200],
     }
+
+
+from zhijian.api.storage import router as storage_router  # noqa: E402
+
+router.include_router(storage_router)

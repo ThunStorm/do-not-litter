@@ -304,7 +304,7 @@ def test_same_video_submissions_make_two_notes_and_share_one_place(
                         "place_type": "PARK",
                         "poi_policy": "RESOLVE",
                         "subject_role": "PRIMARY",
-                        "visit_intent": "RECOMMENDED",
+                        "visit_intent": "NEUTRAL",
                         "confidence": 0.9,
                     }
                 ],

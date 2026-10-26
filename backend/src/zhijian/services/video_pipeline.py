@@ -17,6 +17,7 @@ from zhijian.ai.stage_decision import decide_stage, record_stage_decision
 from zhijian.ai.token_monitor import record_token_anomalies
 from zhijian.core.config import Settings, get_settings
 from zhijian.core.secret_store import build_secret_store
+from zhijian.core.storage import resolve_ref, storage_ref
 from zhijian.core.time import as_utc, utc_now
 from zhijian.db.models import (
     AINoteVersion,
@@ -460,7 +461,7 @@ def _download_and_transcribe_audio(
         {
             "audio_cached": not bool(source_media_path),
             "bytes": audio_path.stat().st_size,
-            "cache_path": str(audio_path),
+            "cache_path": storage_ref(audio_path, settings),
         },
     )
     registry = ASRProviderRegistry(
@@ -496,8 +497,12 @@ def _download_and_transcribe_audio(
     def run_provider(active_provider):
         active_provider.cancel_check = lambda: ensure_job_active(db, job)
         active_provider.on_wait = lambda seconds: _stage_event(
-            db, job, "asr.waiting", f"本机语音处理仍在运行，已等待 {seconds} 秒；转写结果尚未返回",
-            provider=active_provider.provider_id, elapsed_seconds=seconds,
+            db,
+            job,
+            "asr.waiting",
+            f"本机语音处理仍在运行，已等待 {seconds} 秒；转写结果尚未返回",
+            provider=active_provider.provider_id,
+            elapsed_seconds=seconds,
         )
         return audited_call(
             db,
@@ -700,7 +705,7 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
         requested_source_id = source.id
         raw_url = str(job.payload_json.get("locator") or "")
         platform = str(job.payload_json.get("video_platform") or "BILIBILI")
-        local_media_path = Path(raw_url) if platform == "LOCAL" else None
+        local_media_path = resolve_ref(raw_url, settings, owned=False) if platform == "LOCAL" else None
         validate = _step(db, job, "VALIDATE_LINK", 5, {"url": raw_url})
         _stage_event(
             db,
@@ -1151,7 +1156,10 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
                     job,
                     download_frames,
                     95,
-                    {"cache_path": str(video_for_frames), "bytes": video_for_frames.stat().st_size},
+                    {
+                        "cache_path": storage_ref(video_for_frames, settings),
+                        "bytes": video_for_frames.stat().st_size,
+                    },
                 )
             except MediaDownloadError as exc:
                 if exc.code == "VIDEO_LOGIN_REQUIRED":
@@ -1462,7 +1470,7 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                 asset.bvid or "",
                 cookie_path,
                 source_media_path=(
-                    Path(str(asset.metadata_json["local_path"]))
+                    resolve_ref(asset.metadata_json["local_path"], settings, owned=False)
                     if asset.platform == "LOCAL" and asset.metadata_json.get("local_path")
                     else None
                 ),
@@ -1641,7 +1649,7 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
             elif plans:
                 try:
                     video_path = (
-                        Path(str(asset.metadata_json["local_path"]))
+                        resolve_ref(asset.metadata_json["local_path"], settings, owned=False)
                         if asset.platform == "LOCAL" and asset.metadata_json.get("local_path")
                         else download_screenshot_video(
                             settings, asset.canonical_url, cookie_path, platform=asset.platform
@@ -1654,7 +1662,17 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                             "Bilibili 登录已失效或访问被平台拦截，请扫码登录后继续或跳过截图",
                         ) from exc
                     raise
-                _done(db, job, step, 95, {"cache_path": str(video_path)})
+                _done(
+                    db,
+                    job,
+                    step,
+                    95,
+                    {
+                        "cache_path": storage_ref(video_path, settings)
+                        if video_path.resolve().is_relative_to(settings.data_dir.resolve())
+                        else str(video_path)
+                    },
+                )
             else:
                 _skip_step(db, job, step, 95, "没有可执行的截图计划")
         else:
@@ -1666,8 +1684,8 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                 )
             )
             cached_path = video_artifact.artifact_ref_json.get("cache_path") if video_artifact else None
-            if cached_path and Path(str(cached_path)).is_file():
-                video_path = Path(str(cached_path))
+            if cached_path and resolve_ref(cached_path, settings).is_file():
+                video_path = resolve_ref(cached_path, settings)
         if start <= VIDEO_STEPS.index("EXTRACT_SCREENSHOTS"):
             step = _step(db, job, "EXTRACT_SCREENSHOTS", 96, {"planned": len(plans)})
             if video_path:

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -10,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from zhijian.ai.job_config import SNAPSHOT_KEY, capture_ai_config
 from zhijian.core.config import Settings, get_settings
+from zhijian.core.storage import resolve_ref
 from zhijian.core.time import utc_now
 from zhijian.db.models import (
     AINote,
@@ -35,9 +35,11 @@ from zhijian.domain.enums import JobStatus, JobType
 from zhijian.domain.schemas import BulkDeleteRequest
 from zhijian.services.audit import record_event
 from zhijian.services.auth import require_session
+from zhijian.services.note_structure import organize_sections, structured_overview
+from zhijian.services.recommendation_intent import summarize as intent_summary
 from zhijian.services.source_retention import prune_source_if_orphan
 from zhijian.services.video_note_search import remove_video_note_search_index, search_video_note_ids
-from zhijian.services.video_support import note_render_profile
+from zhijian.services.video_support import _ground_map_facts, note_render_profile
 
 router = APIRouter(tags=["video-notes"])
 Protected = Annotated[object | None, Depends(require_session)]
@@ -126,6 +128,8 @@ def _note_view(db: Session, note: AINote, asset: VideoAsset) -> dict:
         "render_profile_id": current.render_profile_id if current else "CURRENT_DEFAULT",
         "render_profile_version": current.render_profile_version if current else "1",
         "overview": current.overview if current else "",
+        "model_provider": current.model_provider if current else "",
+        "model_name": current.model_name if current else "",
         "created_at": note.created_at,
         "updated_at": note.updated_at,
         "place_summary": {
@@ -170,8 +174,6 @@ def video_note_detail(note_id: str, _: Protected, db: Session = Depends(get_db))
     note, asset = _asset_for_note(db, note_id)
     data = _note_view(db, note, asset)
     version = db.get(AINoteVersion, note.current_version_id) if note.current_version_id else None
-    data["model_provider"] = version.model_provider if version else ""
-    data["model_name"] = version.model_name if version else ""
     data["markdown"] = version.markdown if version else ""
     data["warnings"] = version.warnings_json if version else []
     section_rows = db.scalars(
@@ -197,10 +199,62 @@ def video_note_detail(note_id: str, _: Protected, db: Session = Depends(get_db))
         }
         for section in section_rows
     ]
-    data["needs_regeneration"] = bool(
-        section_rows and any(not section.summary and not section.bullets_json for section in section_rows)
-    )
+    linked_ids = {mid for section in data["sections"] for mid in section["place_mention_ids"]}
+    for fact in (version.map_facts_json if version else []) or []:
+        linked_ids.update(fact.get("place_mention_ids", []))
+    reading_mentions = db.scalars(
+        select(PlaceMention).where(PlaceMention.id.in_(linked_ids), PlaceMention.video_asset_id == asset.id)
+    ).all()
     transcript = _transcript_for_note(db, note, asset)
+    reading_facts = (version.map_facts_json if version else []) or []
+    reading_segments = []
+    if transcript and transcript.purged_at is None:
+        reading_segments = db.scalars(
+            select(Segment)
+            .where(Segment.snapshot_id == transcript.metadata_json.get("snapshot_id"))
+            .order_by(Segment.ordinal)
+        ).all()
+        reading_facts = _ground_map_facts(reading_facts, reading_segments, reading_mentions)
+    data["reading_sections"] = organize_sections(
+        data["sections"], reading_mentions, reading_facts, segments=reading_segments, legacy=True
+    )
+    for section in data["reading_sections"]:
+        cited = set(section["segment_ids"])
+        ranges = []
+        previous_ordinal = None
+        for segment in reading_segments:
+            if segment.id not in cited:
+                continue
+            start, end = segment.locator_json.get("start_ms"), segment.locator_json.get("end_ms")
+            if start is None or end is None:
+                continue
+            if ranges and previous_ordinal is not None and segment.ordinal == previous_ordinal + 1:
+                ranges[-1]["end_ms"] = end
+            else:
+                ranges.append({"start_ms": start, "end_ms": end})
+            previous_ordinal = segment.ordinal
+        if ranges:
+            section["source_ranges"] = ranges
+    data["reading_overview"] = structured_overview(data["reading_sections"], data.get("overview", ""))
+    data["reading_organization"] = "place-theme-v1"
+    # Section shape is not correction provenance: body-only sections and coverage
+    # warnings are valid outputs of the current pipeline. Check the bound transcript.
+    correction = transcript.metadata_json if transcript else {}
+    correction_complete = bool(
+        transcript
+        and correction.get("correction_status") in {"CORRECTED", "PASS_THROUGH"}
+        and correction.get("correction_coverage") == 1.0
+        and (
+            transcript.purged_at is not None
+            or (
+                len(reading_segments) == transcript.segment_count > 0
+                and all(
+                    segment.correction_status in {"CORRECTED", "UNCHANGED"} for segment in reading_segments
+                )
+            )
+        )
+    )
+    data["needs_regeneration"] = bool(section_rows and not correction_complete)
     artifact = (
         db.scalar(
             select(GroundedMapArtifact)
@@ -371,9 +425,14 @@ def video_note_screenshots(note_id: str, _: Protected, db: Session = Depends(get
 
 
 @router.get("/api/video-screenshots/{screenshot_id}/image")
-def video_screenshot_image(screenshot_id: str, _: Protected, db: Session = Depends(get_db)) -> FileResponse:
+def video_screenshot_image(
+    screenshot_id: str,
+    _: Protected,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> FileResponse:
     screenshot = db.get(VideoScreenshot, screenshot_id)
-    path = Path(screenshot.image_path) if screenshot and screenshot.image_path else None
+    path = resolve_ref(screenshot.image_path, settings) if screenshot and screenshot.image_path else None
     if screenshot is None or screenshot.status != "READY" or path is None or not path.is_file():
         raise HTTPException(status_code=404, detail="截图尚不可用")
     media_type = "image/webp" if path.suffix.lower() == ".webp" else "image/jpeg"
@@ -421,9 +480,11 @@ def queue_visual_fact_extraction(
 
 
 @router.get("/api/video-covers/{cover_id}/image")
-def video_cover_image(cover_id: str, _: Protected, db: Session = Depends(get_db)) -> FileResponse:
+def video_cover_image(
+    cover_id: str, _: Protected, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)
+) -> FileResponse:
     cover = db.get(VideoCoverAsset, cover_id)
-    path = Path(cover.derivative_path) if cover and cover.derivative_path else None
+    path = resolve_ref(cover.derivative_path, settings) if cover and cover.derivative_path else None
     if cover is None or cover.status != "READY" or path is None or not path.is_file():
         raise HTTPException(status_code=404, detail="封面尚不可用")
     return FileResponse(
@@ -478,6 +539,7 @@ def video_note_places(note_id: str, _: Protected, db: Session = Depends(get_db))
                 "content_unit_id": mention.content_unit_id,
                 "subject_role": mention.subject_role,
                 "visit_intent": mention.visit_intent,
+                "recommendation_summary": intent_summary([mention]),
                 "poi_policy": mention.poi_policy,
                 "quote": mention.quote,
                 "segment_ids": mention.segment_ids_json,

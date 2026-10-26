@@ -133,7 +133,7 @@ def test_reference_gate_and_destination_are_not_poi_fallbacks(app_and_session) -
                 "poi_policy": "RESOLVE",
                 "content_unit_id": "unit-bj",
                 "subject_role": "PRIMARY",
-                "visit_intent": "RECOMMENDED",
+                "visit_intent": "NEUTRAL",
                 "place_type": "MUSEUM",
             },
             {

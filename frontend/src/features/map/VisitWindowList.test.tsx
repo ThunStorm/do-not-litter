@@ -12,8 +12,8 @@ describe('VisitWindowList source boundaries', () => {
       period_type: 'BEST_VISIT', suitability: 'RECOMMENDED', source_text: `原始出处${index}`, segment_ids: provenance === 'SOURCE_FACT' ? ['segment'] : [], confidence: 0.75, status: 'ACTIVE',
     }))
     render(<VisitWindowList windows={windows} onRemove={remove} />)
-    expect(screen.getByText(/原始出处0 · 来自视频标题/)).toBeTruthy()
-    expect(screen.getByText(/原始出处1 · 正文原句佐证/)).toBeTruthy()
+    expect(screen.getByText('视频标题中的时间线索').closest('li')).toHaveTextContent('原始出处0')
+    expect(screen.getByText('视频原句').closest('li')).toHaveTextContent('原始出处1')
     expect(screen.getAllByRole('button', { name: '移除' })).toHaveLength(1)
     fireEvent.click(screen.getByRole('button', { name: '移除' }))
     expect(remove).toHaveBeenCalledWith('window-2')

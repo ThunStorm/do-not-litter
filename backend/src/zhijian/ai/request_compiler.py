@@ -99,6 +99,7 @@ class CompiledRequest:
                 "source_entity_id": "entity_id",
                 "target_entity_id": "entity_id",
                 "subject_entity_ids": "entity_id",
+                "subject_entity_id": "entity_id",
             }
 
             def namespace(value: Any, key: str = "", path: str = "$") -> Any:

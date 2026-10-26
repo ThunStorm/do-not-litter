@@ -6,6 +6,7 @@ from collections import defaultdict
 from typing import Any
 
 from zhijian.services.place_knowledge import aggregate_place_knowledge
+from zhijian.services.travel_timing import matches_window, valid_window, window_label
 
 VISIT_STATE_LABELS = {
     "BEST": "最佳",
@@ -63,25 +64,43 @@ TRAIT_KEYWORDS = {
 EVENT_WEIGHTS = {"SAVE": 1, "PLANNED": 1, "VISITED": 1, "LIKE": 3, "DISMISS": -4, "DISLIKE": -3}
 EXPLICIT_EVENTS = {"LIKE", "DISLIKE"}
 BEST_PERIODS = {"BEST_VISIT", "BEST_VIEWING", "BLOOM", "FOLIAGE", "SNOW", "MIGRATION"}
-SEASON_MONTHS = {"SPRING": (3, 4, 5), "SUMMER": (6, 7, 8), "AUTUMN": (9, 10, 11), "WINTER": (12, 1, 2)}
 
 
 def visit_window_summary(windows: list[Any], month: int | None = None) -> dict[str, Any]:
-    applicable = [item for item in windows if _matches_month(item, month)]
+    applicable = [
+        item
+        for item in windows
+        if valid_window(item) and (month is None or matches_window(item, month=month))
+    ]
     if not applicable:
         return {
+            "record_count": len(windows),
             "state": "UNKNOWN",
             "summary": "时间未知",
             "reason": "尚无可追溯的适宜时间证据",
             "evidence": [],
         }
-    selected = max(applicable, key=lambda item: _state_rank(_window_state(item)))
+    selected = max(
+        applicable,
+        key=lambda item: (
+            _state_rank(_window_state(item)),
+            3
+            if item.month
+            else 2
+            if "雪后" in (item.source_text or "")
+            else 1
+            if item.season or item.day_time_slot
+            else 0,
+            item.provenance != "TITLE_CONTEXT",
+        ),
+    )
     state = _window_state(selected)
     return {
+        "record_count": len(windows),
         "state": state,
-        "summary": f"{month} 月：{VISIT_STATE_LABELS[state]}"
-        if month
-        else f"适宜时间：{VISIT_STATE_LABELS[state]}",
+        "summary": "全年适合"
+        if window_label(selected) == "全年" and state == "GOOD"
+        else f"{window_label(selected)} · {VISIT_STATE_LABELS[state]}",
         "reason": (selected.source_text or _default_reason(selected, state))
         + (" · 来自视频标题" if selected.provenance == "TITLE_CONTEXT" else ""),
         "evidence": [
@@ -89,7 +108,10 @@ def visit_window_summary(windows: list[Any], month: int | None = None) -> dict[s
                 "source_id": item.source_id,
                 "segment_ids": list(item.segment_ids_json or []),
                 "source_text": item.source_text,
-                "source_kind": "TITLE_METADATA"
+                "context_label": getattr(item, "context_label", ""),
+                "source_kind": "SEMANTIC_CONTEXT"
+                if item.provenance == "SEMANTIC_CONTEXT"
+                else "TITLE_METADATA"
                 if item.provenance == "TITLE_CONTEXT"
                 else "TRANSCRIPT"
                 if item.provenance == "SOURCE_FACT"
@@ -109,6 +131,7 @@ def recommendation_for_place(
     events: list[Any],
     month: int | None = None,
     tags: list[str] | None = None,
+    source_summary: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     traits = place_traits(place, insights, tags or [])
     preference, timing = _preference_weights(events, traits), visit_window_summary(windows, month)
@@ -181,7 +204,14 @@ def recommendation_for_place(
         if score >= 2
         else "GENERAL"
     )
+    if (
+        source_summary is not None
+        and source_summary.get("status") != "RECOMMENDED"
+        and tier in {"PRIORITY", "WORTH_CONSIDERING"}
+    ):
+        tier = "GENERAL"
     return {
+        "source_recommendation": source_summary or {},
         "place_id": place.id,
         "tier": tier,
         "label": TIER_LABELS[tier],
@@ -225,21 +255,13 @@ def group_by_place(items: list[Any]) -> dict[str, list[Any]]:
     return grouped
 
 
-def _matches_month(item: Any, month: int | None) -> bool:
-    return (
-        month is None or item.month == month
-        if item.month is not None
-        else month in SEASON_MONTHS.get(str(item.season or ""), ())
-        if item.season
-        else True
-    )
-
-
 def _window_state(item: Any) -> str:
     if item.period_type in {"SEASONAL_CLOSURE", "FISHING_CLOSURE"}:
         return "CLOSED"
     if item.suitability in {"RESTRICTED", "AVOID"}:
         return "CAUTION"
+    if item.provenance in {"SOURCE_FACT", "TITLE_CONTEXT"} and window_label(item) == "时段待明确":
+        return "UNKNOWN"
     return (
         "BEST"
         if item.suitability == "RECOMMENDED" and item.period_type in BEST_PERIODS

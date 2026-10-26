@@ -1,11 +1,12 @@
 import fcntl
-import os
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from threading import Lock
 from time import sleep
 from typing import TypeVar
+
+from zhijian.core.config import get_settings
 
 T = TypeVar("T")
 
@@ -15,7 +16,7 @@ class LocalAIResourceManager:
 
     def __init__(self, lock_path: Path | None = None) -> None:
         self._lock = Lock()
-        data_dir = Path(os.environ.get("ZHIJIAN_DATA_DIR", "./data"))
+        data_dir = get_settings().data_dir
         self.lock_path = lock_path or data_dir / "runtime" / "local-ai.lock"
         self.active_kind: str | None = None
 

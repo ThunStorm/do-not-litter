@@ -122,3 +122,8 @@ POST /api/travel/map/markers/{marker_id}/restore
 所有入口最终使用同一个 `place_id` 和 Place Detail ViewModel。列表和 Marker 不维护第二份地点详情数据。
 
 ---
+
+
+### 地点/主题阅读投影（2026-10-20）
+
+视频详情保留原`sections/markdown/overview`，另返回`reading_sections/reading_overview/reading_organization=place-theme-v1`。阅读章节保留首个原Section ID、source_section_ids别名、全部来源Segment/Quote与source_ranges（按真实连续引用片段分组）。旧绑定缺失时只允许具名标题、已绑定章节区间、逐字引文一致的保守阅读归组，不写PlaceMention或历史版本。前端目录/正文使用阅读投影、截图汇集原章节关联，完整body优先；旧anchor和原始导出保持。

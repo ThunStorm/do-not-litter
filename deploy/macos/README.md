@@ -65,3 +65,7 @@ launchctl kickstart -k "gui/$(id -u)/cn.zhijian.api"
 - 推荐在路由器为 Mac mini 保留 DHCP 地址；
 - 手机与 Mac mini 位于同一可信局域网；
 - 若将来跨网络访问，先引入 HTTPS/VPN，不直接开放 8787 端口。
+
+## 数据目录与日志
+
+使用[存储与日志生命周期](../../dev%20docs/operations/STORAGE_AND_LOG_LIFECYCLE.md)中的storage-adopt/plan/apply/recover流程；普通部署不切数据根。配置独立于资料与代码，缺卷/实例不符拒绝建空库。新LaunchAgent通过stdio_wrapper转发进程信号和退出码；日志在data/logs/active与archive，稳定启动诊断在用户Library/Logs/Zhijian。旧stdout/stderr必须停服务后才归档，不能copytruncate。

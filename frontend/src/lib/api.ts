@@ -1,5 +1,6 @@
 import type {
   InterfaceCapabilities,
+  Recommendation, LogPolicy, LogPreview, StorageStatus,
   ASRProvider,
   ASRSettingsView,
   ContentView,
@@ -44,6 +45,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export type PlaceReview = {
+  recommendation_summary?: Recommendation
+  visit_intent?: string
   mention_id: string
   name: string
   raw_name: string
@@ -61,6 +64,7 @@ export type PlaceReview = {
 }
 
 export type VideoPlace = {
+  recommendation_summary?: Recommendation
   id: string
   name: string
   quote: string
@@ -78,6 +82,10 @@ export type VideoPlace = {
 }
 
 export const api = {
+  storageStatus: () => request<StorageStatus>('/api/settings/storage'),
+  storagePlan: (path: string) => request<{ stage: string }>('/api/settings/storage/plan', { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ path }) }),
+  logPolicyPreview: (policy: LogPolicy) => request<LogPreview>('/api/settings/storage/logs/preview', { method: 'POST', headers: jsonHeaders, body: JSON.stringify(policy) }),
+  logPolicyApply: (policy: LogPolicy, token: string) => request<{ message: string }>('/api/settings/storage/logs/apply', { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ policy, token }) }),
   createSession: (token: string) =>
     request<{ status: string }>('/api/auth/session', {
       method: 'POST',
@@ -153,7 +161,7 @@ export const api = {
   restoreMapMarker: (markerId: string) => request<{ marker_id: string; visibility: string }>(`/api/travel/map/markers/${markerId}/restore`, { method: 'POST' }),
   placeReviews: (videoNoteId?: string) => request<PlaceReview[]>(`/api/travel/place-reviews${videoNoteId ? `?video_note_id=${encodeURIComponent(videoNoteId)}` : ''}`),
   placeReviewCount: () => request<{ count: number }>('/api/travel/place-reviews/count'),
-  confirmPlaceReview: (mentionId: string, poiId: string, expectedRevision: number) => request(`/api/travel/place-mentions/${mentionId}/confirm`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ provider: 'AMAP', poi_id: poiId, expected_revision: expectedRevision }) }),
+  confirmPlaceReview: (mentionId: string, poiId: string, expectedRevision: number) => request<{ place_id: string; mention_id: string; resolution_status: string }>(`/api/travel/place-mentions/${mentionId}/confirm`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ provider: 'AMAP', poi_id: poiId, expected_revision: expectedRevision }) }),
   updatePlaceMention: (mentionId: string, action: 'reject' | 'restore') => request(`/api/travel/place-mentions/${mentionId}/${action}`, { method: 'POST' }),
   searchPlaceReview: (mentionId: string, query: string, expectedRevision: number) => request<{ revision: number; candidates: Array<{ provider_id: string; name: string; address: string; score: number; match_reasons: string[] }> }>(`/api/travel/place-mentions/${mentionId}/poi-search`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ query, expected_revision: expectedRevision }) }),
   nearbyPois: (longitude: number, latitude: number) => request<Array<{ provider_id: string; name: string; address: string; longitude: number; latitude: number }>>('/api/travel/map/nearby-pois', { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ longitude, latitude }) }),

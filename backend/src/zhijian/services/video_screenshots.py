@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from zhijian.core.config import Settings
+from zhijian.core.storage import storage_ref
 from zhijian.db.models import (
     AINote,
     AINoteSection,
@@ -231,7 +232,7 @@ def extract_screenshots(
         perceptual_hashes.add(perceptual)
         target = _compress_screenshot(target)
         plan.actual_timestamp_ms = round(actual_seconds * 1000)
-        plan.image_path = str(target)
+        plan.image_path = storage_ref(target, settings)
         plan.content_hash = hashlib.sha256(target.read_bytes()).hexdigest()
         plan.perceptual_hash = perceptual
         plan.width, plan.height, plan.quality_score, plan.status = width, height, score, "READY"

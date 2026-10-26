@@ -10,7 +10,7 @@
 
 # 文档目录与维护规则
 
-> 目录核对日期：2026-10-14。外部读者先看 [项目概览](../README.md)，开发 Agent 先看 [CODEX_CONTEXT.md](CODEX_CONTEXT.md)。本次同步文档清单、源码契约与历史归档，不重新授予业务验收。
+> 目录核对日期：2026-10-27。外部读者先看 [项目概览](../README.md)，开发 Agent 先看 [CODEX_CONTEXT.md](CODEX_CONTEXT.md)。本次同步文档清单、源码契约与历史归档，不重新授予业务验收。
 
 ## 1. 谁读什么，读到哪里停止
 
@@ -18,6 +18,7 @@
 | --- | --- | --- |
 | 外部了解项目 | 根 README → 有需要再选 PRODUCT_REQUIREMENTS 或 SYSTEM_ARCHITECTURE 的相关章 | 能说明用途、架构、支持范围与限制 |
 | Codex 继续开发 | AGENTS → CODEX_CONTEXT → 当前状态 → 相关冻结行 → 一个专项分篇 | 能说明目标、现状、代码位置、约束与验收 |
+| 存储 / 文件日志 | [数据目录与日志生命周期](operations/STORAGE_AND_LOG_LIFECYCLE.md)；原计划归入history/planning | 能确认生效根、维护门禁与独立验收边界 |
 | 运维 / 部署 | CURRENT_HANDOFF → DEPLOYMENT_OPTIONS 或 deploy/macos/README | 已区分历史快照与本次现场证据 |
 | 审计 / 追溯 | 当前状态 → 指定 history 章节 / ADR | 得到所需历史证据，不扫描全部历史 |
 | 对外完整导出 | 构建 COMPLETE_PROJECT_SPEC | 只生成，不把合订本加载进 Agent 上下文 |
@@ -50,7 +51,8 @@
 | ai-gateway/ | Gateway 分篇、模型与 Prompt、运行配置、AI 验收 |
 | operations/ | 部署、日志、运维交互、运行监控 |
 | testing/、benchmark/ | 测试策略与样本说明；机器可读验收样本 |
-| planning/ | 待办池、未来路线与[字幕一致性优化方案](planning/VIDEO_TRANSCRIPT_ALIGNMENT_OPTIMIZATION_PLAN.md)；不自动授权实施 |
+| design/ | 前端视觉设计契约；设计资源仍在仓库 design/ui/ |
+| planning/ | 待办池、未来路线、[字幕一致性优化方案](planning/VIDEO_TRANSCRIPT_ALIGNMENT_OPTIMIZATION_PLAN.md)、[多平台链接 Adapter 调研计划](planning/SOCIAL_LINK_ADAPTER_FEASIBILITY_PLAN.md)；不自动授权实施 |
 | history/ | 历史实施记录和已覆盖的旧计划；仅追溯时读取 |
 
 | 领域 | 文档与职责 |
@@ -126,6 +128,10 @@
 
 2026-10-14 清理：已实施的 Z0–Z7 与标题时间证据计划归入 history/planning，未闭环的真实验收保留在当前状态/验收门禁；保留 ASR 与字幕对齐未完成计划及原有分篇索引。manifest 补齐当前专项、Benchmark 与历史文件；移除误跟踪的 Python 字节码，生成脚本仍保留。
 
+2026-10-20 整理：地图修复与演进计划落入[当前计划](planning/MAP_EXPERIENCE_REPAIR_AND_EVOLUTION_PLAN.md)；旧生产快照归入[历史快照](history/PRODUCTION_SNAPSHOTS.md)，较早实施过程移入既有实施历史。主题索引保留，历史证据不删除，不把未来计划作为本轮自动授权。
+
+2026-10-27 整理：两份已实施计划归入history/planning，稳定存储契约归入operations，地点态度归入旅行领域；保留未完成的地图F/社交平台/字幕计划。旧生产现场继续按原日期归档，export-evaluation-doc仅本地。
+
 
 ---
 
@@ -175,9 +181,12 @@
 | 视频阅读、列表、删除 | 分别选 [阅读](video/VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md)、[列表](video/VIDEO_NOTE_LIST_V043_SPEC.md)、[删除](video/VIDEO_NOTE_DELETE_V044_SPEC.md) |
 | 标题时间证据、Mention 归属 | [标题时间证据与请求边界](video/TITLE_TEMPORAL_EVIDENCE.md)；度量选 benchmark/TITLE_TEMPORAL_PROMPT_AB_REPORT.md |
 | Prompt、来源保留、模型设置 | 分别选 ai-gateway/PROMPT_SUPPLEMENTS_V045_SPEC.md、ai-gateway/AI_ROUTING_SOURCE_RETENTION_V046_SPEC.md、ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md |
+| 地图体验修复 | [当前实施计划](planning/MAP_EXPERIENCE_REPAIR_AND_EVOLUTION_PLAN.md) A–E及验收；F仍为候选 |
 | 地图、地点、POI | [旅行领域](product/TRAVEL_FOOD_PIPELINE.md) 命中段；Marker 导航见 [视频视图](video/05-views-safety-acceptance.md) |
 | 前端、UI、视觉、样式、布局、组件、Dropdown、Filter | [前端视觉设计系统](design/FRONTEND_VISUAL_DESIGN_SYSTEM.md) |
 | 地图 V2 草案（仅用户指定时） | [文档目录](README.md#地图-v2-草案的按需路由) 选章节，不能推断已冻结或已实现 |
+| 数据目录、搬迁、日志压缩/保留 | [存储与日志生命周期](operations/STORAGE_AND_LOG_LIFECYCLE.md)；实际搬迁需明确目标授权，不由设置保存代替 |
+| 地点推荐态度、整体/局部否定 | [旅行领域](product/TRAVEL_FOOD_PIPELINE.md#1025-地点整体态度与局部限制2026-10-27)；真实模型质量仍需独立验收 |
 | 运维日志、监控、北京时间 | [日志](operations/LOGGING.md)；监控选 operations/OPERATIONS_UI_SPEC.md，时间选 jobs/TASK_STATUS_AND_BEIJING_TIME_SPEC.md |
 | 数据迁移、API、安全 | 分别在 architecture/DATA_MODEL.md、architecture/API_DESIGN.md、architecture/SECURITY_PRIVACY.md 中按表/路由/威胁定位 |
 | 真实 AI 验收 | [生产验收门禁](ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md)；不因自动测试通过而跳过 |
@@ -268,10 +277,13 @@
 | 终态与时间 | 终态不显示预估；展示层强制北京时间，持久化 ISO 时间仍保持 UTC | `jobs/TASK_STATUS_AND_BEIJING_TIME_SPEC.md` |
 | 运维 | CPU/内存/磁盘与 Worker 心跳为 SQLite 持久化快照；内存百分比使用可回收页口径；日志支持筛选、关联 Job、分页与脱敏 | `operations/OPERATIONS_UI_SPEC.md`、`operations/LOGGING.md` |
 | 步骤续跑 | ERROR/CRITICAL 事件先查询 Replay Options；Artifact 有效时从失败步骤继续，上游 REUSED、当前/下游顺次执行；过期后只允许完整重跑；日志页不直接改步骤 | `jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md`、`operations/LOGGING.md`、ADR-026 |
+| 存储与日志生命周期 | 启动根/锁统一；缺卷/实例不符拒绝建空库；搬迁保持旧副本，放行后不回旧库；日志只删已登记封卷，gzip核验后删原件；转录180天与永久资料独立 | `operations/STORAGE_AND_LOG_LIFECYCLE.md`、`test_storage_lifecycle.py`、`test_storage_api.py` |
+| 作者地点态度 | 整体态度需逐字证据/主体/版本，局部限制不建地点；合并顺序无关，负向/存疑自动POI零调用，确认位置/个人偏好不改作者；负向来源不被体验筛选吞掉，旧记录不升级有效推荐 | `product/TRAVEL_FOOD_PIPELINE.md` 10.25、`services/recommendation_intent.py`、`test_recommendation_intent.py` |
 | 内容保留 | 终态任务和内容可删除；删除不破坏共享来源、地点、路线或证据；密钥只进 Keychain/Secret Store | `ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md`、`architecture/SECURITY_PRIVACY.md` |
 | 视频 v0.3 | Bilibili 元数据/字幕优先/受控音频/Whisper 转写；同一视频的每次提交产生独立 Note/Content/Transcript Version，重跑只给所属 Note 增新版本；Place 按 Provider POI ID 复用，地点与笔记证据不跨任务串联；章节、时间码、POI、Place Note 和失败/部分成功均为真实数据 | `video/04-jobs-data-api.md`、`services/video_pipeline.py` |
 | Bilibili 登录与字幕 | 登录只走站内二维码与 Keychain；登录失效必须进入 `NEEDS_USER` 并提供可用的续跑/非核心跳过选择；字幕 CDN 使用用途级 HTTPS Host Policy，安全支持官方子域；人工中文、AI 中文、其他语言依次尝试，单轨失败不得击穿整个 Job。AI/自动字幕不可单独成为权威 Transcript，必须保留 BV/CID、轨道与非敏感哈希审计并回退 ASR；生成 Note 前校验来源身份、验证状态与时间轴 | `video/VIDEO_AI_NOTE_PIPELINE.md` 4.4–4.7、`core/url_policy.py`、`services/video_pipeline.py` |
 | 视频 v0.4 截图 | 笔记先综合元数据与 Transcript；`PLAN_SCREENSHOTS → DOWNLOAD_VIDEO_FOR_FRAMES → EXTRACT_SCREENSHOTS → MATERIALIZE` 为显式步骤；3–12 张全文截图、主要地点优先，绑定章节/地点候选/Segment/时间码；过滤黑帧、曝光异常、低清晰度和重复帧 | `video/VIDEO_AI_NOTE_PIPELINE.md` 4.12–4.15、`services/video_screenshots.py` |
+| 地点笔记与确认同步 | 多地点笔记按已验证地点/主题组织，跨包合并但比较不广播；模型引用必须局限当前包，逐字引文与要点覆盖校验，缺项明确HYBRID；历史阅读投影不改版本/证据，旧anchor与截图可达；确认后跨页面通知/焦点刷新/前台15秒兜底，定位入口清旧筛选且选中Marker从聚合拆出且原生层级更高、PC/Mobile预览避让并能实点，隐藏/删除边界保留 | `services/note_structure.py`、`services/video_support.py`、`features/places/PlaceReviewCard.tsx`、`lib/travelChanges.ts` |
 | 视频 v0.4.2 阅读返工 | Hero 有真实封面、缺省为空；摘要/主体目录/正文优先，地点候选与完整转写放底部；默认使用 AI corrected Transcript；截图以侧排缩略图嵌入并支持 contain Lightbox；TXT 按钮使用统一视觉 | `video/VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md` |
 | 视频 v0.4.3 列表封面 | 主按钮为“添加视频链接”并使用统一 40px/14px Token；Card 展示本地持久真实封面、16:9 cover 和时长徽标；封面失败只显示占位，不阻塞 Note | `video/VIDEO_NOTE_LIST_V043_SPEC.md` |
 | 视频笔记删除 | 列表/详情共用删除；删除 Note/Version/Section/TOC/Content 投影，保留共享 Source/Asset/Cover/Transcript/Place/Evidence；活跃 Job 阻止删除 | `video/VIDEO_NOTE_DELETE_V044_SPEC.md` |
@@ -301,6 +313,18 @@
 保护请求预约与实际发出分别核对间隔；取消检查耗时计入墙钟等待，不能额外放大配置间隔；等待后复核取消/截止时间。手动探测统一关闭思考，由实际入口映射协议，LOCAL_ROUTER继续按接口契约省略。归纳保留时间/限制在笔记中的事实表达，使用已验证地点窗口，不重复提取地点窗口结构；地点提取与窗口校验契约不变。
 
 标题时间必须区分 TITLE_METADATA/TITLE_CONTEXT 与转写 SOURCE_FACT，不伪造 Segment；正文时间/限制优先，比较/否定/记录/范围不明不继承。Semantic Claim 先按 subject_entity_ids 绑定地点，无效或多地点歧义不能 Segment 广播；派生窗口重放保持唯一并保护人工窗口。标题/解析版本必须进入 Map 缓存身份，Prompt 分片保持完整系统守卫；应用结果缓存不冒充上游前缀缓存。契约见 [标题时间证据](video/TITLE_TEMPORAL_EVIDENCE.md)。
+
+2026-10-21 JSON恢复：定点错误行列/限长用户数据+原始完整Evidence，同模型有界重答，重验Schema/ID/引文/覆盖；不猜修双引号、不以失败输出作事实、不向无历史接口添加assistant轮次。修复上下文超输入预算不得发出，备用仍用原始请求；取消、时限及总尝试硬门禁保持。审计只记错误位置/哈希和恢复血缘，不落响应全文；新逻辑调用不继承旧修复状态。
+
+地图定位点阅读（2026-10-23）：浮窗先显示地点、适合时节和有据简短理由，路线收起，管理/编辑在详情保存。主地点允许同版本PLACE_GUIDE完整单元投影；跨单元共同季节须按旅行领域10.24的同Note版本/重复地点/共同景观/无冲突门禁，具体日期时刻不广播，历史日期不升级年度最佳，地图筛选和详情使用相同有效窗口。保留旧记录与修订号冲突保护，PC/Mobile验证编辑草稿和保存刷新。
+
+2026-10-24 地图直读：浮窗外层展示有据自然语言时节、限制和看点；不以内部适宜度/偏好分代替业务说明。地点级NOT_RECOMMENDED进入人工复核且自动POI调用0；天气级否定只显示条件限制。数字聚合点击放大并列成员，仅同一Note版本可展示有据共同看点；成员散开或聚合失效立即关闭，不保留过期列表。
+
+2026-10-25 地点阅读：展示层去除视频叙述外壳必须保留否定、日期、程度和不确定限定；来源/继承关系/原句与超链接收进查看更多，不能删除依据。详情业务信息优先，空资料不占大区块，元数据/历史/管理次级收起；按需读取历史，编辑保存与聚合散开关闭继续回归。
+
+2026-10-26 详情阅读不可整体折叠：关联笔记/时间依据/来源默认可读，时间锚点仍能定位；资料/历史维持紧凑辅助层级，历史独立按需加载，管理按钮直接可达。PC要点卡片同行等高等分，Mobile边缘对齐且长内容不裁切；高德入口沿用共享按钮水平留白，业务主操作不得被导航遮挡。
+
+2026-10-26 底部操作/历史：五个状态偏好按钮须在同一底栏且不在正文重复；移动端不得换行/溢出/被导航遮挡。历史默认展开自动加载，保存后刷新，资料与历史都固定160px并内部滚动；长历史样例不得撑高辅助区或写入生产。
 
 
 ---
@@ -349,11 +373,17 @@
 
 # 当前实施状态
 
-> 状态记录日期：2026-10-26。本文唯一记录当前源码能力与自动验证；生产状态只见带原采样日期的 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
+> 状态记录日期：2026-10-27。本文唯一记录当前源码能力与自动验证；生产状态只见带原采样日期的 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
+
+## 2026-10-27 存储与地点态度交付
+
+两包源码与隔离验证完成：统一启动配置、实例/卷身份与缺库拒绝、受管引用、独立搬迁/恢复CLI、不可变分卷/gzip完整性/保留容量、stdout/stderr包装器及设置预览；作者整体/局部态度证据、命名空间、顺序无关合并、POI门禁、笔记原文保真、跨来源投影、确认后标签与来源链接贯通。无Schema迁移，0025不变。后端全量631项通过，后续来源链接与地图相关93项、存储18项（新增二次切根别名）、准确暂存副本110项复验；前端全量44项及新增混合态度聚合1项、Ruff/ESLint/类型/隔离构建通过。隔离1192/390px预检不切根、策略应用刷新、确认位置/个人偏好后作者态度不变、视频/地图/详情一致，无溢出或相关错误。存储目标覆盖故障/中文分卷/信号与退出码入口通过；更细证据在发布保存点。
+
+存储契约见[专项](operations/STORAGE_AND_LOG_LIFECYCLE.md)，态度见[旅行领域10.25](product/TRAVEL_FOOD_PIPELINE.md#1025-地点整体态度与局部限制2026-10-27)；两份原计划归档history/planning。生产加载/Browser与备份只由交接现场证明。未搬迁生产根、未拔插外置卷、未调用真实Provider/重跑视频/确认生产POI；真实语义召回率和误报未验证，旧副本/备份与永久证据不承诺物理清除。
 
 ## 当前冻结范围
 
-- 当前分支为 `codex/mac-mini-implementation`；本轮交付包含标题时间证据/分包 Prompt、同模型重跑配置与 Z0–Z7 请求优化核心；Z8 保持独立 backlog，不修改 LocalAiMux。
+- 当前分支为 `codex/mac-mini-implementation`；本轮交付为存储/日志生命周期和地点推荐态度贯通；既有标题时间证据、同模型重跑及Z0–Z7能力保持，Z8仍为独立backlog，不修改LocalAiMux。
 - 仓库 Alembic head 为 0025；生产版本由交接现场证明，不由仓库推断。本轮无 Schema 变更；重新部署和已授权真实模型/视频矩阵另由交接及验收报告证明。
 - 唯一支持的后端为 Mac mini，FastAPI、SQLite/WAL 与独立 Worker；单用户通过可信局域网访问。
 - 源码实现、离线验证、生产加载与真实业务验收分别记录。规格中的待实施项、历史工作包和新草案不自动成为已授权任务。
@@ -361,6 +391,20 @@
 ## 当前能力
 
 2026-10-26 Ground Map 局部ID恢复：按[阶段恢复流程](ai-gateway/04-stage-policy.md#ground-map-局部-id-恢复流程与实施计划2026-10-26)先落计划后实施。仅无反向引用的缺省/重复Claim ID本地确定性重编号，保留全部事实、引文及归属；实体/单元冲突、非法条目与越界引用仍拒绝，完整既有Evidence门禁继续执行。结构错误新增精确路径/冲突位置与安全编号哈希，纠错仅携带有界用户定位数据；审计/缓存保留修复版本及最多32项血缘，缓存命中重新检查ID且不重复修复。仅升级Ground Map编译投影，不回写旧任务或语义Artifact，不增加默认重试或改变REMOTE_ONLY备用关系。新增20项回归，完整工作树全量后端589/前端43、Ruff/ESLint/TypeScript及隔离构建通过；准确提交副本目标72项及Ruff通过；已保存真实失败响应只读离线核对哈希一致，40条Claim全部保留并修复1处重复，ID稳定与缓存规范结果幂等通过，真实模型调用0。该样本仅证明编号恢复，不证明全部语义/POI质量；无Schema、历史改写、配置保存或视频重跑；后续授权发布与交付结果见[交接](CURRENT_HANDOFF.md)。
+
+2026-10-26 底部操作与默认历史：不感兴趣/不喜欢/喜欢/去过/想去恢复同一底栏，正文不重复；历史默认自动加载，保存/操作后刷新。资料和历史各160px固定容器，标题不滚动、正文内部滚动，历史量不撑高辅助区；Mobile底栏自适应内容宽度、一行40px点击高度并避让导航。后端569、前端43及后续目标2、ESLint/类型/隔离构建通过。隔离1192/970/390/360px模拟200条长历史，外框均160px、内部132px可滚动，记录不入生产；保存刷新通过。生产同断点五按钮命中/顺序、默认历史/两区尺寸、无溢出/错误/写请求通过。仅静态更新，API/Worker未重启，业务表与调用数不变，无迁移/真实Provider/视频重跑/POI确认/提交推送；现场见交接。
+
+2026-10-26 详情展开与对齐：关联笔记、时间依据、原句来源正常展开，资料/独立按需历史改为紧凑辅助分栏，管理按钮原位直接显示；地图来源折叠不变。详情要点卡片等分伸缩并同行等高，Mobile单列统一16px安全边距及最小高度，高德入口和管理按钮沿用共享按钮留白；保留编辑保存、时间锚点与底部导航避让。后端569/前端43、ESLint/类型/隔离构建及文档生成检查通过；隔离1192/970/390px保存刷新、生产同断点来源展开/历史按需/管理直达/锚点与主操作trial通过，零溢出/应用错误/生产写请求。三卡样本高度均120px，高德13px/40px/左右14px。仅静态发布，API/Worker未重启，业务表与调用计数不变；无迁移/Provider调用/视频重跑/POI确认/提交/推送，现场见交接。
+
+2026-10-26 地点阅读层级：地图/聚合/详情共用展示层去除视频叙述外壳，保留否定、日期、程度与不确定限定；来源、继承说明、原句和笔记超链接收进默认关闭的查看更多。详情以名称/地址导航和时节/提醒/看点卡片为首屏，费用/等候/体验等已有字段按业务分组，无资料不留空大区块；冲突、较早记录及图片待核对保留。元数据、历史、偏好/隐藏/删除次级折叠；历史仅展开加载，编辑/保存与想去/去过保留，手机操作条避让底部导航。详情DTO补source_notes，复用已绑定Note版本与既有投影，不新增模型调用/历史回写/Schema。后端全量569、前端43、Ruff(src/tests)/ESLint/类型/隔离构建、文档生成5项及diff检查通过；隔离1192/390px编辑保存刷新及生产同断点只读正文/来源链接/历史展开/编辑入口/聚合关闭和主操作trial命中通过，无溢出/相关应用错误。只重载API，Worker未重启；发布现场与回退证据见交接。未迁移、重跑视频、调用Provider、确认POI、提交或推送。
+
+2026-10-24 地图直读与聚合：浮窗/详情共用视频已有事实的自然语言时节、看点和提醒，移除抽象适宜度/偏好分结论；提醒外置且优先显示，证据原句去重、原笔记可达，浮层用不透明规范底色。共同季节仅沿同Note版本的重复已绑定地点/共同景观及主次Claim关系传播，冲突不继承、具体日期时刻不广播，松花湖补上冬季背景；历史只读不回写。地点级NOT_RECOMMENDED强制人工复核且不调用POI，天气级否定保留为限制；Ground Map Prompt升为semantic-map-v4-intent-review，既有视频不重跑。聚合点击放大并列成员，仅全组同Note版本可整理已有看点；加载时保留成员，真正拆分/失效自动关闭，可切换单点。后端全量569、后续定向13通过；前端全量40及Ruff(src/tests)/ESLint/类型/隔离构建通过。生产1440/390px自然语言、松花湖、外层提醒、详情去评分、聚合保留/列点/切换/散开关闭通过，零溢出/应用错误；PC点击放大5次、Mobile双击2次后实际散开关闭。无Schema迁移、Provider调用、视频重跑、POI确认、历史回写或提交推送；真实模型对否定地点的识别召回率未实测。需求留存product/TRAVEL_FOOD_PIPELINE.md的10.24章节，发布证据见交接。
+
+2026-10-23 地图定位点阅读与详情编辑：同Note版本/Transcript版本的PLACE_GUIDE唯一锚点可只读投影本单元时间证据，其他地点只用自身片段，不回写历史；月份筛选、地图与详情共用有效窗口，补充雪后/天气/月份识别，历史日期不升级年度推荐。浮窗显示适合时节与最多三条有据记录理由，长特色截取保留；路线默认折叠，移除变形的更多/编辑菜单。详情编辑名称/类型/标签/备注后保存并反馈成功/失败，编辑草稿不被刷新覆盖，人工时间补充有保存入口，隐藏/恢复移至详情。后端全量566/前端36、Ruff（src/tests）/ESLint/类型/隔离构建通过；隔离1440/390px保存刷新、生产同断点只读浮窗/详情通过，无溢出/应用错误。需求留存product/TRAVEL_FOOD_PIPELINE.md；封面新视觉识别、模型生成质量与未确认POI不属本次验证，无模型/视频重跑/迁移/历史改写/提交/推送。发布证据见交接生产快照。
+
+2026-10-23 笔记正文误隐藏修复：`needs_regeneration` 改按当前 Note Version 绑定的 Transcript 校对状态、完整覆盖率及 Segment 完成状态判断，不再把空 summary/bullets 的合法 body-only 或待归纳证据章节视为旧笔记；PASS_THROUGH 保持可读，未校对/部分校对继续保护，转写过期保留已完成校对的正文。无 Schema、历史数据回写或模型/视频重跑；新增6项回归，后端全量566/前端36、Ruff/ESLint/TypeScript/隔离构建通过；生产1440/390px摘要、正文、目录跳转与焦点通过，无溢出/相关应用错误。仅重载API，Worker未重启，业务表摘要及静态HTTP哈希不变；保存点见交接。
+
+2026-10-23 模型排序优先级：设置列表按已保存通用主模型、备用模型、独立手动顺序显示；新增模型插入独立顺序首位，即置顶模型之后。路由模型禁止拖动，保存通用路由后立即刷新；调整其他模型不会覆盖置顶模型原手动位置，取消选用后恢复。优先级只用于列表响应，不改变任务内部候选选择。目标回归、后端全量558/前端36、Ruff/ESLint/类型/隔离构建通过；隔离Browser验证新增、切换路由即时置顶与390px，生产1280/390px只读核对两项置顶及刷新保持、无溢出/相关应用错误。已无迁移部署；保存点及服务现场见交接。
 
 2026-10-23 阶段分批/时限统一：校对字符预算与Segment数并入阶段高级参数，旧API/配置保留回退；新任务及有快照任务明确重跑使用limits_policy_version=2，Stage显式超时覆盖模型默认，阶段/Job剩余时限始终硬上限，旧快照保留旧取小与分批行为，不自动改历史/重跑。后端共用解析器提供未保存草稿只读预算预览，显示候选单次时限/来源与初始硬上限；校对/地图/归纳分包生效，兼容笔记/强制地点重提取/视觉事实补齐deadline，调用审计保留timeout_source。界面明确提取地点由证据地图执行、地点物化/笔记兼容路径及截图理解预留策略，模型超时标为默认。新增11后端及2前端回归，后端全量558/前端36、Ruff/ESLint/类型/隔离构建通过；仅本包HEAD副本目标回归/构建通过。隔离970/390px保存660/3000/16并刷新、手机保存700通过；生产同断点只读显示地图660/阶段1200/任务1800、校对旧值5000/24，零溢出/相关应用错误。无Schema迁移或生产配置保存，未真实调用模型/重跑视频；备份/服务/HTTP哈希见交接。完整决策见[阶段预算契约](ai-gateway/04-stage-policy.md#分批与请求时限统一规则2026-10-23)。
 
@@ -370,61 +414,23 @@
 
 2026-10-22 阶段说明留白：阶段表单与说明共用PC 20px/Mobile 16px内边距，底部20px、段落8px，折叠入口40px；重置说明段落默认margin，复用Caption与muted Token，7个阶段同步对齐。当前工作树后端543/前端31、Ruff/ESLint/TypeScript/隔离构建通过；本次提交范围另在HEAD隔离副本通过类型与构建。隔离与生产970×876/390×844验证展开/收起、键盘及自然换行，无横向溢出/框架覆盖层/相关控制台错误；仅浏览读取和折叠，未保存模型设置或发起真实调用。无Schema/API改动；生产保存点与静态资源哈希见交接。其他在途工作包不随本次提交。
 
+2026-10-21 阶段模式提示：五种执行模式显示中文并动态说明候选/备用关系，明确ONLY不切换、FIRST的相反位置及通用备用条件、AUTO不保证主备顺序；两槽标为候选，留空来源、LocalMux地址与模型位置、能力门禁及任务快照通过折叠说明解释。同步修正通用路由/直连“必用备用”的误导文案，Ground Map升级保留独立说明。仅SettingsPage提示，无后端/配置/历史修改。前端31项、ESLint/TypeScript/隔离构建通过；隔离与生产1440×1000/390×844验证五模式切换、折叠、无溢出/相关错误、零写请求；生产证据见交接。LocalMux限时改造在独立仓库交付，不以提示修改证明真实模型质量。
+
+2026-10-21 JSON恢复优化：HTTP与JSON重试独立，新增Stage json_retry_count，留空分别继承同身份Profile、显式0仅关闭对应类别，DIRECT保留显式JSON恢复。非法JSON/Schema错误记录安全行列/位置与响应哈希，限长320字符失败片段仅作用户角色定位数据，保留完整原任务/Evidence、无assistant历史；同模型有界纠错后仍失败才按原请求交备用。恢复上下文超输入预算不发送，可交备用原请求；超时/截断/思考预算不进入JSON恢复，取消/总尝试/墙钟门禁保持。修复成功仍走Schema/ID/引文/覆盖门禁并保留MODEL_REPAIRED血缘，缓存保留安全元数据，新逻辑调用清除旧上下文。笔记Prompt约束JSON转义，body_markdown可留空由现有组织器按summary/bullets合成，减少重复长字符串；逐字引文不换字符。后端全量543、前端31、Ruff/ESLint/类型/隔离构建通过；三份实际失败响应只做离线定位，纠错请求估算3458/3359/2689 Token均未超4000，真实调用0。隔离1440/390px阶段HTTP0/JSON1保存及刷新通过，生产只读1440/390px主模型0/1与阶段继承、无溢出/相关错误；发布配置与现场见交接。真实模型能否成功纠错未验，LocalMux CLI 180秒idle限制仍为外部条件，无历史Job/笔记改写或Schema迁移。契约见[阶段独立恢复](ai-gateway/04-stage-policy.md#阶段独立重试预算2026-10-21-修订)。
+
+2026-10-20 POI同步与地点笔记：只读核对API21地点而旧地图16，根因为跨页面缓存不失效且关闭焦点刷新；人工确认显式CONFIRMED/首次投影，复用隐藏不恢复、删除拒绝，BroadcastChannel同源通知、焦点刷新和前台15秒兜底；提供全国视野清筛选的地点定位入口，选中地点从聚合中单列并高于聚合原生层，PC卡片按选中点换边、手机定位避开底部Sheet。笔记Prompt/包前按地点聚集、跨包归组，比较与未归属内容独立，主语明确的后续事实可沿同实体绑定；本包ID/地点范围、逐字引文与关键事实覆盖校验，缺项保留待归纳原文并标HYBRID。旧版本提供只读地点/主题阅读投影，保留原sections/markdown、旧anchor、截图和非连续source_ranges；正文显示完整body。胡杨林样本24原章→13阅读章，不写历史数据。后端全量528、前端31及Ruff/ESLint/类型/隔离构建通过，隔离1440/390px正文/完整旧anchor/截图/无溢出或错误、模拟跨页面确认即时同步与定位通过；未真实确认POI或调用模型/重跑视频，无Schema。生产1440/390px笔记、970/390px标记实点与遮挡核对通过，API/Worker/新PID心跳与HTTP资源哈希通过；业务表未改，保存点见交接。实际新模型的语义质量仍需独立授权验收，确定性检查不冒充全面语义正确。
+
+
+2026-10-20 地图体验修复：共享Portal/手机Sheet筛选、单菜单与键盘/焦点/边界避让，时间与更多分组、清除/结果/错误反馈；路线筛选与加入目标解耦、隐藏撤销、卡片关闭/返回恢复、详情优先、空简介不占位、时间理由去重与完整依据展开。统一时间匹配/季节月份映射，过滤无时间语义的派生窗口、保真显示原句日期范围，跨段仅限同Mention相邻已绑定证据；完整正文/标题无时间才记录新版默认全年标记，无标记不补造全年。来源按独立Source去重，Marker资料批量读取，GET不再建投影，显式隐藏可补建；旧无效窗口详情标待核实。无Schema迁移或历史业务回写。生产Python后端全量521项、前端全量27项及收尾目标回归、Ruff/ESLint/TypeScript/隔离构建通过；隔离Browser（Browser插件未提供，采用Edge/Playwright）970/1440/390px菜单、月份筛选、真实保存时间展示/展开、关闭/清除，无溢出/相关错误。只读审计16地点均无新版完成标记、15无时间窗口、1条无效派生时间；报告`data/benchmarks/map-experience-20261020/timing-audit.json`。生产970/1440/390px真实保存数据Browser通过，API/Worker与新PID心跳READY，静态HTTP哈希匹配、业务表未改；保存点与日期见交接。真实新提取/默认全年模型质量未验。[计划](planning/MAP_EXPERIENCE_REPAIR_AND_EVOLUTION_PLAN.md)A–D源码完成、E仅预览、F未启动。
+
+
+2026-10-18 Bilibili常见链接适配：补齐无协议移动端/主域/短链分享文案，修复问号截断导致query与分P丢失，保留fragment和百分号编码；已知许可域名的旧HTTP输入本地升级HTTPS。支持BV、旧av、`/s/video/`和官方player链接，av经元数据转为BV/CID。短链逐跳执行HTTPS/精确Host/无凭据/标准端口门禁，不携带登录Cookie；取得视频身份即停止跳转，修复最后允许跳数误报超限，目标未声明p时才沿用短链p，失效/网络/超限分型保留。新增`test_bilibili_links.py`，后端全量512项、收尾专项61项（含新增中文紧邻URL边界）、源码与测试Ruff通过；前端24项/ESLint/TypeScript/隔离Vite构建通过。一次真实只读`b23.tv/BV1Tvbe6EEw2`跳转取得正确标准BV链接，仅证明该短链样本；Capture集成在隔离库验证只入队、不访问网络，未执行真实视频/ASR/LLM/POI。无前端或Schema改动，未提交、部署或重启生产服务；契约见[视频输入](video/02-input-transcript.md#42-validate_and_canonicalize_url)。
+
+2026-10-15 历史模型展示修复：任务摘要优先取本Job活跃/最近LLM调用审计的Provider、模型和阶段，不再回退当前全局路由；无审计仅兼容LLM步骤原记录，缺失留空。视频笔记列表/搜索与详情共用当前AINoteVersion模型字段，每行右侧以11px muted显示By模型，缺失/待生成明确提示，长名称截断并在手机端换行。新增4项任务回归覆盖完成/失败/运行中/缺失及全局设置变化，扩展列表/搜索版本模型断言；相关109项、后端全量462项、前端24项及完整源码/测试Ruff、ESLint、TypeScript、隔离Vite构建通过。生产1159×876/390×844覆盖24条模型与详情一致、历史任务、搜索15条及跳转，无溢出/框架错误/相关console；Browser插件未提供，采用Edge/Playwright。无Schema或真实Provider/视频重跑，发布证据见[交接快照](CURRENT_HANDOFF.md)。
+
 2026-10-14 标题时间证据：新增确定性 TITLE_METADATA 解析/范围投影，仅明确推荐且适用的地点继承；行程/记录、背景、否定、地域/主题不匹配及正文时间优先均保守拒绝。TITLE_CONTEXT 窗口保持真实 source_id/标题原文且无伪 Segment，按来源/提及/时间/文本哈希对账，重放保持 ID、地点重新绑定正确迁移且人工窗口不删除；API 区分 source_kind 并保护派生窗口。Ground Map 缓存身份包含标题上下文/解析版本；Claim 优先 subject_entity_ids，歧义不按同段广播，模型包保留 ContentUnit 并仅含当前包相关地点/Segment/引文。笔记摘要/fallback 按地点显示标题来源，前端地点详情区分标题/正文。稳定系统指令前置，请求增加前缀/Prompt 哈希、长度与字节范围观测，应用缓存不冒充 Provider 上报缓存；复用既有编译器、ID/外键/人工 POI 门禁，无 Schema/LocalAiMux 变更。[契约](video/TITLE_TEMPORAL_EVIDENCE.md)、[离线 A/B](benchmark/TITLE_TEMPORAL_PROMPT_AB_REPORT.md)记录合成增量及真实质量/Token UNKNOWN；真实模型/视频和会话缓存未执行。新增17项标题证据回归及1项前端出处/删除保护测试；目标110项、后端全量458项、前端24项与完整源码/测试Ruff、ESLint、TypeScript、隔离Vite构建通过。最终HTTPX请求体字节计量六入口对照、相关目标108项及末次全量458项通过；首次全量的旧分包测试缺失Segment范围，按新证据契约补全并扩展非法范围断言后复跑全量通过。生产1440/390px目标Browser通过，浏览器新增时间与删除响应均拦截模拟；实际服务/资源哈希/历史数据核对只见[交接快照](CURRENT_HANDOFF.md)。
 
-2026-10-14 截图保存前压缩：选帧与去重后保持原分辨率，按 WebP 85/90/95 与无损后备尝试，RGB PSNR≥38 dB 且体积至少减少5%才采用；编码/写入失败或无收益保留JPEG，先完整写入并原子替换后登记最终路径与SHA-256。图片接口及Vision请求兼容JPEG/WebP MIME，无新增依赖/Schema；旧截图不自动重编码。11项新增回归覆盖细小彩字无损后备、普通抽样JPEG压缩、画质/体积拒绝、编码/磁盘失败回退、最终文件哈希及两种格式的读取/模拟Vision请求；相关目标15项、后端全量441项、前端23项及完整后端Ruff、ESLint、TypeScript、隔离Vite构建通过。441张现有JPEG的临时副本离线实测426张采用压缩、15张保留，63,817,940→45,527,644字节，减少28.66%，采用压缩的最低PSNR38.1802 dB、单张编码中位87.54ms；最低PSNR样本标题/字幕可辨认，不替代全面OCR/语义验收。忽略目录 `data/benchmarks/screenshot-compression-20261014/report.json` 保存逐文件哈希与指标，原截图逐张字节核对未改。源码验收阶段未提交/部署或触发真实Provider/视频重跑；后续已按用户授权无迁移重载API/Worker，新截图保存链路已加载压缩逻辑，生产核对及首张真实新图未采集的边界见[交接快照](CURRENT_HANDOFF.md)。契约见[截图与物化](video/03-generation-materialization.md#414-extract_screenshots)。
-
-2026-10-14 系统指令传递纳入独立接口小样和普通能力探测；已保存模型读取目录后将小样加入Worker队列，配置未保存时提示先保存。折叠卡测试反馈处独立展示通过、未通过、未验证、未测试、探测中及目录声明/脱敏错误；保留采样时间与接口指纹，配置变更清除旧结果，执行中变更拒绝保存。角色冲突小样不提升目录声明、不授予业务能力、不解除正式Stage门禁。目标5项、后端全量430项、前端23项及源码Ruff、ESLint、TypeScript、隔离构建通过；PC1159/390px覆盖五状态与入队交互，无溢出或相关console错误（推理返回与入队均模拟，真实Provider未调用）。无Schema迁移；生产现场见交接快照。
-
-2026-10-13 已保存模型显示通过能力中文标签，并提供整卡拖动排序及上移/下移；指针捕获让整张卡片跟随移动，相邻卡片动画让位、目标显示插入线，松开自动保存，失败恢复原顺序，取消清除效果。顺序独立保存，更新/探测不再按更新时间冒泡，新模型排末尾；完整ID排列校验不改变推理路由，无Schema迁移。整卡位移/让位/取消目标测试、后端全量、前端23项及ESLint、TypeScript、隔离Vite构建通过。已发布生产静态包，Browser 1081/390px实际拖动换位成功，刷新持久化后恢复原顺序，页面无横向溢出/相关console错误；此前拖拽未验收项已闭环。未触发真实模型调用；生产现场见交接快照。
-
-2026-10-12 Mux模型目录修复：实机冷标准目录10.16秒、随后能力目录0.03秒，两者56个实际ID一致；确认新下拉刷新接口的5秒读取上限导致失败。读取等待改20秒、连接5秒、总期限30秒并按剩余预算收紧；列表与模型保存能力读取共用实际ID校验，仅排除owned_by=localmux的free/cheap/balanced/best虚拟路由，实际差异/重复仍拒绝，下拉返回实际模型。超时/HTTP状态/目录不一致/异常响应分别给脱敏提示。目标69项、后端全量424项、前端22项及源码/测试Ruff、前端Lint/TypeScript/隔离Vite构建通过；生产接口HTTP200返回56项，设置页刷新/搜索通过，原型号保留，无相关console错误；无迁移部署现场见交接。只读目录验证不代表真实推理或模型质量。
-
-2026-10-12 模型设置收敛：有标题的“已保存模型”父section包含说明、批量反馈、内缩子卡片、新增表单及空态；各模型默认收起、编辑保留、新增默认展开，共享IconButton支持键盘/ARIA。模型名改为可搜索SelectMenu，支持手动填写及显式刷新目录；新增POST /api/settings/model-catalog读取标准/Ollama/Mux元数据，Mux双目录实际ID须一致，标准目录中的虚拟路由独立识别。连接变更不复用跨origin/服务来源的旧Key，响应限时限量/无重定向，精确ID/凭据反射校验，过期结果不覆盖新连接/模型；失败保留原值，不保存配置或创建推理任务。新增目录18项、后端全量418、前端22及源码/测试Ruff、ESLint/TypeScript/隔离Vite构建通过；内置Browser验证父子包含、独立折叠、编辑保留、新增、搜索/选择、模拟刷新/失败、手动输入、长名称与PC/390px，修复长名称撑宽和相邻控件拉伸。沿用部署更新要求完成无迁移发布；真实目录采样及生产页面/数据证据见[交接快照](CURRENT_HANDOFF.md)，完整契约见[模型设置](ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md)。未触发模型推理、真实测试/能力探测、视频生成或POI确认。
-
-2026-10-12 视频笔记风格入口撤下：移除详情页选择器、前端风格状态/类型和生成请求的风格参数，普通重新生成走后端默认；Render Profile 接口/历史版本字段继续预留，契约见 [生成与物化](video/03-generation-materialization.md#笔记风格接口预留与生成模型标注2026-10-12)。详情 API 从当前 Note Version 返回生成 Provider/模型，右上角用 Caption 显示 `By 模型名`，不加“AI 生成”字样；缺失/待生成明确提示，长名称截断并可通过 title 查看模型名。目标 2 项、后端全量 400 项、前端 21 项及源码/测试 Ruff、ESLint/TypeScript/隔离 Vite 构建通过；包含历史迁移的 backend 全目录 Ruff 仍有 28 条既有问题，未修改历史迁移。Edge/Playwright 在隔离 SQLite 快照与构建包上验证 PC 1440px/876px、手机 390px、真实样本的历史模型、模拟长名称/缺失/待生成、菜单展开与拦截重新生成请求，无溢出/相关控制台错误。随后最终 By 文案通过目标 ESLint 和隔离构建，已授权无迁移部署与生产 Browser 验收见 [交接生产快照](CURRENT_HANDOFF.md)；无 Schema 变更或真实模型/视频生成。
-
-| 领域 | 已进入源码的能力 | 契约入口 |
-| --- | --- | --- |
-| Capture / 基础 | URL、正文、DOCX、PDF、XLSX、图像 OCR、音视频；局域网配对与 Session；Source/Evidence | product/PRODUCT_REQUIREMENTS.md、architecture/SECURITY_PRIVACY.md |
-| 招聘 / 旅行 | 首批招聘结构化与证据；Place Insight、POI Review、全国交互地图、Marker 生命周期、地点管理/人工路线；POI Resolver Golden、事实归一化、跨来源共识/冲突、地点知识 API/证据跳转；月份/日期 Visit Window 状态、可重算 Preference Event 与确定性可解释推荐；Visual Fact 实验性截图任务、Vision Profile Skip 与离线 Golden | product/TRAVEL_FOOD_PIPELINE.md、ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md |
-| 视频 | 字幕优先、ASR、校对、Semantic Map v3（ContentUnit、实体角色、关系、Atomic Claim）、同链接每次提交独立 Note/Content/Transcript Version、共享规范 Place、自适应笔记/章节、地点、Destination、截图、列表封面、保留式删除 | video/VIDEO_AI_NOTE_PIPELINE.md（分篇索引） |
-| Bilibili 登录恢复 | 站内扫码、nav 账号验证、Keychain 保存；登录失败进入 NEEDS_USER；核心恢复与非核心截图显式跳过；字幕多轨与官方 CDN Host Policy | video/02-input-transcript.md |
-| Job / Replay | 独立 Worker 心跳、协作取消、租约门禁、终态表达、步骤续跑和完整重跑；新任务冻结提交意图，重跑自动刷新同模型必要执行配置并保留执行历史；HTTP/间隔/资源锁等待协作取消，ASR 进程组回收与活动提示；Replay Options 由后端决定 | jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md |
-| Gateway | 显式 Profile/Stage Policy、接口能力协商、LocalAiMux 接入与手动测试 FIFO；Map/Reduce、Cache、Budget、Domain Context、Vision 边界；凭据从 Secret Store 读取 | ai-gateway/AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md（分篇索引） |
-| 稳定性 | 每次实际 Provider 尝试执行预算与本地 OS flock；LOCAL/REMOTE 分账，可信 Token、字符估算和未知分开，Cache hit 不重复计耗；超时不重复同模型请求 | ai-gateway/02-gateway-context.md、ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md |
-| 产品 / 运维 | PC/手机 Web、真实状态快照、自定义模型/补充 Prompt、JSONL + SQLite 审计、运维工作台 | product/CONTROL_CENTER.md、operations/LOGGING.md |
-| 部署 | Mac mini LaunchAgent 双服务、外置生产 venv Python 3.14、健康内容与 Worker 心跳门禁 | operations/DEPLOYMENT_OPTIONS.md、CURRENT_HANDOFF.md |
-
-## 最新自动验证
-
-2026-10-12 入口隔离、正常分批及同模型续跑补修：单批尝试与正常计划批次数分开，保留累计硬预算；v2调用经验、原始响应缓存与地图语义产物按实际入口/账户摘要/模型参数隔离，旧模型名经验不借用。新提交固定当前设置，续跑刷新原身份模型最新生成/上下文/稳定性参数，阶段参数刷新受原路由/模型池归属约束。Ollama使用原生阶段JSON Schema，本地地图4096输出默认最多16段，模型默认温度独立保存、继承表单保留来源状态，思考耗尽且无正文单独诊断停止拆分，商汤三类模型与OpenRouter按实际入口映射关闭思考，手动探测同步关闭思考；间隔按实际发出时间复核，等待使用墙钟避免取消检查放大时长；笔记减少重复地点窗口提取规则，LOCAL_ONLY禁止歧义复核借用全局远程入口；提示删除悬空关系示例，严格保留Evidence引用校验。后端全量400、补充目标及继承/预算测试及Ruff通过；前端21、ESLint/TypeScript/隔离构建通过，Browser1095×876/390×844只读核对中文“单批最多模型尝试”、模型默认温度及留空继承、无溢出/相关错误。无迁移；授权真实视频结果与模型质量边界见[指定视频矩阵](benchmark/AI_ENTRY_ISOLATION_BV1eAew6UEvG_REPORT.md)，生产现场见带日期交接。
-
-2026-10-11 本地模型测试间隔补修：LOCAL或Ollama统一共用本地硬件分组，不因Provider/入口、直连模式或Base URL缺失绕过串行；每次测试/探测子调用结束（含失败）后至少5秒，前后配置间隔/RPM更长取更长，共享完成时间和期限跨API/Worker/模型保留。已保存/草稿探测统一先分组锁再硬件锁，避免与Worker反向取锁。队列目标21项（新增10项覆盖成功/失败、较长间隔、跨Provider/入口与锁顺序）、后端全量379及Ruff通过；前端19/ESLint/TypeScript/隔离Vite通过，生产Browser1095与390px只读核对明确说明、无溢出/相关console错误。未重新触发真实模型推理；加载和备份证据见[交接生产快照](CURRENT_HANDOFF.md)，契约见[模型测试队列](ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md#11-已保存模型测试队列2026-10-11)。
-
-2026-10-11 已保存模型测试队列：新增一键真实测试+能力探测，单模型按钮共用MODEL_TEST Worker通道，不进入业务任务列表/首页计数；同供应商/入口FIFO和跨进程文件锁，独立最多三组并行，本地硬件仍串行，尊重间隔/RPM且远程至少4秒，429等共享至少60秒/Retry-After冷却，不自动重试或备用。重复在途同项复用，每模型独立结果/续租/fence与取消，错误不影响其他入口，晚结果不覆盖新执行；模型身份变化拒绝旧测试，凭据不进Job。PC1095与390px在隔离SQLite/模拟模型上通过一键、持续单点/去重、分组并发、失败/取消隔离、未保存编辑保留、进度和无溢出/相关console错误验收；外部Edge稳定帧/截图阻塞，改用Codex内置Browser完成。新增队列11项（含真实凭据存储初始化及首页计数隔离），自动测试使用临时模型/硬件锁避免干扰生产；后端全量369、前端19及Ruff/ESLint/TypeScript/隔离Vite通过，无迁移。真实已保存模型测试与生产加载另见带日期交接快照；完整契约见[模型设置](ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md#11-已保存模型测试队列2026-10-11)。
-
-2026-10-11 能力门禁与探测400修复：针对3bebb50笔记小样的版式/固定措辞限制，使用独立note-synthesis-v2；允许合并/拆分/调整章节，以来源、逐字引文、事实证据和有限数字/推荐方向检查判定，歧义为未验证，旧版/过期笔记评估不冒充PASS，历史裸FAIL/新版有效FAIL保守拦截，显式允许仍审计。按用户确认，每次阶段选模独立读取同身份模型最新已保存探测/业务评估，绕过旧事务/ORM缓存并固定本阶段判定；新PASS替代快照旧FAIL，新FAIL影响下一阶段，原模型/路由/生成参数/声明/预算和历史快照保留。同模型重跑入队刷新最新评估，不借用不同身份结果，原重跑身份门禁保留。ai.capability.checked及调用审计记录状态/更新时间/来源/哈希；能力拒绝与未配置错误分离。结构化探测明确JSON指令，HTTP失败记录具体小样、状态/脱敏厂商原因；格式可解析不自动开启DIRECT原生JSON，失败/截断不覆盖旧结果，限长小样诊断保留。专项32、目标97、后端全量358、完整Ruff及改动文件格式通过；Node24前端19/ESLint/TypeScript/隔离Vite构建通过。全库原有29文件格式差异未扩张修正，前端未改代码或重复Browser。只读复核job_b232da84…：校对成功、地图两次截断拆分恢复，笔记无请求，被v1 FAIL拦截；加载前API返回v1 FAIL且13:29探测仍写v1，确认当时修复未加载。源码验收时未提交/部署/重启、真实探测/续跑或改生产数据；随后已按用户授权无迁移加载并完成只读现场验收，证据见[交接生产快照](CURRENT_HANDOFF.md)。小样不证明全面语义质量，契约/回归入口见[模型边界](ai-gateway/01-architecture-models.md#笔记归纳小样与有效结论2026-10-11)、[任务策略](ai-gateway/05-job-policy.md)。
-
-2026-10-10 高德QPS补修：指定视频5项UNRESOLVED只读归因为账号接口QPS超限；Provider统一API/Worker跨进程请求间隔1.1秒、QPS/HTTP429后5秒冷却、不自动重试，缓存/同查询合并按Key哈希隔离，HTTP错误不带请求URL。新增跨进程/不同Key/失败冷却测试，后端全量326、目标11及HTTP错误补测5、Ruff通过，前端19/ESLint/TypeScript/隔离Vite构建通过。未改变前端行为或重复Browser，未增加真实Provider请求/改历史地点。6项地点及12个校对段的本机人审清单已生成；仍须人工核对与实机账号配额验收。
-
-2026-10-10 指定视频真实验收：BV11Ao7BYE1V（479秒）达到PARTIAL_SUCCESS，Note v2有14章节和12截图，0确认/1REVIEW/5UNRESOLVED/5AREA_RESOLVED/6SKIPPED。AI字幕拒绝后使用当前用户已保存的Qwen3-ASR；50段/12校对，Source/BV/CID/时轴及当前实体17/Claim33/章节quote16的引用与逐字校验通过。阶段0重试补修43f42ff加载后只续跑笔记，上游8步REUSED；全任务实际尝试10（含旧失败/修复/取消），保留审计，未超12次。原有Job/Note/Segment/Transcript与模型配置不改；PC/390px阅读/截图弹层通过。人审词准率/地名/现实POI、上游精确型号、计费Token和完整矩阵未证明，见 [视频验收](benchmark/VIDEO_E2E_BV11Ao7BYE1V_REPORT.md)。
-
-2026-10-10 视频实测补修：显式 Stage retry_count 同时限制 HTTP 与 JSON 修复重试，0 不再继承 Profile 的 JSON 重发；完整 JSON 对象后的最多两个多余闭合括号受控修复，规则、quote 与全量验证保留；输出字符估算取原始响应 content_length，避免短 ID 解码后的 canonical 字符膨胀。后端全量 322、前端19及静态/类型/隔离构建通过；首次视频执行的失败/修复/取消审计保留，部署与续跑结果另见交接。
-
-2026-10-10 真实模型小样：在现有 Mux 标准接口上串行执行 1 次 Text 与 2 次 Ground Map JSON（代码3bebb50、请求型号codebuddy/glm-5.3），两次 JSON DIRECT_VALID、短 ID 还原与逐字 Evidence 通过；两处景点、参考政策和价格/月季/否定/推荐食物/排队事实检查通过。输入为六段自建合成文本，N=1、请求字节3534→3330，不代表真实视频人审质量；实际型号、Token、finish_reason仍UNKNOWN，原生JSON/温度/输出上限不支持。未保存模型能力标记或改配置/历史结果；当前真实验收范围与风险见 [真实小样](benchmark/AI_REQUEST_OPTIMIZATION_LIVE_SAMPLE.json)、[A/B 记录](benchmark/AI_REQUEST_OPTIMIZATION_AB_REPORT.md)。本轮只写验收文档，不重复业务测试或部署。
-
-2026-10-10 请求优化核心：请求编译器仅在模型边界短 ID 化，按 Snapshot/内容/版本/映射绑定 Cache；校对去重上下文、限制 targets，Ground Map 局部事实 ID 按来源区间命名，笔记仅去除可由事实包恢复的重复 quote，完整上下文不静默截尾。格式 smoke 与四类业务小样分开，旧 smoke PASS/过期小样不证明质量，AUTO 未验证路由显式审计；统一等待/请求期限与实际尝试门禁，模型 JSON 修复默认关闭，结果解析质量与执行路径分型。复用 JobStep/Fence，附加 Attempt 状态与数值/哈希诊断；LocalMux 遥测白名单，任务调用明细中文化，旧审计可读。来源/空 quote/越界 Segment 阻止 POI 自动确认，复用现有 Review 与严格 resolver。后端全量 320 项通过，末次诊断目标 74 项与 Ruff 通过；前端 19 项及 ESLint/TypeScript/Vite 通过，隔离 PC/390px 调用明细验收无溢出/错误。18 场景合成请求字节减少 36.77%，只证明表示与往返门禁；真实 Token/POI 质量未验证。入口：[实施计划](history/planning/ZHIJIAN_AI_OPTIMIZATION_AND_E2E_PLAN.md)、[A/B 报告](benchmark/AI_REQUEST_OPTIMIZATION_AB_REPORT.md)、[E2E 矩阵](benchmark/CROSS_PROJECT_E2E_REPORT.md)、[发布门禁](benchmark/RELEASE_ACCEPTANCE.md)。
-
-2026-10-09 同模型保存检查与重跑配置：LocalAiMux 保存前自动核对接口目录，失败保留旧配置/凭据；视频提交在创建任务前检查核心文本阶段接口。普通重试、步骤续跑及完整重跑自动刷新同模型必要配置，保持语义/路由/预算上限和原提交快照；执行版本/历史与延迟重跑配置可追溯，身份变更/删除/禁用安全拒绝，Token/远程调用按同 Job 的现存审计累计。最终生产 Python 全量 300 项、完整源码/测试 Ruff 通过；Node 24 前端全量 19 项与 ESLint/TypeScript/Vite 隔离构建通过，末次文字更新后目标 8 项通过。内置 Browser 在隔离 SQLite/模拟目录上验证 1440×1000 与 390×844 的自动保存、目录失败保留原配置、同模型步骤续跑/ASR 复用及无溢出/相关控制台错误，推理请求 0。详尽计划已归档至 [实施计划与验收记录](history/planning/SAME_MODEL_REPLAY_CONFIG_IMPLEMENTATION_PLAN.md)。源码验收阶段未提交/部署或重跑真实视频；后续 2026-10-09 统一重载的生产证据仅见 [交接生产快照](CURRENT_HANDOFF.md)。
-
-2026-10-09 设置按钮错位补修：共享按钮图标统一 16×16 与 8px 间距，保存的普通/加载图标占位一致；模型检测与删除/保存分组，补充提示词网格取消固定最小列宽，覆盖中间桌面宽度溢出。前端 19 项/ESLint/TypeScript/Vite、生产 Python 后端 279 项与 diff 检查通过；静态包在 8787 加载后，1440/1024/760/390/320 五种宽度的等待、成功、长错误、保存与重复排队隔离交互通过，保存切换前后按钮几何一致，无横向溢出/非预期控制台错误。另在真实浏览器、真实已保存模型上核对图标尺寸/间距和新资源，无真实模型调用或配置写入；当时有活跃任务，仅更新静态前端，未重启后端。
-
-2026-10-08 最终源码：生产 Python 3.14 `pytest backend/tests -q` 全量 279 项、完整源码与测试 Ruff、Node 24 前端 `pnpm verify` 的 19 项 Vitest/ESLint/TypeScript/Vite 均通过。`trust_env` 的本地路由成功与取消回归在修复前复现同一 TypeError，修复后与相关目标回归共 34 项通过；异步客户端构造参数与请求参数分离，保留绕过环境代理及普通连接默认行为。
-
-本地路由已按实际接口能力处理消息/可选参数，手动测试 FIFO 不改变生产熔断，CLI 安全错误分流保持原预算；Token 读取区分可信实测、估算、未知，历史审计不回填。Job HTTP 等待、间隔与重试可协作取消；ASR 回收进程组，旧执行结果仍受 run fence 约束。上述功能在 2026-10-08 已分批受控加载，生产与 Browser 证据仅在交接和相关历史记录判定；此处的通过数量不替代真实模型验收。
-
-2026-10-09 本轮为文档和远程交付：补齐文档清单、接口入口、当前状态及取消边界，迁移旧验证过程；仅检查链接、迁移完整性、合订生成与格式，不重复业务全量测试。
+既有截图压缩、模型测试/排序、Gateway、QPS及链接能力仍保留；逐轮过程与验证数量已移至[实施历史](history/IMPLEMENTATION_HISTORY.md#2026-10-20-当前状态页过程归档)。未闭环项见下节。
 
 ## 未闭环与外部条件
 
@@ -491,6 +497,10 @@ Mac mini
 ## 5. 真实状态原则
 
 PC 控制台硬件、运行时、CPU、内存、磁盘与 Worker 心跳均从 Mac mini 当前状态接口读取。不可使用文档样例、固定 M4 参数或虚构百分比作为页面数据；单项采集失败应明确显示不可用原因。
+
+## 6. 数据根与维护
+
+数据目录、实例标记、环境冲突、缺卷拒绝启动、受管引用及搬迁恢复统一遵循[存储与日志生命周期](operations/STORAGE_AND_LOG_LIFECYCLE.md)。部署管理读取独立storage.json并向两服务渲染同根；生产数据库不隐式建库。LaunchAgent由输出包装器启动实际模块，状态核对Worker实际加载根/代次，不能将外层包装器PID当成Worker心跳PID。旧启动日志只在服务句柄关闭后归档。数据根实际切换必须另有目标与授权，普通重启不搬迁。
 
 
 ---
@@ -2356,6 +2366,10 @@ invalidated_at nullable
 
 它们均属于未来能力，不提前实现。
 
+## 既有JSON与技术引用补充（2026-10-27）
+
+本包无Schema迁移，Alembic仍0025。PlaceMention.metadata_json.recommendation_evidence使用recommendation-v1记录整体/局部态度的逐字证据、主体、条件、校验状态；只读来源投影不写共享Place单一态度。受管截图、封面和Artifact文件引用使用storage:相对根格式；旧绝对技术路径按登记旧根解析，不改Source.locator或正文。独立启动配置和迁移状态位于稳定控制目录，不放入要搬迁的数据库；数据库、永久资料、缓存、审计和转录分别保留，详见[存储契约](operations/STORAGE_AND_LOG_LIFECYCLE.md)。
+
 
 ---
 
@@ -3363,6 +3377,70 @@ TravelDashboardVM：
 - 重跑 POI
 
 
+## 地图时间与预览契约（2026-10-20）
+
+地图只读查询不补建Marker；旧地点无投影时按可见处理，隐藏/恢复在显式写请求中补建。时间提取与展示拒绝“最美森林”等无时间语义的派生窗口，原记录保留供审计。月份与季节、旬段、时段在同一窗口内匹配；关闭/限制优先，正文具体时间优于无日期或标题上下文。日期范围仅在原句明确时保真展示，不从月份推造日级精度。
+
+只有新版完整分析记录NO_TIME_MENTIONED且无有效时间结论时展示“全年适合 · 默认”；无记录/失败/歧义为“时间待分析”。默认全年不计为最佳或增加推荐得分。正文或标题含时间但归属不明时不标默认全年。历史数据批量更新先只读预览，保留人工记录，不自动确认POI。
+
+预览以查看详情为主入口，加入路线默认折叠；编辑/隐藏等管理操作集中在详情页。时间依据展开后保留完整source_text与来源类型；卡片不重复推荐中的时间理由，空简介/无匹配图不留占位，来源数按独立Source去重。仅有已绑定该Mention的真实截图才能作代表图。路线筛选与加入目标独立；返回地图恢复筛选与视野。详见[实施计划](planning/MAP_EXPERIENCE_REPAIR_AND_EVOLUTION_PLAN.md)，扩展部分不自动进入当前范围。
+
+
+### POI确认后的地图可见性（2026-10-20）
+
+人工确认显式将Place置CONFIRMED，首次补建可见Marker投影；复用已隐藏地点保留隐藏状态，已删除地点拒绝静默恢复。前端刷新地图/地点/审核/笔记缓存并通过不含业务数据的BroadcastChannel通知其他同源页面；地图焦点恢复强制刷新，前台15秒兜底轮询，不轮询后台。确认页提供`/map?place=...`入口，以全国视野和清空筛选展示目标；选中地点从聚合中单独显示。全国视野其他地点仍允许聚合，不等于未上图。
+
+## 10.23 地图定位点阅读与编辑需求（2026-10-23）
+
+点击定位点，浮窗优先展示名称、适合时节/天气窗口与最多三条简短记录理由（例如赏雪、云海、雾凇及地点特色）；理由取自已保存且归属明确的正文/地点证据，不用个人偏好分数替代地点价值，不因正文较长而整条隐藏。名称片段之外的时间须回到同版本证据地图：主地点可读取同版本PLACE_GUIDE的完整单元；共享季节继承按10.24规则处理，禁止按整部视频广播月份。明确十二月/冬季/雪后/晴天/早晨等条件应可见且参与同一套筛选；历史初雪日期不直接升级为年度最佳建议，缺少日期不臆造月份。封面只有已核验并保存的视觉证据才能作为时间来源，不把标题或封面主题伪造为转写原句。
+
+浮窗以“查看详情”为主入口，路线默认折叠；不再显示“更多操作”或重复的编辑入口，展开操作不得改变按钮形状。编辑、隐藏/恢复和删除统一在详情中；显示名称、类型、标签与备注进入编辑态后可保存，保留修订号冲突保护、失败反馈及保存成功提示，人工时间补充有明确保存入口。详情与地图共用时间证据；读取旧笔记允许只读补充投影，不回写历史记录、不调用模型、不自动确认POI。验收包含目标笔记note_788c3ea3ba664770818be29fd6cc3e28的真实只读证据、月份筛选、PC/Mobile浮窗及详情保存/刷新和失败反馈。
+
+
+## 10.24 地图信息直读、语义季节与聚合浮窗（2026-10-24）
+
+浮窗与详情不以“12月 · 可以考虑”“冬季 · 需注意”“为什么推荐给你：一般”等评分/枚举作为内容结论；用完整自然语句说明视频明确表达的时节、天气条件、景观看点和限制。注意事项直接在浮窗外层显示，优先于较长的看点；无来源的建议不补写。正文声明与转写不确定性不得被升级为系统判断，往年气温不冒充最佳到访日期。完整来源与原笔记保持可达，展开证据仅用于核对，不作为获取重要提醒的前置步骤。
+
+同一Note版本跨分块的PLACE_GUIDE与MULTI_PLACE_LIST，如果有重复的已绑定地点、共同且有正文依据的景观主题，以及明确的主次/共同Claim关系，可传递无冲突的共同季节；松花湖与雾凇岛属于同篇吉林雾凇讲解时可继承冬季背景。传递结果明确标为语义背景，并保留原句、来源和Segment；具体月份、日级窗口、天气和八九点等时刻不随关系图广播。不同Note版本、主题不同、季节冲突、背景/比较/被否定地点不得借此继承。地图筛选、单点与详情共用有效窗口，只读投影不回写历史。
+
+地点本身被作者明确不推荐时，保留实体原句并进入“作者不推荐·待人工检核”队列；不自动查询/确认POI或创建地图点，用户检核后可显式搜索和确认。“不推荐下雪时去某地”等天气/季节限制只构成该地点的提醒，不等于否定整个地点。不追溯改写或自动隐藏既有人工确认历史。
+
+点击数字聚合点同时放大地图并显示该聚合的准确地点列表，可点列表项切换至单点。聚合仍完整存在时保留浮窗；一旦成员散为多个点/子聚合、成员离开当前筛选范围或聚合不再存在，即自动关闭聚合浮窗，不保留旧列表遮挡地图。聚合各地点仅属于同一篇、同一版本笔记且有明确看点时，可整理该篇已保存的共同看点并链接原笔记；多篇/来源不完整时缺省区域总结，保留地点列表，不用空间接近推断共同推荐理由。PC/Mobile均验收普通点击、放大、列表切换、散开自动关闭和无溢出。
+
+## 10.25 地点阅读层级与来源收纳（2026-10-25）
+
+地图单点、聚合和地点详情面向用户直接展示已提取要点，不重复使用“同篇视频”“视频指出/提到/强调”等叙述外壳。仅作展示层清理，不删改原始文字、来源关系、时间范围、否定条件、“可能/约/往年”等限定；转写不确定性仍需保留可读提醒。来源关联说明、原句、继承背景与原笔记超链接放在默认收起的“查看更多”中。聚合是否有共同来源的判断及散开自动关闭行为不变。
+
+详情以名称、地址/导航、时节与天气条件、看点及注意事项为首屏。费用、排队/预约、体验、美食及其他已有记录按业务分组，有数据才展示；冲突或较早记录保留简短提示，不补造缺失信息。个人备注可直接阅读；已有图片观察保留待核对边界，不伪装成验证事实。类型、用户状态与标签为紧凑附属信息，坐标系、地图标识、完整引文和编辑历史降为小字号次级内容；历史只在展开后读取。不显示空“地点知识/截图事实”等大区块。
+
+编辑从次级入口进入，名称、类型、标签、备注和人工时间补充保留保存与修订号保护；隐藏/偏好/删除收进“管理地点”，主业务操作保留想去/去过。PC与Mobile验收原始要点不损失、正文无重复来源措辞、查看更多可展开并有有效链接、元数据不抢占首屏、编辑保存刷新及聚合交互保持；生产不保存验收虚构数据。
+
+## 10.26 地点详情阅读展开与对齐（2026-10-26）
+
+详情中的关联笔记、时间依据、原句与来源采用正常阅读排版并默认展开，保留原笔记超链接和继承边界说明；不把整个详情塞进“查看更多”。地点资料采用小字号紧凑字段，与默认展开的编辑历史在PC并列、Mobile纵向排列，降低非业务资料占用。状态/偏好按钮回到底部操作栏，隐藏/恢复与删除在地图显示区直接显示，危险操作仍须确认。此条调整详情展示，地图单点和聚合的来源仍留在查看更多。
+
+何时去/注意事项/看什么要点卡片在PC共享一行、等宽等高并统一内边距；少于三项时平分可用宽度。Mobile单列对齐，保留内容自适应和合理最小高度，不截断长提醒。高德入口采用共享按钮规范，13px文字、至少40px高度与左右14px留白；标题、地址、卡片、阅读资料及手机业务操作对齐同一安全边距。保留编辑保存、时间锚点跳转及手机底部主操作避让。
+
+## 10.26 底部操作与编辑历史补充
+
+“不感兴趣、不喜欢、喜欢、去过、想去”恢复到同一条底部固定操作栏，按此顺序排列；正文不重复这些按钮。地图隐藏/恢复和永久删除保留在资料末尾的地图显示区，删除仍需确认。Mobile操作栏保持一行、不遮挡底部导航，文字不换行或溢出。
+
+编辑历史默认展开并在地点读取成功后自动加载，保存或操作成功后刷新历史。地点资料与编辑历史都使用160px高的辅助容器，标题固定、内容区域内部滚动；历史条数或消息长度不能撑高整行、拉伸相邻资料字段，Mobile单列也保持相同高度。采用长历史样例校验容器高度、滚动和页面无横向溢出，模拟记录不得写入生产。
+
+
+### 10.25 地点整体态度与局部限制（2026-10-27）
+
+作者整体意见复用PlaceMention.visit_intent，但明确推荐必须具备recommendation-v1逐字证据。recommendation_evidence保存在既有JSON：statement_id、原态度、PLACE_OVERALL/LOCAL_DETAIL/UNCERTAIN范围、subject_entity_id、AUTHOR/OTHER/UNKNOWN说话者、quote、Segment IDs、原句条件/时间及显式修正关系。引文/Segment必须属于本包，主体在编译时按实体命名空间恢复；没有整体证据不默认推荐，版本标志和程序VERIFIED不代表真实模型质量已验。
+
+“A值得去，但别坐游船”：A的整体推荐与局部提醒分开，游船/菜品/天气/费用等不建立独立地点或复核项。普通有效地点没有态度仍沿用POI规则；不推荐、标签/证据疑点及整体正反冲突暂停自动POI处理，转人工复核。否定词只用于疑点报警，双重否定、转述、主体不清不能伪装语义理解。同键候选合并先去重证据再判定，顺序无关；同一作者明确改口保留原意见及修正，条件不同的意见不擅自泛化，无法解释的正反意见并列CONFLICT。
+
+统一只读recommendation_summary供审核/视频地点/PlacePreview/Detail/地图成员使用，状态RECOMMENDED/OPTIONAL/NOT_RECOMMENDED/CONFLICT/UNKNOWN，保留各来源版本与原文。共享地点只聚合各Note当前有效版本，排除USER_REJECTED/SUPERSEDED，不按时间/票数覆盖。负向来源独立于推荐体验筛选，关联笔记与原句始终可达；缺新证据旧标签标为旧记录，正向旧值不升级已验证推荐。旧版本不回写、不自动重跑、不隐藏历史Marker。
+
+人工“确认地点位置”只绑定POI身份，不改作者态度或用户喜欢/想去/去过。负向手动确认后可上图但标签保持；地图/详情与视频使用同一后端投影。个人偏好照常保存，但不把UNKNOWN/OPTIONAL/CONFLICT或负向来源放进明确推荐集合；已有地点不因此消失。混合负向/分歧成员的聚合不生成共同看点摘要，各成员仍列自身态度。
+
+笔记各分包仅携本包证据；整体意见和局部限制保真传递，未能核对归纳覆盖时保留绑定原句并标HYBRID/告警，存疑或负向章节不输出未经核验的正向概括。Prompt/地图Artifact版本已独立更新，旧缓存不冒充新证据；真实召回率/误报仍需另行授权的标注视频矩阵。隔离确认/偏好写入用于验收，生产Browser只读；不新增Schema或默认模型调用。
+
+
 ---
 
 # FILE: video/VIDEO_AI_NOTE_PIPELINE.md
@@ -3618,12 +3696,13 @@ MULTIPLE_URLS
 
 ## 4.2 VALIDATE_AND_CANONICALIZE_URL
 
-MVP 接受：
+接受的 Bilibili 视频链接：
 
-- `https://www.bilibili.com/video/BV...`
-- 带 query 的 BV 链接；
-- `https://b23.tv/...`
-- `?p=N` 分 P 链接。
+- 桌面 `www.bilibili.com/video/BV...`、主域 `bilibili.com/video/BV...` 和移动端 `m.bilibili.com/video/BV...`；
+- `b23.tv/...`、`www.b23.tv/...` 短链；
+- 旧式 `/video/av数字`、`/s/video/BV...` 和官方 `player.bilibili.com/player.html?bvid=...` / `?aid=...` 播放器链接；
+- 上述域名的无协议链接及混合标题、换行、Markdown 的分享文案。已知许可域名的旧 HTTP 输入仅在本地升级为 HTTPS，禁止实际发出 HTTP 请求；
+- URL 提取保留完整 query、fragment 和百分号编码，尤其是 `?p=N` 分 P 参数，不在问号处截断。
 
 输出：
 
@@ -3635,6 +3714,10 @@ part_number
 ```
 
 短链只允许跟随有限次数的 HTTPS 重定向。最终 host 必须仍在平台 allowlist；拒绝本地地址、内网地址和非 HTTP(S) Scheme，避免 SSRF。
+
+每一跳在发请求前校验精确域名、HTTPS、无 userinfo 和标准端口；不向短链转发登录 Cookie。取得合法 BV/av 视频目标后直接读取平台元数据，不再额外加载目标网页；到达最后允许跳数时取得视频目标也算成功。短链自身的 `p` 仅在目标未声明 `p` 时补入，目标声明优先。av 通过平台元数据解析成 BV/CID，最终统一到标准 BV URL 与对应分 P。失效、无 Location、无视频目标、网络失败和超限使用可区分错误。
+
+此支持范围为普通视频；番剧、直播、专栏等页面不会推测或伪造 BV 身份。Capture 请求仅提取链接并入队，网络解析仍由 Worker 完成。回归入口：`backend/tests/test_bilibili_links.py`。
 
 无法识别的链接返回稳定错误 `VIDEO_URL_UNSUPPORTED`；短链失效为 `VIDEO_SHORT_URL_EXPIRED`。
 
@@ -3810,18 +3893,15 @@ AI 总结
 
 同时生成结构化目录 `toc[]`：`section_id/start_ms/heading/thesis`。heading 必须是本段明确主题，thesis 用一句话概括主旨；禁止“继续介绍”“本段讲了一些内容”等泛化句。页面正文使用校对稿生成的摘要、要点和时间线详述，不直接拼接 Transcript 原文。
 
-### 摘要与时间线完整性契约
+### 摘要、地点结构与证据覆盖契约（2026-10-20 用户修订）
 
-视频 AI 笔记必须同时包含两个独立层次：
+视频笔记包含简短全局概览和按地点/主题组织的正文。多地点论述以已验证的地点身份为主章节，同一地点跨时段、跨分包的看点、交通、费用、时节与限制归到同一处；比较、路线、全局建议和归属不明的内容独立保留。不能把纯时间分块结果直接拼成最终阅读结构。具体结论保留在thesis、要点和子标题；不凭名称相似合并不同城市的同名地点。
 
-1. **摘要**：用较短篇幅说明视频主题、核心结论、适用对象和重要提醒，不能代替正文；
-2. **按时间线详述**：按真实视频顺序覆盖从首个有效 Segment 到末个有效 Segment 的全部内容，每节展示标题、`start_ms/end_ms` 和足够具体的正文。不能只取前 8 段、只写一个地点或把 overview 重复充当章节。
+时间/Token分块是内部请求预算边界，不决定阅读分段。每个模型包仅可引用本包Segment与该包验证的地点范围，逐字引文必须来自其引用的原文。Semantic Claim明确subject身份时可绑定后续非引入片段的同一地点；无subject的共享片段不得广播。最终跨包合并后核对关键事实的Segment、地点归属与引文覆盖；遗漏保留为明确标注“待归纳原文”的内容并报告HYBRID，不把兜底当作模型完成。
 
-时间线边界由服务端对完整 Transcript 做连续分块，综合最大 120 秒与字符预算切分；`segment_ids/start_ms/end_ms` 由服务端赋值，模型只为给定分块生成标题和详述，不再要求模型抄写数据库 ID。单块模型失败时，以该块完整转写整理成“转写整理（未总结）”章节并记录 warning，保证有效 Transcript 永远不会物化为 0 个章节。最终摘要从全部时间线章节合并生成，不允许继续使用只截取前 `video_note_chunk_chars` 的单次请求代表完整视频。
+地点章节可以引用不连续的来源区间，API返回真实source_ranges供回溯，不能把首尾之间所有内容当成本章Evidence。原始Transcript ID、时间码、Note/Version/Section身份保持不变。阅读页展示完整body_markdown，不能只显示bullets而隐藏已保存的正文与条件。
 
-理解顺序固定为两阶段：第一阶段先把视频页元数据与完整 Transcript 组织成 Video Understanding，包括总体摘要、主题章节、作者观点和初步地点线索；第二阶段再由独立结构化调用从 Transcript 中生成餐馆/景区/街区等 PlaceMention 与 PlaceBrief。第二阶段可以引用第一阶段的章节结构帮助定位，但最终事实仍必须直接绑定 Transcript Segment。
-
-每个主要章节必须保留一个或多个 `segment_id` 和起始时间码，渲染层可生成原片跳转。AI 笔记中要明确区分作者观点、来源事实和 AI 归纳。
+历史笔记提供reading_sections/reading_overview只读投影，原sections/markdown与版本不改。优先既有绑定和带逐字证据的事实归属；旧缺失绑定仅在标题明确具名、相邻已绑定地点的来源区间一致、无跨地点且引文逐字可核验时作阅读归组，不新增事实绑定。不满足条件的内容独立保留。合并保留旧章节anchor别名和截图关联。该整理不等于真实模型重跑或全面语义正确性验收。
 
 ### 长字幕分块
 
@@ -3838,7 +3918,7 @@ AI 总结
 
 切块边界优先选择自然停顿和主题边界，同时保留时间范围。合并 Prompt 只允许整理、合并和去重，不得补造原文没有的地点或事实。
 
-每个分块 checkpoint 保存服务端确定的 Segment 范围、输入哈希和局部结果；重试只重跑失败分块。最终校验至少确认：章节数大于 0、章节按时间递增、相邻章节不倒序、末节覆盖末个有效 Segment、所有引用 ID 属于当前 Transcript Version。
+每个分块 checkpoint 保存服务端确定的 Segment 范围、输入哈希和局部结果；重试只重跑失败分块。最终校验至少确认：章节数大于0、每包引用不越界、地点与引文归属正确、关键事实不因合并遗漏或明确告警、所有引用ID属于当前Transcript Version。章节按地点/主题排列，来源区间各自保持原时间，不要求重组后的章节按时间递增。
 
 ### 重试与版本
 
@@ -3852,7 +3932,7 @@ AI 总结
 
 笔记风格暂时退出产品页面：不展示“当前默认 / 精简回看 / 详细记录 / 旅行指南”选择器，前端不维护风格状态、不传风格参数。普通“重新生成”使用系统默认风格。后端保留 `POST /api/video-notes/{note_id}/regenerate` 的 `profile_id` 参数、四种 Render Profile 和已有版本字段，作为预留能力；不删除历史版本或修改已发布迁移。
 
-详情 API 返回当前 `AINoteVersion` 保存的 `model_provider`、`model_name`，右上角以 Caption（11px/16px、muted）显示 `By 模型名`，例如 `By codebuddy/hy3`，不加“AI 生成”字样；保留完整模型身份，长名称截断并通过 title 查看模型名。该标注不读取当前设置或任务最后调用模型，避免把后续地点提取模型误作笔记生成模型；历史版本未记录时显示“模型未记录”，无当前版本时显示“笔记待生成”。PC 与手机均须保持标题和操作可见、无横向溢出。
+列表（含搜索）与详情 API 返回当前 `AINoteVersion` 保存的 `model_provider`、`model_name`，详情右上角与列表每行右侧以 Caption（11px/16px、muted）显示 `By 模型名`，例如 `By codebuddy/hy3`，不加“AI 生成”字样；保留完整模型身份，长名称截断并通过 title 查看模型名。该标注不读取当前设置或任务最后调用模型，避免把后续地点提取模型误作笔记生成模型；历史版本未记录时显示“模型未记录”，无当前版本时显示“笔记待生成”。PC 与手机均须保持标题和操作可见、无横向溢出。
 
 ## 4.9 EXTRACT_TRAVEL_FACTS
 
@@ -4022,6 +4102,10 @@ FFmpeg 按计划时间码抽帧，并进行确定性质量过滤：
 
 ---
 
+2026-10-21：笔记模型优先完整输出summary/bullets，body_markdown可留空，由现有组织器合成完整正文，不重复生成长字符串。原创文案可用中文引号，supporting_quotes保留原字符，仅做JSON编码；非法JSON按[阶段独立恢复](ai-gateway/04-stage-policy.md#阶段独立重试预算2026-10-21-修订)处理，不放宽证据/归属/覆盖校验。
+
+推荐态度贯通遵循[旅行领域10.25](product/TRAVEL_FOOD_PIPELINE.md#1025-地点整体态度与局部限制2026-10-27)：每包仅传入可验证的态度引文，未覆盖的整体意见/局部限制以原文进入HYBRID，不把不推荐转成正向概括；Prompt版本升级不回写旧Note。
+
 
 ---
 
@@ -4060,6 +4144,11 @@ request_metrics 增加 metrics_version、prompt_fingerprint、static_prompt_fing
 应用命中记 `APP_RESULT_CACHE_HIT`，不生成当前上游 cached_tokens；可信非负整数 cached_tokens 或 prompt_tokens_details.cached_tokens 大于零才记 `PROVIDER_PREFIX_CACHE_HIT`，否则 UNKNOWN。UNKNOWN 入口不得借历史 usage 宣称节省订阅配额。真实缓存、计费与质量必须由授权的同模型配对 A/B 证明；原生会话/resume 实验尚未启动。
 
 验证与度量入口：[离线 A/B 报告](benchmark/TITLE_TEMPORAL_PROMPT_AB_REPORT.md)、`backend/tests/test_title_temporal_evidence.py`、`scripts/benchmark_title_temporal.py`。当前通过数只维护在 [实施状态](IMPLEMENTATION_STATUS.md)，生产现场只维护在 [交接](CURRENT_HANDOFF.md)。
+
+
+## 地图展示补充（2026-10-20）
+
+地图以统一时间判断过滤无时间语义的历史派生记录，仅改变读取投影，不改历史Evidence。明确日期范围从source_text保真展示；来源详情对不可用旧窗口显示待核实。新提取允许读取同一Mention已绑定且相邻的Segment拼接句子，保存全部原Segment ID与连续引文；不读取其他地点片段。NO_TIME_MENTIONED仅在完整转写与正式标题均无时间语义时记录，历史无窗口不自动补造此状态。无Schema迁移，未触发真实模型/视频重跑。
 
 
 ---
@@ -4190,6 +4279,11 @@ POST /api/travel/map/markers/{marker_id}/restore
 所有入口最终使用同一个 `place_id` 和 Place Detail ViewModel。列表和 Marker 不维护第二份地点详情数据。
 
 ---
+
+
+### 地点/主题阅读投影（2026-10-20）
+
+视频详情保留原`sections/markdown/overview`，另返回`reading_sections/reading_overview/reading_organization=place-theme-v1`。阅读章节保留首个原Section ID、source_section_ids别名、全部来源Segment/Quote与source_ranges（按真实连续引用片段分组）。旧绑定缺失时只允许具名标题、已绑定章节区间、逐字引文一致的保守阅读归组，不写PlaceMention或历史版本。前端目录/正文使用阅读投影、截图汇集原章节关联，完整body优先；旧anchor和原始导出保持。
 
 
 ---
@@ -4440,7 +4534,7 @@ v0.4 质量链路已进入源码：全量校对稿独立分块抽取地点、服
 本次返工固定解决：
 
 - 地点候选和完整转写入口移到文章最底部，作为集中回查区；
-- 所有时间码可以跳到对应时间线段落；
+- 所有时间码可以跳到对应来源章节；
 - 目录展示各段主旨，不输出泛化套话；
 - 页面正文使用 AI 校对后的提纲与详述，不直接铺转录原文；
 - 转写内容在进入总结前执行 AI 校对，保留原始版本供审计；
@@ -4463,7 +4557,7 @@ AI 摘要
 ↓
 主旨目录
 ↓
-按时间线详述（随文嵌入截图）
+地点与主题要点（随文嵌入截图）
 ↓
 Bottom Evidence Zone
   ├─ 地点候选
@@ -4478,7 +4572,7 @@ Hero 有 READY CoverAsset 时展示真实封面；封面缺失、失败或未下
 
 ## 2.2 Bottom Evidence Zone
 
-地点候选和完整转写必须位于文章正文最底部，在所有时间线详述之后、来源/版本审计之前。它们是回查工具，不抢占首屏阅读顺序。
+地点候选和完整转写必须位于文章正文最底部，在所有地点与主题章节之后、来源/版本审计之前。它们是回查工具，不抢占首屏阅读顺序。
 
 PC：双列布局，地点候选在左，完整转写在右；两卡顶部对齐。Mobile：按“地点候选 → 完整转写”纵向排列，不横向挤压。
 
@@ -4564,7 +4658,7 @@ NORMALIZE_TRANSCRIPT
 
 ## 4.2 主旨目录
 
-目录由服务端基于校对稿和时间线章节生成。每项包含：
+目录由服务端基于校对稿和地点/主题阅读章节生成，时间码只作来源回溯。每项包含：
 
 ```text
 start_ms
@@ -4584,11 +4678,11 @@ target_section_id
 
 目录视觉必须使用产品主体设计语言，而不是表格：暖白纸面、不使用硬边框网格；标题使用现有衬线标题体系，时间码使用朱砂红小号等宽数字，heading 为主要文字，thesis 使用较浅正文色；行间用细分隔线和留白组织。hover/focus 使用轻暖底色，当前 Section 使用左侧短朱砂标记和文字状态，不能只靠颜色。
 
-## 4.3 按时间线详述
+## 4.3 地点与主题要点
 
-页面“全文/正文”统一改称“按时间线详述”。它不是 Transcript 原文，而是基于完整 AI 校对稿生成的提纲挈领内容。
+页面“全文/正文”统一改称“地点与主题要点”。它不是 Transcript 原文，而是基于完整 AI 校对稿生成的提纲挈领内容。
 
-每个 Section 固定包含：
+同一地点跨时段要点归为一章，比较与路线单列；旧版本采用保留原文与锚点的只读阅读投影。每个 Section 固定包含：
 
 - 时间范围和可点击起始时间码；
 - 主旨标题；
@@ -4598,7 +4692,7 @@ target_section_id
 - 嵌入的关键截图；
 - “查看对应校对稿”和“打开原片”两个不同动作。
 
-Section 必须覆盖完整 Transcript，不因摘要长度限制只处理前 12000 字符。禁止在正文中直接连续铺满原始转录句子。
+所有关键事实必须被章节覆盖或明确告警，不因摘要长度限制只处理前12000字符；章节可引用不连续来源区间，不能以时间连续为由拆散同一地点。正文优先完整body_markdown，不只显示bullets而隐藏条件。禁止在正文中直接连续铺满原始转录句子。
 
 ---
 
@@ -5466,7 +5560,7 @@ LocalAiMux采用同Provider与规范化完整Base URL（协议/Host/有效端口
 
 折叠卡的测试反馈右侧显示已保存 `probe_results` 中状态为 `PASS` 的能力中文标签；未通过、未测或过期能力不显示为通过。标签随最新 Profile 响应更新，不能用配置声明或目录信息代替探测结果。窄屏标签另起一行，不造成横向溢出。
 
-“已保存模型”标题栏提供“调整顺序”开关。开启后按住卡片左侧手柄，整张模型卡片实时跟随鼠标或触屏指针移动；被跨过的条目动画让位，目标位置显示插入线，不能只拖动手柄小方块。松开后立即更新列表并自动保存，保存失败恢复原顺序；指针取消或丢失捕获时清除拖动效果且不保存，减少动态效果偏好关闭让位动画。手机及键盘用户也可用上移、下移按钮。`PUT /api/settings/model-profiles/order` 只接受当前全部模型 ID 的精确排列，列表变化时返回冲突提示。首次读取保留当时显示顺序，随后按独立顺序设置返回；更新、测试和探测不改变位置，新模型排在末尾。该顺序只控制设置页显示，不改变路由和阶段策略。
+“已保存模型”标题栏提供“调整顺序”开关。开启后按住卡片左侧手柄，整张模型卡片实时跟随鼠标或触屏指针移动；被跨过的条目动画让位，目标位置显示插入线，不能只拖动手柄小方块。松开后立即更新列表并自动保存，保存失败恢复原顺序；指针取消或丢失捕获时清除拖动效果且不保存，减少动态效果偏好关闭让位动画。手机及键盘用户也可用上移、下移按钮。`PUT /api/settings/model-profiles/order` 只接受当前全部模型 ID 的精确排列，列表变化时返回冲突提示。首次读取保留当时手动顺序；显示优先级为已保存通用主模型、备用模型、其余模型的独立顺序。路由模型固定置顶且不可拖动，保存通用路由后立即刷新列表；取消选用后回到原手动位置。新增模型插入独立顺序首位，显示在当前主/备用之后；更新、测试和探测不改变独立顺序。该优先级仅用于设置列表响应，不改变内部候选模型顺序、路由或阶段策略。
 
 任务与内容行的删除入口默认隐藏于行尾操作区；窄桌面保留最小 40×40px 触控区域，删除前使用原生确认对话框并附带对象名称。删除控件不得覆盖行的详情跳转区域。
 
@@ -5690,7 +5784,7 @@ API 每 30 秒写入 SQLite 的同一快照仍是局域网与本机的唯一数�
 
 ## 1. 运行摘要字段
 
-任务摘要中的 `Provider` 与 `模型` 仅在当前步骤实际调用 LLM 时展示。ASR、下载、解析、清理等非 LLM 步骤不得把本地二进制路径、Whisper 模型文件路径或缓存路径填入“模型”字段；应显示“当前步骤不调用模型”。
+任务摘要中的 `Provider` 与 `模型` 展示本任务最近一次 LLM 调用审计保存的身份（运行时优先使用活跃 LLM 调用），阶段同步取自该调用；不得用当前全局路由或可变模型配置补造历史。无调用审计时仅兼容读取 LLM 步骤原有的 Provider/模型记录，缺失显示“—”。ASR、下载、解析、清理等非 LLM 步骤不得把本地二进制路径、Whisper 模型文件路径或缓存路径填入“模型”字段。
 
 摘要采用可收缩双列：值列最小宽度为 0，长 Provider、模型 ID、路径、错误码等必须在容器内换行或截断，不得越过右侧面板。截断字段保留完整 `title` 属性供查看。
 
@@ -8571,6 +8665,7 @@ max_input_tokens
 max_output_tokens
 timeout
 retry_count
+json_retry_count
 confidence_threshold
 escalation_threshold
 domain_pack_version
@@ -8610,6 +8705,7 @@ stage semantic parameters
 ```text
 timeout
 retry_count
+json_retry_count
 ```
 
 通常不需要进入内容 Cache Key。
@@ -8726,6 +8822,7 @@ Audit 能看到最终 resolved policy
 ```text
 temperature: 0.0 ~ 2.0
 retry_count: 0 ~ 3
+json_retry_count: 0 ~ 3
 timeout_seconds: 10 ~ 600
 neighbor_segments: 0 ~ 10
 ```
@@ -8804,6 +8901,8 @@ max_output_tokens = 5000
 实现完成后，系统必须满足：
 
 > 同一条 Pipeline 中，用户可以让字幕纠错由 `qwen2.5:7b` 以低 temperature、本地 non-thinking 执行；让 Note Chunk 由 `qwen3:8b` 本地执行；让 Final Note 使用指定远程强模型并单独设置更高输出预算；让专业 Place Extraction 使用另一个远程 Specialist + Domain Pack。所有 Stage 的配置互不污染，并可被单次 Job 覆盖。
+
+2026-10-21：HTTP与JSON重试覆盖独立解析、独立继承并随同模型执行配置刷新，原Job提交快照不改写；见[独立重试预算](ai-gateway/04-stage-policy.md#阶段独立重试预算2026-10-21-修订)。
 
 
 ---
@@ -10087,6 +10186,10 @@ API 返回给产品前端的是 ViewModel，而不是 ORM Row。
 
 未来远程访问再引入完整认证。
 
+## 存储维护与作者态度（2026-10-27）
+
+Session保护的GET /api/settings/storage返回当前根/加载代次、后台方案与日志维护结果；POST /plan只启动受限本机清点并保存待应用方案；POST /logs/preview与/logs/apply以清单token约束策略应用，不提供任意shell或请求内切库。详见[存储契约](operations/STORAGE_AND_LOG_LIFECYCLE.md)。地点/审核/地图DTO新增可选recommendation_summary，UNKNOWN为兼容默认；共享投影不改历史。确认位置与作者态度、个人偏好独立，详情保留所有有效态度来源的笔记链接。
+
 
 ---
 
@@ -10645,9 +10748,9 @@ CMS 显示诊断结果。
 
 | 层 | 存储 / 查询 | 约束 |
 | --- | --- | --- |
-| API / Worker 运行日志 | data/logs/api.jsonl、worker.jsonl | 每行 JSON；单文件 10 MiB，5 个轮换；页面不直接暴露原文件 |
+| API / Worker 运行日志 | data/logs/active/api.log、worker.log | 每行 JSON；按大小/UTC日封卷，48小时后gzip、总30天/归档池1GiB；页面不直接暴露原文件 |
 | 审计事件 | SQLite system_events；GET /api/logs | 局域网 Session 保护；本机豁免取决于部署设置 |
-| 兜底日志 | macOS LaunchAgent 的 `~/Library/Logs/Zhijian/api.stdout.log`、`api.stderr.log`、`worker.stdout.log`、`worker.stderr.log` | 日志子系统失效时排查，不作为业务状态证明；结构化 JSONL 已关闭 Uvicorn 重复 access log |
+| 兜底日志 | 应用输出包装器管理的stdio封卷与稳定用户日志目录启动日志 | 日志子系统失效时排查，不作为业务状态证明；结构化 JSONL 已关闭 Uvicorn 重复 access log |
 
 JSONL 包含 timestamp、level、component、message，可选 request_id、event_type、duration_ms、status_code、error_code、path、job_id、脱敏异常。审计事件包含 ID、时间、级别、组件、类型、消息、Actor、实体类型/ID、Request ID 与非敏感 detail。data/ 不进入 Git。
 
@@ -10668,7 +10771,7 @@ API 生成或接受 X-Request-ID 并在响应头返回；业务动作关联 syst
 - 不记录配对码、Session Cookie、API Key、正文、文件内容、完整个人档案；Secret 仅进 Keychain/Secret Store。URL 保留在 Source 域，HTTP 日志只记路径，不记查询串/请求体。
 - Provider 日志只含 Provider、模型及脱敏摘要；页面与导出共用脱敏层。
 - Ground Map 本地 Claim ID 修复用 `local_id_repair` 保存版本、总数及最多32项字段路径/原因/原编号SHA256/新命名空间编号，原响应仅存哈希；调用审计、应用缓存及缓存命中审计保留同一血缘。`DETERMINISTIC_REPAIRED` 不代表新增模型调用或额外Token，也不代表事实质量通过。结构错误的 `json_error.schema_error` 只含固定类别、可信字段路径、冲突路径及可选编号哈希；原编号仅可进入有界、不可信的重试定位数据，不进入日志/审计。
-- JSONL 按大小轮换；审计保留期由 `app:general.data_retention_days` 控制，默认 90 天，由 Worker 每日维护任务执行清理。
+- 文件日志按[存储与日志生命周期](operations/STORAGE_AND_LOG_LIFECYCLE.md)封卷、校验压缩并按批保留；审计保留期由 `app:general.data_retention_days` 控制，默认 90 天，由 Worker 每日维护任务执行清理。
 - 备份 SQLite 要有 WAL/SHM 的一致性快照及永久文件；可再生 JSONL 无强制备份要求。Worker 每日按 `app:general.data_retention_days` 清理过期 `system_events` 与 `external_call_audits`，并记录清理摘要；不得为日志升级直接执行删除审计表的历史 downgrade。
 
 ## 4. 查询与工作台
@@ -10704,6 +10807,62 @@ API 生成或接受 X-Request-ID 并在响应头返回；业务动作关联 syst
 | backend/src/zhijian/db/models.py、backend/alembic/versions/0002_system_events.py | 审计模型与历史迁移，不改已发布迁移 |
 
 验证 Request ID、事件/JSONL、Job 关联、筛选/分页、脱敏和 Replay 门禁。生产升级只按 [部署说明](../deploy/macos/README.md) 执行；迁移前备份并确认无活跃 Job/lease，不以测试为由停止 Worker 或触发真实任务。原 v0.2/v0.3 文本可从 Git 历史追溯，旧验收结论不代表当前现场。
+
+文件日志策略与数据库审计保留分别配置，缩短文件保留/容量需先预览；清理保护活跃/有效续跑依赖，在线SQLite不自动VACUUM或gzip。实现入口补充core/file_logs.py、stdio_wrapper.py与api/storage.py；状态与生产证据仍分别查当前状态/交接。
+
+
+---
+
+# FILE: operations/STORAGE_AND_LOG_LIFECYCLE.md
+
+# 数据目录与日志生命周期
+
+本页维护启动、受管路径、搬迁与文件日志契约。源码能力/自动验证见[当前状态](IMPLEMENTATION_STATUS.md)，实际部署见带日期的[生产快照](CURRENT_HANDOFF.md)。历史设计分别归入[存储计划](history/planning/DATA_STORAGE_AND_LOG_LIFECYCLE_PLAN.md)与[地点态度计划](history/planning/PLACE_RECOMMENDATION_INTENT_PLAN.md)。
+
+## 启动与目录
+
+独立启动配置默认位于 `~/Library/Application Support/Zhijian/storage.json`，可通过 `ZHIJIAN_STORAGE_CONFIG` 指定隔离控制目录。它保存实例 ID、配置代次、卷/目录身份、当前根及已登记旧根；权限600、原子替换并保留切换前配置。根目录的 `.zhijian-instance.json` 与卷/目录身份必须匹配，既有实例的 app.db 必须存在。生产环境与保存配置冲突、卷失联或数据库缺失时拒绝启动；数据库连接使用 SQLite `mode=rw`，不隐式建立空库。未登记的旧安装保持原目录，开发/测试允许显式根覆盖；新实例必须经 `python -m zhijian.storage_cli init --root <新目录>` 明确初始化。
+
+API、Worker、CLI、Alembic、部署管理、本地 AI/模型队列/高德锁使用同一配置解析。生产状态接口同时展示配置与实际加载代次；Worker 心跳携带加载根和代次。`permanent/` 管永久资料、截图/封面与导出，`cache/` 管有续跑契约的媒体和中间产物，`models/` 无自动过期。`runtime/` 仅恢复新进程运行状态，不复制旧PID/锁；混放其中的 Qwen venv 保留安装路径，外部模型库、Keychain、旧备份、系统启动日志单独披露，不当普通文件静默搬迁。
+
+新增截图、封面和媒体Artifact使用 `storage:` 根相对引用；统一解析器拒绝 `..`、受管符号链接及根外逃逸。历史绝对路径仅按已登记旧根映射；读、Replay和删除共用解析器。用户外部原始媒体保持只读引用，不能被缓存清理。Source原始locator、正文和Evidence不做字符串替换；无法覆盖的技术引用使搬迁失败并留报告。
+
+## 预检、应用和恢复
+
+设置“存储与日志”输入的是服务器 Mac 路径。HTTP只做轻量预检、启动独立后台清点和保存待应用方案，不在请求内复制/哈希全量资料、不停服务、不切库。后台进程持稳定控制目录维护锁；设置保存成功只表示待应用。支持经过写探针、锁和原子替换检查的本机APFS/HFS卷；拒绝网络/云同步、相互嵌套、其他实例或非空目标及空间不足。预检展示分类容量、空间余量、例外和状态。
+
+本机命令（仓库根，使用生产解释器或有完整项目依赖的解释器）：
+
+```sh
+.venv/bin/python deploy/macos/manage.py storage-adopt
+.venv/bin/python deploy/macos/manage.py storage-plan --target /Volumes/资料盘/至简资料
+.venv/bin/python deploy/macos/manage.py storage-apply
+.venv/bin/python deploy/macos/manage.py storage-recover
+PYTHONPATH=backend/src .venv/bin/python -m zhijian.storage_cli status
+```
+
+`storage-adopt`只登记已有库，不搬迁。实际搬迁须另外明确目标目录与授权；`storage-apply`先挡新业务写入，最多等待300秒让现有Job/模型测试/租约/调用自然结束，不为搬迁取消任务。未到安全窗口恢复待应用状态；停机后再复核空闲、完整性/FK与空间，建立已验SQLite逻辑备份，复制受管清单并逐文件核对大小/哈希，验证技术引用、提交新实例标记与原子配置。启动API/Worker时业务写入仍被挡住，核对健康与实际加载根/代次后才放行。旧根保留恢复副本，程序不删除它。
+
+控制状态为 `DRAINING → COPYING → SWITCHED → VERIFYING → RELEASED`。中断/失败留下状态和清单；放行前用 `storage-recover` 停服务并恢复旧配置，核对旧服务健康后解除门禁，目标残留保留供追溯。放行写入后拒绝直接退回旧库，必须重新排空并保护最新数据。重复应用、配置代次漂移和并发维护均被拒绝。实际生产搬迁、物理拔盘和目标介质的故障验收须单独记录；临时目录模拟不能冒充它们。
+
+## 文件日志与审计
+
+| 类别 | 默认策略 |
+| --- | --- |
+| API/Worker结构化运行日志 | `logs/active/{service}.log` 中每行JSON；10MiB或跨UTC日封卷；关闭48小时后gzip；总保留30天；归档池1GiB |
+| stdout/stderr与正常启动日志 | 输出包装器拥有句柄并轮换；启动日志在稳定用户Library日志目录，stdout/stderr在数据根；关闭48小时后gzip、总7天、独立池128MiB |
+| 最小bootstrap故障兜底 | 稳定用户日志目录；标准库大小轮换，每服务128KiB/2备份；不依赖数据卷；Python自身无法启动的错误需查launchd系统诊断 |
+| SQLite系统事件/外部调用审计 | 沿用原 `app:general.data_retention_days` 默认90天/7–3650天，按批最多500行；活跃/可续跑依赖与在途调用保留 |
+
+文件策略在稳定控制目录 `log-policy.json`，不覆盖原数据库审计配置。设置包含压缩开关、延迟、保留天数、单卷大小、分类容量及低空间阈值；压缩延迟必须短于两类总保留期。写入器发出日志时至多5秒刷新策略代次；页面显示已加载版本，不能将保存等同于所有空闲进程已刷新。保留/容量缩短须先预览数量/字节，再凭相同封卷清单的token显式应用，清单变化必须重试。空间上限优先于天数；活跃文件不计作删除候选，无安全候选时只告警，不能牺牲业务资料。
+
+封卷名称不可变且不重编号，关闭UTC时刻、原始字节/哈希和策略版本登记于旁索引，日龄不用mtime。gzip写同目录临时文件，解压核对原哈希后原子提交索引，再删原卷；失败保留原卷，封卷改名/索引提交的中断窗口可恢复，操作幂等。Worker在空闲时每分钟处理至多16卷/5秒，并和搬迁共享锁；状态摘要在控制目录 `log-maintenance.json`，按日志根保留最近结果。旧JSONL和launchd长期持有的stdout/stderr只在两服务停止后复制核验归档，不做copytruncate。新launchd通过包装器转发信号/退出码，应用句柄由包装器关闭重开。
+
+缓存清理只处理当前实例缓存，保护活跃Job、有效续跑和共享文件；未知归属/根外原件不删。转录仍为180天，清理text/raw_text/corrected_text及既有Evidence.quote副本，保留永久笔记、截图和结构化业务证据契约；历史备份和永久原句不因在线正文清理被宣称物理消除。SQLite删行不等于缩小文件，不自动VACUUM或gzip业务库。归档内容遵守既有脱敏约束，不导出Keychain或凭据。
+
+## 接口和验证入口
+
+受Session保护的 `GET /api/settings/storage` 展示目录/代次/方案/维护/策略；`POST /plan` 后台清点，`POST /logs/preview` 预览，`POST /logs/apply` 校验token后保存策略。未提供远程执行任意shell或一键切库接口。故障与兼容验证见 `test_storage_lifecycle.py`、`test_storage_api.py`、`test_log_retention.py`；输出包装器覆盖中文分卷完整性、退出码与信号回收，独立Browser验证设置保存/刷新。生产资料搬迁、真实模型/ASR和视频不是这些离线测试的组成部分。
 
 
 ---

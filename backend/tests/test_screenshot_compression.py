@@ -100,13 +100,15 @@ def test_extraction_registers_compressed_path_and_final_file_hash(screenshot_pat
     plan = SimpleNamespace(id="shot", planned_timestamp_ms=10_000, status="PLANNED")
     ready, error = video_screenshots.extract_screenshots(
         SimpleNamespace(commit=lambda: None),
-        SimpleNamespace(permanent_dir=tmp_path),
+        SimpleNamespace(permanent_dir=tmp_path, data_dir=tmp_path),
         SimpleNamespace(id="video"),
         [plan],
         tmp_path / "video.mp4",
     )
 
-    path = Path(plan.image_path)
+    from zhijian.core.storage import resolve_ref
+
+    path = resolve_ref(plan.image_path, SimpleNamespace(data_dir=tmp_path))
     assert (ready, error, plan.status) == (1, None, "READY")
     assert path.suffix == ".webp"
     assert path.stat().st_size < len(original)

@@ -6,8 +6,13 @@ from dataclasses import dataclass
 from urllib.parse import urlsplit, urlunsplit
 
 from zhijian.resolvers.video import is_bilibili_url
+from zhijian.resolvers.video.url_parser import normalize_bilibili_url
 
-URL_PATTERN = re.compile(r"(?:(?:https?://)|(?:www\.)|(?:b23\.tv/))[^\s<>，。；、！!？?）)】}\]\\\"']+", re.I)
+URL_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9_@./-])(?:(?:https?://)|(?:www\.)|(?:(?:m\.|player\.)?bilibili\.com/)|(?:b23\.tv/))"
+    r"[^\s<>，。；、！？）)】}\]\\\"']+",
+    re.I,
+)
 TRAILING = "，。；、！!？?）)】}]}\\\"'"
 
 
@@ -46,7 +51,9 @@ def normalize_capture_input(value: str) -> NormalizedInput:
 
 def _canonical(value: str) -> str:
     value = value.rstrip(TRAILING)
-    if value.startswith("www.") or value.startswith("b23.tv/"):
+    if not value.lower().startswith(("http://", "https://")):
         value = "https://" + value
     parts = urlsplit(value)
-    return urlunsplit((parts.scheme.lower(), parts.netloc.lower(), parts.path, parts.query, parts.fragment))
+    return normalize_bilibili_url(
+        urlunsplit((parts.scheme.lower(), parts.netloc.lower(), parts.path, parts.query, parts.fragment))
+    )

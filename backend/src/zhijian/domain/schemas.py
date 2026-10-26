@@ -91,6 +91,10 @@ class ContentView(BaseModel):
 
 
 class MapMarker(BaseModel):
+    recommendation_summary: dict[str, Any] = Field(default_factory=dict)
+    travel_brief: dict[str, Any] = Field(default_factory=dict)
+    source_notes: list[dict[str, str]] = Field(default_factory=list)
+    recording_reasons: list[str] = Field(default_factory=list)
     id: str
     marker_id: str | None = None
     place_id: str | None = None
@@ -110,10 +114,13 @@ class MapMarker(BaseModel):
     visit_window_summary: str = "时间未知"
     visit_window_state: str = "UNKNOWN"
     visit_window_reason: str = "尚无可追溯的适宜时间证据"
+    visit_window_evidence: list[dict[str, Any]] = Field(default_factory=list)
+    timing_status: str = "UNANALYZED"
     recommendation: dict[str, Any] = Field(default_factory=dict)
 
 
 class PlacePreview(BaseModel):
+    recommendation_summary: dict[str, Any] = Field(default_factory=dict)
     id: str
     name: str
     address: str
@@ -137,6 +144,7 @@ class PlaceInsightView(BaseModel):
 
 
 class PlaceVisitWindowView(BaseModel):
+    valid_as_time: bool = True
     id: str
     source_id: str | None = None
     source_kind: str = "USER"
@@ -184,6 +192,8 @@ class HardDeletePlacesRequest(BaseModel):
 
 
 class PlaceDetailView(PlacePreview):
+    source_notes: list[dict[str, str]] = Field(default_factory=list)
+    travel_brief: dict[str, Any] = Field(default_factory=dict)
     coordinate_system: str
     coordinates: list[float]
     provider: str | None = None
