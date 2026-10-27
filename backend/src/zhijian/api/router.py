@@ -23,7 +23,7 @@ from fastapi import (
     WebSocketDisconnect,
 )
 from fastapi.responses import JSONResponse
-from sqlalchemy import and_, delete, func, or_, select
+from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from zhijian.ai.capabilities import AICapability
@@ -147,6 +147,7 @@ from zhijian.providers.llm import (
     provider_error_details,
 )
 from zhijian.providers.runtime import check_qwen_asr, check_whisper, hardware_report, runtime_report
+from zhijian.services.area_anchors import representative_anchor_valid
 from zhijian.services.audit import record_event
 from zhijian.services.auth import (
     assert_auth_attempt_allowed,
@@ -1901,17 +1902,25 @@ def _destination_map_markers(
             PlaceMention.visit_intent == "RECOMMENDED",
         )
     ).all()
+    asset_ids = {mention.video_asset_id for _, mention in rows}
+    assets = (
+        {
+            value.id: value
+            for value in db.scalars(select(VideoAsset).where(VideoAsset.id.in_(asset_ids))).all()
+        }
+        if asset_ids
+        else {}
+    )
     grouped: dict[str, tuple[Destination, list[tuple[PlaceMention, dict]]]] = {}
     for destination, mention in rows:
         if mention_opinion(mention)["review_required"]:
             continue
         anchor = (mention.metadata_json or {}).get("representative_anchor")
-        if not isinstance(anchor, dict) or anchor.get("kind") not in {"GOVERNMENT_SEAT", "SCENIC_ENTRY"}:
+        asset = assets.get(mention.video_asset_id)
+        if asset is None or not representative_anchor_valid(anchor, destination, mention, asset.source_id):
             continue
         latitude, longitude = anchor.get("latitude"), anchor.get("longitude")
         if not isinstance(latitude, (int, float)) or not isinstance(longitude, (int, float)):
-            continue
-        if not (bbox[0] <= longitude <= bbox[2] and bbox[1] <= latitude <= bbox[3]):
             continue
         if city and destination.city != city or district and destination.district != district:
             continue
@@ -1919,7 +1928,6 @@ def _destination_map_markers(
             continue
         grouped.setdefault(destination.id, (destination, []))[1].append((mention, anchor))
     version_ids = {mention.ai_note_version_id for _, evidence in grouped.values() for mention, _ in evidence}
-    asset_ids = {mention.video_asset_id for _, evidence in grouped.values() for mention, _ in evidence}
     anchor_ids = {
         str(anchor.get("provider_id"))
         for _, evidence in grouped.values()
@@ -1946,14 +1954,6 @@ def _destination_map_markers(
         if version_ids
         else {}
     )
-    assets = (
-        {
-            value.id: value
-            for value in db.scalars(select(VideoAsset).where(VideoAsset.id.in_(asset_ids))).all()
-        }
-        if asset_ids
-        else {}
-    )
     markers = []
     for destination, evidence in grouped.values():
         # Conflicting representative identities are not silently collapsed.
@@ -1967,6 +1967,8 @@ def _destination_map_markers(
             or abs(other["longitude"] - anchor["longitude"]) > 0.003
             for _, other in evidence
         ):
+            continue
+        if not (bbox[0] <= anchor["longitude"] <= bbox[2] and bbox[1] <= anchor["latitude"] <= bbox[3]):
             continue
         kind = anchor["kind"]
         markers.append(
@@ -3256,17 +3258,22 @@ def create_manual_place(
             raise HTTPException(status_code=422, detail={"code": "INVALID_POI"})
         if db.scalar(
             select(PlaceDeletionTombstone).where(
-                PlaceDeletionTombstone.external_provider == "AMAP",
+                func.upper(PlaceDeletionTombstone.external_provider) == "AMAP",
                 PlaceDeletionTombstone.external_poi_id == candidate.provider_id,
             )
         ):
             raise HTTPException(status_code=409, detail={"code": "PLACE_SUPPRESSED_BY_USER"})
-        existing = db.scalar(
+        matches = db.scalars(
             select(Place).where(
-                Place.external_provider == "AMAP", Place.external_poi_id == candidate.provider_id
+                func.upper(Place.external_provider) == "AMAP", Place.external_poi_id == candidate.provider_id
             )
-        )
+        ).all()
+        if len(matches) > 1:
+            raise HTTPException(status_code=409, detail={"code": "DUPLICATE_PROVIDER_ID"})
+        existing = matches[0] if matches else None
         if existing:
+            if existing.deleted_at is not None:
+                raise HTTPException(status_code=409, detail={"code": "PLACE_DELETED"})
             return {
                 "place_id": existing.id,
                 "origin": existing.origin,
@@ -3446,6 +3453,7 @@ def _place_review_view(db: Session, mention: PlaceMention) -> dict:
         "resolution_status": mention.resolution_status,
         "revision": mention.revision,
         "candidates": metadata.get("poi_candidates", []),
+        "candidate_source": metadata.get("poi_candidates_source", "HISTORICAL"),
         "review_context": {
             "geo_session_id": str(resolver_context.get("geo_session_id") or ""),
             "geo_city": str(resolver_context.get("geo_session_city") or ""),
@@ -3566,6 +3574,37 @@ def search_map_pois(
     return [_poi_candidate_view(item) for item in candidates]
 
 
+def _poi_job_idle_condition(mention: PlaceMention):
+    return (
+        ~select(Job.id)
+        .where(
+            Job.id == mention.submission_job_id,
+            or_(Job.status.in_(["QUEUED", "RUNNING"]), Job.lease_owner.is_not(None)),
+        )
+        .exists()
+    )
+
+
+def _ensure_poi_job_idle(db: Session, mention: PlaceMention) -> None:
+    if not db.scalar(select(_poi_job_idle_condition(mention))):
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "PLACE_JOB_ACTIVE",
+                "message": "地点解析任务仍在运行，请完成后再操作",
+            },
+        )
+
+
+def _poi_edit_conflict(db: Session, mention_id: str) -> None:
+    db.rollback()
+    current = db.get(PlaceMention, mention_id, populate_existing=True)
+    if current is None:
+        raise HTTPException(status_code=404, detail={"code": "PLACE_NOT_FOUND"})
+    _ensure_poi_job_idle(db, current)
+    raise _revision_conflict(current.revision)
+
+
 @router.post("/api/travel/place-mentions/{mention_id}/poi-search")
 def search_place_review(
     mention_id: str,
@@ -3584,12 +3623,15 @@ def search_place_review(
         raise HTTPException(status_code=409, detail={"code": "MENTION_NOT_POI_ELIGIBLE"})
     if mention.revision != payload.expected_revision:
         raise _revision_conflict(mention.revision)
+    _ensure_poi_job_idle(db, mention)
     web_key = store.get("amap:web-service-key") or settings.amap_api_key
     if not web_key:
         raise HTTPException(status_code=422, detail={"code": "POI_PROVIDER_UNAVAILABLE"})
     provider = AMapPOIProvider(web_key)
     provider.refresh_empty = True
     query = payload.query.strip()
+    if not query:
+        raise HTTPException(status_code=422, detail={"code": "EMPTY_POI_QUERY"})
     search_mention = PlaceMention(
         id=mention.id,
         name=query,
@@ -3607,13 +3649,27 @@ def search_place_review(
         raise HTTPException(
             status_code=502, detail={"code": "POI_SEARCH_FAILED", "message": "地点搜索失败，请稍后重试"}
         )
-    mention.suggested_name = payload.query
-    mention.metadata_json = {
-        **mention.metadata_json,
+    metadata = {
+        **(mention.metadata_json or {}),
         "poi_candidates": [_poi_candidate_view(item) for item in candidates],
         "manual_search_trace": {**candidates.trace, "mode": "MANUAL"},
+        "poi_candidates_source": "MANUAL",
     }
-    mention.revision += 1
+    result = db.execute(
+        update(PlaceMention)
+        .where(
+            PlaceMention.id == mention.id,
+            PlaceMention.revision == payload.expected_revision,
+            PlaceMention.extraction_status == "EXTRACTED",
+            PlaceMention.poi_policy.in_(["RESOLVE", "LEGACY"]),
+            _poi_job_idle_condition(mention),
+        )
+        .values(suggested_name=query, metadata_json=metadata, revision=PlaceMention.revision + 1)
+        .execution_options(synchronize_session=False)
+    )
+    if result.rowcount != 1:
+        _poi_edit_conflict(db, mention.id)
+    db.refresh(mention)
     record_event(
         db,
         "place_mention.poi_search",
@@ -3628,6 +3684,7 @@ def search_place_review(
         "mention_id": mention.id,
         "revision": mention.revision,
         "candidates": mention.metadata_json["poi_candidates"],
+        "search_status": candidates.trace["status"],
     }
 
 
@@ -3646,6 +3703,7 @@ def confirm_place_review(
         raise HTTPException(status_code=409, detail={"code": "MENTION_NOT_POI_ELIGIBLE"})
     if payload.expected_revision is not None and mention.revision != payload.expected_revision:
         raise _revision_conflict(mention.revision)
+    _ensure_poi_job_idle(db, mention)
     candidate = next(
         (
             item
@@ -3656,9 +3714,48 @@ def confirm_place_review(
     )
     if candidate is None:
         raise HTTPException(status_code=422, detail={"code": "INVALID_POI"})
-    place = db.scalar(
-        select(Place).where(Place.external_provider == "AMAP", Place.external_poi_id == payload.poi_id)
+    try:
+        longitude, latitude = float(candidate["longitude"]), float(candidate["latitude"])
+        valid = (
+            73.5 <= longitude <= 135.1
+            and 18 <= latitude <= 53.6
+            and isinstance(candidate.get("name"), str)
+            and candidate["name"].strip()
+        )
+    except (KeyError, TypeError, ValueError):
+        valid = False
+    if not valid:
+        raise HTTPException(status_code=422, detail={"code": "INVALID_POI"})
+    revision = mention.revision
+    claim = db.execute(
+        update(PlaceMention)
+        .where(
+            PlaceMention.id == mention.id,
+            PlaceMention.revision == revision,
+            PlaceMention.extraction_status == "EXTRACTED",
+            PlaceMention.poi_policy.in_(["RESOLVE", "LEGACY"]),
+            _poi_job_idle_condition(mention),
+        )
+        .values(revision=PlaceMention.revision + 1)
+        .execution_options(synchronize_session=False)
     )
+    if claim.rowcount != 1:
+        _poi_edit_conflict(db, mention.id)
+    if db.scalar(
+        select(PlaceDeletionTombstone).where(
+            func.upper(PlaceDeletionTombstone.external_provider) == "AMAP",
+            PlaceDeletionTombstone.external_poi_id == payload.poi_id,
+        )
+    ):
+        raise HTTPException(status_code=409, detail={"code": "PLACE_DELETED"})
+    matches = db.scalars(
+        select(Place).where(
+            func.upper(Place.external_provider) == "AMAP", Place.external_poi_id == payload.poi_id
+        )
+    ).all()
+    if len(matches) > 1:
+        raise HTTPException(status_code=409, detail={"code": "DUPLICATE_PROVIDER_ID"})
+    place = matches[0] if matches else None
     if place is None:
         place = Place(
             name=str(candidate["name"]),
@@ -3669,8 +3766,8 @@ def confirm_place_review(
             city=str(candidate.get("city") or ""),
             district=str(candidate.get("district") or ""),
             address=str(candidate.get("address") or ""),
-            latitude=float(candidate["latitude"]),
-            longitude=float(candidate["longitude"]),
+            latitude=latitude,
+            longitude=longitude,
             external_provider="AMAP",
             external_poi_id=payload.poi_id,
             poi_binding_status="USER_CONFIRMED",
@@ -3687,10 +3784,14 @@ def confirm_place_review(
     mention.place_id, mention.resolution_status, mention.revision = (
         place.id,
         ResolutionStatus.CONFIRMED.value,
-        mention.revision + 1,
+        revision + 1,
     )
     mention.metadata_json = {
-        **(mention.metadata_json or {}),
+        **{
+            key: value
+            for key, value in (mention.metadata_json or {}).items()
+            if key != "representative_anchor"
+        },
         "poi_name": str(candidate["name"]),
         "poi_id": payload.poi_id,
         "poi_decision": "CONFIRMED",
@@ -3707,6 +3808,7 @@ def confirm_place_review(
             "recorded_at": utc_now().isoformat(),
         },
     }
+    mention.destination_id = None
     materialize_place_insights(db, mention)
     record_event(
         db,
@@ -3738,9 +3840,24 @@ def update_place_mention_review(
             "extraction_status": mention.extraction_status,
             "revision": mention.revision,
         }
+    _ensure_poi_job_idle(db, mention)
+    revision = mention.revision
+    claim = db.execute(
+        update(PlaceMention)
+        .where(
+            PlaceMention.id == mention.id,
+            PlaceMention.revision == revision,
+            PlaceMention.extraction_status != "SUPERSEDED",
+            _poi_job_idle_condition(mention),
+        )
+        .values(revision=PlaceMention.revision + 1)
+        .execution_options(synchronize_session=False)
+    )
+    if claim.rowcount != 1:
+        _poi_edit_conflict(db, mention.id)
     mention.extraction_status = "USER_REJECTED" if action == "reject" else "EXTRACTED"
     mention.resolution_status = "REJECTED" if action == "reject" else ResolutionStatus.REVIEW.value
-    mention.revision += 1
+    mention.revision = revision + 1
     if action == "reject":
         mention.metadata_json = {
             **(mention.metadata_json or {}),

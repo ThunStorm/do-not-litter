@@ -12,7 +12,9 @@
 - 文件：ai/structured_ids.py、request_compiler.py、json_recovery.py、services/video_support.py；契约ai-gateway/04-stage-policy.md。
 - 禁止：不自动调用模型、重跑视频、确认POI、迁移或改历史/凭据；旧快照、显式0重试与REMOTE_ONLY保持。
 
-## 生产快照（最新采样2026-10-27 15:48，北京时间）
+## 生产快照（最新采样2026-10-27 17:29，北京时间）
+
+- 2026-10-27 17:29 POI代码复核升级：无新迁移，0026保持；API/Worker RUNNING，内容及新Worker PID85838心跳READY，active/lease/在途调用0，integrity=ok/FK0。最终保存点 `data/backups/poi-audit-final-20261027-172908` 含源码、旧新静态、逻辑DB、哈希与带漂移/空闲门禁的rollback.py；备份SHA256 `b5ca74db664a15dee817b78a2501f2479a4cee2833d13448055dedf28fe9a3e6`，线上index SHA256 `74af3b22a6145348148962dc4db8822e805c0138040abf4d95b464bf29c0a9bd`，JS/CSS HTTP匹配构建。后端全量656与末次目标86、前端57及Ruff/ESLint/类型/隔离构建、文档5项通过。962/390px生产Browser以挂起/释放模拟响应确认输入/确认互斥、表单保持、手动结果标签和中文类型，无溢出/相关错误；POST及新代表点均拦截，真实地图/笔记API只读正常。首轮172006保存点因62条已到期中间产物状态变化触发并完成源码/静态回退；逐字段确认仅AVAILABLE→EXPIRED及updated_at，原内容不变。172309重发核对11条、最终本次核对6条相同维护迁移，其余41张业务表摘要一致；未恢复业务库，原始差异证据保留。真实高德/模型/视频及历史POI重处理0，ExternalCallAudit仍1746；缺陷与界限见benchmark/POI_RESOLUTION_CODE_REVIEW_REPORT.md。本次本地提交、不推送。
 
 - 2026-10-27 15:48 POI匹配/代表点：经用户明确授权执行0025→0026，迁移中所有业务表行内容/数量一致；最终重载前后42张业务表摘要不变。API/Worker RUNNING，内容及新Worker PID51609心跳READY，active/lease/在途调用0，integrity=ok、FK0。迁移保存点 `data/backups/poi-resolution-release-20261027-153554`；最终无迁移重载保存点 `data/backups/poi-resolution-final-20261027-154725`，含源码、旧新静态、哈希、已验逻辑DB与安全回退脚本；最终备份SHA256 `d2de50144ac96dafca1b9ead25846d27465bb16b8371a738f18564ac9416070e`。线上index SHA256 `ef053deddaafbfc16de8329e9b7848ad17dcc35b5004bd315f19f012625b5f63`，JS/CSS HTTP哈希与构建一致。目标笔记真实只读接口77条、地图真实只读接口18点；962/390px生产Browser验证搜索展开、代表点和类型筛选，搜索POST与代表点由夹具拦截，零生产业务写入、溢出与相关错误。未调用真实高德/模型、重跑视频或确认历史POI；代表点真实质量和实体级操作仍有独立验收边界。本任务本地提交、不推送。
 

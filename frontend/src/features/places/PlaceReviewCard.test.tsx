@@ -30,6 +30,7 @@ it('keeps search open and uses the new revision for a subsequent confirmation', 
   fireEvent.click(screen.getByRole('button', { name: '搜索 POI' }))
   fireEvent.click(screen.getByRole('button', { name: '重新搜索' }))
   expect(await screen.findByText('搜索到 1 个候选')).toBeInTheDocument()
+  expect(screen.getByText('手动搜索结果')).toBeInTheDocument()
   expect(screen.getByRole('textbox', { name: '搜索 POI 名称' })).toHaveValue('玉龙雪山')
   fireEvent.click(screen.getByRole('button', { name: '确认地点位置' }))
   await waitFor(() => expect(api.confirmPlaceReview).toHaveBeenLastCalledWith('m-new', 'new-poi', 1))
@@ -45,4 +46,25 @@ it('keeps the search input visible and explains an empty response or error', asy
   fireEvent.click(screen.getByRole('button', { name: '重新搜索' }))
   expect(await screen.findByRole('alert')).toHaveTextContent('地点信息已更新')
   expect(screen.getByRole('textbox', { name: '搜索 POI 名称' })).toBeInTheDocument()
+})
+
+it('locks editing and competing actions while a search is pending', async () => {
+  let finish: (value: { revision: number; candidates: [] }) => void = () => {}
+  vi.mocked(api.searchPlaceReview).mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))
+  const calls = vi.mocked(api.searchPlaceReview).mock.calls.length
+  const review = { mention_id: 'pending', name: '翠湖', suggested_name: '翠湖', revision: 0, candidates: [{ provider_id: 'p', name: '翠湖公园', address: '昆明', score: 90, match_reasons: [] }], review_context: {}, source_context: { canonical_url: '', video_title: '来源', transcript_context: [] } }
+  render(<QueryClientProvider client={new QueryClient()}><MemoryRouter><PlaceReviewCard review={review as never} /></MemoryRouter></QueryClientProvider>)
+  fireEvent.click(screen.getByRole('button', { name: '搜索 POI' }))
+  const form = screen.getByRole('textbox', { name: '搜索 POI 名称' }).closest('form')!
+  fireEvent.submit(form)
+  expect(await screen.findByRole('button', { name: '正在搜索…' })).toBeDisabled()
+  expect(screen.getByRole('textbox', { name: '搜索 POI 名称' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: '确认地点位置' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: '不是地点' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: '取消' })).toBeDisabled()
+  fireEvent.submit(form)
+  expect(api.searchPlaceReview).toHaveBeenCalledTimes(calls + 1)
+  finish({ revision: 1, candidates: [] })
+  expect(await screen.findByText('没有找到匹配地点，请尝试其他名称。')).toBeInTheDocument()
+  expect(screen.getByRole('textbox', { name: '搜索 POI 名称' })).toBeEnabled()
 })

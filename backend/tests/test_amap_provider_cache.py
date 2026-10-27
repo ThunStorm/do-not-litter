@@ -84,7 +84,7 @@ def test_amap_cache_isolated_by_credential(monkeypatch):
         key = kwargs["params"]["key"]
         return httpx.Response(
             200,
-            json={"status": "1", "pois": [{"id": key, "location": "100,20"}]},
+            json={"status": "1", "pois": [{"id": key, "name": "同一地点", "location": "100,20"}]},
             request=httpx.Request("GET", "https://restapi.amap.com/v5/place/text"),
         )
 

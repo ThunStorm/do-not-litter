@@ -3,6 +3,8 @@ from __future__ import annotations
 import fcntl
 import hashlib
 import json
+import math
+import re
 from concurrent.futures import Future
 from dataclasses import dataclass, field, replace
 from threading import Lock, local
@@ -12,6 +14,10 @@ from typing import ClassVar
 import httpx
 
 from zhijian.core.config import get_settings
+
+
+class AMapProviderError(RuntimeError):
+    """Provider-level failures cannot be repaired by changing the POI query."""
 
 
 @dataclass(slots=True)
@@ -150,13 +156,14 @@ class AMapPOIProvider:
             if response.status_code == 429:
                 reserve(self._qps_cooldown_seconds)
             if not 200 <= response.status_code < 300:
-                raise RuntimeError(f"高德 POI 查询 HTTP {response.status_code}")
+                raise AMapProviderError(f"高德 POI 查询 HTTP {response.status_code}")
             data = response.json()
             if str(data.get("status")) != "1":
-                info = str(data.get("info") or "高德 POI 查询失败")
+                info = str(data.get("info") or "UNKNOWN_ERROR")
                 if "QPS" in info:
                     reserve(self._qps_cooldown_seconds)
-                raise RuntimeError(info)
+                safe_info = info if re.fullmatch(r"[A-Z_]{1,80}", info) else "UNKNOWN_ERROR"
+                raise AMapProviderError(safe_info)
             return data
 
     @staticmethod
@@ -178,9 +185,15 @@ class AMapPOIProvider:
             longitude, latitude = (float(part) for part in str(poi["location"]).split(","))
         except (KeyError, ValueError):
             return None
+        provider_id = str(poi.get("id") or poi.get("poi_id") or "").strip()
+        name = str(poi.get("name") or "").strip()
+        if not provider_id or not name or not math.isfinite(longitude) or not math.isfinite(latitude):
+            return None
+        if not (-180 <= longitude <= 180 and -90 <= latitude <= 90):
+            return None
         return POICandidate(
-            provider_id=str(poi.get("id") or poi.get("poi_id") or ""),
-            name=str(poi.get("name") or ""),
+            provider_id=provider_id,
+            name=name,
             address=poi.get("address") if isinstance(poi.get("address"), str) else "",
             province=str(poi.get("pname") or poi.get("province") or ""),
             city=str(poi.get("cityname") or poi.get("city") or ""),

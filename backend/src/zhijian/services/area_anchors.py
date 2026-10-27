@@ -2,10 +2,97 @@
 
 from __future__ import annotations
 
+import json
+import math
 import re
-from typing import Any
+from hashlib import sha256
+from typing import TYPE_CHECKING, Any
 
 from zhijian.providers.amap import POICandidate
+
+if TYPE_CHECKING:
+    from zhijian.db.models import Destination, PlaceMention
+
+
+def _anchor_binding(
+    destination: Destination, mention: PlaceMention, source_id: str, snapshot_id: str
+) -> dict:
+    opinion = (mention.metadata_json or {}).get("recommendation_evidence")
+    context = (mention.metadata_json or {}).get("resolver_context", {})
+    context = context if isinstance(context, dict) else {}
+    return {
+        "version": "poi-anchor-binding-v1",
+        "destination_id": destination.id,
+        "destination_identity": [
+            destination.scope_type,
+            destination.canonical_name,
+            destination.province,
+            destination.city,
+            destination.district,
+        ],
+        "video_asset_id": mention.video_asset_id,
+        "source_id": source_id,
+        "snapshot_id": snapshot_id,
+        "segment_ids": list(mention.segment_ids_json),
+        "quote_sha256": sha256(mention.quote.encode()).hexdigest(),
+        "target": [
+            mention.name,
+            mention.raw_name,
+            mention.suggested_name,
+            mention.city_hint,
+            mention.province_hint,
+            mention.poi_policy,
+            mention.subject_role,
+            mention.visit_intent,
+        ],
+        "opinion_sha256": sha256(
+            json.dumps(opinion, sort_keys=True, ensure_ascii=False).encode()
+        ).hexdigest(),
+        "region_context": [
+            context.get(key)
+            for key in ("unit_city", "geo_session_city", "geo_session_province", "district_hint")
+        ],
+    }
+
+
+def bind_representative_anchor(
+    anchor: dict, destination: Destination, mention: PlaceMention, source_id: str, snapshot_id: str
+) -> dict:
+    return {
+        **anchor,
+        "snapshot_id": snapshot_id,
+        "segment_ids": list(mention.segment_ids_json),
+        "binding": _anchor_binding(destination, mention, source_id, snapshot_id),
+    }
+
+
+def representative_anchor_valid(
+    anchor: object, destination: Destination, mention: PlaceMention, source_id: str
+) -> bool:
+    if not isinstance(anchor, dict) or anchor.get("kind") not in {"GOVERNMENT_SEAT", "SCENIC_ENTRY"}:
+        return False
+    if (
+        not source_id
+        or not anchor.get("snapshot_id")
+        or not anchor.get("provider_id")
+        or not anchor.get("name")
+    ):
+        return False
+    if anchor.get("coordinate_system") != "GCJ02":
+        return False
+    longitude, latitude = anchor.get("longitude"), anchor.get("latitude")
+    if not all(
+        isinstance(value, (float, int)) and not isinstance(value, bool) and math.isfinite(value)
+        for value in (longitude, latitude)
+    ):
+        return False
+    if not (73.5 <= longitude <= 135.1 and 18 <= latitude <= 53.6):
+        return False
+    if anchor["kind"] == "GOVERNMENT_SEAT" and destination.scope_type not in {"CITY", "DISTRICT"}:
+        return False
+    if anchor["kind"] == "SCENIC_ENTRY" and destination.scope_type != "SCENIC_AREA":
+        return False
+    return anchor.get("binding") == _anchor_binding(destination, mention, source_id, anchor["snapshot_id"])
 
 
 def government_anchor(
@@ -34,7 +121,10 @@ def government_anchor(
         )
 
     try:
-        candidates = [item for item in provider.search(expected, city, city_limit=True) if matches(item)]
+        values = provider.search(expected, city, city_limit=True)
+        if len(values) >= 20:
+            return None
+        candidates = [item for item in values if matches(item)]
         if len({item.provider_id for item in candidates}) != 1:
             return None
         selected = candidates[0]

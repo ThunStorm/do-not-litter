@@ -28,3 +28,9 @@ it('links a representative destination to the map without calling it a confirmed
   expect(screen.getByRole('link', { name: '通灵大峡谷' })).toHaveAttribute('href', '/map?place=dst-1')
   expect(screen.queryByText('已确认')).not.toBeInTheDocument()
 })
+
+it('shows an administrative area with missing context as awaiting location', () => {
+  render(<MemoryRouter><ul><VideoPlaceCandidate place={{ ...candidate, poi_policy: 'AREA_RESOLVE', resolution_status: 'AREA_UNRESOLVED', destination: null }} canonicalUrl="" platform="LOCAL" /></ul></MemoryRouter>)
+  expect(screen.getByText('区域待定位')).toBeVisible()
+  expect(screen.queryByRole('link')).not.toBeInTheDocument()
+})

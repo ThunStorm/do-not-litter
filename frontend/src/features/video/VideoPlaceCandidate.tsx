@@ -9,7 +9,7 @@ export function VideoPlaceCandidate({ place, canonicalUrl, platform }: { place: 
   const confirmed = place.resolution_status === 'CONFIRMED' && place.place_id && place.place
   const anchor = place.resolution_status === 'AREA_RESOLVED' && place.destination?.anchor_kind
   const statuses: Record<string, string> = { REVIEW: '待确认', UNRESOLVED: '未定位', REJECTED: '已排除' }
-  const status = confirmed ? '已确认' : anchor === 'SCENIC_ENTRY' ? '已定位至游客中心' : anchor === 'GOVERNMENT_SEAT' ? '已定位至政府驻地' : reference ? '背景提及' : area ? '内容区域' : statuses[place.resolution_status] || '待确认'
+  const status = confirmed ? '已确认' : anchor === 'SCENIC_ENTRY' ? '已定位至游客中心' : anchor === 'GOVERNMENT_SEAT' ? '已定位至政府驻地' : reference ? '背景提及' : place.resolution_status === 'AREA_UNRESOLVED' ? '区域待定位' : area ? '内容区域' : statuses[place.resolution_status] || '待确认'
   const name = confirmed ? place.place!.name : place.name
   const seconds = Math.floor((place.start_ms ?? 0) / 1000)
   const time = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`

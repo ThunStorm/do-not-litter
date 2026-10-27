@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -68,7 +69,7 @@ from zhijian.db.models import (
 )
 from zhijian.domain.enums import ResolutionStatus
 from zhijian.domain.schemas import GeneralConfig, TranscriptProcessingConfig
-from zhijian.providers.amap import AMapPOIProvider, POICandidate
+from zhijian.providers.amap import AMapPOIProvider, AMapProviderError, POICandidate
 from zhijian.providers.llm import (
     FallbackLLMProvider,
     LLMProvider,
@@ -78,6 +79,7 @@ from zhijian.providers.llm import (
     ProviderRequestOptions,
     provider_error_details,
 )
+from zhijian.services.area_anchors import bind_representative_anchor, representative_anchor_valid
 from zhijian.services.audit import record_event
 from zhijian.services.jobs import JobCancelled, ensure_job_active
 from zhijian.services.model_attempts import begin_model_attempt, finish_model_attempt
@@ -3435,6 +3437,15 @@ def materialize_place_insights(db: Session, mention: PlaceMention) -> None:
             db.delete(window)
 
 
+def _manual_poi_confirmed(mention: PlaceMention) -> bool:
+    return (
+        mention.resolution_status == ResolutionStatus.CONFIRMED.value
+        and (mention.metadata_json or {}).get("confirmation_origin") == "MANUAL_CONFIRMED"
+        and mention.poi_policy in {None, "RESOLVE", "LEGACY"}
+        and mention.extraction_status in {None, "EXTRACTED"}
+    )
+
+
 def resolve_mentions_with_amap(
     db: Session,
     settings: Settings,
@@ -3442,8 +3453,15 @@ def resolve_mentions_with_amap(
     api_key: str | None = None,
     metrics: dict[str, int] | None = None,
 ) -> tuple[int, int]:
+    protected = [item for item in mentions if _manual_poi_confirmed(item)]
+    eligible = [
+        item for item in mentions if item not in protected and item.extraction_status in {None, "EXTRACTED"}
+    ]
     negative = [
-        m for m in mentions if m.visit_intent == "NOT_RECOMMENDED" or mention_opinion(m)["review_required"]
+        m
+        for m in eligible
+        if m.poi_policy not in {"REFERENCE_ONLY", "SKIP"}
+        and (m.visit_intent == "NOT_RECOMMENDED" or mention_opinion(m)["review_required"])
     ]
     for mention in negative:
         mention.poi_policy = "RESOLVE"
@@ -3458,10 +3476,10 @@ def resolve_mentions_with_amap(
         }
     actionable = [
         item
-        for item in mentions
+        for item in eligible
         if item not in negative and (item.poi_policy or "LEGACY") in {"RESOLVE", "LEGACY"}
     ]
-    skipped = [item for item in mentions if item not in actionable]
+    skipped = [item for item in eligible if item not in actionable]
     for mention in skipped:
         if mention in negative:
             continue
@@ -3483,14 +3501,14 @@ def resolve_mentions_with_amap(
         if metrics is not None:
             metrics.update(amap_request_count=0, amap_cache_hit_count=0, poi_review=len(negative))
         db.commit()
-        return 0, len(negative)
+        return len(protected), len(negative)
     effective_key = api_key or settings.amap_api_key
     if not effective_key:
         if metrics is not None:
             metrics["amap_request_count"] = 0
             metrics["amap_cache_hit_count"] = 0
         db.commit()
-        return 0, len(actionable) + len(negative)
+        return len(protected), len(actionable) + len(negative)
     provider = AMapPOIProvider(
         effective_key,
         cache_ttl_seconds=settings.amap_cache_ttl_seconds,
@@ -3506,7 +3524,6 @@ def resolve_mentions_with_amap(
             PlaceMention.extraction_status == "EXTRACTED",
         )
     ).all()
-    _assign_geo_sessions(db, session_mentions)
     confirmed = 0
     entry_anchors = 0
     candidate_results: dict[str, list[POICandidate] | Exception] = {}
@@ -3518,25 +3535,17 @@ def resolve_mentions_with_amap(
             and (mention.metadata_json or {}).get("confirmation_origin") == "MANUAL_CONFIRMED"
         )
     ]
-    from zhijian.services.evidence_trace import evidence_trace
+    from zhijian.services.evidence_trace import verified_place_mention_trace
 
     verified_searchable = []
     verified_snapshots: dict[str, str] = {}
+    trace_by_id: dict[str, dict] = {}
     for mention in searchable:
-        refs = db.scalars(select(Segment).where(Segment.id.in_(mention.segment_ids_json))).all()
-        snapshot_id = refs[0].snapshot_id if refs else ""
-        trace = evidence_trace(refs, mention.segment_ids_json, mention.quote, snapshot_id)
-        snapshot = db.get(Snapshot, snapshot_id) if snapshot_id else None
-        asset = db.get(VideoAsset, mention.video_asset_id)
-        if (
-            trace["valid"]
-            and snapshot
-            and asset
-            and snapshot.source_id == asset.source_id
-            and snapshot.metadata_json.get("video_asset_id") == asset.id
-        ):
+        trace = verified_place_mention_trace(db, mention)
+        trace_by_id[mention.id] = trace
+        if trace["valid"]:
             verified_searchable.append(mention)
-            verified_snapshots[mention.id] = snapshot_id
+            verified_snapshots[mention.id] = trace["snapshot_id"]
             mention.metadata_json = {**mention.metadata_json, "evidence_trace_version": trace["version"]}
         else:
             mention.resolution_status = ResolutionStatus.REVIEW.value
@@ -3545,11 +3554,24 @@ def resolve_mentions_with_amap(
                 "reason_codes": ["SOURCE_EVIDENCE_INVALID"],
                 "reason": "来源或逐字证据无效，需人工核对",
             }
+    untrusted = set()
+    geo_peers = []
+    for mention in session_mentions:
+        if mention.poi_policy in {"REFERENCE_ONLY", "SKIP"}:
+            continue
+        trace = trace_by_id.get(mention.id)
+        if not _manual_poi_confirmed(mention) and trace is None:
+            trace = verified_place_mention_trace(db, mention)
+        if not _manual_poi_confirmed(mention) and not trace["valid"]:
+            untrusted.add(mention.id)
+        else:
+            geo_peers.append(mention)
+    _assign_geo_sessions(db, session_mentions, untrusted_ids=untrusted)
     searchable = verified_searchable
     searchable_ids = {item.id for item in searchable}
     with ThreadPoolExecutor(max_workers=max(1, settings.amap_max_concurrency)) as executor:
         futures = {
-            executor.submit(_rank_poi_candidates, provider, mention, mentions): mention.id
+            executor.submit(_rank_poi_candidates, provider, mention, geo_peers): mention.id
             for mention in searchable
         }
         for future in as_completed(futures):
@@ -3584,7 +3606,20 @@ def resolve_mentions_with_amap(
                 continue
         if not candidates:
             mention.resolution_status = ResolutionStatus.UNRESOLVED.value
+            mention.metadata_json = {
+                **mention.metadata_json,
+                "poi_candidates": [],
+                "poi_candidates_source": "AUTO",
+                "reason": "搜索未找到匹配地点",
+                "reason_codes": ["POI_SEARCH_EMPTY"],
+                "poi_decision": "UNRESOLVED",
+            }
             continue
+        mention.metadata_json = {
+            **mention.metadata_json,
+            "poi_candidates": [_candidate_metadata(item) for item in candidates[:5]],
+            "poi_candidates_source": "AUTO",
+        }
         entry = _scenic_entry_candidate(mention, candidates)
         if entry is not None:
             try:
@@ -3630,18 +3665,24 @@ def resolve_mentions_with_amap(
                 mention.metadata_json = {
                     **mention.metadata_json,
                     "poi_decision": "SCENIC_ENTRY_ANCHOR",
-                    "representative_anchor": {
-                        "kind": "SCENIC_ENTRY",
-                        "version": "scenic-anchor-v1",
-                        "provider": "AMAP",
-                        "provider_id": detail.provider_id,
-                        "name": detail.name,
-                        "latitude": detail.latitude,
-                        "longitude": detail.longitude,
-                        "coordinate_system": "GCJ02",
-                        "snapshot_id": verified_snapshots[mention.id],
-                        "segment_ids": mention.segment_ids_json,
-                    },
+                    "reason": "",
+                    "reason_codes": [],
+                    "representative_anchor": bind_representative_anchor(
+                        {
+                            "kind": "SCENIC_ENTRY",
+                            "version": "scenic-anchor-v1",
+                            "provider": "AMAP",
+                            "provider_id": detail.provider_id,
+                            "name": detail.name,
+                            "latitude": detail.latitude,
+                            "longitude": detail.longitude,
+                            "coordinate_system": "GCJ02",
+                        },
+                        destination,
+                        mention,
+                        db.get(VideoAsset, mention.video_asset_id).source_id,
+                        verified_snapshots[mention.id],
+                    ),
                 }
                 entry_anchors += 1
                 continue
@@ -3724,6 +3765,14 @@ def resolve_mentions_with_amap(
             }
             continue
         place = matches[0] if matches else None
+        if place is not None and place.deleted_at is not None:
+            mention.resolution_status = ResolutionStatus.REJECTED.value
+            mention.metadata_json = {
+                **mention.metadata_json,
+                "reason_codes": ["PLACE_DELETED"],
+                "deleted_by_user": True,
+            }
+            continue
         if place is None:
             place = Place(
                 name=selected.name,
@@ -3737,7 +3786,7 @@ def resolve_mentions_with_amap(
                 latitude=selected.latitude,
                 longitude=selected.longitude,
                 coordinate_system=selected.coordinate_system,
-                external_provider="AMap",
+                external_provider="AMAP",
                 external_poi_id=selected.provider_id,
                 resolution_status=ResolutionStatus.CONFIRMED.value,
                 summary=mention.reason,
@@ -3746,10 +3795,12 @@ def resolve_mentions_with_amap(
             db.flush()
         else:
             place.canonical_name = selected.name
+        place.resolution_status = ResolutionStatus.CONFIRMED.value
         mention.place_id = place.id
+        mention.destination_id = None
         mention.resolution_status = ResolutionStatus.CONFIRMED.value
         mention.metadata_json = {
-            **mention.metadata_json,
+            **{key: value for key, value in mention.metadata_json.items() if key != "representative_anchor"},
             "poi_name": selected.name,
             "poi_id": selected.provider_id,
             "poi_score": candidates[0].score,
@@ -3758,6 +3809,8 @@ def resolve_mentions_with_amap(
             "poi_candidates": [_candidate_metadata(item) for item in candidates[:5]],
             "poi_decision": resolver_v3["decision"],
             "confirmation_origin": "AUTO_STRONG",
+            "reason": "",
+            "reason_codes": [],
             "confirmation_at": utc_now().isoformat(),
             "resolver_version": "poi-v3",
             "resolver_v2_shadow": shadow,
@@ -3783,22 +3836,29 @@ def resolve_mentions_with_amap(
         metrics["poi_unresolved"] = sum(
             item.resolution_status == ResolutionStatus.UNRESOLVED.value for item in actionable
         )
-    return confirmed, len(actionable) - confirmed - entry_anchors + len(negative)
+    return len(protected) + confirmed, len(actionable) - confirmed - entry_anchors + len(negative)
 
 
 def materialize_destinations(
-    db: Session, asset: VideoAsset, mentions: list[PlaceMention], provider: AMapPOIProvider | None = None
+    db: Session,
+    asset: VideoAsset,
+    mentions: list[PlaceMention],
+    provider: AMapPOIProvider | None = None,
+    *,
+    metrics: dict[str, int] | None = None,
 ) -> tuple[int, int]:
     """Persist AREA semantics separately and link only confirmed actionable Places."""
-    by_unit: dict[str, Destination] = {}
+    requests_before = int(getattr(provider, "request_count", 0))
+    cache_before = int(getattr(provider, "cache_hit_count", 0))
+    by_unit: dict[tuple[str | None, str | None, str], Destination | None] = {}
     created = linked = 0
     for mention in mentions:
-        if mention.poi_policy != "AREA_RESOLVE":
+        if mention.poi_policy != "AREA_RESOLVE" or mention.video_asset_id != asset.id:
             continue
         name = (mention.name or mention.raw_name or "").strip()
-        canonical = (
-            name if name.endswith(("市", "县", "区", "自治州", "自治县")) else (mention.city_hint or name)
-        )
+        canonical = name
+        if mention.city_hint and name == mention.city_hint.removesuffix("市"):
+            canonical = mention.city_hint
         if not canonical:
             continue
         context = (mention.metadata_json or {}).get("resolver_context", {})
@@ -3806,14 +3866,41 @@ def materialize_destinations(
         district = str(context.get("district_hint") or "")
         if canonical.endswith(("市", "自治州")):
             scope_type, district = "CITY", ""
+        elif canonical.endswith(("县", "区")) and not canonical.endswith(
+            ("景区", "风景区", "保护区", "旅游区")
+        ):
+            scope_type = "DISTRICT"
+            if district and district != canonical:
+                district = ""  # Conflicting administrative hints must not share an identity.
         else:
-            scope_type = "DISTRICT" if district or canonical.endswith(("县", "区", "自治县")) else "CITY"
+            scope_type = "OTHER"
         if scope_type == "DISTRICT" and not district:
             district = canonical
         province = mention.province_hint or str(context.get("geo_session_province") or "")
         if not province and canonical in {"北京市", "天津市", "上海市", "重庆市"}:
             province = canonical
-        city = mention.city_hint or (canonical if scope_type == "CITY" else "")
+        city = (
+            canonical
+            if scope_type == "CITY"
+            else (mention.city_hint or str(context.get("unit_city") or context.get("geo_session_city") or ""))
+        )
+        conflicting_district = scope_type == "DISTRICT" and context.get("district_hint") not in {
+            None,
+            "",
+            canonical,
+        }
+        if not province or not city or conflicting_district:
+            mention.destination_id = None
+            mention.resolution_status = "AREA_UNRESOLVED"
+            mention.metadata_json = {
+                **{
+                    key: value
+                    for key, value in (mention.metadata_json or {}).items()
+                    if key != "representative_anchor"
+                },
+                "destination_resolution_reason": "ADMINISTRATIVE_CONTEXT_INCOMPLETE_OR_CONFLICTING",
+            }
+            continue
         destination = db.scalar(
             select(Destination).where(
                 Destination.scope_type == scope_type,
@@ -3838,26 +3925,28 @@ def materialize_destinations(
             created += 1
         mention.destination_id = destination.id
         mention.resolution_status = "AREA_RESOLVED"
+        existing_anchor = (mention.metadata_json or {}).get("representative_anchor")
+        if existing_anchor and not representative_anchor_valid(
+            existing_anchor, destination, mention, asset.source_id
+        ):
+            mention.metadata_json = {
+                key: value
+                for key, value in (mention.metadata_json or {}).items()
+                if key != "representative_anchor"
+            }
         if (
             provider is not None
+            and scope_type in {"CITY", "DISTRICT"}
             and mention.visit_intent == "RECOMMENDED"
             and mention.subject_role in {"PRIMARY", "SECONDARY"}
             and not mention_opinion(mention)["review_required"]
             and not (mention.metadata_json or {}).get("representative_anchor")
         ):
             from zhijian.services.area_anchors import government_anchor
-            from zhijian.services.evidence_trace import evidence_trace
+            from zhijian.services.evidence_trace import verified_place_mention_trace
 
-            refs = db.scalars(select(Segment).where(Segment.id.in_(mention.segment_ids_json))).all()
-            snapshot_id = refs[0].snapshot_id if refs else ""
-            snapshot = db.get(Snapshot, snapshot_id) if snapshot_id else None
-            trace = evidence_trace(refs, mention.segment_ids_json, mention.quote, snapshot_id)
-            if (
-                trace["valid"]
-                and snapshot
-                and snapshot.source_id == asset.source_id
-                and snapshot.metadata_json.get("video_asset_id") == asset.id
-            ):
+            trace = verified_place_mention_trace(db, mention)
+            if trace["valid"]:
                 anchor = government_anchor(
                     provider, area=canonical, province=province, city=city, district=district
                 )
@@ -3869,17 +3958,27 @@ def materialize_destinations(
                 ):
                     mention.metadata_json = {
                         **(mention.metadata_json or {}),
-                        "representative_anchor": {
-                            **anchor,
-                            "snapshot_id": snapshot_id,
-                            "segment_ids": mention.segment_ids_json,
-                        },
+                        "representative_anchor": bind_representative_anchor(
+                            anchor, destination, mention, asset.source_id, trace["snapshot_id"]
+                        ),
                     }
-        by_unit[mention.content_unit_id] = destination
+        if mention.content_unit_id:
+            unit_key = (mention.submission_job_id, mention.ai_note_version_id, mention.content_unit_id)
+            if unit_key not in by_unit:
+                by_unit[unit_key] = destination
+            elif by_unit[unit_key] is not None and by_unit[unit_key].id != destination.id:
+                by_unit[unit_key] = None
     for mention in mentions:
-        if mention.resolution_status != ResolutionStatus.CONFIRMED.value or not mention.place_id:
+        if (
+            mention.resolution_status != ResolutionStatus.CONFIRMED.value
+            or not mention.place_id
+            or mention.video_asset_id != asset.id
+            or not mention.content_unit_id
+        ):
             continue
-        destination = by_unit.get(mention.content_unit_id)
+        destination = by_unit.get(
+            (mention.submission_job_id, mention.ai_note_version_id, mention.content_unit_id)
+        )
         if destination is None:
             continue
         exists = db.scalar(
@@ -3908,10 +4007,23 @@ def materialize_destinations(
         )
         linked += 1
     db.commit()
+    if metrics is not None:
+        metrics["amap_request_count"] = (
+            metrics.get("amap_request_count", 0)
+            + int(getattr(provider, "request_count", 0))
+            - requests_before
+        )
+        metrics["amap_cache_hit_count"] = (
+            metrics.get("amap_cache_hit_count", 0)
+            + int(getattr(provider, "cache_hit_count", 0))
+            - cache_before
+        )
     return created, linked
 
 
-def _assign_geo_sessions(db: Session, mentions: list[PlaceMention]) -> None:
+def _assign_geo_sessions(
+    db: Session, mentions: list[PlaceMention], *, untrusted_ids: set[str] | None = None
+) -> None:
     """Attach deterministic, local region context without altering extracted facts."""
     if not mentions:
         return
@@ -3922,10 +4034,12 @@ def _assign_geo_sessions(db: Session, mentions: list[PlaceMention]) -> None:
     }
     place_ids = {mention.place_id for mention in mentions if mention.place_id}
     places = {place.id: place for place in db.scalars(select(Place).where(Place.id.in_(place_ids))).all()}
-    by_asset: dict[str, list[PlaceMention]] = {}
+    by_asset: dict[tuple[str, str | None, str | None], list[PlaceMention]] = {}
     for mention in mentions:
-        by_asset.setdefault(mention.video_asset_id, []).append(mention)
-    for asset_id, rows in by_asset.items():
+        by_asset.setdefault(
+            (mention.video_asset_id, mention.submission_job_id, mention.ai_note_version_id), []
+        ).append(mention)
+    for (asset_id, submission_id, note_version_id), rows in by_asset.items():
         rows.sort(
             key=lambda item: (
                 min((ordinals.get(value, 10**9) for value in item.segment_ids_json), default=10**9),
@@ -3936,6 +4050,12 @@ def _assign_geo_sessions(db: Session, mentions: list[PlaceMention]) -> None:
         active_city = active_province = ""
         sessions: dict[str, list[PlaceMention]] = {}
         for mention in rows:
+            if mention.poi_policy in {"REFERENCE_ONLY", "SKIP"}:
+                continue
+            if untrusted_ids and mention.id in untrusted_ids:
+                active_city = active_province = ""
+                session_number += 1
+                continue
             place = places.get(mention.place_id or "")
             explicit_city = mention.city_hint or (place.city if place else "")
             explicit_province = mention.province_hint or (place.province if place else "")
@@ -3945,18 +4065,21 @@ def _assign_geo_sessions(db: Session, mentions: list[PlaceMention]) -> None:
             ):
                 session_number += 1
                 active_city, active_province = explicit_city, explicit_province
-            session_id = f"geo:{asset_id}:{session_number or 1}"
+            session_id = (
+                f"geo:{asset_id}:{submission_id or note_version_id or 'legacy'}:{session_number or 1}"
+            )
             context = (mention.metadata_json or {}).get("resolver_context", {})
             context = context if isinstance(context, dict) else {}
-            mention.metadata_json = {
-                **(mention.metadata_json or {}),
-                "resolver_context": {
-                    **context,
-                    "geo_session_id": session_id,
-                    "geo_session_city": active_city,
-                    "geo_session_province": active_province,
-                },
-            }
+            if not _manual_poi_confirmed(mention):
+                mention.metadata_json = {
+                    **(mention.metadata_json or {}),
+                    "resolver_context": {
+                        **context,
+                        "geo_session_id": session_id,
+                        "geo_session_city": active_city,
+                        "geo_session_province": active_province,
+                    },
+                }
             sessions.setdefault(session_id, []).append(mention)
         for rows_in_session in sessions.values():
             anchor_rows = [
@@ -3966,6 +4089,7 @@ def _assign_geo_sessions(db: Session, mentions: list[PlaceMention]) -> None:
                 and (item.metadata_json or {}).get("confirmation_origin")
                 in {"AUTO_STRONG", "MANUAL_CONFIRMED"}
                 and places.get(item.place_id or "")
+                and places[item.place_id].deleted_at is None
             ]
             anchors = [item.id for item in anchor_rows]
             anchor_locations = [
@@ -3978,6 +4102,8 @@ def _assign_geo_sessions(db: Session, mentions: list[PlaceMention]) -> None:
                 for item in anchor_rows
             ]
             for mention in rows_in_session:
+                if _manual_poi_confirmed(mention):
+                    continue
                 context = mention.metadata_json["resolver_context"]
                 mention.metadata_json = {
                     **mention.metadata_json,
@@ -4021,7 +4147,9 @@ def _rank_poi_candidates(
         except Exception as exc:
             outcomes.append({"query_hash": sha256(query.encode()).hexdigest()[:16], "status": "FAILED"})
             # Authentication and rate-limit errors should not multiply requests.
-            if any(word in str(exc).upper() for word in ("QPS", "429", "401", "403")):
+            if isinstance(exc, (AMapProviderError, httpx.RequestError)) or any(
+                word in str(exc).upper() for word in ("QPS", "429", "401", "403")
+            ):
                 stop_provider_queries = True
                 break
             continue
@@ -4102,10 +4230,14 @@ def _rank_poi_candidates(
                 "query_consensus_count": len(hits),
                 "query_diversity": len({item["city"] for item in hits}),
                 "negative_evidence": _negative_evidence(mention, candidate, successful_nonempty, len(hits)),
-                "coverage_incomplete": any(item["status"] == "FAILED" for item in outcomes),
+                "coverage_incomplete": any(
+                    item["status"] == "FAILED" or int(item.get("count", 0)) >= 20 for item in outcomes
+                ),
             }
         )
-    candidates = sorted(deduped.values(), key=lambda item: (-item.score, item.name))
+    candidates = sorted(
+        deduped.values(), key=lambda item: (-item.match_explanation.get("raw_score", item.score), item.name)
+    )
     if candidates:
         for candidate in candidates:
             candidate.match_explanation["relation_to_mention"] = _scenic_relation(mention, candidate)
@@ -4113,13 +4245,20 @@ def _rank_poi_candidates(
         candidates.sort(
             key=lambda item: (
                 item.match_explanation["relation_to_mention"] == "CHILD",
-                -item.score,
+                -item.match_explanation.get("raw_score", item.score),
                 item.name,
             )
         )
     failed = any(item["status"] == "FAILED" for item in outcomes)
+    truncated = any(int(item.get("count", 0)) >= 20 for item in outcomes)
     status = (
-        "PARTIAL" if candidates and failed else "FAILED" if failed else "RESULTS" if candidates else "EMPTY"
+        "PARTIAL"
+        if candidates and (failed or truncated)
+        else "FAILED"
+        if failed
+        else "RESULTS"
+        if candidates
+        else "EMPTY"
     )
     final_metrics = provider.thread_metrics() if hasattr(provider, "thread_metrics") else {}
     return POISearchResults(
@@ -4134,6 +4273,7 @@ def _rank_poi_candidates(
             "cache_hits": final_metrics.get("cache_hits", 0) - initial_metrics.get("cache_hits", 0),
             "candidate_ids": [item.provider_id for item in candidates[:5]],
             "fallback_skipped": fallback_skipped,
+            "truncated": truncated,
         },
     )
 
@@ -4267,13 +4407,25 @@ def _poi_score(
         item.city_hint
         or str((item.metadata_json or {}).get("resolver_context", {}).get("geo_session_city") or "")
         for item in mentions or []
-        if item.id != mention.id and item.content_unit_id and item.content_unit_id == mention.content_unit_id
+        if item.id != mention.id
+        and item.content_unit_id
+        and item.content_unit_id == mention.content_unit_id
+        and item.video_asset_id == mention.video_asset_id
+        and item.submission_job_id == mention.submission_job_id
+        and item.ai_note_version_id == mention.ai_note_version_id
+        and item.poi_policy not in {"REFERENCE_ONLY", "SKIP"}
     }
     cross_provinces = {
         item.province_hint
         or str((item.metadata_json or {}).get("resolver_context", {}).get("geo_session_province") or "")
         for item in mentions or []
-        if item.id != mention.id and item.content_unit_id and item.content_unit_id == mention.content_unit_id
+        if item.id != mention.id
+        and item.content_unit_id
+        and item.content_unit_id == mention.content_unit_id
+        and item.video_asset_id == mention.video_asset_id
+        and item.submission_job_id == mention.submission_job_id
+        and item.ai_note_version_id == mention.ai_note_version_id
+        and item.poi_policy not in {"REFERENCE_ONLY", "SKIP"}
     }
     cross_location_matches = sorted(
         value for value in cross_cities | cross_provinces if value and value in location_text
@@ -4338,6 +4490,18 @@ def _scenic_relation(mention: PlaceMention, candidate: POICandidate) -> str:
     return "UNKNOWN"
 
 
+def _poi_distance_m(first: POICandidate, second: POICandidate) -> float:
+    latitude = math.radians(second.latitude - first.latitude)
+    longitude = math.radians(second.longitude - first.longitude)
+    value = (
+        math.sin(latitude / 2) ** 2
+        + math.cos(math.radians(first.latitude))
+        * math.cos(math.radians(second.latitude))
+        * math.sin(longitude / 2) ** 2
+    )
+    return 12_742_000 * math.asin(min(1.0, math.sqrt(max(0.0, value))))
+
+
 def _poi_competitor(candidates: list[POICandidate]) -> POICandidate | None:
     if not candidates:
         return None
@@ -4353,6 +4517,7 @@ def _poi_competitor(candidates: list[POICandidate]) -> POICandidate | None:
             and selected.province
             and item.province == selected.province
             and (not selected.district or not item.district or selected.district == item.district)
+            and _poi_distance_m(selected, item) <= 25_000
         ):
             continue
         return item
@@ -4390,7 +4555,11 @@ def _scenic_entry_candidate(mention: PlaceMention, candidates: list[POICandidate
         and item.match_explanation.get("coordinate_valid")
         and not item.match_explanation.get("negative_evidence")
     ]
-    return centers[0] if len(centers) == 1 else None
+    return (
+        centers[0]
+        if len(centers) == 1 and all(_poi_distance_m(centers[0], item) <= 25_000 for item in candidates)
+        else None
+    )
 
 
 def _poi_detail_consistent(selected: POICandidate, detail: POICandidate) -> bool:
@@ -4398,9 +4567,11 @@ def _poi_detail_consistent(selected: POICandidate, detail: POICandidate) -> bool
         selected.provider_id
         and detail.provider_id == selected.provider_id
         and _normalized_insight_key(selected.name) == _normalized_insight_key(detail.name)
-        and (not selected.city or not detail.city or selected.city == detail.city)
-        and (not selected.province or not detail.province or selected.province == detail.province)
-        and (not selected.typecode or not detail.typecode or selected.typecode == detail.typecode)
+        and all(
+            not getattr(selected, field) or getattr(selected, field) == getattr(detail, field)
+            for field in ("city", "province", "district", "typecode", "adcode")
+        )
+        and selected.coordinate_system == detail.coordinate_system == "GCJ02"
         and 73.5 <= detail.longitude <= 135.1
         and 18 <= detail.latitude <= 53.6
         and abs(selected.longitude - detail.longitude) <= 0.003

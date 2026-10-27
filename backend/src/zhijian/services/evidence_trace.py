@@ -1,6 +1,9 @@
 """Read-only provenance assembly using the existing Snapshot/Segment identity."""
 
-from zhijian.db.models import Segment
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from zhijian.db.models import PlaceMention, Segment, Snapshot, VideoAsset
 
 
 def evidence_trace(segments: list[Segment], ids: list[str], quote: str, snapshot_id: str) -> dict:
@@ -29,3 +32,20 @@ def evidence_trace(segments: list[Segment], ids: list[str], quote: str, snapshot
         "start_ms": min((segment.locator_json.get("start_ms", 0) for segment in references), default=None),
         "end_ms": max((segment.locator_json.get("end_ms", 0) for segment in references), default=None),
     }
+
+
+def verified_place_mention_trace(db: Session, mention: PlaceMention) -> dict:
+    refs = db.scalars(select(Segment).where(Segment.id.in_(mention.segment_ids_json))).all()
+    snapshot_id = refs[0].snapshot_id if refs else ""
+    trace = evidence_trace(refs, mention.segment_ids_json, mention.quote, snapshot_id)
+    snapshot = db.get(Snapshot, snapshot_id) if snapshot_id else None
+    asset = db.get(VideoAsset, mention.video_asset_id)
+    trace["valid"] = bool(
+        trace["valid"]
+        and snapshot
+        and asset
+        and snapshot.source_id == asset.source_id
+        and snapshot.metadata_json.get("video_asset_id") == asset.id
+    )
+    trace["source_id"] = asset.source_id if trace["valid"] else None
+    return trace

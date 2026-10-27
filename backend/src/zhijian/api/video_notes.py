@@ -33,6 +33,7 @@ from zhijian.db.models import (
 from zhijian.db.session import get_db
 from zhijian.domain.enums import JobStatus, JobType
 from zhijian.domain.schemas import BulkDeleteRequest
+from zhijian.services.area_anchors import representative_anchor_valid
 from zhijian.services.audit import record_event
 from zhijian.services.auth import require_session
 from zhijian.services.note_structure import organize_sections, structured_overview
@@ -514,7 +515,11 @@ def video_note_places(note_id: str, _: Protected, db: Session = Depends(get_db))
         place = db.get(Place, mention.place_id) if mention.place_id else None
         destination = db.get(Destination, mention.destination_id) if mention.destination_id else None
         anchor = (mention.metadata_json or {}).get("representative_anchor")
-        anchor_kind = anchor.get("kind") if isinstance(anchor, dict) else None
+        anchor_kind = (
+            anchor.get("kind")
+            if destination and representative_anchor_valid(anchor, destination, mention, asset.source_id)
+            else None
+        )
         evidence_segments = [
             segment_by_id[segment_id]
             for segment_id in mention.segment_ids_json

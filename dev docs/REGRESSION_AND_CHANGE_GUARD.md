@@ -44,6 +44,7 @@
 | 视频 v0.4.3 列表封面 | 主按钮为“添加视频链接”并使用统一 40px/14px Token；Card 展示本地持久真实封面、16:9 cover 和时长徽标；封面失败只显示占位，不阻塞 Note | `video/VIDEO_NOTE_LIST_V043_SPEC.md` |
 | 视频笔记删除 | 列表/详情共用删除；删除 Note/Version/Section/TOC/Content 投影，保留共享 Source/Asset/Cover/Transcript/Place/Evidence；活跃 Job 阻止删除 | `video/VIDEO_NOTE_DELETE_V044_SPEC.md` |
 | 地点与 POI | 保留 `raw_name`，人工改名仅更新 `suggested_name`；高德确认写 `canonical_name`；`REFERENCE_ONLY`/`SKIP` 不进入POI；推荐区域或景区可在严格门禁后以 Destination 代表点上图，政府/游客中心不是 Place 本体；同名区域按行政链隔离，歧义不自动确认，拒绝项不再显示且可撤销 | `product/TRAVEL_FOOD_PIPELINE.md`、`services/video_support.py` |
+| POI并发与代表点 | 人工确认先于意见门禁保护；搜索/确认/拒绝原子revision且所属运行Job拒绝编辑；地域不跨提交/版本，引用和无效证据不传播；满页候选为不完整；代表点绑定来源/目标/证据，冲突先于bbox判定，Provider身份大小写归一且保留删除墓碑 | `benchmark/POI_RESOLUTION_CODE_REVIEW_REPORT.md`、`test_poi_audit_regressions.py` |
 | 全国地图 | 首次中国大陆全境、之后恢复 viewport；按 bbox + zoom 查询且低 zoom 聚合、放大后直出独立 Marker；不得恢复厦门/思明区默认参数、标题、静态伪地图或路线默认城市 | `video/VIDEO_AI_NOTE_PIPELINE.md` 4.16、`MapOverviewPage.tsx` |
 | Marker 生命周期 | 自动 Marker 删除仅隐藏投影；用户 Marker 软删除可恢复；绝不删除 Place、Source、Claim、Evidence、Place Note；浮层展示图片、地址、特色、来源数、状态和详情入口 | `architecture/API_DESIGN.md`、`map_marker_states`、`MapOverviewPage.tsx` |
 | 高德设置 | JS API Key、Security Code、Web 服务 Key 分别保存/测试/诊断；前端已认证后用 bootstrap 读取，不在代码或构建变量硬编码 Key | `product/CONTROL_CENTER.md`、`SettingsPage.tsx` |

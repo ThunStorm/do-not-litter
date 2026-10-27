@@ -1112,7 +1112,9 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
         area_provider = (
             AMapPOIProvider(area_key, cache_ttl_seconds=settings.amap_cache_ttl_seconds) if area_key else None
         )
-        destination_count, destination_links = materialize_destinations(db, asset, mentions, area_provider)
+        destination_count, destination_links = materialize_destinations(
+            db, asset, mentions, area_provider, metrics=poi_metrics
+        )
         _done(
             db,
             job,
@@ -1618,7 +1620,7 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                 else None
             )
             destination_count, destination_links = materialize_destinations(
-                db, asset, mentions, area_provider
+                db, asset, mentions, area_provider, metrics=poi_metrics
             )
             _done(
                 db,
