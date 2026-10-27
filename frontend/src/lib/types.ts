@@ -416,6 +416,7 @@ export interface TravelBriefData {
 }
 
 export interface MapMarker {
+  entity_type?: 'PLACE' | 'DESTINATION'
   recommendation_summary?: Recommendation
   id: string
   marker_id: string | null

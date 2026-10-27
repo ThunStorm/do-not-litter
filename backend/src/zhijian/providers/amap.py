@@ -5,7 +5,7 @@ import hashlib
 import json
 from concurrent.futures import Future
 from dataclasses import dataclass, field, replace
-from threading import Lock
+from threading import Lock, local
 from time import monotonic, sleep
 from typing import ClassVar
 
@@ -29,6 +29,7 @@ class POICandidate:
     score: int = 0
     match_reasons: list[str] = field(default_factory=list)
     match_explanation: dict[str, object] = field(default_factory=dict)
+    adcode: str = ""
 
 
 class AMapPOIProvider:
@@ -45,6 +46,14 @@ class AMapPOIProvider:
         self.cache_ttl_seconds = cache_ttl_seconds
         self.request_count = 0
         self.cache_hit_count = 0
+        self.refresh_empty = False
+        self._thread_stats = local()
+
+    def thread_metrics(self) -> dict[str, int]:
+        return {
+            "requests": getattr(self._thread_stats, "requests", 0),
+            "cache_hits": getattr(self._thread_stats, "cache_hits", 0),
+        }
 
     def search(self, keywords: str, city: str = "", *, city_limit: bool = True) -> list[POICandidate]:
         return self._request(
@@ -79,8 +88,14 @@ class AMapPOIProvider:
         now = monotonic()
         with self._lock:
             cached = self._cache.get(key)
-            if cached and now - cached[0] <= self.cache_ttl_seconds:
+            if (
+                cached
+                and now - cached[0]
+                <= (self.cache_ttl_seconds if cached[1] else min(self.cache_ttl_seconds, 300))
+                and not (self.refresh_empty and not cached[1])
+            ):
                 self.cache_hit_count += 1
+                self._thread_stats.cache_hits = getattr(self._thread_stats, "cache_hits", 0) + 1
                 return self._clones(cached[1])
             future = self._inflight.get(key)
             owner = future is None
@@ -88,6 +103,7 @@ class AMapPOIProvider:
                 future = self._inflight[key] = Future()
         if not owner:
             self.cache_hit_count += 1
+            self._thread_stats.cache_hits = getattr(self._thread_stats, "cache_hits", 0) + 1
             return self._clones(future.result(timeout=self.timeout + 5))
         try:
             data = self._get(operation, params)
@@ -125,6 +141,7 @@ class AMapPOIProvider:
 
             reserve(self._request_interval_seconds)
             self.request_count += 1
+            self._thread_stats.requests = getattr(self._thread_stats, "requests", 0) + 1
             response = httpx.get(
                 f"{self.endpoint}/{operation}",
                 params={"key": self.api_key, **params},
@@ -171,4 +188,5 @@ class AMapPOIProvider:
             longitude=longitude,
             latitude=latitude,
             typecode=str(poi.get("typecode") or ""),
+            adcode=str(poi.get("adcode") or ""),
         )

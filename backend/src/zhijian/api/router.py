@@ -177,6 +177,9 @@ from zhijian.services.job_replay import (
 from zhijian.services.place_experience import effective_windows, experience_projection
 from zhijian.services.place_knowledge import aggregate_place_knowledge, normalize_insight
 from zhijian.services.recommendation_intent import (
+    mention_opinion,
+)
+from zhijian.services.recommendation_intent import (
     projection as intent_projection,
 )
 from zhijian.services.recommendation_intent import source_links as intent_source_links
@@ -196,6 +199,7 @@ from zhijian.services.video_note_search import remove_video_note_search_index
 from zhijian.services.video_support import (
     PROMPT_CORE_CONTRACTS,
     PROMPT_SUPPLEMENT_SETTING_KEY,
+    _rank_poi_candidates,
     materialize_place_insights,
     prompt_supplement_hash,
     transcript_processing_config,
@@ -1880,6 +1884,133 @@ def _place_query(
     return statement
 
 
+def _destination_map_markers(
+    db: Session,
+    *,
+    bbox: tuple[float, float, float, float],
+    query: str | None,
+    city: str | None,
+    district: str | None,
+) -> list[MapMarker]:
+    rows = db.execute(
+        select(Destination, PlaceMention)
+        .join(PlaceMention, PlaceMention.destination_id == Destination.id)
+        .where(
+            PlaceMention.extraction_status == "EXTRACTED",
+            PlaceMention.resolution_status == "AREA_RESOLVED",
+            PlaceMention.visit_intent == "RECOMMENDED",
+        )
+    ).all()
+    grouped: dict[str, tuple[Destination, list[tuple[PlaceMention, dict]]]] = {}
+    for destination, mention in rows:
+        if mention_opinion(mention)["review_required"]:
+            continue
+        anchor = (mention.metadata_json or {}).get("representative_anchor")
+        if not isinstance(anchor, dict) or anchor.get("kind") not in {"GOVERNMENT_SEAT", "SCENIC_ENTRY"}:
+            continue
+        latitude, longitude = anchor.get("latitude"), anchor.get("longitude")
+        if not isinstance(latitude, (int, float)) or not isinstance(longitude, (int, float)):
+            continue
+        if not (bbox[0] <= longitude <= bbox[2] and bbox[1] <= latitude <= bbox[3]):
+            continue
+        if city and destination.city != city or district and destination.district != district:
+            continue
+        if query and query.casefold() not in destination.name.casefold():
+            continue
+        grouped.setdefault(destination.id, (destination, []))[1].append((mention, anchor))
+    version_ids = {mention.ai_note_version_id for _, evidence in grouped.values() for mention, _ in evidence}
+    asset_ids = {mention.video_asset_id for _, evidence in grouped.values() for mention, _ in evidence}
+    anchor_ids = {
+        str(anchor.get("provider_id"))
+        for _, evidence in grouped.values()
+        for _, anchor in evidence
+        if anchor.get("provider_id")
+    }
+    deleted_ids = (
+        set(
+            db.scalars(
+                select(PlaceDeletionTombstone.external_poi_id).where(
+                    func.upper(PlaceDeletionTombstone.external_provider) == "AMAP",
+                    PlaceDeletionTombstone.external_poi_id.in_(anchor_ids),
+                )
+            ).all()
+        )
+        if anchor_ids
+        else set()
+    )
+    versions = (
+        {
+            value.id: value
+            for value in db.scalars(select(AINoteVersion).where(AINoteVersion.id.in_(version_ids))).all()
+        }
+        if version_ids
+        else {}
+    )
+    assets = (
+        {
+            value.id: value
+            for value in db.scalars(select(VideoAsset).where(VideoAsset.id.in_(asset_ids))).all()
+        }
+        if asset_ids
+        else {}
+    )
+    markers = []
+    for destination, evidence in grouped.values():
+        # Conflicting representative identities are not silently collapsed.
+        if len({anchor.get("provider_id") for _, anchor in evidence}) != 1:
+            continue
+        _, anchor = evidence[0]
+        if not anchor.get("provider_id") or anchor["provider_id"] in deleted_ids:
+            continue
+        if any(
+            abs(other["latitude"] - anchor["latitude"]) > 0.003
+            or abs(other["longitude"] - anchor["longitude"]) > 0.003
+            for _, other in evidence
+        ):
+            continue
+        kind = anchor["kind"]
+        markers.append(
+            MapMarker(
+                entity_type="DESTINATION",
+                id=destination.id,
+                place_id=None,
+                origin="DESTINATION",
+                name=destination.name,
+                canonical_name=destination.canonical_name,
+                place_type="AREA",
+                latitude=anchor["latitude"],
+                longitude=anchor["longitude"],
+                user_state="DISCOVERED",
+                summary="行政区域定位至政府驻地代表点"
+                if kind == "GOVERNMENT_SEAT"
+                else "景区定位至游客中心代表点",
+                address=str(anchor.get("name") or ""),
+                source_count=len({item.video_asset_id for item, _ in evidence}),
+                source_notes=[
+                    {
+                        "note_id": versions[item.ai_note_version_id].ai_note_id,
+                        "version_id": item.ai_note_version_id,
+                        "title": assets[item.video_asset_id].title or "视频笔记",
+                    }
+                    for item, _ in evidence
+                    if item.ai_note_version_id in versions and item.video_asset_id in assets
+                ],
+                visit_window_evidence=[
+                    {
+                        "source_kind": "TRANSCRIPT",
+                        "source_text": item.quote,
+                        "segment_ids": item.segment_ids_json,
+                    }
+                    for item, _ in evidence
+                    if item.quote
+                ],
+                brief={"anchor_kind": kind, "anchor_name": anchor.get("name", "")},
+                recommendation_summary=intent_summary([item for item, _ in evidence]),
+            )
+        )
+    return markers
+
+
 @router.get("/api/travel/map", response_model=MapOverviewView)
 def map_overview(
     _: Protected,
@@ -2043,9 +2174,35 @@ def map_overview(
     selected = next((place for place in visible_places if place.id == selected_place_id), None)
     route_count = db.scalar(select(func.count(RouteDraftItem.id))) or 0
     projection = _map_projection(db, place_ids)
+    area_markers = []
+    if (
+        place_type in {None, "", "AREA"}
+        and not any(
+            (
+                user_state,
+                origin,
+                season,
+                month,
+                visit_window_state,
+                recommendation_tier,
+                month_segment,
+                day_time_slot,
+                route_id,
+                source_id,
+                best_month,
+                best_season,
+                best_time_slot,
+            )
+        )
+        and visibility != "HIDDEN"
+    ):
+        area_markers = _destination_map_markers(
+            db, bbox=(west, south, east, north), query=query, city=city, district=district
+        )
+    selected_destination = next((item for item in area_markers if item.id == selected_place_id), None)
     return MapOverviewView(
-        total_places=len(places),
-        visible_places=len(visible_places),
+        total_places=len(places) + len(area_markers),
+        visible_places=len(visible_places) + len(area_markers),
         markers=[
             _map_marker_view(
                 db,
@@ -2056,9 +2213,14 @@ def map_overview(
                 projection=projection,
             )
             for place in visible_places
-        ],
+        ]
+        + area_markers,
         clusters=[],
-        selected_place_id=selected.id if selected else None,
+        selected_place_id=selected.id
+        if selected
+        else selected_destination.id
+        if selected_destination
+        else None,
         selected_preview=preview_for_place(db, selected) if selected else None,
         route_draft_count=route_count,
         viewport={"bbox": [west, south, east, north], "zoom": zoom, "is_default_china": not bbox},
@@ -3425,13 +3587,31 @@ def search_place_review(
     web_key = store.get("amap:web-service-key") or settings.amap_api_key
     if not web_key:
         raise HTTPException(status_code=422, detail={"code": "POI_PROVIDER_UNAVAILABLE"})
-    candidates = AMapPOIProvider(web_key).search(
-        payload.query, mention.city_hint, city_limit=bool(mention.city_hint)
+    provider = AMapPOIProvider(web_key)
+    provider.refresh_empty = True
+    query = payload.query.strip()
+    search_mention = PlaceMention(
+        id=mention.id,
+        name=query,
+        suggested_name=query,
+        raw_name=mention.raw_name,
+        city_hint=mention.city_hint,
+        province_hint=mention.province_hint,
+        place_type=mention.place_type,
+        poi_policy=mention.poi_policy,
+        metadata_json=mention.metadata_json,
+        content_unit_id=mention.content_unit_id,
     )
+    candidates = _rank_poi_candidates(provider, search_mention, query_override=query)
+    if candidates.trace["status"] == "FAILED":
+        raise HTTPException(
+            status_code=502, detail={"code": "POI_SEARCH_FAILED", "message": "地点搜索失败，请稍后重试"}
+        )
     mention.suggested_name = payload.query
     mention.metadata_json = {
         **mention.metadata_json,
         "poi_candidates": [_poi_candidate_view(item) for item in candidates],
+        "manual_search_trace": {**candidates.trace, "mode": "MANUAL"},
     }
     mention.revision += 1
     record_event(

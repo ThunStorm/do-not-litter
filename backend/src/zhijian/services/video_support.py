@@ -3508,6 +3508,7 @@ def resolve_mentions_with_amap(
     ).all()
     _assign_geo_sessions(db, session_mentions)
     confirmed = 0
+    entry_anchors = 0
     candidate_results: dict[str, list[POICandidate] | Exception] = {}
     searchable = [
         mention
@@ -3520,6 +3521,7 @@ def resolve_mentions_with_amap(
     from zhijian.services.evidence_trace import evidence_trace
 
     verified_searchable = []
+    verified_snapshots: dict[str, str] = {}
     for mention in searchable:
         refs = db.scalars(select(Segment).where(Segment.id.in_(mention.segment_ids_json))).all()
         snapshot_id = refs[0].snapshot_id if refs else ""
@@ -3534,6 +3536,7 @@ def resolve_mentions_with_amap(
             and snapshot.metadata_json.get("video_asset_id") == asset.id
         ):
             verified_searchable.append(mention)
+            verified_snapshots[mention.id] = snapshot_id
             mention.metadata_json = {**mention.metadata_json, "evidence_trace_version": trace["version"]}
         else:
             mention.resolution_status = ResolutionStatus.REVIEW.value
@@ -3569,11 +3572,81 @@ def resolve_mentions_with_amap(
             exc = candidates
             mention.metadata_json = {**mention.metadata_json, "poi_error": str(exc)[:240]}
             continue
+        if isinstance(candidates, POISearchResults):
+            mention.metadata_json = {**mention.metadata_json, "poi_search_trace": candidates.trace}
+            if candidates.trace["status"] == "FAILED":
+                mention.resolution_status = ResolutionStatus.REVIEW.value
+                mention.metadata_json = {
+                    **mention.metadata_json,
+                    "reason_codes": ["POI_SEARCH_FAILED"],
+                    "reason": "地点搜索失败，等待重试",
+                }
+                continue
         if not candidates:
             mention.resolution_status = ResolutionStatus.UNRESOLVED.value
             continue
+        entry = _scenic_entry_candidate(mention, candidates)
+        if entry is not None:
+            try:
+                detail = provider.detail(entry.provider_id)
+            except Exception:
+                detail = None
+            tombstone = db.scalar(
+                select(PlaceDeletionTombstone).where(
+                    func.upper(PlaceDeletionTombstone.external_provider) == "AMAP",
+                    PlaceDeletionTombstone.external_poi_id == entry.provider_id,
+                )
+            )
+            if detail is not None and _poi_detail_consistent(entry, detail) and tombstone is None:
+                context = (mention.metadata_json or {}).get("resolver_context", {})
+                province = mention.province_hint or str(context.get("geo_session_province") or "")
+                city = mention.city_hint or str(
+                    context.get("unit_city") or context.get("geo_session_city") or ""
+                )
+                canonical = (mention.suggested_name or mention.name).strip()
+                destination = db.scalar(
+                    select(Destination).where(
+                        Destination.scope_type == "SCENIC_AREA",
+                        Destination.canonical_name == canonical,
+                        Destination.province == province,
+                        Destination.city == city,
+                        Destination.district == entry.district,
+                    )
+                )
+                if destination is None:
+                    destination = Destination(
+                        name=mention.name,
+                        canonical_name=canonical,
+                        scope_type="SCENIC_AREA",
+                        province=province,
+                        city=city,
+                        district=entry.district,
+                        metadata_json={"origin": "SCENIC_ENTRY"},
+                    )
+                    db.add(destination)
+                    db.flush()
+                mention.destination_id = destination.id
+                mention.resolution_status = "AREA_RESOLVED"
+                mention.metadata_json = {
+                    **mention.metadata_json,
+                    "poi_decision": "SCENIC_ENTRY_ANCHOR",
+                    "representative_anchor": {
+                        "kind": "SCENIC_ENTRY",
+                        "version": "scenic-anchor-v1",
+                        "provider": "AMAP",
+                        "provider_id": detail.provider_id,
+                        "name": detail.name,
+                        "latitude": detail.latitude,
+                        "longitude": detail.longitude,
+                        "coordinate_system": "GCJ02",
+                        "snapshot_id": verified_snapshots[mention.id],
+                        "segment_ids": mention.segment_ids_json,
+                    },
+                }
+                entry_anchors += 1
+                continue
         selected = candidates[0]
-        runner_up = candidates[1] if len(candidates) > 1 else None
+        runner_up = _poi_competitor(candidates)
         shadow = _resolver_v2_shadow(mention, candidates)
         review_reasons = _poi_review_reasons(selected, runner_up)
         resolver_v3 = _resolver_v3_decision(mention, candidates, review_reasons)
@@ -3609,7 +3682,7 @@ def resolve_mentions_with_amap(
             verified = provider.detail(selected.provider_id)
         except Exception:
             verified = None
-        if verified is None:
+        if verified is None or not _poi_detail_consistent(selected, verified):
             mention.resolution_status = ResolutionStatus.REVIEW.value
             mention.metadata_json = {
                 **mention.metadata_json,
@@ -3624,7 +3697,7 @@ def resolve_mentions_with_amap(
         selected = verified
         tombstone = db.scalar(
             select(PlaceDeletionTombstone).where(
-                PlaceDeletionTombstone.external_provider == "AMap",
+                func.upper(PlaceDeletionTombstone.external_provider) == "AMAP",
                 PlaceDeletionTombstone.external_poi_id == selected.provider_id,
             )
         )
@@ -3636,11 +3709,21 @@ def resolve_mentions_with_amap(
                 "suppressed_poi_id": selected.provider_id,
             }
             continue
-        place = db.scalar(
+        matches = db.scalars(
             select(Place).where(
-                Place.external_provider == "AMap", Place.external_poi_id == selected.provider_id
+                func.upper(Place.external_provider) == "AMAP", Place.external_poi_id == selected.provider_id
             )
-        )
+        ).all()
+        if len(matches) > 1:
+            mention.resolution_status = ResolutionStatus.REVIEW.value
+            mention.metadata_json = {
+                **mention.metadata_json,
+                "reason": "同一高德地点存在多条记录，需人工核对",
+                "reason_codes": ["DUPLICATE_PROVIDER_ID"],
+                "poi_decision": "REVIEW",
+            }
+            continue
+        place = matches[0] if matches else None
         if place is None:
             place = Place(
                 name=selected.name,
@@ -3684,6 +3767,7 @@ def resolve_mentions_with_amap(
         confirmed += 1
     db.commit()
     if metrics is not None:
+        metrics["poi_scenic_anchor"] = entry_anchors
         metrics["amap_request_count"] = int(getattr(provider, "request_count", 0))
         metrics["amap_cache_hit_count"] = int(getattr(provider, "cache_hit_count", 0))
     if metrics is not None:
@@ -3699,28 +3783,44 @@ def resolve_mentions_with_amap(
         metrics["poi_unresolved"] = sum(
             item.resolution_status == ResolutionStatus.UNRESOLVED.value for item in actionable
         )
-    return confirmed, len(actionable) - confirmed + len(negative)
+    return confirmed, len(actionable) - confirmed - entry_anchors + len(negative)
 
 
-def materialize_destinations(db: Session, asset: VideoAsset, mentions: list[PlaceMention]) -> tuple[int, int]:
+def materialize_destinations(
+    db: Session, asset: VideoAsset, mentions: list[PlaceMention], provider: AMapPOIProvider | None = None
+) -> tuple[int, int]:
     """Persist AREA semantics separately and link only confirmed actionable Places."""
     by_unit: dict[str, Destination] = {}
     created = linked = 0
     for mention in mentions:
         if mention.poi_policy != "AREA_RESOLVE":
             continue
-        canonical = (mention.city_hint or mention.name or mention.raw_name).strip()
+        name = (mention.name or mention.raw_name or "").strip()
+        canonical = (
+            name if name.endswith(("市", "县", "区", "自治州", "自治县")) else (mention.city_hint or name)
+        )
         if not canonical:
             continue
-        scope_type = (
-            "DISTRICT"
-            if (mention.metadata_json or {}).get("resolver_context", {}).get("district_hint")
-            else "CITY"
-        )
+        context = (mention.metadata_json or {}).get("resolver_context", {})
+        context = context if isinstance(context, dict) else {}
+        district = str(context.get("district_hint") or "")
+        if canonical.endswith(("市", "自治州")):
+            scope_type, district = "CITY", ""
+        else:
+            scope_type = "DISTRICT" if district or canonical.endswith(("县", "区", "自治县")) else "CITY"
+        if scope_type == "DISTRICT" and not district:
+            district = canonical
+        province = mention.province_hint or str(context.get("geo_session_province") or "")
+        if not province and canonical in {"北京市", "天津市", "上海市", "重庆市"}:
+            province = canonical
+        city = mention.city_hint or (canonical if scope_type == "CITY" else "")
         destination = db.scalar(
             select(Destination).where(
                 Destination.scope_type == scope_type,
                 Destination.canonical_name == canonical,
+                Destination.province == province,
+                Destination.city == city,
+                Destination.district == district,
             )
         )
         if destination is None:
@@ -3728,11 +3828,9 @@ def materialize_destinations(db: Session, asset: VideoAsset, mentions: list[Plac
                 name=mention.name,
                 canonical_name=canonical,
                 scope_type=scope_type,
-                province=mention.province_hint,
-                city=mention.city_hint or canonical,
-                district=str(
-                    (mention.metadata_json or {}).get("resolver_context", {}).get("district_hint") or ""
-                ),
+                province=province,
+                city=city,
+                district=district,
                 metadata_json={"origin": "SEMANTIC_MAP", "representative_anchor": None},
             )
             db.add(destination)
@@ -3740,6 +3838,43 @@ def materialize_destinations(db: Session, asset: VideoAsset, mentions: list[Plac
             created += 1
         mention.destination_id = destination.id
         mention.resolution_status = "AREA_RESOLVED"
+        if (
+            provider is not None
+            and mention.visit_intent == "RECOMMENDED"
+            and mention.subject_role in {"PRIMARY", "SECONDARY"}
+            and not mention_opinion(mention)["review_required"]
+            and not (mention.metadata_json or {}).get("representative_anchor")
+        ):
+            from zhijian.services.area_anchors import government_anchor
+            from zhijian.services.evidence_trace import evidence_trace
+
+            refs = db.scalars(select(Segment).where(Segment.id.in_(mention.segment_ids_json))).all()
+            snapshot_id = refs[0].snapshot_id if refs else ""
+            snapshot = db.get(Snapshot, snapshot_id) if snapshot_id else None
+            trace = evidence_trace(refs, mention.segment_ids_json, mention.quote, snapshot_id)
+            if (
+                trace["valid"]
+                and snapshot
+                and snapshot.source_id == asset.source_id
+                and snapshot.metadata_json.get("video_asset_id") == asset.id
+            ):
+                anchor = government_anchor(
+                    provider, area=canonical, province=province, city=city, district=district
+                )
+                if anchor and not db.scalar(
+                    select(PlaceDeletionTombstone).where(
+                        func.upper(PlaceDeletionTombstone.external_provider) == "AMAP",
+                        PlaceDeletionTombstone.external_poi_id == anchor["provider_id"],
+                    )
+                ):
+                    mention.metadata_json = {
+                        **(mention.metadata_json or {}),
+                        "representative_anchor": {
+                            **anchor,
+                            "snapshot_id": snapshot_id,
+                            "segment_ids": mention.segment_ids_json,
+                        },
+                    }
         by_unit[mention.content_unit_id] = destination
     for mention in mentions:
         if mention.resolution_status != ResolutionStatus.CONFIRMED.value or not mention.place_id:
@@ -3855,29 +3990,102 @@ def _assign_geo_sessions(db: Session, mentions: list[PlaceMention]) -> None:
                 }
 
 
+class POISearchResults(list[POICandidate]):
+    def __init__(self, candidates: list[POICandidate], trace: dict[str, Any]) -> None:
+        super().__init__(candidates)
+        self.trace = trace
+
+
 def _rank_poi_candidates(
-    provider: AMapPOIProvider, mention: PlaceMention, mentions: list[PlaceMention] | None = None
+    provider: AMapPOIProvider,
+    mention: PlaceMention,
+    mentions: list[PlaceMention] | None = None,
+    *,
+    query_override: str | None = None,
 ) -> list[POICandidate]:
-    queries = _poi_queries(mention)
+    start_time = perf_counter()
+    initial_metrics = provider.thread_metrics() if hasattr(provider, "thread_metrics") else {}
+    context = (mention.metadata_json or {}).get("resolver_context", {})
+    context = context if isinstance(context, dict) else {}
+    city = mention.city_hint or str(context.get("unit_city") or context.get("geo_session_city") or "")
+    queries = [(query_override, city)] if query_override is not None else _poi_queries(mention)
     deduped: dict[str, POICandidate] = {}
     query_provenance: dict[str, list[dict[str, str]]] = {}
+    outcomes: list[dict[str, Any]] = []
+    successful_nonempty = 0
+    stop_provider_queries = False
+    fallback_skipped = ""
     for query, city in queries:
-        for candidate in provider.search(query, city, city_limit=bool(city)):
+        try:
+            values = provider.search(query, city, city_limit=bool(city))
+        except Exception as exc:
+            outcomes.append({"query_hash": sha256(query.encode()).hexdigest()[:16], "status": "FAILED"})
+            # Authentication and rate-limit errors should not multiply requests.
+            if any(word in str(exc).upper() for word in ("QPS", "429", "401", "403")):
+                stop_provider_queries = True
+                break
+            continue
+        outcomes.append(
+            {
+                "query_hash": sha256(query.encode()).hexdigest()[:16],
+                "status": "RESULTS" if values else "EMPTY",
+                "city_scoped": bool(city),
+                "count": len(values),
+            }
+        )
+        successful_nonempty += bool(values)
+        for candidate in values:
             if candidate.provider_id:
                 deduped.setdefault(candidate.provider_id, candidate)
                 provenance = {"query": query, "city": city or "全国"}
                 if provenance not in query_provenance.setdefault(candidate.provider_id, []):
                     query_provenance[candidate.provider_id].append(provenance)
+        if query_override is None and city and len(values) == 1:
+            only = values[0]
+            score, _, facts = _poi_score(mention, only, mentions or [])
+            if (
+                only.provider_id
+                and only.city
+                and only.city.removesuffix("市") == city.removesuffix("市")
+                and _normalized_insight_key(only.name) == _normalized_insight_key(query)
+                and score >= 85
+                and facts.get("category_compatibility") == "STRONG"
+                and facts.get("coordinate_valid")
+            ):
+                fallback_skipped = "SCOPED_EXACT"
+                break
     context = (mention.metadata_json or {}).get("resolver_context", {})
     context = context if isinstance(context, dict) else {}
     nearby = context.get("nearby_anchor")
     relation = str(context.get("nearby_relation") or "")
-    if isinstance(nearby, dict) and relation and hasattr(provider, "around"):
+    if (
+        query_override is None
+        and not stop_provider_queries
+        and len(outcomes) < 5
+        and isinstance(nearby, dict)
+        and relation
+        and hasattr(provider, "around")
+    ):
         longitude, latitude = nearby.get("longitude"), nearby.get("latitude")
         if isinstance(longitude, (int, float)) and isinstance(latitude, (int, float)):
             radius = _nearby_radius(relation)
             if radius:
-                for candidate in provider.around(longitude, latitude, mention.suggested_name, radius=radius):
+                try:
+                    nearby_values = provider.around(
+                        longitude, latitude, mention.suggested_name, radius=radius
+                    )
+                except Exception:
+                    outcomes.append({"status": "FAILED", "kind": "nearby"})
+                    nearby_values = []
+                else:
+                    outcomes.append(
+                        {
+                            "status": "RESULTS" if nearby_values else "EMPTY",
+                            "kind": "nearby",
+                            "count": len(nearby_values),
+                        }
+                    )
+                for candidate in nearby_values:
                     if candidate.provider_id:
                         deduped.setdefault(candidate.provider_id, candidate)
                         provenance = {"query": mention.suggested_name, "city": f"nearby:{relation}"}
@@ -3893,10 +4101,41 @@ def _rank_poi_candidates(
                 "query_provenance": hits,
                 "query_consensus_count": len(hits),
                 "query_diversity": len({item["city"] for item in hits}),
-                "negative_evidence": _negative_evidence(mention, candidate, len(queries), len(hits)),
+                "negative_evidence": _negative_evidence(mention, candidate, successful_nonempty, len(hits)),
+                "coverage_incomplete": any(item["status"] == "FAILED" for item in outcomes),
             }
         )
-    return sorted(deduped.values(), key=lambda item: (-item.score, item.name))
+    candidates = sorted(deduped.values(), key=lambda item: (-item.score, item.name))
+    if candidates:
+        for candidate in candidates:
+            candidate.match_explanation["relation_to_mention"] = _scenic_relation(mention, candidate)
+            candidate.match_explanation["scenic_target"] = mention.place_type in {"SCENIC_AREA", "PARK"}
+        candidates.sort(
+            key=lambda item: (
+                item.match_explanation["relation_to_mention"] == "CHILD",
+                -item.score,
+                item.name,
+            )
+        )
+    failed = any(item["status"] == "FAILED" for item in outcomes)
+    status = (
+        "PARTIAL" if candidates and failed else "FAILED" if failed else "RESULTS" if candidates else "EMPTY"
+    )
+    final_metrics = provider.thread_metrics() if hasattr(provider, "thread_metrics") else {}
+    return POISearchResults(
+        candidates,
+        {
+            "version": "poi-search-v1",
+            "mode": "MANUAL" if query_override is not None else "AUTO",
+            "status": status,
+            "queries": outcomes[:5],
+            "duration_ms": round((perf_counter() - start_time) * 1000),
+            "requests": final_metrics.get("requests", 0) - initial_metrics.get("requests", 0),
+            "cache_hits": final_metrics.get("cache_hits", 0) - initial_metrics.get("cache_hits", 0),
+            "candidate_ids": [item.provider_id for item in candidates[:5]],
+            "fallback_skipped": fallback_skipped,
+        },
+    )
 
 
 def _nearby_radius(relation: str) -> int | None:
@@ -3919,10 +4158,19 @@ def _negative_evidence(
     explanation = candidate.match_explanation
     context = (mention.metadata_json or {}).get("resolver_context", {})
     context = context if isinstance(context, dict) else {}
-    effective_city = mention.city_hint or str(context.get("geo_session_city") or "")
+    effective_city = mention.city_hint or str(
+        context.get("unit_city") or context.get("geo_session_city") or ""
+    )
+    effective_province = mention.province_hint or str(context.get("geo_session_province") or "")
     negative: list[str] = []
-    if effective_city and candidate.city and not explanation.get("city_match"):
+    if (
+        effective_city
+        and candidate.city
+        and effective_city.removesuffix("市") != candidate.city.removesuffix("市")
+    ):
         negative.append("CROSS_CITY_CONFLICT")
+    if effective_province and candidate.province and effective_province != candidate.province:
+        negative.append("CROSS_PROVINCE_CONFLICT")
     if explanation.get("category_compatibility") == "INCOMPATIBLE":
         negative.append("CATEGORY_CONFLICT")
     if query_count > 1 and consensus_count <= 1:
@@ -3936,7 +4184,11 @@ def _poi_queries(mention: PlaceMention) -> list[tuple[str, str]]:
     context = (mention.metadata_json or {}).get("resolver_context", {})
     aliases = context.get("aliases", []) if isinstance(context, dict) else []
     names = [mention.suggested_name, mention.name, mention.raw_name, *aliases]
-    session_city = str(context.get("geo_session_city") or "") if isinstance(context, dict) else ""
+    session_city = (
+        str(context.get("unit_city") or context.get("geo_session_city") or "")
+        if isinstance(context, dict)
+        else ""
+    )
     session_province = str(context.get("geo_session_province") or "") if isinstance(context, dict) else ""
     city = mention.city_hint or session_city
     province = mention.province_hint or session_province
@@ -4015,13 +4267,13 @@ def _poi_score(
         item.city_hint
         or str((item.metadata_json or {}).get("resolver_context", {}).get("geo_session_city") or "")
         for item in mentions or []
-        if item.id != mention.id
+        if item.id != mention.id and item.content_unit_id and item.content_unit_id == mention.content_unit_id
     }
     cross_provinces = {
         item.province_hint
         or str((item.metadata_json or {}).get("resolver_context", {}).get("geo_session_province") or "")
         for item in mentions or []
-        if item.id != mention.id
+        if item.id != mention.id and item.content_unit_id and item.content_unit_id == mention.content_unit_id
     }
     cross_location_matches = sorted(
         value for value in cross_cities | cross_provinces if value and value in location_text
@@ -4044,6 +4296,7 @@ def _poi_score(
         "reference_only": mention.poi_policy in {"REFERENCE_ONLY", "SKIP"},
         "distance_to_unit_cluster_m": None,
     }
+    explanation["raw_score"] = score
     return min(score, 100), reasons, explanation
 
 
@@ -4053,6 +4306,106 @@ def _normalized_poi_tokens(value: str) -> set[str]:
     for suffix in ("广播电视塔", "森林公园", "湿地景区", "博物馆", "风景区", "景区", "公园", "旅游区"):
         normalized = normalized.replace(suffix, "")
     return {normalized} if normalized else set()
+
+
+def _scenic_relation(mention: PlaceMention, candidate: POICandidate) -> str:
+    if mention.place_type not in {"SCENIC_AREA", "PARK"}:
+        return "UNKNOWN"
+    name = _normalized_insight_key(mention.suggested_name or mention.name or mention.raw_name)
+    target = _normalized_insight_key(candidate.name)
+    if not name or len(name) < 3 or name in {"森林公园", "风景区", "自然保护区", "旅游景区"}:
+        return "UNKNOWN"
+    if target == name:
+        return "SAME"
+    head, separator, child = (
+        re.split(r"([-—－–])", target, maxsplit=1) if re.search(r"[-—－–]", target) else (target, "", "")
+    )
+    suffixes = (
+        "国家级风景名胜区",
+        "风景名胜区",
+        "国家森林公园",
+        "国家级自然保护区",
+        "自然保护区",
+        "风景区",
+        "景区",
+        "森林公园",
+    )
+    same_base = head == name or any(head == name + suffix for suffix in suffixes)
+    if same_base and separator and child:
+        return "CHILD"
+    if same_base and not separator:
+        return "SAME"
+    return "UNKNOWN"
+
+
+def _poi_competitor(candidates: list[POICandidate]) -> POICandidate | None:
+    if not candidates:
+        return None
+    selected = candidates[0]
+    for item in candidates[1:]:
+        if (
+            selected.match_explanation.get("relation_to_mention") == "SAME"
+            and item.match_explanation.get("relation_to_mention") == "CHILD"
+            and re.split(r"[-—－–]", _normalized_insight_key(item.name), maxsplit=1)[0]
+            == _normalized_insight_key(selected.name)
+            and selected.city
+            and item.city == selected.city
+            and selected.province
+            and item.province == selected.province
+            and (not selected.district or not item.district or selected.district == item.district)
+        ):
+            continue
+        return item
+    return None
+
+
+def _scenic_entry_candidate(mention: PlaceMention, candidates: list[POICandidate]) -> POICandidate | None:
+    if (
+        not isinstance(candidates, POISearchResults)
+        or candidates.trace["status"] != "RESULTS"
+        or mention.place_type not in {"SCENIC_AREA", "PARK"}
+        or mention.visit_intent != "RECOMMENDED"
+        or mention.subject_role not in {"PRIMARY", "SECONDARY"}
+        or any(int(query.get("count", 0)) >= 20 for query in candidates.trace["queries"])
+        or any(item.match_explanation.get("relation_to_mention") != "CHILD" for item in candidates)
+    ):
+        return None
+    context = (mention.metadata_json or {}).get("resolver_context", {})
+    if not isinstance(context, dict):
+        return None
+    province = mention.province_hint or str(context.get("geo_session_province") or "")
+    city = mention.city_hint or str(context.get("unit_city") or context.get("geo_session_city") or "")
+    if not province or not city:
+        return None
+    if any(item.city != city or item.province != province for item in candidates):
+        return None
+    heads = {re.split(r"[-—－–]", item.name, maxsplit=1)[0] for item in candidates}
+    if len(heads) != 1:
+        return None
+    centers = [
+        item
+        for item in candidates
+        if re.split(r"[-—－–]", item.name, maxsplit=1)[-1] in {"游客中心", "游客接待中心"}
+        and item.typecode
+        and item.match_explanation.get("coordinate_valid")
+        and not item.match_explanation.get("negative_evidence")
+    ]
+    return centers[0] if len(centers) == 1 else None
+
+
+def _poi_detail_consistent(selected: POICandidate, detail: POICandidate) -> bool:
+    return bool(
+        selected.provider_id
+        and detail.provider_id == selected.provider_id
+        and _normalized_insight_key(selected.name) == _normalized_insight_key(detail.name)
+        and (not selected.city or not detail.city or selected.city == detail.city)
+        and (not selected.province or not detail.province or selected.province == detail.province)
+        and (not selected.typecode or not detail.typecode or selected.typecode == detail.typecode)
+        and 73.5 <= detail.longitude <= 135.1
+        and 18 <= detail.latitude <= 53.6
+        and abs(selected.longitude - detail.longitude) <= 0.003
+        and abs(selected.latitude - detail.latitude) <= 0.003
+    )
 
 
 def _poi_review_reasons(selected: POICandidate, runner_up: POICandidate | None) -> list[str]:
@@ -4074,10 +4427,21 @@ def _poi_review_reasons(selected: POICandidate, runner_up: POICandidate | None) 
         reasons.append("地点类型只有弱兼容候选")
     elif category == "INCOMPATIBLE" or not explanation.get("category_match"):
         reasons.append("地点类型与候选冲突")
-    if runner_up and selected.score - runner_up.score < 15:
+    if (
+        runner_up
+        and selected.match_explanation.get("raw_score", selected.score)
+        - runner_up.match_explanation.get("raw_score", runner_up.score)
+        < 15
+    ):
         reasons.append("第一、二候选差距过小")
     if not explanation.get("coordinate_valid"):
         reasons.append("候选坐标异常")
+    if explanation.get("coverage_incomplete"):
+        reasons.append("查询结果不完整")
+    if explanation.get("relation_to_mention") == "CHILD":
+        reasons.append("候选是景区内部地点")
+    if explanation.get("relation_to_mention") == "UNKNOWN" and explanation.get("scenic_target"):
+        reasons.append("景区候选实体关系不明确")
     code_by_reason = {
         "候选综合分不足": "SCORE_BELOW_THRESHOLD",
         "名称匹配不够强": "NAME_MATCH_WEAK",
@@ -4087,6 +4451,9 @@ def _poi_review_reasons(selected: POICandidate, runner_up: POICandidate | None) 
         "地点类型与候选冲突": "CATEGORY_CONFLICT",
         "第一、二候选差距过小": "CANDIDATE_GAP_SMALL",
         "候选坐标异常": "COORDINATE_INVALID",
+        "查询结果不完整": "QUERY_INCOMPLETE",
+        "候选是景区内部地点": "SCENIC_CHILD_ONLY",
+        "景区候选实体关系不明确": "SCENIC_RELATION_UNKNOWN",
     }
     explanation["review_reason_codes"] = [code_by_reason[item] for item in reasons]
     return reasons
@@ -4097,9 +4464,14 @@ def _resolver_v2_shadow(mention: PlaceMention, candidates: list[POICandidate]) -
     if not candidates:
         return {"version": "poi-v2-shadow", "decision": "UNRESOLVED", "features": {}}
     selected = candidates[0]
-    runner_up = candidates[1] if len(candidates) > 1 else None
+    runner_up = _poi_competitor(candidates)
     explanation = selected.match_explanation
-    candidate_gap = selected.score - runner_up.score if runner_up else 100
+    candidate_gap = (
+        selected.match_explanation.get("raw_score", selected.score)
+        - runner_up.match_explanation.get("raw_score", runner_up.score)
+        if runner_up
+        else 100
+    )
     name = _normalized_insight_key(selected.name)
     branch_markers = ("店", "分店", "门店", "酒店", "宾馆", "咖啡")
     feature = ResolutionFeatureVector(

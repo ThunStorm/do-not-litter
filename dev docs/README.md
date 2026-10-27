@@ -50,6 +50,7 @@
 | 产品 / 架构 | [PRODUCT_REQUIREMENTS](product/PRODUCT_REQUIREMENTS.md) 用户场景与边界；[SYSTEM_ARCHITECTURE](architecture/SYSTEM_ARCHITECTURE.md) 模块关系；[ARCHITECTURE_DECISIONS](architecture/ARCHITECTURE_DECISIONS.md) 按 ADR 编号追溯原因 |
 | 数据 / API / 安全 | [DATA_MODEL](architecture/DATA_MODEL.md) 按表定位；[API_DESIGN](architecture/API_DESIGN.md) 按路由定位；[SECURITY_PRIVACY](architecture/SECURITY_PRIVACY.md) 按安全边界定位 |
 | 招聘 / 旅行 | [RECRUITMENT_PIPELINE](product/RECRUITMENT_PIPELINE.md) 提取/规则/资格；[TRAVEL_FOOD_PIPELINE](product/TRAVEL_FOOD_PIPELINE.md) 地点/POI/偏好 |
+| POI匹配与搜索排查 | [归档排查与方案](history/planning/POI_RESOLUTION_DIAGNOSTIC_AND_OPTIMIZATION_PLAN.md)：跨片段证据、搜索一致性、景区父子候选与代表点；现状见旅行领域及实施状态 |
 | 视频 Pipeline | [VIDEO_AI_NOTE_PIPELINE](video/VIDEO_AI_NOTE_PIPELINE.md) 五篇索引：范围、输入转写、生成物化、Job/API、视图与安全 |
 | 视频代码定位 | [VIDEO_AI_NOTE_IMPLEMENTATION_GUIDE](video/VIDEO_AI_NOTE_IMPLEMENTATION_GUIDE.md) 短代码地图；旧 WP 已归档，不再要求完整读取八份文档 |
 | 阅读 / 列表 / 删除 | [阅读体验](video/VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md)、[列表封面](video/VIDEO_NOTE_LIST_V043_SPEC.md)、[笔记删除](video/VIDEO_NOTE_DELETE_V044_SPEC.md)，保持独立验收边界 |

@@ -513,6 +513,8 @@ def video_note_places(note_id: str, _: Protected, db: Session = Depends(get_db))
     for mention in _mentions_for_note(db, note):
         place = db.get(Place, mention.place_id) if mention.place_id else None
         destination = db.get(Destination, mention.destination_id) if mention.destination_id else None
+        anchor = (mention.metadata_json or {}).get("representative_anchor")
+        anchor_kind = anchor.get("kind") if isinstance(anchor, dict) else None
         evidence_segments = [
             segment_by_id[segment_id]
             for segment_id in mention.segment_ids_json
@@ -580,6 +582,7 @@ def video_note_places(note_id: str, _: Protected, db: Session = Depends(get_db))
                     "id": destination.id,
                     "name": destination.canonical_name,
                     "scope_type": destination.scope_type,
+                    "anchor_kind": anchor_kind,
                 }
                 if destination
                 else None,

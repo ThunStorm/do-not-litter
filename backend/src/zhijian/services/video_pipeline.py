@@ -35,6 +35,7 @@ from zhijian.db.models import (
     VideoScreenshot,
 )
 from zhijian.domain.enums import ContentType, JobStatus
+from zhijian.providers.amap import AMapPOIProvider
 from zhijian.providers.asr import ASRProviderRegistry
 from zhijian.providers.media import MediaDownloadError, YtDlpMediaProvider
 from zhijian.resolvers.video import video_adapter_for_platform
@@ -1107,7 +1108,11 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
             store.get("amap:web-service-key") or settings.amap_api_key,
             poi_metrics,
         )
-        destination_count, destination_links = materialize_destinations(db, asset, mentions)
+        area_key = store.get("amap:web-service-key") or settings.amap_api_key
+        area_provider = (
+            AMapPOIProvider(area_key, cache_ttl_seconds=settings.amap_cache_ttl_seconds) if area_key else None
+        )
+        destination_count, destination_links = materialize_destinations(db, asset, mentions, area_provider)
         _done(
             db,
             job,
@@ -1606,7 +1611,15 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                 store.get("amap:web-service-key") or settings.amap_api_key,
                 poi_metrics,
             )
-            destination_count, destination_links = materialize_destinations(db, asset, mentions)
+            area_key = store.get("amap:web-service-key") or settings.amap_api_key
+            area_provider = (
+                AMapPOIProvider(area_key, cache_ttl_seconds=settings.amap_cache_ttl_seconds)
+                if area_key
+                else None
+            )
+            destination_count, destination_links = materialize_destinations(
+                db, asset, mentions, area_provider
+            )
             _done(
                 db,
                 job,

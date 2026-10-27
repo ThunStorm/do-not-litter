@@ -20,3 +20,11 @@ it('keeps a negative mark on a confirmed place without treating position confirm
   expect(screen.getByRole('link', { name: '通灵大峡谷' })).toHaveAttribute('href', '/places/p')
   expect(screen.queryByText('作者推荐')).not.toBeInTheDocument()
 })
+
+it('links a representative destination to the map without calling it a confirmed Place', () => {
+  const value = { ...candidate, resolution_status: 'AREA_RESOLVED', destination: { id: 'dst-1', name: '玉龙雪山', scope_type: 'SCENIC_AREA', anchor_kind: 'SCENIC_ENTRY' } }
+  render(<MemoryRouter><ul><VideoPlaceCandidate place={value} canonicalUrl="" platform="LOCAL" /></ul></MemoryRouter>)
+  expect(screen.getByText('已定位至游客中心')).toBeVisible()
+  expect(screen.getByRole('link', { name: '通灵大峡谷' })).toHaveAttribute('href', '/map?place=dst-1')
+  expect(screen.queryByText('已确认')).not.toBeInTheDocument()
+})

@@ -17,7 +17,7 @@ import { clusterSummary, matchingCluster } from './clusterSummary'
 import { MapCanvas } from './MapCanvas'
 import { labelPlaceType, seasonLabels, segmentLabels, timeLabels, stateLabels } from './placeLabels'
 
-const placeTypes = ['SCENIC_AREA', 'RESTAURANT', 'NEIGHBORHOOD', 'MUSEUM', 'PARK', 'HOTEL', 'TRANSPORT', 'LANDMARK']
+const placeTypes = ['SCENIC_AREA', 'AREA', 'RESTAURANT', 'NEIGHBORHOOD', 'MUSEUM', 'PARK', 'HOTEL', 'TRANSPORT', 'LANDMARK']
 const options = (labels: Record<string, string>) => [{ value: '', label: '全部' }, ...Object.entries(labels).map(([value, label]) => ({ value, label }))]
 function FilterChoices({ label, value, values, onChange }: { label: string; value: string; values: Array<{ value: string; label: string }>; onChange: (value: string) => void }) {
   return <fieldset className="map-filter-choices"><legend>{label}</legend>{values.map((item) => <button type="button" key={item.value} aria-pressed={item.value === value} onClick={() => onChange(item.value)}>{item.label}</button>)}</fieldset>
@@ -189,6 +189,7 @@ export function MapOverviewPage() {
         <div className="place-preview__handle" />
         <div className="place-preview__nav"><span><strong>{activeIndex + 1}</strong> / {markerIds.length}</span><div><button onClick={() => moveSelection(-1)} aria-label="上一地点"><ChevronLeft /></button><button onClick={() => moveSelection(1)} aria-label="下一地点"><ChevronRight /></button><button onClick={() => setSelectedId(undefined)} aria-label="关闭地点预览"><X /></button></div></div>
         <div className="place-name-line place-preview__title"><h2>{selected.name}</h2><RecommendationSummary value={selected.recommendation_summary} compact /></div><RecommendationSummary value={selected.recommendation_summary} />
+        {selected.entity_type === 'DESTINATION' ? <><p>{selected.brief.anchor_kind === 'SCENIC_ENTRY' ? '景区 · 游客中心代表点' : '行政区域 · 政府驻地代表点'}</p><p className="place-preview__address">{selected.address}</p><p>{selected.summary}</p><details className="place-preview__evidence"><summary>查看来源</summary>{selected.source_notes?.map((note) => <p key={`${note.note_id}-${note.version_id}`}><Link to={`/video-notes/${note.note_id}`}>{note.title}</Link></p>)}{selected.visit_window_evidence?.map((item, i) => <blockquote key={i}>{item.source_text}</blockquote>)}</details><a className="button button--primary" href={`https://uri.amap.com/marker?position=${selected.longitude},${selected.latitude}&name=${encodeURIComponent(selected.address)}&src=zhijian&coordinate=gaode&callnative=1`} target="_blank" rel="noreferrer">在高德查看代表点</a></> : <>
         <p>{labelPlaceType(selected.place_type)} · {stateLabels[selected.user_state] ?? selected.user_state}</p>
         <p className="place-preview__address">{selected.address}</p>
         {selected.preview_image ? <img className="place-preview__image" src={selected.preview_image} alt={`${selected.name}的视频截图`} /> : null}
@@ -203,7 +204,7 @@ export function MapOverviewPage() {
         <details className="place-preview__route-disclosure" key={`route-${selected.id}`}><summary>加入路线</summary><div className="place-preview__route">{routes.data?.length ? <><FilterMenu label="目标路线" value={targetRouteId} onChange={setTargetRouteId} options={[{ value: '', label: '选择路线' }, ...routes.data.map((item) => ({ value: item.id, label: item.name }))]} /><button className="button button--outline" onClick={() => addToRoute.mutate()} disabled={!route || route.places.some((place) => place.id === selected.id) || addToRoute.isPending}>{route?.places.some((place) => place.id === selected.id) ? '已加入' : addToRoute.isPending ? '加入中…' : '加入路线'}</button></> : <button className="button button--outline" onClick={() => quickCreateRoute.mutate()} disabled={routes.isPending || routes.isError || quickCreateRoute.isPending}>新建路线并加入</button>}</div></details>
         {addToRoute.isError || quickCreateRoute.isError || routes.isError ? <p role="alert">路线加载或添加失败，请重试。</p> : null}
         {(addToRoute.isSuccess || quickCreateRoute.isSuccess) && route?.places.some((place) => place.id === selected.id) ? <p role="status">已加入路线</p> : null}
-        <div className="place-preview__actions"><Link className="button button--primary" to={`/places/${selected.id}`} state={{ fromMap: true }}>查看详情</Link></div>
+        <div className="place-preview__actions"><Link className="button button--primary" to={`/places/${selected.id}`} state={{ fromMap: true }}>查看详情</Link></div></>}
       </section>}
     </div>
   )

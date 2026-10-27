@@ -12,7 +12,11 @@
 - 文件：ai/structured_ids.py、request_compiler.py、json_recovery.py、services/video_support.py；契约ai-gateway/04-stage-policy.md。
 - 禁止：不自动调用模型、重跑视频、确认POI、迁移或改历史/凭据；旧快照、显式0重试与REMOTE_ONLY保持。
 
-## 生产快照（最新采样2026-10-27 11:47，北京时间）
+## 生产快照（最新采样2026-10-27 15:48，北京时间）
+
+- 2026-10-27 15:48 POI匹配/代表点：经用户明确授权执行0025→0026，迁移中所有业务表行内容/数量一致；最终重载前后42张业务表摘要不变。API/Worker RUNNING，内容及新Worker PID51609心跳READY，active/lease/在途调用0，integrity=ok、FK0。迁移保存点 `data/backups/poi-resolution-release-20261027-153554`；最终无迁移重载保存点 `data/backups/poi-resolution-final-20261027-154725`，含源码、旧新静态、哈希、已验逻辑DB与安全回退脚本；最终备份SHA256 `d2de50144ac96dafca1b9ead25846d27465bb16b8371a738f18564ac9416070e`。线上index SHA256 `ef053deddaafbfc16de8329e9b7848ad17dcc35b5004bd315f19f012625b5f63`，JS/CSS HTTP哈希与构建一致。目标笔记真实只读接口77条、地图真实只读接口18点；962/390px生产Browser验证搜索展开、代表点和类型筛选，搜索POST与代表点由夹具拦截，零生产业务写入、溢出与相关错误。未调用真实高德/模型、重跑视频或确认历史POI；代表点真实质量和实体级操作仍有独立验收边界。本任务本地提交、不推送。
+
+- 2026-10-27 15:35 POI工作包发布准备：当前生产0025，API/Worker RUNNING、内容及Worker心跳READY；active Job/lease/在途调用0，integrity=ok、FK0。保存点 `data/backups/poi-resolution-release-20261027-153554` 含逻辑DB备份、旧新静态、源码快照、哈希清单及带漂移/空闲/重名门禁的rollback.py；备份SHA256 `13804244fc1bf37e3b191b41f56ac053dba56b9484c589503db4dc9a47062d8d`，旧线上静态HTTP与备份哈希一致。0026已在临时逻辑副本验证业务行内容/数量不变、integrity=ok/FK0；本次尚未迁移、部署、重启或真实Provider调用。该采样随时间失效，实际执行前必须重新核对并更新备份。
 
 - 2026-10-27 11:47 地点标签/候选紧凑化：默认推荐不额外显示态度标签，只有名称旁“不推荐/有来源不推荐”；视频候选仅显示状态、真实详情/时间入口，无确认按钮与重复玩法chips，320px列表内部滚动。保存点`data/backups/place-display-20261027-113420`含源码前/发布tar/patch/哈希、已验逻辑DB、旧新静态/HTTP哈希与带漂移保护的rollback.py。仅静态更新，API/Worker未重启且RUNNING，内容/心跳READY，Worker PID61468不变；active/lease/在途调用0、integrity=ok/FK0/0025，业务表摘要一致，调用审计仍1746。最终3个静态资源HTTP哈希匹配，index SHA256 `df1cf3ebc3375164f47f5f45151f30e4dd561e49ca6358f6e8b155a3a1f88617`。后端632/前端49、目标10、ESLint/类型/隔离构建、文档5项通过；预览与生产962/390px验证两个指定Note的77/34条候选、栏目390px/内滚/状态/时间链接、地图单点/聚合/详情无默认标签，无溢出、相关错误或写请求。负向名称标记及聚合颜色用客户端fixture核对，不写生产。无历史改写、模型调用、视频重跑或POI确认；提交推送结果见同保存点release-result.json。
 

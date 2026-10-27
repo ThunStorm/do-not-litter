@@ -65,3 +65,37 @@ it('retains a cluster through viewport loading and closes it when the real group
   fireEvent.click(screen.getByRole('button', { name: '测试聚合散开' }))
   await waitFor(() => expect(screen.queryByRole('region', { name: '聚合地点预览' })).not.toBeInTheDocument())
 })
+
+it.each([
+  ['GOVERNMENT_SEAT', '行政区域 · 政府驻地代表点', '昆明市人民政府'],
+  ['SCENIC_ENTRY', '景区 · 游客中心代表点', '玉龙雪山游客接待中心'],
+])('shows %s without pretending it is a Place', async (kind, label, address) => {
+  vi.mocked(api.map).mockImplementation(async (params) => ({
+    markers: [{ id: 'p1', place_id: null, entity_type: 'DESTINATION', name: '推荐区域', place_type: 'AREA', user_state: 'DISCOVERED', address, latitude: 25, longitude: 102, summary: '代表点', source_count: 1, brief: { anchor_kind: kind }, source_notes: [{ note_id: 'note-1', version_id: 'v1', title: '来源视频' }], visit_window_evidence: [{ source_text: '推荐区域' }] }],
+    selected_place_id: params?.selectedPlaceId, visible_places: 1,
+  }) as never)
+  vi.mocked(api.routes).mockResolvedValue([])
+  vi.mocked(api.placeReviewCount).mockResolvedValue({ count: 0 })
+  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter><MapOverviewPage /></MemoryRouter></QueryClientProvider>)
+  fireEvent.click(screen.getByRole('button', { name: '查看测试地点' }))
+  expect(await screen.findByText(label)).toBeInTheDocument()
+  expect(screen.getByText(address)).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: '在高德查看代表点' })).toHaveAttribute('href', expect.stringContaining('uri.amap.com/marker'))
+  expect(screen.queryByRole('link', { name: '查看详情' })).not.toBeInTheDocument()
+  expect(screen.queryByText('加入路线')).not.toBeInTheDocument()
+})
+
+it('keeps a destination selectable when grouped with places', async () => {
+  vi.mocked(api.map).mockImplementation(async (params) => ({ markers: [
+    { id: 'p1', place_id: null, entity_type: 'DESTINATION', name: '昆明市', place_type: 'AREA', user_state: 'DISCOVERED', address: '昆明市人民政府', latitude: 25, longitude: 102, summary: '代表点', source_count: 1, brief: { anchor_kind: 'GOVERNMENT_SEAT' } },
+    { id: 'p2', place_id: 'p2', name: '翠湖', place_type: 'PARK', user_state: 'DISCOVERED', source_count: 1 },
+  ], selected_place_id: params?.selectedPlaceId, visible_places: 2 }) as never)
+  vi.mocked(api.routes).mockResolvedValue([])
+  vi.mocked(api.placeReviewCount).mockResolvedValue({ count: 0 })
+  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter><MapOverviewPage /></MemoryRouter></QueryClientProvider>)
+  await screen.findByText(/2 个地点 · 当前地图区域/)
+  fireEvent.click(screen.getByRole('button', { name: '测试聚合' }))
+  expect(await screen.findByText('这一区域的 2 个地点')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: /昆明市/ }))
+  expect(await screen.findByText('行政区域 · 政府驻地代表点')).toBeInTheDocument()
+})

@@ -197,7 +197,11 @@ class Destination(Base, TimestampMixin):
     """Administrative or travel-area context; never a substitute POI."""
 
     __tablename__ = "destinations"
-    __table_args__ = (UniqueConstraint("scope_type", "canonical_name", name="uq_destination_scope_name"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "scope_type", "canonical_name", "province", "city", "district", name="uq_destination_scope_region"
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: new_id("dst"))
     name: Mapped[str] = mapped_column(String(300), nullable=False)

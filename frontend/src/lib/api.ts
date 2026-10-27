@@ -77,7 +77,7 @@ export type VideoPlace = {
   start_ms: number | null
   target_section_id: string | null
   place: { name: string; address: string } | null
-  destination: { id: string; name: string; scope_type: string } | null
+  destination: { id: string; name: string; scope_type: string; anchor_kind?: string | null } | null
   insights: Array<{ insight_type: string; value_text: string; segment_ids: string[]; source_quote: string; target_section_id: string | null }>
 }
 
@@ -163,7 +163,7 @@ export const api = {
   placeReviewCount: () => request<{ count: number }>('/api/travel/place-reviews/count'),
   confirmPlaceReview: (mentionId: string, poiId: string, expectedRevision: number) => request<{ place_id: string; mention_id: string; resolution_status: string }>(`/api/travel/place-mentions/${mentionId}/confirm`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ provider: 'AMAP', poi_id: poiId, expected_revision: expectedRevision }) }),
   updatePlaceMention: (mentionId: string, action: 'reject' | 'restore') => request(`/api/travel/place-mentions/${mentionId}/${action}`, { method: 'POST' }),
-  searchPlaceReview: (mentionId: string, query: string, expectedRevision: number) => request<{ revision: number; candidates: Array<{ provider_id: string; name: string; address: string; score: number; match_reasons: string[] }> }>(`/api/travel/place-mentions/${mentionId}/poi-search`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ query, expected_revision: expectedRevision }) }),
+  searchPlaceReview: (mentionId: string, query: string, expectedRevision: number) => request<{ revision: number; candidates: PlaceReview['candidates'] }>(`/api/travel/place-mentions/${mentionId}/poi-search`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ query, expected_revision: expectedRevision }) }),
   nearbyPois: (longitude: number, latitude: number) => request<Array<{ provider_id: string; name: string; address: string; longitude: number; latitude: number }>>('/api/travel/map/nearby-pois', { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ longitude, latitude }) }),
   searchMapPois: (query: string) => request<Array<{ provider_id: string; name: string; address: string; city?: string; longitude: number; latitude: number }>>('/api/travel/map/place-search', { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ query, expected_revision: 0 }) }),
   createManualPlace: (payload: { mode: 'CUSTOM' | 'AMAP_POI'; name?: string; place_type: string; longitude: number; latitude: number; note?: string; poi_id?: string }) => request<{ place_id: string }>('/api/travel/places', { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) }),

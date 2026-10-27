@@ -1,5 +1,5 @@
 export const placeTypeLabels: Record<string, string> = {
-  SCENIC_AREA: '景点', RESTAURANT: '餐饮', NEIGHBORHOOD: '街区', PEDESTRIAN_STREET: '步行街', BUSINESS_DISTRICT: '商圈', MARKET: '市集', PARK: '公园', MUSEUM: '博物馆', TEMPLE: '寺庙', VILLAGE: '村落', TOWN: '古镇/城镇', LANDMARK: '地标', ACCOMMODATION: '住宿', HOTEL: '住宿', TRANSIT: '交通', TRANSPORT: '交通', OTHER: '其他', UNKNOWN: '其他',
+  SCENIC_AREA: '景点', AREA: '区域代表点', RESTAURANT: '餐饮', NEIGHBORHOOD: '街区', PEDESTRIAN_STREET: '步行街', BUSINESS_DISTRICT: '商圈', MARKET: '市集', PARK: '公园', MUSEUM: '博物馆', TEMPLE: '寺庙', VILLAGE: '村落', TOWN: '古镇/城镇', LANDMARK: '地标', ACCOMMODATION: '住宿', HOTEL: '住宿', TRANSIT: '交通', TRANSPORT: '交通', OTHER: '其他', UNKNOWN: '其他',
 }
 export const seasonLabels: Record<string, string> = { SPRING: '春季', SUMMER: '夏季', AUTUMN: '秋季', WINTER: '冬季' }
 export const segmentLabels: Record<string, string> = { EARLY: '上旬', MID: '中旬', LATE: '下旬' }

@@ -30,7 +30,7 @@ def _runner():
 
 
 def test_poi_resolution_golden_enforces_precision_first_gate() -> None:
-    path = Path(__file__).parents[2] / "dev docs" / "benchmark" / "poi-resolution-golden-v1.json"
+    path = Path(__file__).parents[2] / "dev docs" / "benchmark" / "poi-resolution-golden-v2.json"
     cases = json.loads(path.read_text(encoding="utf-8"))
     result = _runner().evaluate(cases)
 

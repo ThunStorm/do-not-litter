@@ -60,6 +60,7 @@
 | 产品 / 架构 | [PRODUCT_REQUIREMENTS](product/PRODUCT_REQUIREMENTS.md) 用户场景与边界；[SYSTEM_ARCHITECTURE](architecture/SYSTEM_ARCHITECTURE.md) 模块关系；[ARCHITECTURE_DECISIONS](architecture/ARCHITECTURE_DECISIONS.md) 按 ADR 编号追溯原因 |
 | 数据 / API / 安全 | [DATA_MODEL](architecture/DATA_MODEL.md) 按表定位；[API_DESIGN](architecture/API_DESIGN.md) 按路由定位；[SECURITY_PRIVACY](architecture/SECURITY_PRIVACY.md) 按安全边界定位 |
 | 招聘 / 旅行 | [RECRUITMENT_PIPELINE](product/RECRUITMENT_PIPELINE.md) 提取/规则/资格；[TRAVEL_FOOD_PIPELINE](product/TRAVEL_FOOD_PIPELINE.md) 地点/POI/偏好 |
+| POI匹配与搜索排查 | [归档排查与方案](history/planning/POI_RESOLUTION_DIAGNOSTIC_AND_OPTIMIZATION_PLAN.md)：跨片段证据、搜索一致性、景区父子候选与代表点；现状见旅行领域及实施状态 |
 | 视频 Pipeline | [VIDEO_AI_NOTE_PIPELINE](video/VIDEO_AI_NOTE_PIPELINE.md) 五篇索引：范围、输入转写、生成物化、Job/API、视图与安全 |
 | 视频代码定位 | [VIDEO_AI_NOTE_IMPLEMENTATION_GUIDE](video/VIDEO_AI_NOTE_IMPLEMENTATION_GUIDE.md) 短代码地图；旧 WP 已归档，不再要求完整读取八份文档 |
 | 阅读 / 列表 / 删除 | [阅读体验](video/VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md)、[列表封面](video/VIDEO_NOTE_LIST_V043_SPEC.md)、[笔记删除](video/VIDEO_NOTE_DELETE_V044_SPEC.md)，保持独立验收边界 |
@@ -287,7 +288,7 @@
 | 视频 v0.4.2 阅读返工 | Hero 有真实封面、缺省为空；摘要/主体目录/正文优先，地点候选与完整转写放底部；默认使用 AI corrected Transcript；截图以侧排缩略图嵌入并支持 contain Lightbox；TXT 按钮使用统一视觉 | `video/VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md` |
 | 视频 v0.4.3 列表封面 | 主按钮为“添加视频链接”并使用统一 40px/14px Token；Card 展示本地持久真实封面、16:9 cover 和时长徽标；封面失败只显示占位，不阻塞 Note | `video/VIDEO_NOTE_LIST_V043_SPEC.md` |
 | 视频笔记删除 | 列表/详情共用删除；删除 Note/Version/Section/TOC/Content 投影，保留共享 Source/Asset/Cover/Transcript/Place/Evidence；活跃 Job 阻止删除 | `video/VIDEO_NOTE_DELETE_V044_SPEC.md` |
-| 地点与 POI | 保留 `raw_name`，人工改名仅更新 `suggested_name`；高德确认写 `canonical_name`；Semantic Map 的 `REFERENCE_ONLY`/`SKIP` 永不进入 AMap、Review、手动确认或 Confirmed Marker，`AREA_RESOLVE` 只建 Destination；歧义进入 Review，拒绝项不再显示且可撤销 | `product/TRAVEL_FOOD_PIPELINE.md`、`services/video_support.py` |
+| 地点与 POI | 保留 `raw_name`，人工改名仅更新 `suggested_name`；高德确认写 `canonical_name`；`REFERENCE_ONLY`/`SKIP` 不进入POI；推荐区域或景区可在严格门禁后以 Destination 代表点上图，政府/游客中心不是 Place 本体；同名区域按行政链隔离，歧义不自动确认，拒绝项不再显示且可撤销 | `product/TRAVEL_FOOD_PIPELINE.md`、`services/video_support.py` |
 | 全国地图 | 首次中国大陆全境、之后恢复 viewport；按 bbox + zoom 查询且低 zoom 聚合、放大后直出独立 Marker；不得恢复厦门/思明区默认参数、标题、静态伪地图或路线默认城市 | `video/VIDEO_AI_NOTE_PIPELINE.md` 4.16、`MapOverviewPage.tsx` |
 | Marker 生命周期 | 自动 Marker 删除仅隐藏投影；用户 Marker 软删除可恢复；绝不删除 Place、Source、Claim、Evidence、Place Note；浮层展示图片、地址、特色、来源数、状态和详情入口 | `architecture/API_DESIGN.md`、`map_marker_states`、`MapOverviewPage.tsx` |
 | 高德设置 | JS API Key、Security Code、Web 服务 Key 分别保存/测试/诊断；前端已认证后用 bootstrap 读取，不在代码或构建变量硬编码 Key | `product/CONTROL_CENTER.md`、`SettingsPage.tsx` |
@@ -374,6 +375,12 @@
 # 当前实施状态
 
 > 状态记录日期：2026-10-27。本文唯一记录当前源码能力与自动验证；生产状态只见带原采样日期的 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
+
+## 2026-10-27 POI解析与复核
+
+跨Segment精确原文校验不再插入换行，仅接受同Snapshot连续有序片段；指定视频7条只读样本6条通过、1条跳段保留复核。自动/手动搜索复用排名，限额内分级召回并保留失败/空/部分结果、短空缓存、按线程统计；高德详情需身份、地域、类别及坐标一致。景区本体与明确内部景点分层比较，保留地域与来源门禁；搜索交互保留输入、候选和revision并区分空/错误。
+
+新增0026区域身份唯一键迁移，以及严格证据、态度、行政链、同级政府或唯一游客中心和详情门禁下的Destination代表点；地图和视频链接保留区域/景区身份，不把入口记成普通Place。原Golden v1保留，v2将未证明同单元的跨地点地域样本改为复核；17例Top-1/Top-3均1.0、错误自动确认0，仅为离线样本。后端全量641及最终目标70项、前端全量54及代表点聚合目标回归、Ruff/ESLint/类型和隔离构建通过；迁移副本0026、integrity=ok/FK0、业务行内容及数量不变。962/390px夹具搜索、代表点及类型筛选通过；Provider大小写不同的删除墓碑均阻断，历史重复POI进入复核。Destination支持来源和高德代表点入口、类型筛选及聚合，不支持加入路线或独立隐藏；时间等无证据过滤不会臆测。真实高德、模型、视频重跑、历史重解析及新规则质量未验；发布现场见交接。
 
 ## 2026-10-27 地点展示修订
 
@@ -3117,6 +3124,10 @@ PlaceMention
 MVP 实现 `AMapPOIProvider`：使用高德 Web 服务进行候选搜索，优先传城市/adcode 与 `citylimit` 收敛歧义；保存 Provider、POI ID、原始候选响应哈希与 `GCJ02` 坐标系。前端使用高德地图 JS API 2.0。
 
 POI 解析同时承担名称校正：保留转写原文 `raw_name`，高德候选命中后保存 `canonical_name` 与 aliases。必须结合地点类型、城市/区县、附近地标、地址上下文和视频其他地点进行确定性打分；无法唯一确认时进入 Review。城市/省份只作为上下文，不因为被提及就默认创建 Marker。
+
+2026-10-27 契约修订：明确推荐的行政区域可在来源证据、作者态度、上级行政链、同级政府名称/类型及详情均通过时，以政府驻地作为 Destination 的地图代表点；背景行政区不自动上图。景区仅有游客中心时，须证明名称层级、地域和唯一入口，地图标明“游客中心代表点”。Destination和入口POI分开，不将政府或入口冒充景区/区域本体；代表点与笔记证据保留绑定。多个入口、同名跨区或信息缺失不猜测。区域身份按类型、名称及上级行政链区分，所需0026迁移单独控制；生产能力与备份以交接快照为准。
+
+景区本体和明确子景点分别比较，不凭共享前缀认定父子；正式名称后缀只在受控等价与可信地域下参与匹配。自动与人工搜索共用候选排名，但人工搜索不自动确认；空响应、失败和部分覆盖分开记录，详情不一致阻断自动确认。搜索结果保留表单及状态反馈。代表点可在地图查看来源、高德定位和类型筛选；当前不支持加入路线或独立隐藏，墓碑仍阻止已删除POI重现。真实Provider质量与历史重处理需独立验收。
 
 高德请求使用本机 API/Worker 共用的文件锁，所有 Key 的 text/around/detail 查询统一至少间隔 1.1 秒；缓存和同查询合并按 Key 哈希隔离，命中不发新请求。HTTP 429 或 QPS 错误进入 5 秒冷却，不自动重试、不缓存失败，不将外部限流判为地点识别失败；HTTP 错误不保存带 Key 的 URL。此为保守本机限速，实际账号配额及其他应用流量仍需独立核对，不保证消除外部限流。原历史候选/错误与人工确认保持不变。
 

@@ -91,6 +91,7 @@ class ContentView(BaseModel):
 
 
 class MapMarker(BaseModel):
+    entity_type: Literal["PLACE", "DESTINATION"] = "PLACE"
     recommendation_summary: dict[str, Any] = Field(default_factory=dict)
     travel_brief: dict[str, Any] = Field(default_factory=dict)
     source_notes: list[dict[str, str]] = Field(default_factory=list)
