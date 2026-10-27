@@ -17,6 +17,6 @@ it('reports the confirmed place id and offers a map location link', async () => 
   fireEvent.click(screen.getByRole('button', { name: '确认地点位置' }))
   await waitFor(() => expect(done).toHaveBeenCalledWith('p-new'))
   expect(await screen.findByRole('link', { name: '在地图查看' })).toHaveAttribute('href', '/map?place=p-new')
-  expect(screen.getByText('作者不推荐')).toBeInTheDocument()
+  expect(screen.getByText('不推荐')).toBeInTheDocument()
   expect(invalidations).toHaveBeenCalledWith({ queryKey: ['map'] })
 })

@@ -1174,3 +1174,17 @@ svg { flex: 0 0 auto; }
 .recommendation-summary small { display: block; color: var(--color-text-muted); }
 .recommendation-summary ul { padding-left: 20px; }
 @media (max-width: 719px) { .storage-settings .panel { padding: 16px; } .storage-settings .settings-grid { grid-template-columns: minmax(0, 1fr); } .storage-settings__facts { grid-template-columns: minmax(0, 1fr); } }
+
+/* Candidate panels are compact status lists; source opinions only mark negative places. */
+.place-name-line { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.place-name-line > h1, .place-name-line > h2 { margin: 0; }
+.place-name-line .recommendation-summary__label, .recommendation-summary__label { flex: 0 0 auto; color: var(--color-danger); border-color: var(--color-danger); font-size: 11px; line-height: 16px; padding: 4px 8px; }
+.video-evidence-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+.video-place-list { max-height: 320px; overflow-y: auto; overscroll-behavior: contain; list-style: none; margin: 0; padding: 0; }
+.video-place-list .video-place { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; min-height: 44px; padding: 4px 0; }
+.video-place-list .video-place__main { min-width: 0; }
+.video-place-list .place-name-line { display: flex; gap: 8px; }
+.video-place-list .video-place strong, .video-place-list .video-place__name { font-size: 13px; line-height: 20px; color: var(--color-text); font-weight: 600; white-space: normal; overflow-wrap: anywhere; }
+.video-place-list .video-place small { font-size: 11px; line-height: 16px; }
+.place-preview__title { margin-bottom: 8px; }
+@media (max-width: 719px) { .video-evidence-grid { grid-template-columns: minmax(0, 1fr); } }

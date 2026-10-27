@@ -278,7 +278,7 @@
 | 运维 | CPU/内存/磁盘与 Worker 心跳为 SQLite 持久化快照；内存百分比使用可回收页口径；日志支持筛选、关联 Job、分页与脱敏 | `operations/OPERATIONS_UI_SPEC.md`、`operations/LOGGING.md` |
 | 步骤续跑 | ERROR/CRITICAL 事件先查询 Replay Options；Artifact 有效时从失败步骤继续，上游 REUSED、当前/下游顺次执行；过期后只允许完整重跑；日志页不直接改步骤 | `jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md`、`operations/LOGGING.md`、ADR-026 |
 | 存储与日志生命周期 | 启动根/锁统一；缺卷/实例不符拒绝建空库；搬迁保持旧副本，放行后不回旧库；日志只删已登记封卷，gzip核验后删原件；转录180天与永久资料独立 | `operations/STORAGE_AND_LOG_LIFECYCLE.md`、`test_storage_lifecycle.py`、`test_storage_api.py` |
-| 作者地点态度 | 整体态度需逐字证据/主体/版本，局部限制不建地点；合并顺序无关，负向/存疑自动POI零调用，确认位置/个人偏好不改作者；负向来源不被体验筛选吞掉，旧记录不升级有效推荐 | `product/TRAVEL_FOOD_PIPELINE.md` 10.25、`services/recommendation_intent.py`、`test_recommendation_intent.py` |
+| 作者地点态度 | 整体态度需逐字证据/主体/版本，局部限制不建地点；合并顺序无关，负向/存疑自动POI零调用，确认位置/个人偏好不改作者；负向来源不被体验筛选吞掉，旧证据不回写；默认无态度标签，仅负向名称标记 | `product/TRAVEL_FOOD_PIPELINE.md` 10.25、`services/recommendation_intent.py`、`test_recommendation_intent.py` |
 | 内容保留 | 终态任务和内容可删除；删除不破坏共享来源、地点、路线或证据；密钥只进 Keychain/Secret Store | `ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md`、`architecture/SECURITY_PRIVACY.md` |
 | 视频 v0.3 | Bilibili 元数据/字幕优先/受控音频/Whisper 转写；同一视频的每次提交产生独立 Note/Content/Transcript Version，重跑只给所属 Note 增新版本；Place 按 Provider POI ID 复用，地点与笔记证据不跨任务串联；章节、时间码、POI、Place Note 和失败/部分成功均为真实数据 | `video/04-jobs-data-api.md`、`services/video_pipeline.py` |
 | Bilibili 登录与字幕 | 登录只走站内二维码与 Keychain；登录失效必须进入 `NEEDS_USER` 并提供可用的续跑/非核心跳过选择；字幕 CDN 使用用途级 HTTPS Host Policy，安全支持官方子域；人工中文、AI 中文、其他语言依次尝试，单轨失败不得击穿整个 Job。AI/自动字幕不可单独成为权威 Transcript，必须保留 BV/CID、轨道与非敏感哈希审计并回退 ASR；生成 Note 前校验来源身份、验证状态与时间轴 | `video/VIDEO_AI_NOTE_PIPELINE.md` 4.4–4.7、`core/url_policy.py`、`services/video_pipeline.py` |
@@ -374,6 +374,10 @@
 # 当前实施状态
 
 > 状态记录日期：2026-10-27。本文唯一记录当前源码能力与自动验证；生产状态只见带原采样日期的 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
+
+## 2026-10-27 地点展示修订
+
+按用户反馈，视频地点候选、地图单点/聚合成员及详情默认按推荐展示，不再追加“态度未明确/作者推荐/可选”等常态标签，仅在名称旁显示“不推荐”（来源冲突含负向时显示“有来源不推荐”）；原始来源证据、人工确认与个人状态继续独立。地点候选改为有界320px紧凑状态列表，移除候选确认按钮、无效名称按钮和重复玩法标签，保留已确认地点详情链接与视频时间入口；实际人工复核卡仍能确认位置。后端全量632、前端49（含新增4项）、目标10项及ESLint/TypeScript/隔离构建通过。Browser预览962/390px覆盖指定两个Note的77/34条候选、栏目390px且可内滚、时间链接、地图单点/聚合/详情无默认标签及客户端负向标记，无溢出/相关错误/写请求；生产证据见交接。仅前端展示改动，无历史数据回写或模型调用。
 
 ## 2026-10-27 存储与地点态度交付
 
@@ -3440,6 +3444,8 @@ TravelDashboardVM：
 
 笔记各分包仅携本包证据；整体意见和局部限制保真传递，未能核对归纳覆盖时保留绑定原句并标HYBRID/告警，存疑或负向章节不输出未经核验的正向概括。Prompt/地图Artifact版本已独立更新，旧缓存不冒充新证据；真实召回率/误报仍需另行授权的标注视频矩阵。隔离确认/偏好写入用于验收，生产Browser只读；不新增Schema或默认模型调用。
 
+2026-10-27 用户确认的展示修订：已自动识别或人工确认进入地图的地点默认按推荐阅读，常态不显示推荐/可选/态度未明确标签；仅识别到整体不推荐时在地点名称旁标“不推荐”，正反来源并存则标“有来源不推荐”。UNKNOWN等字段继续用于内部证据与审计，不在阅读界面额外挂标签，也不回写旧证据。视频候选栏目仅展示地点当前状态与时间入口，实际位置确认留在可执行的人工复核卡。此条覆盖原计划对未知态度的常态标签展示要求，不改变来源证据、个人偏好或POI身份记录。
+
 
 ---
 
@@ -4840,6 +4846,8 @@ PC 首屏优先看到 Hero、摘要和主旨目录；地点候选与完整转写
 6. 侧排缩略图、关键帧重新选取和 Lightbox；
 7. 导出按钮与 corrected/raw 导出；
 8. PC/Mobile、键盘和真实样本验收。
+
+2026-10-27 修订：地点候选只读展示当前状态，不用“确认地点位置”作为跳转按钮；已确认名称进入详情，时间进入原视频。长候选在320px内独立滚动，状态精简为已确认/待确认/未定位/内容区域/背景提及，不重复地址与玩法标签。作者态度默认不显示，只有负向在名称旁标记，完整依据保留在来源阅读中。实际复核卡的确认功能继续独立。
 
 
 ---

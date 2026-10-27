@@ -183,12 +183,12 @@ export function MapOverviewPage() {
       {cluster && <section className="place-preview cluster-preview" aria-label="聚合地点预览">
         <div className="place-preview__handle" /><header className="cluster-preview__header"><h2>这一区域的 {cluster.length} 个地点</h2><IconButton label="关闭聚合预览" onClick={() => setCluster(null)}><X /></IconButton></header>
         {groupSummary && <section className="cluster-preview__source"><p>区域看点</p><ul>{groupSummary.highlights.map((text) => <li key={text}>{placeText(text)}</li>)}</ul><details className="place-preview__evidence"><summary>查看更多</summary><p>这些地点的看点来自同一篇笔记。</p><Link to={`/video-notes/${groupSummary.note.note_id}`}>{groupSummary.note.title}</Link></details></section>}
-        <ul className="cluster-preview__places">{cluster.map((marker) => <li key={marker.id}><button onClick={() => selectPlace(marker.id)}><strong>{marker.name}</strong><RecommendationSummary value={marker.recommendation_summary} compact /><span>{placeText(marker.travel_brief?.timing) || '适合时节待补充。'}</span></button></li>)}</ul>
+        <ul className="cluster-preview__places">{cluster.map((marker) => <li key={marker.id}><button onClick={() => selectPlace(marker.id)}><span className="place-name-line"><strong>{marker.name}</strong><RecommendationSummary value={marker.recommendation_summary} compact /></span><span>{placeText(marker.travel_brief?.timing) || '适合时节待补充。'}</span></button></li>)}</ul>
       </section>}
       {selected && <section className={`place-preview${selected.longitude > (viewport.bbox[0] + viewport.bbox[2]) / 2 ? ' place-preview--left' : ''}`} aria-label="地点预览">
         <div className="place-preview__handle" />
         <div className="place-preview__nav"><span><strong>{activeIndex + 1}</strong> / {markerIds.length}</span><div><button onClick={() => moveSelection(-1)} aria-label="上一地点"><ChevronLeft /></button><button onClick={() => moveSelection(1)} aria-label="下一地点"><ChevronRight /></button><button onClick={() => setSelectedId(undefined)} aria-label="关闭地点预览"><X /></button></div></div>
-        <h2>{selected.name}</h2><RecommendationSummary value={selected.recommendation_summary} />
+        <div className="place-name-line place-preview__title"><h2>{selected.name}</h2><RecommendationSummary value={selected.recommendation_summary} compact /></div><RecommendationSummary value={selected.recommendation_summary} />
         <p>{labelPlaceType(selected.place_type)} · {stateLabels[selected.user_state] ?? selected.user_state}</p>
         <p className="place-preview__address">{selected.address}</p>
         {selected.preview_image ? <img className="place-preview__image" src={selected.preview_image} alt={`${selected.name}的视频截图`} /> : null}
