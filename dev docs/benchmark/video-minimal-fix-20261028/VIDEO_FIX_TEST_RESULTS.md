@@ -19,7 +19,9 @@
 此前3.12阶段的预期失败、740通过+V07 xfail等证据原样保留，仅用于追溯，不计为本次3.14全量。前端既有>500KB chunk警告和TestClient弃用警告保留。初期pnpm离线缓存不完整曾自动补51依赖包；本轮verify使用隔离依赖，未改生产venv/node_modules。
 
 ## 生产核验
-开发/隔离验证完成，待发布门禁；尚未迁移生产、提交或推送。
+已部署并通过生产只读核验，迁移0026→0027；最终提交推送结果见保存点release-result.json。
 保存点：/Volumes/D/Projects/Codework/Git/do-not-litter/data/backups/video-minimal-release-20261028-180824；离线日志最终位置：/Volumes/D/Projects/Codework/Git/do-not-litter/data/backups/video-minimal-release-20261028-180824/offline-evidence。初次错误地用阻网runner执行本机manage.status导致探测被拒绝，已改为直接生产Python只读核验；不是服务故障。
 生产发布守卫：入口关闭前/后两次空闲检查；无任务/lease/在途调用；已验逻辑备份；0026→0027后全部44表原字段哈希不变；新API/Worker首页与心跳READY、旧新HTTP静态哈希相同；允许的启动事件及正常Artifact过期另记保存点。
 真实模型、视频语义E2E和真实POI质量仍NOT_RUN_REAL_E2E。无前端源码/布局变更，本轮未重复Browser测试；生产HTTP与相关API只读核验不冒充Browser或模型质量验收。
+
+首次生产守卫因未排除runtime:worker-heartbeat而自动恢复旧源码，0027保留；逐键确认仅心跳/指标变化后重发通过。详见保存点release-result-first-attempt.json及production-release-retry.log。未将启动前短暂Connection refused算作应用验收失败或成功，最终以新PID心跳/首页READY为准。

@@ -383,7 +383,7 @@
 
 V01–V08共8项完成：字段原句链/数值/否定/不确定性和同段归属、物化证据复验；字幕质量迭代≤3轨与YouTube仅VTT；首次/Replay截图普通失败保留核心、登录/取消分流和缓存消失标部分成功；路线局部证据/地域匹配、不同条件/来源保留及ID隔离。0027为AINoteVersion追加可空GroundedMap外键，生成时固定关联，GET核对视频/转写而不取最新；历史未知保持NULL不回填。无额外模型阶段、Prompt/缓存键变动或新依赖。V09–V12仍延期。
 
-生产Python3.14后端全量745项通过，无xfail；V07/云南等目标98项，前端59项及ESLint/TS/隔离构建、Ruff、云南46项/29断言通过。生产DB隔离副本0026→0027→0026→0027，44表原字段内容/数量不变、integrity=ok/FK0。用户已追加授权发布/迁移/重启/提交推送，生产结果仅见CURRENT_HANDOFF日期快照；真实Provider/视频重跑0，Token未知、语义金标未验。[实现、测试、成本与剩余风险](benchmark/video-minimal-fix-20261028/VIDEO_FIX_IMPLEMENTATION_REPORT.md)同目录完整记录。
+生产Python3.14后端全量745项通过，无xfail；V07/云南等目标98项，前端59项及ESLint/TS/隔离构建、Ruff、云南46项/29断言通过。生产DB隔离副本0026→0027→0026→0027，44表原字段内容/数量不变、integrity=ok/FK0。用户已追加授权并完成0027发布，生产结果仅见CURRENT_HANDOFF日期快照；真实Provider/视频重跑0，Token未知、语义金标未验。[实现、测试、成本与剩余风险](benchmark/video-minimal-fix-20261028/VIDEO_FIX_IMPLEMENTATION_REPORT.md)同目录完整记录。
 
 ## 2026-10-28 地点时节、作者路线与云南回归
 

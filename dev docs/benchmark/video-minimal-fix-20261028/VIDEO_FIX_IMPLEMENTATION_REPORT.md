@@ -1,6 +1,6 @@
 # 视频最小修复交付报告
-V01–V08共8项修复已完成，V09–V12延期。开发/隔离验证完成，待发布门禁；尚未迁移生产、提交或推送。
-- 基线SHA：57df74ab8761223f49acbc9a29a26d0aba2b0b08；源码提交：待代码提交，由保存点release-result.json记录。
+V01–V08共8项修复已完成，V09–V12延期。已部署并通过生产只读核验，迁移0026→0027；最终提交推送结果见保存点release-result.json。
+- 基线SHA：57df74ab8761223f49acbc9a29a26d0aba2b0b08；源码提交：f4dc52b93e68965be04f4481f0da031e0b8ee5fc。
 - 隔离工作树：/Users/williamli/.codex/worktrees/video-minimal-fix/do-not-litter；部署目标：/Volumes/D/Projects/Codework/Git/do-not-litter；保存点：/Volumes/D/Projects/Codework/Git/do-not-litter/data/backups/video-minimal-release-20261028-180824。
 - 2026-10-28用户追加授权迁移、重部署、按需重启、目录清理、提交推送；不包含真实LLM/ASR/高德或视频重跑，本次这些调用均0。
 

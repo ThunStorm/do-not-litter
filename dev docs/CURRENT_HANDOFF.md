@@ -4,15 +4,19 @@
 
 ## 任务续接
 
-- 目标：云南P0–P3开发、验证、发布、文档归档及推送。
-- 完成：时节归属/活动边界、作者路线独立/非导航、原词待核、dry_run/v2导出；真实响应补缺对象解析、单AREA背景和去80条截尾。后端703/末次79、云南46/29断言、前端59及Lint/类型/隔离构建通过，生产962/390px Browser无溢出/错误，写响应模拟。
-- 真实：模型3次44,839/32,319 Token，高德只读3次；禁网缓存重放13待核路线/102候选，生产历史/POI确认0。完整语义召回未通过独立金标；字面18项未匹配。
-- 发布：0026无迁移重载、API/Worker/心跳READY；保存点data/backups/yunnan-regression-20261028-141659。提交/推送结果见其中delivery-result.json。
-- 下一步：人工审核候选字面差异及局部漏提，冻结独立语义金标。
-- 文件：services/travel_semantics.py、route_guides.py/route_recovery.py、api/travel_extensions.py；benchmark/YUNNAN_REGRESSION_ACCEPTANCE_20261028.md。
-- 禁止：不自动回填历史、改名/确认POI、迁移；既有取消/地图F未闭环保持。
+- 目标：视频最小修复V01–V08（含V07），迁移、发布、目录清理和提交推送。
+- 完成：字段证据门禁、≤3字幕轨/VTT、截图首次/Replay一致、路线局部绑定/条件保留；0027固定笔记版本与提取产物。生产Python3.14全量745、前端59、云南46/29与Lint/类型/构建通过；DB副本升级/降级/再升级44表原字段不变。
+- 生产：2026-10-28 18:17完成0026→0027，API/Worker/首页/新心跳READY，静态哈希不变；22旧版本关联NULL、不回填。保存点`data/backups/video-minimal-release-20261028-180824`；首次心跳守卫触发源码回退，核对仅运行指标/心跳后重发通过。
+- 提交：源码f4dc52b；最终文档提交和推送结果见保存点release-result.json。
+- 未完：V09–V12延期，云南独立语义金标和真实视频E2E未验。
+- 下一步：人工裁定云南字面差异，冻结语义金标。
+- 文件：benchmark/video-minimal-fix-20261028四报告/跟踪表；alembic/versions/0027_note_grounded_map_binding.py。
+- 边界：本轮允许0027；真实Provider/视频重跑、历史回填和POI确认仍需另行授权。
 
-## 生产快照（最新采样2026-10-28 14:34，北京时间）
+## 生产快照（最新采样2026-10-28 18:17，北京时间）
+
+- 2026-10-28 18:17 视频最小修复与V07发布：生产0026→0027，新增笔记版本可空GroundedMap外键，22旧版本均NULL，无推断回填；原作者路线产物0。发布前/关闭入口后空闲复核，无活跃Job/lease/在途调用；逻辑备份已验、DB隔离副本0026→0027→0026→0027校验，迁移后44表原字段内容/数量一致、integrity=ok/FK0。保存点`data/backups/video-minimal-release-20261028-180824`含0026及重发前0027逻辑DB、源码/静态/LaunchAgent备份、原包、逐表哈希与发布脚本日志。首次守卫漏排运行心跳而恢复旧源码、保留兼容0027；逐键确认仅runtime:metrics-sample和runtime:worker-heartbeat后重发成功，未覆盖数据库。新Worker PID79127心跳/首页READY，API/Worker RUNNING；HTTP index/JS/CSS哈希不变（index 66c60131b672c3a76a05a165c0c975ade1dce44868f1006cd80995e90cb482bc），相关API视频笔记21条、来源路线0，除system_events启动事件和上述两项运行设置外无变化，调用审计不变。后端745/前端59、云南46/29及Lint/类型/隔离构建通过。本轮无前端代码/布局变更，不新增Browser验收；真实Provider/ASR/高德、视频重跑/POI确认0。源码提交f4dc52b，最终推送见保存点release-result.json。
+
 
 - 2026-10-28 14:34 云南时节/作者路线：无迁移，0026保持；API/Worker RUNNING，内容及新PID49051心跳READY，active/lease/在途调用0，integrity=ok/FK0，最终42业务表摘要一致。保存点`data/backups/yunnan-regression-20261028-141659`含原包/前后源码、旧新静态/HTTP哈希、已验逻辑DB和漂移/空闲门禁回退脚本；DB SHA256 `97da4699e857e7a2058a7ef1209bb189dcdc61ba0a443e6a2d248354d90515e6`，线上index SHA256 `66c60131b672c3a76a05a165c0c975ade1dce44868f1006cd80995e90cb482bc`，JS/CSS匹配构建。首轮187已到期Artifact仅状态/updated_at变化触发源码/静态自动回退；逐字段/到期时间及其余41表核对后新备份重发，未恢复DB。新增API/真实只读v2导出22地点/506来源候选/3个人清单正常，旧作者路线0，无历史补算。962/390px生产Browser来源路线/原词待核/时间用途与适宜度交互通过、零溢出/相关错误；所有写响应拦截模拟。经授权真实模型3次/高德搜索3次在隔离库执行，生产ExternalCallAudit未增加；无生产视频重跑/POI确认。详细边界及回退证据见验收报告与保存点。
 

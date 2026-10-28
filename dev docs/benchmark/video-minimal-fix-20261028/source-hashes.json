@@ -1,6 +1,6 @@
 {
   "baseline": "57df74ab8761223f49acbc9a29a26d0aba2b0b08",
-  "code_commit": "\u5f85\u4ee3\u7801\u63d0\u4ea4\uff0c\u7531\u4fdd\u5b58\u70b9release-result.json\u8bb0\u5f55",
+  "code_commit": "f4dc52b93e68965be04f4481f0da031e0b8ee5fc",
   "sha256": {
     "backend/alembic/versions/0027_note_grounded_map_binding.py": "440a135edf5f0349219ca2fd6b7c76a24f8882c4bd7120c468777cc65a092453",
     "backend/src/zhijian/db/models.py": "1dcfd2089a9bef3ff25b1a621dd54f88d112fbee90c14aed2c45b8cdaae2c187",
