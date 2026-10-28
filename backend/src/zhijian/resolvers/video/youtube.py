@@ -105,7 +105,7 @@ class YouTubeAdapter:
                         for value in entries
                         if isinstance(value, dict)
                         and value.get("url")
-                        and value.get("ext") in {"vtt", "srv3"}
+                        and value.get("ext") == "vtt"
                     ),
                     None,
                 )

@@ -109,6 +109,19 @@ def _attempts_since(rows: list[ExternalCallAudit], started_at: datetime) -> list
     return [row for row in rows if as_utc(row.created_at) >= as_utc(started_at)]
 
 
+def _screenshot_failure(exc: Exception, *, extracting: bool = False) -> str:
+    """Classify optional enrichment failures consistently on first run and replay."""
+    if isinstance(exc, JobCancelled):
+        raise exc
+    if isinstance(exc, MediaDownloadError) and exc.code == "VIDEO_LOGIN_REQUIRED":
+        raise NeedsUser(
+            "VIDEO_LOGIN_REQUIRED",
+            "Bilibili 登录已失效或访问被平台拦截，请扫码登录后继续或跳过截图",
+        ) from exc
+    code = "SCREENSHOT_EXTRACTION_FAILED" if extracting else "VIDEO_SCREENSHOTS_UNAVAILABLE"
+    return f"{code}: {str(exc)[:240]}"
+
+
 def _subtitle_decision(
     asset: VideoAsset, track: SubtitleTrack, raw_segments: list[dict[str, Any]]
 ) -> dict[str, Any]:
@@ -121,6 +134,7 @@ def _subtitle_decision(
     metrics = assessment["metrics"]
     return {
         "accepted": assessment["status"] == "PASS",
+        "selection_status": "ACCEPTED" if assessment["status"] == "PASS" else "QUALITY_REJECTED",
         "validation_status": assessment["validation_status"],
         "validation_reasons": assessment["reasons"],
         "validation_version": SUBTITLE_VALIDATION_VERSION,
@@ -881,7 +895,8 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
 
         try:
             selected_track, raw_segments, subtitle_failures = first_usable_subtitle(
-                resolved.subtitles, fetch_track
+                resolved.subtitles, fetch_track,
+                accept=lambda track, rows: bool(_subtitle_decision(asset, track, rows)["accepted"]),
             )
         except VideoResolveError as exc:
             if exc.code == "VIDEO_LOGIN_REQUIRED":
@@ -1170,12 +1185,7 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
                     },
                 )
             except MediaDownloadError as exc:
-                if exc.code == "VIDEO_LOGIN_REQUIRED":
-                    raise NeedsUser(
-                        "VIDEO_LOGIN_REQUIRED",
-                        "Bilibili 登录已失效或访问被平台拦截，请扫码登录后继续或跳过截图",
-                    ) from exc
-                screenshot_error = f"VIDEO_SCREENSHOTS_UNAVAILABLE: {str(exc)[:240]}"
+                screenshot_error = _screenshot_failure(exc)
                 _fail_step(db, download_frames, RuntimeError(screenshot_error))
                 _stage_event(
                     db,
@@ -1209,7 +1219,7 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
                     },
                 )
             except Exception as exc:
-                screenshot_error = f"SCREENSHOT_EXTRACTION_FAILED: {str(exc)[:240]}"
+                screenshot_error = _screenshot_failure(exc, extracting=True)
                 _fail_step(db, extract_frames, RuntimeError(screenshot_error))
                 _stage_event(
                     db,
@@ -1673,25 +1683,18 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                         )
                     )
                 except MediaDownloadError as exc:
-                    if exc.code == "VIDEO_LOGIN_REQUIRED":
-                        raise NeedsUser(
-                            "VIDEO_LOGIN_REQUIRED",
-                            "Bilibili 登录已失效或访问被平台拦截，请扫码登录后继续或跳过截图",
-                        ) from exc
-                    raise
-                _done(
-                    db,
-                    job,
-                    step,
-                    95,
-                    {
-                        "cache_path": storage_ref(video_path, settings)
-                        if video_path.resolve().is_relative_to(settings.data_dir.resolve())
-                        else str(video_path)
-                    },
-                )
+                    screenshot_error = _screenshot_failure(exc)
+                    _fail_step(db, step, RuntimeError(screenshot_error))
+                if video_path is not None:
+                    _done(
+                        db, job, step, 95,
+                        {"cache_path": storage_ref(video_path, settings)
+                         if video_path.resolve().is_relative_to(settings.data_dir.resolve())
+                         else str(video_path)},
+                    )
             else:
-                _skip_step(db, job, step, 95, "没有可执行的截图计划")
+                screenshot_error = "SCREENSHOT_PLAN_EMPTY: 未找到可用于截图的章节或转写时间轴"
+                _skip_step(db, job, step, 95, screenshot_error)
         else:
             video_artifact = db.scalar(
                 select(JobStepArtifact).where(
@@ -1706,19 +1709,24 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
         if start <= VIDEO_STEPS.index("EXTRACT_SCREENSHOTS"):
             step = _step(db, job, "EXTRACT_SCREENSHOTS", 96, {"planned": len(plans)})
             if video_path:
-                screenshot_metrics = {}
-                screenshot_count, screenshot_error = extract_screenshots(
-                    db, settings, asset, plans, video_path, screenshot_metrics
-                )
-                _done(
-                    db,
-                    job,
-                    step,
-                    97,
-                    {"ready": screenshot_count, "error": screenshot_error, **screenshot_metrics},
-                )
+                try:
+                    screenshot_metrics = {}
+                    screenshot_count, screenshot_error = extract_screenshots(
+                        db, settings, asset, plans, video_path, screenshot_metrics
+                    )
+                    _done(
+                        db,
+                        job,
+                        step,
+                        97,
+                        {"ready": screenshot_count, "error": screenshot_error, **screenshot_metrics},
+                    )
+                except Exception as exc:
+                    screenshot_error = _screenshot_failure(exc, extracting=True)
+                    _fail_step(db, step, RuntimeError(screenshot_error))
             else:
-                _skip_step(db, job, step, 97, "截图视频不可用")
+                screenshot_error = screenshot_error or "VIDEO_SCREENSHOTS_UNAVAILABLE: 截图视频缓存不可用"
+                _skip_step(db, job, step, 97, screenshot_error)
 
         content.summary = note_version.overview
         content.status = "COMPLETED"

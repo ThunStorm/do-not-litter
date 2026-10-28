@@ -379,6 +379,12 @@
 
 > 状态记录日期：2026-10-28。本文唯一记录当前源码能力与自动验证；生产状态只见带原采样日期的 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
 
+## 2026-10-28 视频最小修复与V07固定版本绑定
+
+V01–V08共8项完成：字段原句链/数值/否定/不确定性和同段归属、物化证据复验；字幕质量迭代≤3轨与YouTube仅VTT；首次/Replay截图普通失败保留核心、登录/取消分流和缓存消失标部分成功；路线局部证据/地域匹配、不同条件/来源保留及ID隔离。0027为AINoteVersion追加可空GroundedMap外键，生成时固定关联，GET核对视频/转写而不取最新；历史未知保持NULL不回填。无额外模型阶段、Prompt/缓存键变动或新依赖。V09–V12仍延期。
+
+生产Python3.14后端全量745项通过，无xfail；V07/云南等目标98项，前端59项及ESLint/TS/隔离构建、Ruff、云南46项/29断言通过。生产DB隔离副本0026→0027→0026→0027，44表原字段内容/数量不变、integrity=ok/FK0。用户已追加授权发布/迁移/重启/提交推送，生产结果仅见CURRENT_HANDOFF日期快照；真实Provider/视频重跑0，Token未知、语义金标未验。[实现、测试、成本与剩余风险](benchmark/video-minimal-fix-20261028/VIDEO_FIX_IMPLEMENTATION_REPORT.md)同目录完整记录。
+
 ## 2026-10-28 地点时节、作者路线与云南回归
 
 P0–P3：逐地点时间分析、背景零推荐加权、活动/局部道路限制独立；人工用途/适宜程度、怎么去分栏；用途/活动/精度/跨年与单AREA锚点背景；取消候选80条静默截尾。新Artifact扩展保存作者路线，连续逐字Evidence/原词/站序/条件校验，模型缺route对象可用证据语法恢复，版本/解析器标记隔离缓存；未知位置待核、非导航，显式复制全确认节点且不影响RouteDraft。只读dry_run与地点/来源候选/路线分文件v2 ZIP兼容旧导出，无Schema迁移。
@@ -2063,6 +2069,8 @@ status
 created_at
 ```
 
+0027追加`ai_note_versions.grounded_map_artifact_id`可空外键，指向生成该笔记版本使用的GroundedMapArtifact，删除产物时SET NULL；未知历史保持NULL，不回填或按最新产物绑定。
+
 重跑生成新版本，不静默覆盖旧 Markdown。`structured_json` 保存章节与 Segment 引用，但不能替代 Transcript、Claim 或 Evidence。
 
 ## ai_note_sections
@@ -3478,9 +3486,9 @@ TravelDashboardVM：
 
 出行事实复用PlaceMention.metadata_json.travel_facts及PlaceInsightItem.value_json，保留逐字引文与Segment；详情“怎么去”和“何时去/看什么/注意事项”分栏，标识视频作者观点。GENERIC_FEATURE/LINEAR_FEATURE/PLACE_UNCERTAIN及REFERENCE节点保留原词，禁止自动POI请求；名称存疑不擅自纠正。
 
-作者RouteGuide/Stop/Evidence/Condition是semantic-map-v6新产物的版本化JSON扩展，保存在GroundedMapArtifact.semantic_options_json.route_guides，非新增SQL表，无迁移。复用同一次模型提取的ROUTE Claim；缺可选对象时仅按原句明确交通语法恢复，所有恢复对象保留NEEDS_REVIEW；显式自驾路线分组可恢复原文列举，普通地名列表不成为路线。单AREA锚点可在本单元连续有名证据内读取匿名区域时间，子景点不继承；候选不再静默截在80条。解析版本进入新Artifact身份，不改旧产物；精确模型响应缓存仍可复用。写入前验证连续Segment、逐字引文、交通方式、节点存在和明确站序、条件主体与证据。多路线独立，关联道路相同的宏观/细节对象；关联不意味着全段同路，环线不据名称补闭环。当前仅“站点顺序示意，非道路导航”，navigation=null；不生成公里、时间或道路几何。
+作者RouteGuide/Stop/Evidence/Condition是semantic-map-v6新产物的版本化JSON扩展，保存在GroundedMapArtifact.semantic_options_json.route_guides，RouteGuide仍用既有JSON，不新增路线表；0027迁移仅为笔记版本追加固定产物引用。复用同一次模型提取的ROUTE Claim；缺可选对象时仅按原句明确交通语法恢复，所有恢复对象保留NEEDS_REVIEW；显式自驾路线分组可恢复原文列举，普通地名列表不成为路线。单AREA锚点可在本单元连续有名证据内读取匿名区域时间，子景点不继承；候选不再静默截在80条。解析版本进入新Artifact身份，不改旧产物；精确模型响应缓存仍可复用。写入前验证连续Segment、逐字引文、交通方式、节点存在和明确站序、条件主体与证据。多路线独立，关联道路相同的宏观/细节对象；关联不意味着全段同路，环线不据名称补闭环。当前仅“站点顺序示意，非道路导航”，navigation=null；不生成公里、时间或道路几何。
 
-GET只读当前Note Version对应Transcript版本的已存新产物，不补解析旧Artifact。地点绑定限定同笔记版本、已确认且未删除的唯一Place；未核节点显示原词。显式复制需version_id仍为当前且所有节点已确认；否则409，无部分复制或隐式确认。个人RouteDraft不与作者路线双向同步。无节点/含待核位置的来源路书仍完整保留，但暂不能复制为现有仅支持Place的个人清单。
+GET仅按AINoteVersion.grounded_map_artifact_id读取生成该版本时的既存产物，同时校验video_asset_id与transcript_version；不选择最新Artifact，不补解析历史。新笔记生成时写固定引用；0027为可空外键，删除产物置空，历史未知关联保持NULL且不展示作者路线，不按时间或单一候选猜绑。地点绑定限定同笔记版本、已确认且未删除的唯一Place；未核节点显示原词。显式复制需version_id仍为当前且所有节点已确认；否则409，无部分复制或隐式确认。个人RouteDraft不与作者路线双向同步。无节点/含待核位置的来源路书仍完整保留，但暂不能复制为现有仅支持Place的个人清单。
 
 历史审计只有只读dry_run，无apply入口；真实回填需另行审批、版本化与回退准备。travel_export_v2是增量ZIP接口，地点与路线分文件，保留时间用途/活动、事实证据/来源、个人备注/清单，不含虚构导航；旧JSON/CSV/GeoJSON保持。云南常驻P0_CRITICAL测试与范围见testing/GOLDEN_SAMPLES.md；模拟标注不是模型质量或真实POI金标。
 

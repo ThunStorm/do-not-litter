@@ -2424,6 +2424,13 @@ def generate_note(
     mentions: list[PlaceMention] | None = None,
     grounded_map: GroundedMapArtifact | None = None,
 ) -> AINoteVersion:
+    if grounded_map is not None and (
+        not grounded_map.id
+        or grounded_map.video_asset_id != asset.id
+        or grounded_map.transcript_id != transcript.id
+        or grounded_map.transcript_version != transcript.version
+    ):
+        raise ValueError("Grounded Map 与当前视频/转写身份不一致")
     mentions = mentions or []
     requested_profile = str((job.payload_json.get("note_render_profile") if job else "") or "CURRENT_DEFAULT")
     profile_id, render_profile = note_render_profile(requested_profile)
@@ -2899,6 +2906,7 @@ def generate_note(
         render_profile_id=profile_id,
         render_profile_version=str(render_profile["version"]),
         transcript_version=transcript.version,
+        grounded_map_artifact_id=grounded_map.id if grounded_map is not None else None,
     )
     db.add(version)
     db.flush()
@@ -3164,7 +3172,6 @@ def extract_place_mentions(
                 ]
             )
         )
-        insights = _insights_from_candidate(item, ids, segment_texts)
         # Shared segments need named sentences or explicitly scoped model windows.
         other_names = [
             str(other.get("raw_name") or other.get("name") or "")
@@ -3193,6 +3200,7 @@ def extract_place_mentions(
                 for sid, text in segment_texts.items()
                 if sid in area_unit_ids
             }
+        insights = _insights_from_candidate(item, ids, temporal_texts)
         visit_windows = _visit_windows_from_candidate(item, ids, temporal_texts)
         travel_facts = []
         for sid in ids:
@@ -3246,6 +3254,7 @@ def extract_place_mentions(
                 "travel_facts": travel_facts,
                 "recommendation_evidence": recommendation_evidence,
                 "insights": insights,
+                "insight_rejections": item.get("insight_rejections", []),
                 "visit_windows": visit_windows,
                 "temporal_analysis": {
                     "version": "map-timing-v3",
@@ -3294,6 +3303,37 @@ def _normalized_insight_key(value: object) -> str:
     return re.sub(r"\s+", "", str(value).strip().lower())[:128]
 
 
+def _insight_supported(text: str, quote: str, insight_type: str) -> bool:
+    """Conservative field support, without semantic guesses or model calls."""
+    def normalized(value):
+        for number in range(12, 0, -1):
+            word = ("一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二")[number - 1]
+            value = value.replace(word + "月", str(number) + "月")
+        return re.sub(r"\s+", "", value)
+
+    value, evidence = normalized(text), normalized(quote)
+    if insight_type != "AUTHOR_OPINION" and re.search(
+        r"可能|大概|大约|据说|听说|好像|似乎|不确定|记不清|估计", evidence
+    ):
+        return False
+    if not set(re.findall(r"\d+(?:\.\d+)?", value)).issubset(
+        set(re.findall(r"\d+(?:\.\d+)?", evidence))
+    ):
+        return False
+    negative = r"不推荐|不建议|不值得|不要|不适合|不宜|封山|封路|禁止|不免费|并非免费|不是免费"
+    if re.search(negative, evidence) and not re.search(negative, value):
+        return False
+    if value in evidence:
+        return True
+    # A small, explicit paraphrase: preserve the dish and the author's positive cue.
+    subject = re.sub(r"^推荐", "", value)
+    return bool(
+        insight_type in {"HIGHLIGHT", "RECOMMENDED_ITEM"}
+        and subject != value and subject in evidence
+        and re.search(r"值得点|值得吃|推荐|好吃", evidence)
+    )
+
+
 def _insights_from_candidate(
     item: dict[str, Any], segment_ids: list[str], segment_texts: dict[str, str]
 ) -> list[dict[str, Any]]:
@@ -3312,24 +3352,34 @@ def _insights_from_candidate(
         source_quote: object = "",
         provenance: str = "SOURCE_FACT",
     ) -> None:
+        if isinstance(value, dict):
+            evidence_ids = value.get("segment_ids") or evidence_ids
+            source_quote = value.get("source_quote") or value.get("supporting_quote") or source_quote
+            value = value.get("value") or value.get("text") or value.get("name")
         if value is None:
             return
         text = str(value).strip()
         if text:
-            ids = [value for value in evidence_ids or [] if value in segment_ids]
+            # Explicit references are binding: never repair an invalid field with another segment.
+            ids = list(evidence_ids or [])
+            if ids and (any(sid not in segment_ids for sid in ids) or len(set(ids)) != len(ids)):
+                return
             if not ids:
-                ids = [
-                    segment_id
-                    for segment_id in segment_ids
-                    if _normalized_insight_key(text)
-                    in _normalized_insight_key(segment_texts.get(segment_id, ""))
-                ][:1]
-            if not ids and insight_type == "BEST_MONTH":
-                ids = [segment_id for segment_id in segment_ids if "月" in segment_texts.get(segment_id, "")][
-                    :1
-                ]
-            ids = ids or list(segment_ids)
-            quote = str(source_quote or "").strip() or str(segment_texts.get(ids[0], "")).strip()
+                ids = [sid for sid in segment_ids
+                       if _insight_supported(text, segment_texts.get(sid, ""), insight_type)][:1]
+            quote = str(source_quote or "").strip()
+            positions = [list(segment_texts).index(sid) for sid in ids if sid in segment_texts]
+            valid_chain = bool(ids and len(positions) == len(ids)
+                               and positions == list(range(positions[0], positions[0] + len(positions))))
+            original = "".join(segment_texts.get(sid, "") for sid in ids)
+            quote = quote or original
+            if not valid_chain or not quote or quote not in original or not _insight_supported(
+                text, quote, insight_type
+            ):
+                item.setdefault("insight_rejections", []).append({
+                    "type": insight_type, "value": text[:500], "reason": "FIELD_EVIDENCE_UNSUPPORTED"
+                })
+                return
             result.append(
                 {
                     "insight_type": insight_type,
@@ -3389,7 +3439,21 @@ def materialize_place_insights(db: Session, mention: PlaceMention) -> None:
         PlaceInsightItem.provenance.in_(("SOURCE_FACT", "SOURCE_OPINION")),
     ).delete(synchronize_session=False)
     asset = db.get(VideoAsset, mention.video_asset_id)
+    from zhijian.services.evidence_trace import evidence_trace
+
+    refs = db.scalars(select(Segment).where(Segment.id.in_(mention.segment_ids_json))).all()
+    snapshot_id = refs[0].snapshot_id if refs else ""
+    snapshot = db.get(Snapshot, snapshot_id) if snapshot_id else None
     for item in mention.metadata_json.get("insights", []):
+        ids = list(item.get("segment_ids") or [])
+        quote = str(item.get("source_quote") or "")
+        if (
+            not asset or not snapshot or snapshot.source_id != asset.source_id
+            or snapshot.metadata_json.get("video_asset_id") != asset.id
+            or not evidence_trace(refs, ids, quote, snapshot_id)["valid"]
+            or not _insight_supported(str(item["value_text"]), quote, str(item["insight_type"]))
+        ):
+            continue
         value_key, value_json = normalize_insight(
             str(item["insight_type"]),
             str(item["value_text"]),

@@ -369,6 +369,9 @@ class AINoteVersion(Base, TimestampMixin):
     render_profile_id: Mapped[str] = mapped_column(String(64), default="CURRENT_DEFAULT", nullable=False)
     render_profile_version: Mapped[str] = mapped_column(String(32), default="1", nullable=False)
     transcript_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    grounded_map_artifact_id: Mapped[str | None] = mapped_column(
+        ForeignKey("grounded_map_artifacts.id", ondelete="SET NULL"), nullable=True
+    )
 
 
 class AINoteSection(Base):

@@ -255,6 +255,8 @@ def test_route_persistence_version_binding_copy_and_user_order(client, app_and_s
             semantic_options_json={"route_guides": guides},
         )
         db.add(a)
+        db.flush()
+        v.grounded_map_artifact_id = a.id
         for stop in guides[0]["stops"]:
             p = Place(
                 name=stop["raw_name"],
@@ -272,6 +274,7 @@ def test_route_persistence_version_binding_copy_and_user_order(client, app_and_s
                     ai_note_version_id=v.id,
                     name=p.name,
                     raw_name=p.name,
+                    segment_ids_json=guides[0]["evidence"]["segment_ids"],
                     place_id=p.id,
                     resolution_status="CONFIRMED",
                 )
@@ -279,7 +282,7 @@ def test_route_persistence_version_binding_copy_and_user_order(client, app_and_s
         db.commit()
         nid, vid = note.id, v.id
     response = client.get("/api/travel/route-guides").json()
-    assert len(response) == 12
+    assert len(response) == len(guides)
     g = response[0]
     assert all(s["place_id"] for s in g["stops"])
     archive_response = client.get("/api/travel/export-v2")

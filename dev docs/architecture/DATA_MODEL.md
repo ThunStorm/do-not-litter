@@ -580,6 +580,8 @@ status
 created_at
 ```
 
+0027追加`ai_note_versions.grounded_map_artifact_id`可空外键，指向生成该笔记版本使用的GroundedMapArtifact，删除产物时SET NULL；未知历史保持NULL，不回填或按最新产物绑定。
+
 重跑生成新版本，不静默覆盖旧 Markdown。`structured_json` 保存章节与 Segment 引用，但不能替代 Transcript、Claim 或 Evidence。
 
 ## ai_note_sections

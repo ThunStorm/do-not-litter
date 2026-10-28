@@ -10,6 +10,7 @@ from zhijian.db.models import (
     AINote,
     AINoteSection,
     AINoteVersion,
+    GroundedMapArtifact,
     MapMarkerState,
     PlaceMention,
     Source,
@@ -23,6 +24,17 @@ from zhijian.services.video_support import (
     generate_note,
     materialize_transcript,
 )
+
+
+def note_artifact(db, asset, transcript, facts):
+    artifact = GroundedMapArtifact(
+        video_asset_id=asset.id, transcript_id=transcript.id, transcript_version=transcript.version,
+        content_hash="fixture", semantic_hash="fixture", prompt_version="fixture", supplement_hash="",
+        provider="fixture", model="fixture", claims_json=[], facts_json=facts, warnings_json=[],
+    )
+    db.add(artifact)
+    db.flush()
+    return artifact
 
 
 def sample(db):
@@ -230,7 +242,7 @@ def test_new_generation_merges_across_packs_and_audits_omitted_facts(app_and_ses
     _, factory = app_and_session
     with factory() as db:
         asset, transcript, segments, mentions, facts = sample(db)
-        artifact = SimpleNamespace(claims_json=[], facts_json=facts, warnings_json=[])
+        artifact = note_artifact(db, asset, transcript, facts)
         provider = SimpleNamespace(request_options=SimpleNamespace(max_output_tokens=4096))
         monkeypatch.setattr(support, "provider_for_role", lambda *a: (provider, "fixture", "fixture"))
         payload = {
@@ -302,7 +314,7 @@ def test_valid_global_id_from_another_package_is_rejected(app_and_session, monke
                 transcript,
                 segments,
                 mentions=mentions,
-                grounded_map=SimpleNamespace(claims_json=[], facts_json=facts, warnings_json=[]),
+                grounded_map=note_artifact(db, asset, transcript, facts),
             )
 
 

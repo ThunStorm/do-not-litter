@@ -1,0 +1,18 @@
+{
+  "baseline": "57df74ab8761223f49acbc9a29a26d0aba2b0b08",
+  "code_commit": "\u5f85\u4ee3\u7801\u63d0\u4ea4\uff0c\u7531\u4fdd\u5b58\u70b9release-result.json\u8bb0\u5f55",
+  "sha256": {
+    "backend/alembic/versions/0027_note_grounded_map_binding.py": "440a135edf5f0349219ca2fd6b7c76a24f8882c4bd7120c468777cc65a092453",
+    "backend/src/zhijian/db/models.py": "1dcfd2089a9bef3ff25b1a621dd54f88d112fbee90c14aed2c45b8cdaae2c187",
+    "backend/src/zhijian/resolvers/video/bilibili.py": "c32fcd7d92f1101615388307d9449d1ca5424c6689559431a6e502a1cd876f12",
+    "backend/src/zhijian/resolvers/video/youtube.py": "c0d4f37a501df9398552e3d70a75ca37d44d87fa8418bc811f14e02eaf3ebe09",
+    "backend/src/zhijian/services/route_guides.py": "75b1810ecfe0cd11d3b6fe2f5a04e5b28d366881cdf6ba87723c11e619791ec3",
+    "backend/src/zhijian/services/video_pipeline.py": "5ac8f6ae7510f21847de259aeaeb58cf02e4d102aad054f90b3a88754aa59322",
+    "backend/src/zhijian/services/video_support.py": "aa5b1c2ca12531718ff9f53e0bacf2c9809c68cc3795b89ad07cda401680db99",
+    "backend/tests/test_grounded_map.py": "191f3c2528913ffea3347c4aa9dc368d1297e9f3b48c45865f1d0ec07e584e29",
+    "backend/tests/test_poi_note_structure.py": "66df4288615efe37ae71313657fbeb0f5b40721e4a3b5c349cbb9c7992fd5891",
+    "backend/tests/test_video_minimal_fixes.py": "ff1d3c33bad95f8a8a31ac83d6a84f7433b7da80bdb9b0d79c26f477ae4d4599",
+    "backend/tests/test_video_notes.py": "af7069f048360b6e53baed000f3cf6dd39e084457c01c979599a2508395e019f",
+    "backend/tests/test_yunnan_multiregion_travel_golden.py": "2d589b92b6196baf76ea372d88481175828b7be77632cad9b6693fc61fefda25"
+  }
+}

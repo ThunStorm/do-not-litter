@@ -1240,7 +1240,9 @@ def test_place_extraction_scans_full_transcript_with_exact_quote(app_and_session
         db.add(asset)
         db.flush()
         _, segments = materialize_transcript(
-            db, source, asset, [{"text": "去菜市场", "start_ms": 0, "end_ms": 1000}], source_kind="ASR"
+            db, source, asset,
+            [{"text": "去菜市场，海蛎煎值得点，清晨最热闹，4月去。MORNING",
+              "start_ms": 0, "end_ms": 1000}], source_kind="ASR"
         )
         captured: dict[str, object] = {}
         monkeypatch.setattr(video_support, "provider_for_role", lambda *_args: (object(), "fixture", "model"))

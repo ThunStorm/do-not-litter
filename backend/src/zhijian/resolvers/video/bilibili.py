@@ -291,11 +291,16 @@ def _is_generated_subtitle(language: str, language_doc: str, payload: dict[str, 
 def first_usable_subtitle(
     tracks: list[SubtitleTrack],
     fetch: Callable[[SubtitleTrack], list[dict[str, Any]]],
+    *,
+    accept: Callable[[SubtitleTrack, list[dict[str, Any]]], bool] | None = None,
 ) -> tuple[SubtitleTrack | None, list[dict[str, Any]], list[tuple[str, str]]]:
     failures: list[tuple[str, str]] = []
-    for track in tracks:
+    for track in tracks[:3]:
         try:
-            return track, fetch(track), failures
+            rows = fetch(track)
+            if accept is None or accept(track, rows):
+                return track, rows, failures
+            failures.append((track.language, "QUALITY_REJECTED"))
         except VideoResolveError as exc:
             if exc.code == "VIDEO_LOGIN_REQUIRED":
                 raise

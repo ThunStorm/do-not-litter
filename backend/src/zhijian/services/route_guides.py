@@ -95,9 +95,18 @@ def validate_route(raw: dict, claim: dict, texts: dict[str, str]) -> dict | None
     uncertain = bool(raw.get("recovered_from_prose")) or bool(
         re.search(r"待核|疑似|S[一二三四五六七八九十幺]+", quote)
     )
-    identifier = hashlib.sha256((mode + kind + subject + road + quote + repr(stops)).encode()).hexdigest()[
-        :24
-    ]
+    identifier = hashlib.sha256(
+        (
+            mode
+            + kind
+            + subject
+            + road
+            + quote
+            + repr(stops)
+            + repr(ids)
+            + (repr(conditions) if conditions else "")
+        ).encode()
+    ).hexdigest()[:24]
     return {
         "id": "rg_" + identifier,
         "schema_version": VERSION,
@@ -146,6 +155,9 @@ def extract_routes(claims, texts, entities=None):
             tuple(s["raw_name"] for s in route["stops"]),
             route["road"],
             route["subject"] if not route["stops"] else "",
+            route["sequence_kind"],
+            repr(route["conditions"]),
+            repr(route["evidence"]),
         )
         if key not in seen:
             seen.add(key)
@@ -195,16 +207,32 @@ def list_route_guides(db, *, note_id=None):
             (
                 a
                 for a in artifacts
-                if a.video_asset_id == asset.id and a.transcript_version == version.transcript_version
+                if a.id == version.grounded_map_artifact_id
+                and a.video_asset_id == asset.id
+                and a.transcript_version == version.transcript_version
             ),
             None,
         )
         if not artifact:
             continue
         for guide in (artifact.semantic_options_json or {}).get("route_guides", []):
+            guide_ids = set(guide.get("evidence", {}).get("segment_ids", []))
+            unit_ids = {
+                unit["content_unit_id"]
+                for unit in artifact.content_units_json or []
+                if guide_ids.intersection(unit.get("segment_ids", []))
+            }
             stops = []
             for stop in guide["stops"]:
-                bound = {p.id: p for m, p in mentions[version.id] if stop["raw_name"] in {m.name, m.raw_name}}
+                bound = {
+                    p.id: p
+                    for m, p in mentions[version.id]
+                    if stop["raw_name"] in {m.name, m.raw_name}
+                    and guide_ids.intersection(m.segment_ids_json)
+                    and (not unit_ids or m.content_unit_id in unit_ids)
+                    and not (m.province_hint and p.province and m.province_hint != p.province)
+                    and not (m.city_hint and p.city and m.city_hint != p.city)
+                }
                 p = next(iter(bound.values())) if len(bound) == 1 else None
                 stops.append(
                     {

@@ -181,8 +181,15 @@ def test_grounded_map_is_reused_and_place_materialization_is_llm_free(app_and_se
         detailed = Job(job_type="TRAVEL", status="RUNNING", payload_json={"note_render_profile": "DETAILED"})
         db.add_all([compact, detailed])
         db.flush()
-        generate_note(db, Settings(_env_file=None), asset, transcript, segments, compact, mentions, artifact)
-        generate_note(db, Settings(_env_file=None), asset, transcript, segments, detailed, mentions, artifact)
+        compact_version = generate_note(
+            db, Settings(_env_file=None), asset, transcript, segments, compact, mentions, artifact
+        )
+        detailed_version = generate_note(
+            db, Settings(_env_file=None), asset, transcript, segments, detailed, mentions, artifact
+        )
+        db.flush()
+        assert compact_version.grounded_map_artifact_id == artifact.id
+        assert detailed_version.grounded_map_artifact_id == artifact.id
         assert len(provider.calls) == 5
         assert all("Render Profile" not in call[-1]["content"] for call in provider.calls[:3])
 
