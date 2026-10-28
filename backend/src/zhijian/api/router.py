@@ -195,6 +195,7 @@ from zhijian.services.travel_recommendations import (
     recommendation_for_place,
     visit_window_summary,
 )
+from zhijian.services.travel_semantics import temporal_semantics
 from zhijian.services.travel_timing import matches_window, valid_window
 from zhijian.services.video_note_search import remove_video_note_search_index
 from zhijian.services.video_support import (
@@ -2786,6 +2787,7 @@ def _revision_conflict(current: int) -> HTTPException:
 
 def _visit_window_view(item: PlaceVisitWindow) -> PlaceVisitWindowView:
     return PlaceVisitWindowView(
+        semantics=temporal_semantics(item.source_text or "", period_type=item.period_type),
         valid_as_time=valid_window(item),
         id=item.id,
         source_id=item.source_id,
@@ -5160,3 +5162,7 @@ def test_provider(
 from zhijian.api.storage import router as storage_router  # noqa: E402
 
 router.include_router(storage_router)
+
+from zhijian.api.travel_extensions import router as travel_extensions_router  # noqa: E402
+
+router.include_router(travel_extensions_router)

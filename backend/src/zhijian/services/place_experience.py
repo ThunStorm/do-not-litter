@@ -78,7 +78,9 @@ def experience_projection(db, place_ids=None):
         .join(Snapshot, Segment.snapshot_id == Snapshot.id)
         .where(Segment.id.in_(all_ids))
     ).all()
-    result = defaultdict(lambda: {"windows": [], "reasons": [], "warnings": [], "sources": [], "themes": []})
+    result = defaultdict(
+        lambda: {"windows": [], "reasons": [], "warnings": [], "sources": [], "themes": [], "access": []}
+    )
     units, owned = {}, []
     for m in mentions:
         asset, version = assets.get(m.video_asset_id), versions.get(m.ai_note_version_id)
@@ -178,7 +180,10 @@ def experience_projection(db, place_ids=None):
                 continue
             theme_support.append(text)
             bucket = (
-                "warnings"
+                "access"
+                if claim.get("claim_type")
+                in {"TRANSPORT", "ACCESS_MODE", "SCENIC_ROAD", "TRANSPORT_NOTE", "PARKING"}
+                else "warnings"
                 if WARNING.search(text) or claim.get("claim_type") in {"WARNING", "PRICE", "TRANSPORT"}
                 else "reasons"
             )

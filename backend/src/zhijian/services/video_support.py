@@ -93,6 +93,7 @@ from zhijian.services.title_temporal import (
     verified_title_context,
 )
 from zhijian.services.transcript_retention import retention_deadline
+from zhijian.services.travel_semantics import classify_entity, scoped_travel_facts, temporal_semantics
 from zhijian.services.travel_timing import has_temporal_scope
 from zhijian.services.video_note_search import sync_video_note_search_index
 
@@ -306,6 +307,12 @@ def _chinese_month(value: str) -> int | None:
 
 
 def _months_in_text(value: str) -> list[int]:
+    semantics = temporal_semantics(value)
+    if semantics["precision"] == "MONTH" and semantics["start"] and semantics["end"]:
+        start, end = semantics["start"]["month"], semantics["end"]["month"]
+        return (
+            list(range(start, end + 1)) if start <= end else list(range(start, 13)) + list(range(1, end + 1))
+        )
     matches = list(MONTH_TOKEN.finditer(value))
     parsed = []
     for match in matches:
@@ -323,7 +330,7 @@ def _months_in_text(value: str) -> list[int]:
     for index, month in enumerate(parsed):
         if month and index + 1 < len(parsed) and parsed[index + 1]:
             connector = value[matches[index].end() : matches[index + 1].start()]
-            if re.fullmatch(r"\s*(?:至|到|[-—~～])\s*", connector):
+            if re.fullmatch(r"\s*(?:至|到|[-—~～])\s*(?:次年)?\s*", connector):
                 end = parsed[index + 1]
                 span = (
                     list(range(month, end + 1))
@@ -445,6 +452,9 @@ def _visit_windows_from_candidate(
                 "segment_ids": evidence_ids,
             }
             key = tuple(candidate[field] for field in candidate if field != "segment_ids")
+            candidate["semantics"] = temporal_semantics(
+                source_text, scope="AREA" if item.get("entity_type") == "AREA" else "PLACE"
+            )
             if key not in seen:
                 seen.add(key)
                 windows.append(candidate)
@@ -3006,6 +3016,7 @@ def extract_place_mentions(
     job: Job | None = None,
     candidates: list[dict[str, Any]] | None = None,
     claims: list[dict[str, Any]] | None = None,
+    content_units: list[dict[str, Any]] | None = None,
 ) -> list[PlaceMention]:
     if candidates is None:  # Explicit legacy / force re-extract path only.
         policy = _resolved_stage_policy(db, "EXTRACT_TRAVEL_FACTS", job)
@@ -3069,7 +3080,7 @@ def extract_place_mentions(
         )
     }
     created: list[PlaceMention] = []
-    for item in _merge_place_candidates(candidates)[:80]:
+    for item in _merge_place_candidates(candidates):
         if str(item.get("raw_name") or item.get("name") or "").strip() in {
             "游船",
             "菜品",
@@ -3081,6 +3092,31 @@ def extract_place_mentions(
         }:
             continue  # Local detail is not an independent geographic entity.
         ids = [value for value in item.get("segment_ids", []) if value in valid_ids]
+        area_unit_ids = []
+        if item.get("entity_type") == "AREA":
+            unit = next(
+                (
+                    u
+                    for u in content_units or []
+                    if u.get("content_unit_id") == item.get("content_unit_id")
+                    and u.get("unit_type") == "AREA_GUIDE"
+                    and u.get("anchor_entity_ids") == [item.get("entity_id")]
+                ),
+                {},
+            )
+            unit_ids = unit.get("segment_ids", [])
+            positions = [list(segment_texts).index(sid) for sid in unit_ids if sid in valid_ids]
+            if (
+                unit_ids
+                and len(positions) == len(unit_ids)
+                and positions == list(range(positions[0], positions[0] + len(positions)))
+                and set(ids) <= set(unit_ids)
+            ):
+                area_unit_ids = (
+                    list(unit_ids) if _candidate_has_evidence(item, unit_ids, segment_texts) else []
+                )
+                if area_unit_ids:
+                    ids = list(unit_ids)
         if not ids or not item.get("name") or not _candidate_has_evidence(item, ids, segment_texts):
             record_event(
                 db,
@@ -3112,6 +3148,9 @@ def extract_place_mentions(
             for other in candidates
             if other.get("entity_id") != item.get("entity_id")
         ]
+        identity = classify_entity(item)
+        if identity["identity"] in {"UNRESOLVED_NAME", "GENERIC", "LINEAR", "WAYPOINT"}:
+            poi_policy = "REFERENCE_ONLY"
         recommendation_evidence = assess(item, segment_texts)
         ids = list(
             dict.fromkeys(
@@ -3147,7 +3186,24 @@ def extract_place_mentions(
                 )
                 for key, text in segment_texts.items()
             }
+        if area_unit_ids:
+            # Only the sole AREA anchor receives anonymous regional timing. Named child facts stay local.
+            temporal_texts = {
+                sid: text if not any(name and name in text for name in other_names) else ""
+                for sid, text in segment_texts.items()
+                if sid in area_unit_ids
+            }
         visit_windows = _visit_windows_from_candidate(item, ids, temporal_texts)
+        travel_facts = []
+        for sid in ids:
+            travel_facts.extend(
+                scoped_travel_facts(
+                    temporal_texts.get(sid, ""),
+                    [sid],
+                    scope="AREA" if identity["identity"] == "AREA" else "PLACE",
+                )
+            )
+        insights.extend(travel_facts)
         for claim in claims or []:
             if claim.get("subject_entity_ids") != [item.get("entity_id")]:
                 continue
@@ -3186,16 +3242,14 @@ def extract_place_mentions(
                 else ResolutionStatus.UNRESOLVED.value
             ),
             metadata_json={
+                "travel_identity": identity,
+                "travel_facts": travel_facts,
                 "recommendation_evidence": recommendation_evidence,
                 "insights": insights,
                 "visit_windows": visit_windows,
                 "temporal_analysis": {
-                    "version": "map-timing-v2",
-                    "status": "ANALYZED"
-                    if visit_windows
-                    or has_temporal_scope("".join(segment_texts.values()))
-                    or has_temporal_scope(asset.title or "")
-                    else "NO_TIME_MENTIONED",
+                    "version": "map-timing-v3",
+                    "status": "ANALYZED" if visit_windows else "NO_TIME_MENTIONED",
                 },
                 "semantic": {
                     "entity_id": str(item.get("entity_id") or "")[:96],

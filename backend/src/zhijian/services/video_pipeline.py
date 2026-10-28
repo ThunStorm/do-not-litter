@@ -1045,6 +1045,7 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
                 job,
                 candidates=grounded_map.entities_json or grounded_map.places_json,
                 claims=grounded_map.claims_json,
+                content_units=grounded_map.content_units_json,
             )
         except ProviderUnavailable as exc:
             raise NeedsUser(exc.code, str(exc)) from exc
@@ -1553,6 +1554,7 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                 job,
                 candidates=grounded_map.entities_json or grounded_map.places_json,
                 claims=grounded_map.claims_json,
+                content_units=grounded_map.content_units_json,
             )
             _done(
                 db,

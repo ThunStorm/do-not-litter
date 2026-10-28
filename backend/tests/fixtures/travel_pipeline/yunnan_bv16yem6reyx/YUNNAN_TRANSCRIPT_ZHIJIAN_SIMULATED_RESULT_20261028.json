@@ -1,0 +1,1149 @@
+{
+  "schema_version": "simulation-v1",
+  "input": {
+    "title": "一集说透云南省，云南省旅游攻略",
+    "video_url": "https://www.bilibili.com/video/BV16Yem6REyX",
+    "transcript_version": "1 AI校对稿"
+  },
+  "disclaimer": "本内容是从上传转录稿人工模拟的目标解析结果，非仓库运行输出。无坐标、无高德POI确认、无实时道路可用性或开放信息。",
+  "place_candidates": [
+    {
+      "region": "怒江州",
+      "raw_label": "怒江大峡谷",
+      "kind": "PLACE",
+      "visit_window_or_context": "未给具体最佳月份",
+      "source_based_highlights": "G219怒江主线，峡谷景观；作者推荐自驾",
+      "notes": "雨季落石、冬季部分路段封闭是路线级限制",
+      "evidence_start": "01:51",
+      "review_code": "HIGH",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "怒江州",
+      "raw_label": "支子罗（转写原词）",
+      "kind": "PLACE_UNCERTAIN",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "怒江沿线景点被列举",
+      "notes": "名称可能需核对，绝不未经确认改字",
+      "evidence_start": "02:00",
+      "review_code": "REVIEW_NAME",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "怒江州",
+      "raw_label": "老母登教堂",
+      "kind": "PLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "怒江线路沿途景点",
+      "notes": "仅列举，未给停车、季节和停留时间",
+      "evidence_start": "02:00",
+      "review_code": "NORMAL",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "怒江州",
+      "raw_label": "丙中洛",
+      "kind": "PLACE_AREA",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "怒江自驾线目的地，作者称“人神共居”",
+      "notes": "作为路线终点，区域范围和具体地图锚点需匹配",
+      "evidence_start": "02:00",
+      "review_code": "HIGH",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "怒江州",
+      "raw_label": "独龙江",
+      "kind": "AREA",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "怒江景点/硬核徒步方向",
+      "notes": "路线中未证明它位于六库→贡山→丙中洛主序列",
+      "evidence_start": "02:00",
+      "review_code": "SEPARATE_AREA",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "迪庆",
+      "raw_label": "三江并流",
+      "kind": "AREA_FEATURE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "作者称迪庆是“三江并流”的核心",
+      "notes": "广域地理概念，不应强行匹配一个政府 POI",
+      "evidence_start": "02:26",
+      "review_code": "NO_FORCE_POINT",
+      "poi_status": "DO_NOT_FORCE_POINT"
+    },
+    {
+      "region": "迪庆",
+      "raw_label": "虎跳峡",
+      "kind": "PLACE_AREA",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "G214沿途、硬核徒步方向",
+      "notes": "“中虎跳”另有13:57附近的徒步线索",
+      "evidence_start": "02:34",
+      "review_code": "HIGH",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "迪庆",
+      "raw_label": "小中甸",
+      "kind": "AREA_ROUTE_NODE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "丽江北上G214的途经地",
+      "notes": "只有途经信息，无独立游玩推荐",
+      "evidence_start": "02:43",
+      "review_code": "ROUTE_NODE",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "迪庆",
+      "raw_label": "独克宗古城",
+      "kind": "PLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "G214沿途、藏地人文和摄影",
+      "notes": "前文简称“独克宗”，可关联同一候选但须校验",
+      "evidence_start": "02:43",
+      "review_code": "HIGH",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "迪庆",
+      "raw_label": "松赞林寺",
+      "kind": "PLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "作者列举的香格里拉周边景点",
+      "notes": "具体门票交通未提及",
+      "evidence_start": "02:52",
+      "review_code": "NORMAL",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "迪庆",
+      "raw_label": "普达措",
+      "kind": "PLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "作者提到的迪庆常见景区",
+      "notes": "没有证据表明是G214顺序上的停车点",
+      "evidence_start": "02:26",
+      "review_code": "NORMAL",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "迪庆",
+      "raw_label": "梅里雪山",
+      "kind": "PLACE_AREA",
+      "visit_window_or_context": "冬季观赏日照金山概率更高；5–10月常被云遮挡",
+      "source_based_highlights": "日照金山、G214北上终点",
+      "notes": "时间作用于观赏概率，不等于景区道路全年状态",
+      "evidence_start": "02:43",
+      "review_code": "HIGH",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "迪庆",
+      "raw_label": "雨崩村",
+      "kind": "PLACE_AREA",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "藏地景点，后文与硬核徒步有关",
+      "notes": "不要默认为G214经停点",
+      "evidence_start": "02:52",
+      "review_code": "NORMAL",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "迪庆",
+      "raw_label": "香格里拉",
+      "kind": "AREA_DESTINATION",
+      "visit_window_or_context": "区域秋冬倾向；不是逐景点最佳月",
+      "source_based_highlights": "作者高度推荐藏地人文、度假、摄影",
+      "notes": "高海拔、高反风险；作者另述部分人不宜前往",
+      "evidence_start": "02:52",
+      "review_code": "HIGH",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "丽江",
+      "raw_label": "丽江古城",
+      "kind": "PLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "古城游，商业化较重",
+      "notes": "作者对丽江整体体验评价一般；勿推为强推荐",
+      "evidence_start": "03:43",
+      "review_code": "CONDITIONAL",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "丽江",
+      "raw_label": "束河古镇",
+      "kind": "PLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "作者描述更安静、民宿较多",
+      "notes": "非明确自驾线路停靠顺序",
+      "evidence_start": "03:43",
+      "review_code": "NORMAL",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "丽江/大理语境",
+      "raw_label": "沙溪古镇",
+      "kind": "PLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "作者称游客较少，保存茶马古道历史",
+      "notes": "先在丽江古城片区被列举，后在大理支线称需绕路；归属需核对",
+      "evidence_start": "03:43",
+      "review_code": "SCOPE_REVIEW",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "丽江",
+      "raw_label": "白沙古镇",
+      "kind": "PLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "作者称人数较少，可望见玉龙雪山",
+      "notes": "注意与前文“沙溪”分离，不能随意合并",
+      "evidence_start": "03:52",
+      "review_code": "HIGH",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "丽江",
+      "raw_label": "玉龙雪山",
+      "kind": "PLACE_AREA",
+      "visit_window_or_context": "夏季雪景观赏效果较弱（作者评价）",
+      "source_based_highlights": "丽江自然风光代表",
+      "notes": "“夏天只能看到石头”仅是作者观点，不是关闭信息",
+      "evidence_start": "03:52",
+      "review_code": "HIGH",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "丽江",
+      "raw_label": "蓝月谷",
+      "kind": "PLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "玉龙雪山周边自然风光",
+      "notes": "未有独立时节证据",
+      "evidence_start": "03:52",
+      "review_code": "NORMAL",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "丽江",
+      "raw_label": "泸沽湖",
+      "kind": "PLACE_AREA",
+      "visit_window_or_context": "秋季可见水性杨花（作者描述）",
+      "source_based_highlights": "摩梭文化、休闲度假",
+      "notes": "从丽江车程较长；作者更推荐自驾。秋季景观≠全年最佳",
+      "evidence_start": "04:00",
+      "review_code": "HIGH",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "丽江",
+      "raw_label": "拉市海",
+      "kind": "PLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "湖滨漫步",
+      "notes": "作者不建议普通游客骑马，属玩法限制，不是地点不推荐",
+      "evidence_start": "04:16",
+      "review_code": "LOCAL_NEGATIVE",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "保山/腾冲",
+      "raw_label": "腾冲火山（泛称）",
+      "kind": "GENERIC_FEATURE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "火山风景，腾冲休闲旅居主题",
+      "notes": "未给具体景区名，不自动创建独立 POI",
+      "evidence_start": "05:08",
+      "review_code": "NO_FORCE_POINT",
+      "poi_status": "DO_NOT_FORCE_POINT"
+    },
+    {
+      "region": "保山/腾冲",
+      "raw_label": "腾冲温泉（泛称）",
+      "kind": "GENERIC_FEATURE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "泡温泉是腾冲核心体验",
+      "notes": "未指明温泉酒店或景区，不自动匹配任意一个",
+      "evidence_start": "05:08",
+      "review_code": "NO_FORCE_POINT",
+      "poi_status": "DO_NOT_FORCE_POINT"
+    },
+    {
+      "region": "保山/腾冲",
+      "raw_label": "和顺古镇",
+      "kind": "PLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "腾冲值得游览的古镇",
+      "notes": "可作为POI候选",
+      "evidence_start": "05:08",
+      "review_code": "HIGH",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "保山/腾冲",
+      "raw_label": "松山遗址",
+      "kind": "PLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "滇西抗战历史主题",
+      "notes": "交通/门票均未知",
+      "evidence_start": "05:17",
+      "review_code": "NORMAL",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "德宏",
+      "raw_label": "芒市大金塔（视频仅称“大金塔”）",
+      "kind": "PLACE_UNCERTAIN",
+      "visit_window_or_context": "仅德宏区域说冬季适宜",
+      "source_based_highlights": "芒市代表性打卡点、金塔建筑",
+      "notes": "具体POI名称不能只按常识确定",
+      "evidence_start": "06:00",
+      "review_code": "REVIEW_NAME",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "德宏",
+      "raw_label": "一国两寨（转写原词）",
+      "kind": "PLACE_UNCERTAIN",
+      "visit_window_or_context": "仅德宏区域说冬季适宜",
+      "source_based_highlights": "瑞丽边境风情",
+      "notes": "视频原词可能不准确，需要名称核对",
+      "evidence_start": "06:08",
+      "review_code": "REVIEW_NAME",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "普洱",
+      "raw_label": "景迈山",
+      "kind": "PLACE_AREA",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "作者称是普洱主要看点、文化遗产",
+      "notes": "没有确切行驶路线或最佳季节",
+      "evidence_start": "06:34",
+      "review_code": "HIGH",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "普洱",
+      "raw_label": "太阳河森林公园",
+      "kind": "PLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "作者描述与猴子近距离互动",
+      "notes": "此处仅记录来源说法，不建议主动接触野生动物",
+      "evidence_start": "06:34",
+      "review_code": "NORMAL",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "普洱片区（待核）",
+      "raw_label": "无量山",
+      "kind": "PLACE_AREA",
+      "visit_window_or_context": "冬季樱花",
+      "source_based_highlights": "赏樱主题",
+      "notes": "地理归属/具体赏樱点需POI核对，不随意下钻",
+      "evidence_start": "06:42",
+      "review_code": "HIGH",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "西双版纳",
+      "raw_label": "星光夜市",
+      "kind": "PLACE",
+      "visit_window_or_context": "地区级11月至次年3月；非夜市独有证据",
+      "source_based_highlights": "景洪周边夜市",
+      "notes": "作者另有冬季夜市体验的一般评价",
+      "evidence_start": "07:07",
+      "review_code": "NORMAL",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "西双版纳",
+      "raw_label": "曼听公园",
+      "kind": "PLACE",
+      "visit_window_or_context": "仅地区级11月至次年3月",
+      "source_based_highlights": "景洪周边景点",
+      "notes": "无独立最佳时间证据",
+      "evidence_start": "07:07",
+      "review_code": "NORMAL",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "西双版纳",
+      "raw_label": "傣王宫遗址",
+      "kind": "PLACE_UNCERTAIN",
+      "visit_window_or_context": "仅地区级11月至次年3月",
+      "source_based_highlights": "景洪附近景点",
+      "notes": "名称、地图实体需核对",
+      "evidence_start": "07:07",
+      "review_code": "REVIEW_NAME",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "西双版纳",
+      "raw_label": "野象谷",
+      "kind": "PLACE",
+      "visit_window_or_context": "仅地区级11月至次年3月",
+      "source_based_highlights": "作者介绍观赏亚洲象",
+      "notes": "野生动物观赏须以景区现场规则为准",
+      "evidence_start": "07:15",
+      "review_code": "NORMAL",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "西双版纳",
+      "raw_label": "原始森林公园",
+      "kind": "PLACE_UNCERTAIN",
+      "visit_window_or_context": "仅地区级11月至次年3月",
+      "source_based_highlights": "孔雀放飞表演（来源说法）",
+      "notes": "完整POI身份未核对",
+      "evidence_start": "07:15",
+      "review_code": "REVIEW_NAME",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "西双版纳",
+      "raw_label": "中科院热带植物园",
+      "kind": "PLACE",
+      "visit_window_or_context": "仅地区级11月至次年3月",
+      "source_based_highlights": "作者称必去，可观热带雨林",
+      "notes": "未给单点最佳月份",
+      "evidence_start": "07:15",
+      "review_code": "HIGH",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "文山",
+      "raw_label": "普者黑",
+      "kind": "PLACE_AREA",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "喀斯特湖/森林/洞穴等景观",
+      "notes": "作者说门票不要钱但内部多处收费，收费信息属视频观点，非实时价格",
+      "evidence_start": "08:06",
+      "review_code": "HIGH",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "文山",
+      "raw_label": "坝美世外桃源",
+      "kind": "PLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "乘船穿越溶洞到村落",
+      "notes": "作者说附近高铁方便，具体交通待核",
+      "evidence_start": "08:14",
+      "review_code": "HIGH",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "昆明/滇东",
+      "raw_label": "东川红土地",
+      "kind": "PLACE_AREA",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "红土地观景题材",
+      "notes": "在大区域介绍中出现；未给独立月份",
+      "evidence_start": "08:56",
+      "review_code": "NORMAL",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "曲靖",
+      "raw_label": "罗平油菜花景观（泛称）",
+      "kind": "AREA_FEATURE",
+      "visit_window_or_context": "2–3月花期；春季定向推荐",
+      "source_based_highlights": "油菜花观赏",
+      "notes": "不应盲匹配某一油菜花景区；其他时间作者更建议路过",
+      "evidence_start": "09:04",
+      "review_code": "SEASONAL",
+      "poi_status": "DO_NOT_FORCE_POINT"
+    },
+    {
+      "region": "曲靖",
+      "raw_label": "会泽古城",
+      "kind": "PLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "曲靖区域古城类景点",
+      "notes": "无独立时节证据",
+      "evidence_start": "09:13",
+      "review_code": "NORMAL",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "曲靖",
+      "raw_label": "大海草山",
+      "kind": "PLACE_AREA",
+      "visit_window_or_context": "夏季草原好看（归属需确认）",
+      "source_based_highlights": "草原观赏",
+      "notes": "同段“夏季多雨”在曲靖区域；不作无证据的地点强归属",
+      "evidence_start": "09:13",
+      "review_code": "SCOPE_REVIEW",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "曲靖",
+      "raw_label": "九龙瀑布",
+      "kind": "PLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "曲靖自然景观",
+      "notes": "未给明确最佳月",
+      "evidence_start": "09:13",
+      "review_code": "NORMAL",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "楚雄",
+      "raw_label": "元谋土林",
+      "kind": "PLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "作者认为适合打卡",
+      "notes": "未给月度/路线约束",
+      "evidence_start": "09:30",
+      "review_code": "NORMAL",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "玉溪",
+      "raw_label": "抚仙湖",
+      "kind": "PLACE_AREA",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "深水湖、适合环湖自驾",
+      "notes": "只明确“环湖”，没有具体路段或停靠顺序",
+      "evidence_start": "09:48",
+      "review_code": "HIGH",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "玉溪",
+      "raw_label": "星云湖",
+      "kind": "PLACE_AREA",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "玉溪周边湖泊",
+      "notes": "未给独立玩法和时节",
+      "evidence_start": "09:48",
+      "review_code": "NORMAL",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "玉溪",
+      "raw_label": "聂耳故居",
+      "kind": "PLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "玉溪人文点位",
+      "notes": "需地理身份匹配",
+      "evidence_start": "09:48",
+      "review_code": "NORMAL",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "玉溪",
+      "raw_label": "哀牢山",
+      "kind": "PLACE_AREA",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "山地及周边村寨",
+      "notes": "仅有区域性提及，不编造游线和道路通行信息",
+      "evidence_start": "09:57",
+      "review_code": "NORMAL",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "玉溪",
+      "raw_label": "澄江化石地",
+      "kind": "PLACE_AREA",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "化石主题世界遗产（作者表述）",
+      "notes": "具体设施/景点 POI 待匹配",
+      "evidence_start": "09:57",
+      "review_code": "NORMAL",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "红河",
+      "raw_label": "建水古城",
+      "kind": "PLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "米轨火车/人文古城，消费较低（作者评价）",
+      "notes": "建水到石屏是米轨火车，不可错记成自驾路线",
+      "evidence_start": "10:31",
+      "review_code": "HIGH",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "红河",
+      "raw_label": "石屏（古城语境）",
+      "kind": "AREA_ROUTE_NODE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "建水至石屏的米轨终端、古城语境",
+      "notes": "原文未完整说“石屏古城” POI，先保留城市/区域",
+      "evidence_start": "10:31",
+      "review_code": "SCOPE_REVIEW",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "红河",
+      "raw_label": "元阳梯田",
+      "kind": "PLACE_AREA",
+      "visit_window_or_context": "1–4月灌水期最佳观赏",
+      "source_based_highlights": "云海与梯田",
+      "notes": "作者强烈建议自驾；没有给具体验证过的支路",
+      "evidence_start": "10:48",
+      "review_code": "HIGH",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "红河",
+      "raw_label": "弥勒",
+      "kind": "AREA_DESTINATION",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "红酒、红砖艺术、小城人文",
+      "notes": "城市级推荐，未提具体红砖建筑，不自动新造景点",
+      "evidence_start": "10:56",
+      "review_code": "NORMAL",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "昆明",
+      "raw_label": "滇池",
+      "kind": "PLACE_AREA",
+      "visit_window_or_context": "冬季推荐（红嘴鸥）",
+      "source_based_highlights": "昆明湖泊核心",
+      "notes": "视频说冬天可以喂红嘴鸥；记录为作者说法，不转成活动建议",
+      "evidence_start": "11:30",
+      "review_code": "HIGH",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "昆明",
+      "raw_label": "海埂公园",
+      "kind": "PLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "滇池周边打卡点",
+      "notes": "不能未经明确证据直接继承冬季最佳",
+      "evidence_start": "11:30",
+      "review_code": "NORMAL",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "昆明",
+      "raw_label": "捞鱼河湿地",
+      "kind": "PLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "滇池周边湿地打卡点",
+      "notes": "不能未经明确证据直接继承冬季最佳",
+      "evidence_start": "11:30",
+      "review_code": "NORMAL",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "昆明",
+      "raw_label": "石林景区",
+      "kind": "PLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "喀斯特地貌代表",
+      "notes": "无独立时节证据",
+      "evidence_start": "11:38",
+      "review_code": "HIGH",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "昆明",
+      "raw_label": "翠湖公园",
+      "kind": "PLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "昆明人文建筑集中区中心",
+      "notes": "周边步行串联，但未给明确途经顺序",
+      "evidence_start": "11:38",
+      "review_code": "HIGH",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "昆明",
+      "raw_label": "陆军讲武堂（转写简称）",
+      "kind": "PLACE_UNCERTAIN",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "翠湖周边人文景点",
+      "notes": "具体POI身份需核",
+      "evidence_start": "11:48",
+      "review_code": "REVIEW_NAME",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "昆明",
+      "raw_label": "西南联大（转写简称）",
+      "kind": "PLACE_UNCERTAIN",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "翠湖周边历史人文",
+      "notes": "未指定具体遗址/纪念馆，不硬匹配",
+      "evidence_start": "11:48",
+      "review_code": "REVIEW_NAME",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "昆明",
+      "raw_label": "斗南花市",
+      "kind": "PLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "花卉市场；作者推荐时间充裕时去",
+      "notes": "不是花期建议，也不是冬季景点",
+      "evidence_start": "11:56",
+      "review_code": "HIGH",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "大理",
+      "raw_label": "苍山",
+      "kind": "PLACE_AREA",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "山景、俯瞰洱海",
+      "notes": "可乘索道上山；不是自驾线路内各站",
+      "evidence_start": "12:40",
+      "review_code": "HIGH",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "大理",
+      "raw_label": "洱海",
+      "kind": "PLACE_AREA",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "环湖自驾/骑行玩法",
+      "notes": "海西生态廊道禁自驾与东线可自驾需要分段记录",
+      "evidence_start": "12:13",
+      "review_code": "HIGH",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "大理",
+      "raw_label": "海西生态廊道",
+      "kind": "LINEAR_FEATURE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "西侧骑行走廊、来源说全长40公里",
+      "notes": "属路线/线状设施，不能当普通点标记；来源不等于实测长度",
+      "evidence_start": "12:13",
+      "review_code": "NOT_POINT",
+      "poi_status": "DO_NOT_FORCE_POINT"
+    },
+    {
+      "region": "大理",
+      "raw_label": "龙龛码头",
+      "kind": "PLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "海西推荐骑行段起点",
+      "notes": "骑行到喜洲古镇，而非自驾推荐",
+      "evidence_start": "12:23",
+      "review_code": "ROUTE_NODE",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "大理",
+      "raw_label": "喜洲古镇",
+      "kind": "PLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "海西推荐骑行段终点",
+      "notes": "同一骑行段",
+      "evidence_start": "12:23",
+      "review_code": "HIGH",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "大理",
+      "raw_label": "双廊",
+      "kind": "PLACE_AREA",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "洱海东线骑行段起点",
+      "notes": "双廊→洼色系骑行，东线同时可全程自驾，但未明示自驾停靠顺序",
+      "evidence_start": "12:31",
+      "review_code": "ROUTE_NODE",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "大理",
+      "raw_label": "洼色",
+      "kind": "AREA_ROUTE_NODE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "洱海东线骑行段终点",
+      "notes": "原词“洼色”，后续需POI匹配",
+      "evidence_start": "12:31",
+      "review_code": "ROUTE_NODE",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "大理",
+      "raw_label": "崇圣寺三塔",
+      "kind": "PLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "大理地标、摄影打卡",
+      "notes": "视频强推荐",
+      "evidence_start": "12:48",
+      "review_code": "HIGH",
+      "poi_status": "PENDING_VERIFICATION"
+    },
+    {
+      "region": "徒步专题",
+      "raw_label": "中虎跳",
+      "kind": "SUBPLACE",
+      "visit_window_or_context": "未明确",
+      "source_based_highlights": "虎跳峡硬核徒步点",
+      "notes": "与虎跳峡为父子关系候选，不直接归成独立行政地区",
+      "evidence_start": "13:57",
+      "review_code": "SCOPE_REVIEW",
+      "poi_status": "PENDING_VERIFICATION"
+    }
+  ],
+  "route_guides": [
+    {
+      "id": "route_nujiang_g219",
+      "name": "G219 怒江大峡谷自驾线",
+      "mode": "SELF_DRIVE",
+      "type": "EXPLICIT_SEQUENCE",
+      "sequence": [
+        "六库",
+        "贡山",
+        "丙中洛"
+      ],
+      "associated": [
+        "怒江大峡谷",
+        "支子罗（待核名称）",
+        "老母登教堂",
+        "独龙江（非确认顺序点）"
+      ],
+      "timing": "未给最佳月份；雨季落石风险、冬季部分路段可能封路",
+      "conditions": [
+        "自驾/包车优先",
+        "公共交通不适合",
+        "冬季封路是路线风险，非整条路永久关闭"
+      ],
+      "source": "01:51–02:26",
+      "accuracy": "只确认三地的顺序；其余只是沿线推荐，不生成具体绕路或距离"
+    },
+    {
+      "id": "route_g214_north",
+      "name": "G214 滇西北经典自驾",
+      "mode": "SELF_DRIVE",
+      "type": "PARENT_ROUTE_WITH_DETAIL",
+      "sequence": [
+        "昆明",
+        "大理",
+        "丽江",
+        "香格里拉",
+        "梅里雪山"
+      ],
+      "detailed_sequence": [
+        "丽江",
+        "虎跳峡",
+        "小中甸",
+        "独克宗",
+        "梅里雪山"
+      ],
+      "timing": "梅里雪山冬季观赏日照金山概率更高；不能直接把冬季定义为整条G214最佳自驾季",
+      "conditions": [
+        "香格里拉区域高海拔",
+        "藏文化区域秋冬偏好仅为背景信息"
+      ],
+      "source": "02:34–03:26；13:30–13:48",
+      "accuracy": "宏观推荐路书与丽江以北细线应关联；不表示昆明至各地路段均位于G214道路"
+    },
+    {
+      "id": "route_west_border",
+      "name": "滇西边境环线（视频命名）",
+      "mode": "SELF_DRIVE",
+      "type": "PARTIAL_SEQUENCE",
+      "sequence": [
+        "保山",
+        "腾冲",
+        "芒市",
+        "瑞丽"
+      ],
+      "associated": [
+        "怒江大峡谷",
+        "G219"
+      ],
+      "timing": "具体全线最佳时间未知；怒江路段雨季落石、冬季部分封路",
+      "conditions": [
+        "作者称可由腾冲连接芒市/德宏",
+        "没有明确回到起点的闭环路段"
+      ],
+      "source": "05:26–05:35；13:38–13:48",
+      "accuracy": "不能用“环线”一词自动生成首尾闭合、路程或完整道路几何"
+    },
+    {
+      "id": "route_southeast",
+      "name": "滇东南环线（视频命名）",
+      "mode": "SELF_DRIVE",
+      "type": "EXPLICIT_SEQUENCE",
+      "sequence": [
+        "昆明",
+        "建水",
+        "元阳"
+      ],
+      "timing": "元阳梯田1–4月灌水期最佳；不自动覆盖整条线路",
+      "conditions": [
+        "作者称铺装道路体验友好，弯道较怒江少",
+        "作者建议前往元阳自驾"
+      ],
+      "source": "11:12–11:21；13:48–13:57",
+      "accuracy": "未给回程闭环，不推测驾驶里程时间"
+    },
+    {
+      "id": "route_fuxian_lake",
+      "name": "抚仙湖环湖自驾",
+      "mode": "SELF_DRIVE",
+      "type": "UNORDERED_LOOP",
+      "sequence": [],
+      "associated": [
+        "抚仙湖"
+      ],
+      "timing": "未明确",
+      "conditions": [
+        "仅明确适合环湖自驾"
+      ],
+      "source": "09:48–09:57",
+      "accuracy": "未提供起终点或沿湖公路、不得自动拟合"
+    },
+    {
+      "id": "route_erhai_east_drive",
+      "name": "洱海东侧自驾",
+      "mode": "SELF_DRIVE",
+      "type": "CORRIDOR_ONLY",
+      "sequence": [],
+      "associated": [
+        "洱海东线"
+      ],
+      "timing": "未明确",
+      "conditions": [
+        "作者说东线可以全程自驾"
+      ],
+      "source": "12:31–12:48",
+      "accuracy": "具体公路路线和停车点未提供"
+    },
+    {
+      "id": "route_erhai_west_road",
+      "name": "洱海西侧道路自驾（路名待核）",
+      "mode": "SELF_DRIVE",
+      "type": "ROAD_MENTION_UNVERIFIED",
+      "sequence": [],
+      "associated": [
+        "洱海西侧道路"
+      ],
+      "timing": "未明确",
+      "conditions": [
+        "海西生态廊道本身不可按自驾通道使用",
+        "作者说自驾可走“S二二幺”，路号保留原词"
+      ],
+      "source": "12:31–12:48",
+      "accuracy": "必须先核对公路编号，不直接规范化为S221或画出真实道路"
+    },
+    {
+      "id": "route_erhai_west_cycling",
+      "name": "海西生态廊道推荐骑行段",
+      "mode": "CYCLING",
+      "type": "EXPLICIT_SEQUENCE",
+      "sequence": [
+        "龙龛码头",
+        "喜洲古镇"
+      ],
+      "associated": [
+        "海西生态廊道"
+      ],
+      "timing": "未明确",
+      "conditions": [
+        "视频说海西生态廊道约40公里但更建议只骑这段",
+        "不是自驾路线"
+      ],
+      "source": "12:13–12:31",
+      "accuracy": "没有提供可实际骑行路径的道路几何"
+    },
+    {
+      "id": "route_erhai_east_cycling",
+      "name": "洱海东侧骑行段",
+      "mode": "CYCLING",
+      "type": "EXPLICIT_SEQUENCE",
+      "sequence": [
+        "双廊",
+        "洼色"
+      ],
+      "timing": "未明确",
+      "conditions": [
+        "是作者针对骑行的建议，不等于自驾必经点"
+      ],
+      "source": "12:31–12:40",
+      "accuracy": "没有真实沿路路线几何"
+    },
+    {
+      "id": "route_jianshui_shiping_rail",
+      "name": "建水至石屏米轨火车",
+      "mode": "RAIL",
+      "type": "EXPLICIT_SEQUENCE",
+      "sequence": [
+        "建水",
+        "石屏"
+      ],
+      "timing": "未明确",
+      "conditions": [
+        "应显示为铁路体验，不能误标为自驾"
+      ],
+      "source": "10:31–10:48",
+      "accuracy": "站名和时刻表未给，不能生成"
+    },
+    {
+      "id": "route_food",
+      "name": "云南美食主题串线",
+      "mode": "FOOD_THEME",
+      "type": "EXPLICIT_LIST",
+      "sequence": [
+        "芒市",
+        "西双版纳",
+        "建水",
+        "蒙自"
+      ],
+      "timing": "未明确",
+      "conditions": [
+        "作者把四个地区列为美食推荐线",
+        "视频未明确整条路线是自驾、也未给驾驶时间"
+      ],
+      "source": "13:57–14:06",
+      "accuracy": "保留推荐顺序，但不给出道路/路线优化"
+    }
+  ],
+  "area_contexts": [
+    {
+      "region": "藏文化相关区域",
+      "scope": "怒江州、迪庆、丽江",
+      "fact": "秋冬季节较推荐；其他时间雨水较多，是区域级背景",
+      "evidence_time": "04:25–04:49"
+    },
+    {
+      "region": "南传佛教/澜沧江流域",
+      "scope": "保山、德宏、临沧、普洱、西双版纳",
+      "fact": "旅居、异域人文、美食为区域主题，不构成逐景点季节证据",
+      "evidence_time": "04:49–07:58"
+    },
+    {
+      "region": "德宏",
+      "scope": "芒市、瑞丽",
+      "fact": "冬季较适宜；边境出行携带身份证",
+      "evidence_time": "05:43–06:34"
+    },
+    {
+      "region": "西双版纳",
+      "scope": "景洪周边、多个热带旅游点",
+      "fact": "11月至次年3月最适宜，夏季闷热",
+      "evidence_time": "06:59–07:41"
+    },
+    {
+      "region": "文山",
+      "scope": "普者黑、坝美",
+      "fact": "喀斯特山水，自由行友好",
+      "evidence_time": "07:58–08:40"
+    },
+    {
+      "region": "昭通",
+      "scope": "仅区域层级",
+      "fact": "作者提到避暑/旅居，但没有明确最佳月份，不应凭常识生成夏季具体窗口",
+      "evidence_time": "08:40–08:56"
+    },
+    {
+      "region": "曲靖",
+      "scope": "罗平、会泽、大海草山等",
+      "fact": "罗平油菜花2–3月；其他地点不共享同一花期",
+      "evidence_time": "09:04–09:30"
+    },
+    {
+      "region": "楚雄",
+      "scope": "元谋土林、火把节主题",
+      "fact": "作者不建议一般游客专程跑楚雄，火把节是条件例外；未提节庆日期",
+      "evidence_time": "09:30–09:48"
+    },
+    {
+      "region": "玉溪",
+      "scope": "抚仙湖、星云湖等",
+      "fact": "昆明附近短途/亲子、适合抚仙湖环湖自驾",
+      "evidence_time": "09:48–10:13"
+    },
+    {
+      "region": "红河",
+      "scope": "建水、蒙自、元阳、弥勒",
+      "fact": "人文/梯田分主题；元阳1–4月是特定景观窗口",
+      "evidence_time": "10:13–11:21"
+    },
+    {
+      "region": "昆明",
+      "scope": "滇池、石林、翠湖等",
+      "fact": "昆明适合多类型游客；冬季特指滇池红嘴鸥",
+      "evidence_time": "11:21–12:13"
+    },
+    {
+      "region": "大理",
+      "scope": "苍山、洱海及周边",
+      "fact": "骑行/自驾需分线路；海西生态廊道不能驾车；沙溪需绕路",
+      "evidence_time": "12:13–13:13"
+    }
+  ],
+  "manual_review": [
+    {
+      "category": "转写名称",
+      "raw": "支子罗",
+      "issue": "疑似地名转写差错，仅保存原词，进入POI名称校验"
+    },
+    {
+      "category": "转写名称",
+      "raw": "一国两寨",
+      "issue": "边境景点名称疑似有误，不自动纠正"
+    },
+    {
+      "category": "转写名称",
+      "raw": "大金塔",
+      "issue": "具体指哪座塔需要结合芒市地点语境做POI核验"
+    },
+    {
+      "category": "转写名称",
+      "raw": "S二二幺",
+      "issue": "道路编号需核验；来源中并无标准阿拉伯数字路号"
+    },
+    {
+      "category": "归属冲突",
+      "raw": "沙溪古镇",
+      "issue": "首次被列进丽江古城段，后又在大理段作为绕路支线；不依邻近段落臆断所属城市"
+    },
+    {
+      "category": "局部观点",
+      "raw": "拉市海",
+      "issue": "不建议普通游客骑马≠不推荐拉市海"
+    },
+    {
+      "category": "时节作用域",
+      "raw": "藏文化片区秋冬",
+      "issue": "只挂区域主题，不把每个POI都标注最佳秋冬"
+    },
+    {
+      "category": "时节作用域",
+      "raw": "西双版纳11月至次年3月",
+      "issue": "区域旅游时节可作区域背景，不直接变成每个子景区独立“最佳”"
+    },
+    {
+      "category": "路线限制",
+      "raw": "怒江冬季封路",
+      "issue": "只说“部分路段”，不能推断整条G219冬季关闭"
+    },
+    {
+      "category": "相邻句推断",
+      "raw": "夏季草原好看",
+      "issue": "与大海草山相关性较高，但应标归属待确认，不生成高置信POI最佳月份"
+    },
+    {
+      "category": "地图实体",
+      "raw": "腾冲火山、温泉",
+      "issue": "只是体验/泛称，不能自动匹配任意具体火山或温泉POI"
+    },
+    {
+      "category": "路线等级",
+      "raw": "滇西边境环线、滇东南环线",
+      "issue": "作者使用“环线”，没有给出回程闭合段，不能自动生成封闭路线"
+    }
+  ],
+  "summary": {
+    "candidate_records": 71,
+    "route_guides": 11,
+    "area_contexts": 12,
+    "review_items": 12
+  }
+}

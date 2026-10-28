@@ -443,3 +443,11 @@ API 返回给产品前端的是 ViewModel，而不是 ORM Row。
 ## 存储维护与作者态度（2026-10-27）
 
 Session保护的GET /api/settings/storage返回当前根/加载代次、后台方案与日志维护结果；POST /plan只启动受限本机清点并保存待应用方案；POST /logs/preview与/logs/apply以清单token约束策略应用，不提供任意shell或请求内切库。详见[存储契约](../operations/STORAGE_AND_LOG_LIFECYCLE.md)。地点/审核/地图DTO新增可选recommendation_summary，UNKNOWN为兼容默认；共享投影不改历史。确认位置与作者态度、个人偏好独立，详情保留所有有效态度来源的笔记链接。
+
+### 地点时节与作者路线扩展（2026-10-28）
+
+- `GET /api/travel/route-guides?note_id=...`：当前笔记/转写版本的已存作者路线，包含原词节点、交通模式、独立条件、逐字Evidence、source_id/version_id/artifact_id；普通GET零Provider调用。
+- `POST /api/travel/route-guides/copy`：`note_id/guide_id/version_id`显式复制为个人RouteDraft；版本变化、节点未全部确认或为空返回409；原来源不随清单编辑变化。
+- `GET /api/travel/history-audit`：只读`dry_run=true/writes=0`，列出mention缺时间/出行事实/证据的原因；没有生产回填入口。
+- `GET /api/travel/export-v2`：ZIP含manifest.json、places.json、routes.json；保留来源证据和人工备注，路线无Provider实证不含导航几何；旧POST export原契约不变。
+- 现有visit-windows响应增量`semantics`字典；编辑仍用旧period_type/suitability字段。存储与身份约束见旅行领域10.26。

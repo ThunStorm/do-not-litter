@@ -145,6 +145,7 @@ class PlaceInsightView(BaseModel):
 
 
 class PlaceVisitWindowView(BaseModel):
+    semantics: dict[str, Any] = Field(default_factory=dict)
     valid_as_time: bool = True
     id: str
     source_id: str | None = None

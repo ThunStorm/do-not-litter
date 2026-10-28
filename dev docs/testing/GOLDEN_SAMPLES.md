@@ -142,3 +142,13 @@
 - 至少一份结构复杂的 XLS/XLSX 岗位表；
 - R-001/R-002 的人工期望答案与脱敏 Fixture；
 - T-001/T-002 的人工地点清单与时间码答案。
+
+## 云南多区域/时节/路线常驻样本（2026-10-28）
+
+`YUNNAN_MULTI_REGION_ROUTE_001` / `BV16Yem6REyX` / `P0_CRITICAL`。原转录稿、simulation-v1 JSON/MD、原manifest与哈希在`backend/tests/fixtures/travel_pipeline/yunnan_bv16yem6reyx/`；grounded_routes.json是从同稿冻结的模型边界夹具，11组参考拆为12个作用域对象（G214宏观/细节分别保存）。每次P0–P3、解析/路线Schema、时节评分、导出变更必须复跑：
+
+```bash
+'/Volumes/D/Library/Application Support/Zhijian/venv/bin/python' scripts/check_yunnan_regression.py --output /tmp/yunnan-regression-report.json
+```
+
+检查29条硬性断言、71条已标类型候选的原词保全、12个路线对象、跨年/日期精度、禁渔/道路/局部否定、版本/清单隔离、旧导出与dry_run。46项离线测试仅证明规则及模拟提取边界。报告分别列出typed_name_retention与model_extraction；前者TP/FP/FN及1.0指标不表示真实模型召回或POI正确率。后者需显式真实调用取证，不能凭simulation-v1复制预期冒称金标。完整记录见[验收报告](../benchmark/YUNNAN_REGRESSION_ACCEPTANCE_20261028.md)。

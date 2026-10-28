@@ -1188,3 +1188,9 @@ svg { flex: 0 0 auto; }
 .video-place-list .video-place small { font-size: 11px; line-height: 16px; }
 .place-preview__title { margin-bottom: 8px; }
 @media (max-width: 719px) { .video-evidence-grid { grid-template-columns: minmax(0, 1fr); } }
+
+.route-guide-card { padding: 16px; margin: 16px 0; overflow-wrap: anywhere; }
+.route-guide-card h3 { font-size: 18px; line-height: 25px; margin: 0 0 12px; }
+.route-guide-card p, .route-guide-card blockquote { font-size: 14px; line-height: 22px; margin: 8px 0; }
+.route-guide-card blockquote { border-left: 1px solid var(--color-border); padding-left: 12px; color: var(--color-text-muted); }
+.route-guide-card .button { margin-top: 12px; }

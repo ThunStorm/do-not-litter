@@ -47,6 +47,7 @@
 | 前端、UI、视觉、样式、布局、组件、Dropdown、Filter | [前端视觉设计系统](design/FRONTEND_VISUAL_DESIGN_SYSTEM.md) |
 | 地图 V2 草案（仅用户指定时） | [文档目录](README.md#地图-v2-草案的按需路由) 选章节，不能推断已冻结或已实现 |
 | 数据目录、搬迁、日志压缩/保留 | [存储与日志生命周期](operations/STORAGE_AND_LOG_LIFECYCLE.md)；实际搬迁需明确目标授权，不由设置保存代替 |
+| 地点时节、作者路线、云南回归、v2导出 | [旅行领域](product/TRAVEL_FOOD_PIPELINE.md#1026-地点时节与作者路线2026-10-28)；常驻样本见 testing/GOLDEN_SAMPLES.md |
 | 地点推荐态度、整体/局部否定 | [旅行领域](product/TRAVEL_FOOD_PIPELINE.md#1025-地点整体态度与局部限制2026-10-27)；真实模型质量仍需独立验收 |
 | 运维日志、监控、北京时间 | [日志](operations/LOGGING.md)；监控选 operations/OPERATIONS_UI_SPEC.md，时间选 jobs/TASK_STATUS_AND_BEIJING_TIME_SPEC.md |
 | 数据迁移、API、安全 | 分别在 architecture/DATA_MODEL.md、architecture/API_DESIGN.md、architecture/SECURITY_PRIVACY.md 中按表/路由/威胁定位 |

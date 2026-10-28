@@ -4,6 +4,7 @@
 
 | 归档计划 | 覆盖证据 | 未进入本轮的后续方向 |
 | --- | --- | --- |
+| [地点时节/作者路线/云南回归](PLACE_TIME_ROUTE_YUNNAN_REGRESSION_PLAN.md) | P0–P3、只读审计/兼容导出及真实响应修复；证据见benchmark/YUNNAN_REGRESSION_ACCEPTANCE_20261028.md | 全量语义金标仍待人工审核，不自动回填或确认POI。 |
 | [POI匹配与搜索排查](POI_RESOLUTION_DIAGNOSTIC_AND_OPTIMIZATION_PLAN.md) | 连续片段证据、搜索与交互、景区分层、区域与入口代表点；0026及生产发布见交接 | 真实高德匹配质量、真实视频和历史重解析未验；区域代表点不支持加入路线及独立隐藏。 |
 | [数据目录与日志生命周期](DATA_STORAGE_AND_LOG_LIFECYCLE_PLAN.md) | 统一启动配置、受管引用、维护协调器、分卷压缩/保留、设置与隔离故障矩阵；见当前状态及存储专项 | 生产数据根未搬迁，物理介质故障未验；旧副本不自动删。 |
 | [地点推荐态度贯通](PLACE_RECOMMENDATION_INTENT_PLAN.md) | 逐字证据/主体、合并、POI门禁、来源投影、笔记保真及双端界面；见旅行领域 | 真实模型召回率/误报及真实视频未验；不回写历史。 |

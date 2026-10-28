@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from typing import Any
 
 from zhijian.services.place_knowledge import aggregate_place_knowledge
+from zhijian.services.travel_semantics import temporal_semantics
 from zhijian.services.travel_timing import matches_window, valid_window, window_label
 
 VISIT_STATE_LABELS = {
@@ -256,8 +258,15 @@ def group_by_place(items: list[Any]) -> dict[str, list[Any]]:
 
 
 def _window_state(item: Any) -> str:
-    if item.period_type in {"SEASONAL_CLOSURE", "FISHING_CLOSURE"}:
-        return "CLOSED"
+    if item.provenance == "SEMANTIC_CONTEXT":
+        return "UNKNOWN"
+    semantics = temporal_semantics(item.source_text or "")
+    if semantics["purpose"] == "ACTIVITY" or semantics["scope"] == "ROAD_SECTION":
+        return "UNKNOWN"
+    if item.period_type == "FISHING_CLOSURE":
+        return "UNKNOWN"  # Activity restriction is not a closure of the destination.
+    if item.period_type == "SEASONAL_CLOSURE":
+        return "CAUTION" if re.search(r"部分|路段|道路|公路|自驾|骑行", item.source_text or "") else "CLOSED"
     if item.suitability in {"RESTRICTED", "AVOID"}:
         return "CAUTION"
     if item.provenance in {"SOURCE_FACT", "TITLE_CONTEXT"} and window_label(item) == "时段待明确":
@@ -267,7 +276,7 @@ def _window_state(item: Any) -> str:
         if item.suitability == "RECOMMENDED" and item.period_type in BEST_PERIODS
         else "GOOD"
         if item.suitability == "RECOMMENDED"
-        else "POSSIBLE"
+        else "UNKNOWN"
     )
 
 

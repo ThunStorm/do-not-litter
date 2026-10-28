@@ -408,6 +408,8 @@ export interface PlacePreview {
 }
 
 export interface TravelBriefData {
+  access?: string[]
+  source_label?: string
   timing?: string
   conditions?: string[]
   highlights?: string[]
@@ -536,3 +538,10 @@ export interface Recommendation { status: string; review_required?: boolean; sou
 export interface LogPolicy { version: number; compress: boolean; compression_delay_hours: number; retention_days: number; volume_bytes: number; capacity_bytes: number; bootstrap_retention_days: number; bootstrap_capacity_bytes: number; low_space_bytes: number }
 export interface LogPreview { token: string; delete_count: number; delete_bytes: number; oldest_closed_at: number | null; archived_bytes: number }
 export interface StorageStatus { root: string; generation: number; configured_generation: number; registered: boolean; plan: { stage?: string; error?: string; target?: string; required_bytes?: number; free_bytes?: number; categories?: Record<string, number> }; state: { stage?: string }; policy: LogPolicy; handler_versions: number[]; exceptions: string[]; log_summary: LogPreview; maintenance: { at?: number; compressed?: number; deleted?: number; errors?: string[] } }
+
+export interface RouteGuide {
+  id: string; guide_id: string; name: string; note_id: string; version_id: string; source_title: string; evidence_url: string
+  mode: string; sequence_kind: string; display_notice: string; review_status: string
+  stops: Array<{ raw_name: string; place_id: string | null; review_status: string }>
+  evidence: { quote: string; segment_ids: string[] }; conditions: Array<{ subject: string; quote: string }>
+}

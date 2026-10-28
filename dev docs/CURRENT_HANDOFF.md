@@ -4,15 +4,17 @@
 
 ## 任务续接
 
-- 目标：发布并交付Ground Map局部ID恢复，不扩大真实模型/视频验收。
-- 完成：无歧义Claim ID本地修复；实体/单元冲突拒绝，精确诊断、原预算纠错及审计/缓存血缘闭环。新增20项，工作树后端589/前端43及Lint/类型/隔离构建及提交副本目标72项通过；真实响应40条Claim离线保留，修复1处，调用0。
-- 发布：无迁移重载API/Worker，0025、内容/新PID心跳READY，业务/静态哈希不变；保存点data/backups/claim-id-recovery-20261026。提交含JSON纠错依赖，隔离验证及提交/推送结果见保存点release-result.json；其他在途改动保留。
-- 未闭环：真实恢复率、歧义纠错质量及既有取消/地图F未验。原任务部署前19:24已PARTIAL_SUCCESS，本次未重跑。
-- 下一步：明确视频、模型与调用范围后验实际恢复质量。
-- 文件：ai/structured_ids.py、request_compiler.py、json_recovery.py、services/video_support.py；契约ai-gateway/04-stage-policy.md。
-- 禁止：不自动调用模型、重跑视频、确认POI、迁移或改历史/凭据；旧快照、显式0重试与REMOTE_ONLY保持。
+- 目标：云南P0–P3开发、验证、发布、文档归档及推送。
+- 完成：时节归属/活动边界、作者路线独立/非导航、原词待核、dry_run/v2导出；真实响应补缺对象解析、单AREA背景和去80条截尾。后端703/末次79、云南46/29断言、前端59及Lint/类型/隔离构建通过，生产962/390px Browser无溢出/错误，写响应模拟。
+- 真实：模型3次44,839/32,319 Token，高德只读3次；禁网缓存重放13待核路线/102候选，生产历史/POI确认0。完整语义召回未通过独立金标；字面18项未匹配。
+- 发布：0026无迁移重载、API/Worker/心跳READY；保存点data/backups/yunnan-regression-20261028-141659。提交/推送结果见其中delivery-result.json。
+- 下一步：人工审核候选字面差异及局部漏提，冻结独立语义金标。
+- 文件：services/travel_semantics.py、route_guides.py/route_recovery.py、api/travel_extensions.py；benchmark/YUNNAN_REGRESSION_ACCEPTANCE_20261028.md。
+- 禁止：不自动回填历史、改名/确认POI、迁移；既有取消/地图F未闭环保持。
 
-## 生产快照（最新采样2026-10-27 17:29，北京时间）
+## 生产快照（最新采样2026-10-28 14:34，北京时间）
+
+- 2026-10-28 14:34 云南时节/作者路线：无迁移，0026保持；API/Worker RUNNING，内容及新PID49051心跳READY，active/lease/在途调用0，integrity=ok/FK0，最终42业务表摘要一致。保存点`data/backups/yunnan-regression-20261028-141659`含原包/前后源码、旧新静态/HTTP哈希、已验逻辑DB和漂移/空闲门禁回退脚本；DB SHA256 `97da4699e857e7a2058a7ef1209bb189dcdc61ba0a443e6a2d248354d90515e6`，线上index SHA256 `66c60131b672c3a76a05a165c0c975ade1dce44868f1006cd80995e90cb482bc`，JS/CSS匹配构建。首轮187已到期Artifact仅状态/updated_at变化触发源码/静态自动回退；逐字段/到期时间及其余41表核对后新备份重发，未恢复DB。新增API/真实只读v2导出22地点/506来源候选/3个人清单正常，旧作者路线0，无历史补算。962/390px生产Browser来源路线/原词待核/时间用途与适宜度交互通过、零溢出/相关错误；所有写响应拦截模拟。经授权真实模型3次/高德搜索3次在隔离库执行，生产ExternalCallAudit未增加；无生产视频重跑/POI确认。详细边界及回退证据见验收报告与保存点。
 
 - 2026-10-27 17:29 POI代码复核升级：无新迁移，0026保持；API/Worker RUNNING，内容及新Worker PID85838心跳READY，active/lease/在途调用0，integrity=ok/FK0。最终保存点 `data/backups/poi-audit-final-20261027-172908` 含源码、旧新静态、逻辑DB、哈希与带漂移/空闲门禁的rollback.py；备份SHA256 `b5ca74db664a15dee817b78a2501f2479a4cee2833d13448055dedf28fe9a3e6`，线上index SHA256 `74af3b22a6145348148962dc4db8822e805c0138040abf4d95b464bf29c0a9bd`，JS/CSS HTTP匹配构建。后端全量656与末次目标86、前端57及Ruff/ESLint/类型/隔离构建、文档5项通过。962/390px生产Browser以挂起/释放模拟响应确认输入/确认互斥、表单保持、手动结果标签和中文类型，无溢出/相关错误；POST及新代表点均拦截，真实地图/笔记API只读正常。首轮172006保存点因62条已到期中间产物状态变化触发并完成源码/静态回退；逐字段确认仅AVAILABLE→EXPIRED及updated_at，原内容不变。172309重发核对11条、最终本次核对6条相同维护迁移，其余41张业务表摘要一致；未恢复业务库，原始差异证据保留。真实高德/模型/视频及历史POI重处理0，ExternalCallAudit仍1746；缺陷与界限见benchmark/POI_RESOLUTION_CODE_REVIEW_REPORT.md。本次本地提交、不推送。
 

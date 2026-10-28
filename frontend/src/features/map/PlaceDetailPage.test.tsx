@@ -5,7 +5,7 @@ import { beforeEach, expect, it, vi } from 'vitest'
 import { api } from '../../lib/api'
 import { PlaceDetailPage } from './PlaceDetailPage'
 
-vi.mock('../../lib/api', () => ({ api: { place: vi.fn(), placeDestinations: vi.fn(), placeHistory: vi.fn(), updatePlaceOverlay: vi.fn(), updatePlaceNote: vi.fn() } }))
+vi.mock('../../lib/api', () => ({ api: { place: vi.fn(), placeDestinations: vi.fn(), placeHistory: vi.fn(), updatePlaceOverlay: vi.fn(), updatePlaceNote: vi.fn(), createVisitWindow: vi.fn(), deleteVisitWindow: vi.fn() } }))
 let detail: Record<string, unknown>
 beforeEach(() => {
   vi.clearAllMocks()
@@ -52,4 +52,17 @@ it('retains the edit and save flow behind the secondary entry', async () => {
   await waitFor(() => expect(vi.mocked(api.placeHistory).mock.calls.length).toBeGreaterThanOrEqual(2))
   expect(await screen.findByRole('heading', { name: '江边雾凇' })).toBeInTheDocument()
   expect(screen.getByText('个人保暖记录')).toBeVisible()
+})
+
+it('saves manual timing purpose and suitability explicitly', async () => {
+  vi.mocked(api.createVisitWindow).mockResolvedValue({} as never)
+  show()
+  fireEvent.click(await screen.findByRole('button', { name: '编辑地点' }))
+  fireEvent.change(screen.getByPlaceholderText('例如：十月中旬秋色最好'), { target: { value: '十月观赏红叶' } })
+  fireEvent.click(screen.getByRole('button', { name: /时间用途/ }))
+  fireEvent.click(screen.getByRole('option', { name: '观赏时机' }))
+  fireEvent.click(screen.getByRole('button', { name: /适宜程度/ }))
+  fireEvent.click(screen.getByRole('option', { name: /^不宜$/ }))
+  fireEvent.click(screen.getByRole('button', { name: '保存时间补充' }))
+  await waitFor(() => expect(api.createVisitWindow).toHaveBeenCalledWith('p', expect.objectContaining({ period_type: 'BEST_VIEWING', suitability: 'AVOID', source_text: '十月观赏红叶' })))
 })

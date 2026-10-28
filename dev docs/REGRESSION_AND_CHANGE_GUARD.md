@@ -34,6 +34,7 @@
 | 运维 | CPU/内存/磁盘与 Worker 心跳为 SQLite 持久化快照；内存百分比使用可回收页口径；日志支持筛选、关联 Job、分页与脱敏 | `operations/OPERATIONS_UI_SPEC.md`、`operations/LOGGING.md` |
 | 步骤续跑 | ERROR/CRITICAL 事件先查询 Replay Options；Artifact 有效时从失败步骤继续，上游 REUSED、当前/下游顺次执行；过期后只允许完整重跑；日志页不直接改步骤 | `jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md`、`operations/LOGGING.md`、ADR-026 |
 | 存储与日志生命周期 | 启动根/锁统一；缺卷/实例不符拒绝建空库；搬迁保持旧副本，放行后不回旧库；日志只删已登记封卷，gzip核验后删原件；转录180天与永久资料独立 | `operations/STORAGE_AND_LOG_LIFECYCLE.md`、`test_storage_lifecycle.py`、`test_storage_api.py` |
+| 地点时节与作者路线 | 背景零推荐加权，活动/路段限制不关闭区域，跨年/用途/精度有据；新作者路线仅绑定当前版本、逐字证据/站序校验、原词待核、非导航；个人清单独立、旧导出兼容、历史仅dry_run；云南P0_CRITICAL必跑 | `product/TRAVEL_FOOD_PIPELINE.md` 10.26、`test_yunnan_multiregion_travel_golden.py` |
 | 作者地点态度 | 整体态度需逐字证据/主体/版本，局部限制不建地点；合并顺序无关，负向/存疑自动POI零调用，确认位置/个人偏好不改作者；负向来源不被体验筛选吞掉，旧证据不回写；默认无态度标签，仅负向名称标记 | `product/TRAVEL_FOOD_PIPELINE.md` 10.25、`services/recommendation_intent.py`、`test_recommendation_intent.py` |
 | 内容保留 | 终态任务和内容可删除；删除不破坏共享来源、地点、路线或证据；密钥只进 Keychain/Secret Store | `ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md`、`architecture/SECURITY_PRIVACY.md` |
 | 视频 v0.3 | Bilibili 元数据/字幕优先/受控音频/Whisper 转写；同一视频的每次提交产生独立 Note/Content/Transcript Version，重跑只给所属 Note 增新版本；Place 按 Provider POI ID 复用，地点与笔记证据不跨任务串联；章节、时间码、POI、Place Note 和失败/部分成功均为真实数据 | `video/04-jobs-data-api.md`、`services/video_pipeline.py` |

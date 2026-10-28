@@ -1,0 +1,233 @@
+[
+  {
+    "claim_id": "fixture-route-怒江主线",
+    "claim_type": "ROUTE",
+    "segment_ids": [
+      "s13",
+      "s14"
+    ],
+    "supporting_quote": "有云南最原始的秘境，来这儿就只推荐自驾，而且只有一条线可以选，就是G219怒江大峡谷，六库出发，途经贡山到丙中洛主要的景区包括怒江大峡谷支子罗老母登教堂丙中洛独龙江等等地方其中怒江大峡谷号称世界三大峡谷",
+    "route": {
+      "name": "怒江主线",
+      "mode": "SELF_DRIVE",
+      "sequence_kind": "EXPLICIT_SEQUENCE",
+      "stops": [
+        "六库",
+        "贡山",
+        "丙中洛"
+      ],
+      "road": "G219"
+    }
+  },
+  {
+    "claim_id": "fixture-route-北上细节",
+    "claim_type": "ROUTE",
+    "segment_ids": [
+      "s18",
+      "s19"
+    ],
+    "supporting_quote": "并流的核心，主要有两条路线：G214滇藏线自驾，以及香格里拉度假。G214就是一路从丽江北上，途经虎跳峡小中甸、独克宗到梅里雪山。运气好的话能看到日照金山，这是无数人走这条线路的终极追求。如果不想折腾的话",
+    "route": {
+      "name": "北上细节",
+      "mode": "SELF_DRIVE",
+      "sequence_kind": "EXPLICIT_SEQUENCE",
+      "stops": [
+        "丽江",
+        "虎跳峡",
+        "小中甸",
+        "独克宗",
+        "梅里雪山"
+      ],
+      "road": "G214"
+    }
+  },
+  {
+    "claim_id": "fixture-route-宏观串线",
+    "claim_type": "ROUTE",
+    "segment_ids": [
+      "s95",
+      "s96"
+    ],
+    "supporting_quote": "冬天的话推荐西双版纳。自驾党推荐三条路线：首先是滇西北的经典路线G214，昆明、大理、丽江、香格里拉到梅里雪山。然后是滇西的边境环线，主要是G219、怒江大峡谷，多走一走还可以串联保山、腾冲、芒市、瑞丽。这个体",
+    "route": {
+      "name": "宏观串线",
+      "mode": "SELF_DRIVE",
+      "sequence_kind": "EXPLICIT_SEQUENCE",
+      "stops": [
+        "昆明",
+        "大理",
+        "丽江",
+        "香格里拉",
+        "梅里雪山"
+      ],
+      "road": "G214"
+    }
+  },
+  {
+    "claim_id": "fixture-route-边境主题",
+    "claim_type": "ROUTE",
+    "segment_ids": [
+      "s95",
+      "s96"
+    ],
+    "supporting_quote": "冬天的话推荐西双版纳。自驾党推荐三条路线：首先是滇西北的经典路线G214，昆明、大理、丽江、香格里拉到梅里雪山。然后是滇西的边境环线，主要是G219、怒江大峡谷，多走一走还可以串联保山、腾冲、芒市、瑞丽。这个体",
+    "route": {
+      "name": "边境主题",
+      "mode": "SELF_DRIVE",
+      "sequence_kind": "PARTIAL_SEQUENCE",
+      "stops": [
+        "保山",
+        "腾冲",
+        "芒市",
+        "瑞丽"
+      ],
+      "road": "G219"
+    }
+  },
+  {
+    "claim_id": "fixture-route-滇东南",
+    "claim_type": "ROUTE",
+    "segment_ids": [
+      "s95",
+      "s96",
+      "s97"
+    ],
+    "supporting_quote": "冬天的话推荐西双版纳。自驾党推荐三条路线：首先是滇西北的经典路线G214，昆明、大理、丽江、香格里拉到梅里雪山。然后是滇西的边境环线，主要是G219、怒江大峡谷，多走一走还可以串联保山、腾冲、芒市、瑞丽。这个体验非常好。最后一个就是滇东南环线：昆明、建水、元阳，铺装路路况非常友好，弯道比怒江少很多。然后是一个推荐吃",
+    "route": {
+      "name": "滇东南",
+      "mode": "SELF_DRIVE",
+      "sequence_kind": "EXPLICIT_SEQUENCE",
+      "stops": [
+        "昆明",
+        "建水",
+        "元阳"
+      ],
+      "road": ""
+    }
+  },
+  {
+    "claim_id": "fixture-route-环湖自驾",
+    "claim_type": "ROUTE",
+    "segment_ids": [
+      "s69"
+    ],
+    "supporting_quote": "块的旅游资源稍微丰富一些，有抚仙湖，是国内一类水质的深水湖，适合环湖自驾。还有星云湖、聂耳故居。这边的",
+    "route": {
+      "name": "环湖自驾",
+      "mode": "SELF_DRIVE",
+      "sequence_kind": "UNORDERED_LOOP",
+      "stops": [],
+      "road": "",
+      "subject": "抚仙湖"
+    }
+  },
+  {
+    "claim_id": "fixture-route-东线自驾",
+    "claim_type": "ROUTE",
+    "segment_ids": [
+      "s88",
+      "s89"
+    ],
+    "supporting_quote": "这边东线的话如果是骑行建议走双廊到洼色就够了西线不能自驾自驾可以走S二二幺谁走谁停停下来走几百米就到洱海了。东线可以全程自驾。另一条路线就是苍山了，能俯瞰整个洱海。体力一般的可以选择索道上山。这块还有崇",
+    "route": {
+      "name": "东线自驾",
+      "mode": "SELF_DRIVE",
+      "sequence_kind": "CORRIDOR_ONLY",
+      "stops": [],
+      "road": "",
+      "subject": "东线"
+    }
+  },
+  {
+    "claim_id": "fixture-route-存疑道路",
+    "claim_type": "ROUTE",
+    "segment_ids": [
+      "s88",
+      "s89"
+    ],
+    "supporting_quote": "这边东线的话如果是骑行建议走双廊到洼色就够了西线不能自驾自驾可以走S二二幺谁走谁停停下来走几百米就到洱海了。东线可以全程自驾。另一条路线就是苍山了，能俯瞰整个洱海。体力一般的可以选择索道上山。这块还有崇",
+    "route": {
+      "name": "存疑道路",
+      "mode": "SELF_DRIVE",
+      "sequence_kind": "CORRIDOR_ONLY",
+      "stops": [],
+      "road": "S二二幺"
+    }
+  },
+  {
+    "claim_id": "fixture-route-西线骑行",
+    "claim_type": "ROUTE",
+    "segment_ids": [
+      "s86",
+      "s87"
+    ],
+    "supporting_quote": "苍山洱海是核心，主要就是两条路线：一个苍山，一个洱海。洱海环湖分为东西两条路，其中海西生态廊道四十公里都是推荐骑行，但没人能骑完这四十公里，所以我推荐走龙龛码头到喜洲古镇这一段就可以了。西线的核心和精华都在",
+    "route": {
+      "name": "西线骑行",
+      "mode": "CYCLING",
+      "sequence_kind": "EXPLICIT_SEQUENCE",
+      "stops": [
+        "龙龛码头",
+        "喜洲古镇"
+      ],
+      "road": ""
+    }
+  },
+  {
+    "claim_id": "fixture-route-东线骑行",
+    "claim_type": "ROUTE",
+    "segment_ids": [
+      "s88"
+    ],
+    "supporting_quote": "这边东线的话如果是骑行建议走双廊到洼色就够了西线不能自驾自驾可以走S二二幺谁走谁停停下来走几百米",
+    "route": {
+      "name": "东线骑行",
+      "mode": "CYCLING",
+      "sequence_kind": "EXPLICIT_SEQUENCE",
+      "stops": [
+        "双廊",
+        "洼色"
+      ],
+      "road": ""
+    }
+  },
+  {
+    "claim_id": "fixture-route-米轨体验",
+    "claim_type": "ROUTE",
+    "segment_ids": [
+      "s74"
+    ],
+    "supporting_quote": "片区一个就是建水和蒙自周边首先建水古城是一个可以坐米轨小火车的地方可以从建水做到石屏两个古城都是",
+    "route": {
+      "name": "米轨体验",
+      "mode": "RAIL",
+      "sequence_kind": "EXPLICIT_SEQUENCE",
+      "stops": [
+        "建水",
+        "石屏"
+      ],
+      "road": ""
+    }
+  },
+  {
+    "claim_id": "fixture-route-美食主题",
+    "claim_type": "ROUTE",
+    "segment_ids": [
+      "s97",
+      "s98"
+    ],
+    "supporting_quote": "验非常好。最后一个就是滇东南环线：昆明、建水、元阳，铺装路路况非常友好，弯道比怒江少很多。然后是一个推荐吃货走的路线，主要是芒市、西双版纳、建水、蒙自，这几个地方美食密度非常高，而且怎么吃都好吃。如果你是一个硬核徒步",
+    "route": {
+      "name": "美食主题",
+      "mode": "FOOD_THEME",
+      "sequence_kind": "EXPLICIT_LIST",
+      "stops": [
+        "芒市",
+        "西双版纳",
+        "建水",
+        "蒙自"
+      ],
+      "road": ""
+    }
+  }
+]

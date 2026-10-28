@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 
+from zhijian.services.travel_semantics import temporal_semantics
 from zhijian.services.travel_timing import SEASON_LABELS, valid_window, window_label
 
 
@@ -17,7 +18,8 @@ def travel_brief(experience, windows, *, default_all_year=False, recommendation_
     positive = [
         w
         for w in local
-        if w.suitability not in {"AVOID", "RESTRICTED"}
+        if temporal_semantics(w.source_text or "")["purpose"] in {"VISIT", "VIEWING"}
+        and w.suitability not in {"AVOID", "RESTRICTED"}
         and not re.search(r"不推荐|不建议|闭园|封山|停航", w.source_text or "")
     ]
     context = [w for w in windows if w.provenance == "SEMANTIC_CONTEXT"]
@@ -34,7 +36,7 @@ def travel_brief(experience, windows, *, default_all_year=False, recommendation_
     frequency = next(
         (w for w in positive if w.month and w.month_segment and "几乎天天" in (w.source_text or "")), None
     )
-    seasons = _unique(SEASON_LABELS.get(w.season, "") for w in local if w.season)
+    seasons = _unique(SEASON_LABELS.get(w.season, "") for w in positive if w.season)
     if labels:
         timing = f"视频推荐在{'、'.join(labels[:2])}{activity}。"
     elif frequency:
@@ -96,6 +98,8 @@ def travel_brief(experience, windows, *, default_all_year=False, recommendation_
     ]
     return {
         "timing": timing,
+        "access": _unique(experience.get("access", [])),
+        "source_label": "视频作者观点",
         "conditions": _unique(conditions)[:2],
         "highlights": highlights,
         "warnings": warnings,

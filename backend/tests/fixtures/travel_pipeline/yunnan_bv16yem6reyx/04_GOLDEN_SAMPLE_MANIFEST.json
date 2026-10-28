@@ -1,0 +1,321 @@
+{
+  "schema_version": "golden-manifest-v1",
+  "golden_sample_id": "YUNNAN_MULTI_REGION_ROUTE_001",
+  "priority": "P0_CRITICAL",
+  "video_id": "BV16Yem6REyX",
+  "input_file": "zhijian-transcript-BV16Yem6REyX.txt",
+  "input_type": "AI-corrected transcript version 1",
+  "baseline_reference": [
+    "YUNNAN_TRANSCRIPT_ZHIJIAN_SIMULATED_RESULT_20261028.json",
+    "YUNNAN_TRANSCRIPT_ZHIJIAN_SIMULATED_RESULT_20261028.md"
+  ],
+  "reference_is_verified_gold": false,
+  "reported_reference_counts": {
+    "place_candidates": 71,
+    "route_guides": 11,
+    "area_contexts": 12,
+    "manual_review": 12
+  },
+  "runs_on": [
+    "P0",
+    "P1",
+    "P2",
+    "P3",
+    "parser-schema-change",
+    "season-recommendation-change",
+    "route-change",
+    "export-change"
+  ],
+  "assertions": [
+    {
+      "id": "A01",
+      "category": "实体分类",
+      "subject": "支子罗",
+      "expected": "原词保留为名称待核",
+      "must_not": "不得自动修正或高置信确认",
+      "evidence_timecode": "02:00",
+      "phase": "P1",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "A02",
+      "category": "实体分类",
+      "subject": "三江并流",
+      "expected": "广域地理概念",
+      "must_not": "不得强制生成单一POI点",
+      "evidence_timecode": "02:26",
+      "phase": "P1",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "A03",
+      "category": "实体分类",
+      "subject": "腾冲火山、温泉",
+      "expected": "泛称体验",
+      "must_not": "不得捏造具体景区",
+      "evidence_timecode": "05:08",
+      "phase": "P1",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "A04",
+      "category": "实体分类",
+      "subject": "小中甸",
+      "expected": "可做途经节点",
+      "must_not": "不得无证据当强推荐景区",
+      "evidence_timecode": "02:43",
+      "phase": "P2",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "B01",
+      "category": "时间/作用域",
+      "subject": "梅里雪山",
+      "expected": "冬季日照金山较易；5–10月云遮挡",
+      "must_not": "不得等同冬季道路可通行",
+      "evidence_timecode": "03:17",
+      "phase": "P0/P1",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "B02",
+      "category": "时间/作用域",
+      "subject": "西双版纳",
+      "expected": "11月至次年3月为区域级",
+      "must_not": "不得灌给曼听/野象谷等单点最优",
+      "evidence_timecode": "07:23",
+      "phase": "P0/P1",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "B03",
+      "category": "时间/作用域",
+      "subject": "元阳梯田",
+      "expected": "1–4月灌水期观景",
+      "must_not": "不得伪造具体日级日期",
+      "evidence_timecode": "10:48",
+      "phase": "P0/P1",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "B04",
+      "category": "时间/作用域",
+      "subject": "罗平油菜花",
+      "expected": "2–3月观花",
+      "must_not": "不得变成整个曲靖最佳旅游月份",
+      "evidence_timecode": "09:04",
+      "phase": "P1",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "B05",
+      "category": "时间/作用域",
+      "subject": "泸沽湖",
+      "expected": "秋季可见水性杨花",
+      "must_not": "不等于整湖最佳季节或唯一适宜",
+      "evidence_timecode": "04:08",
+      "phase": "P1",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "B06",
+      "category": "时间/作用域",
+      "subject": "滇池",
+      "expected": "冬季看红嘴鸥",
+      "must_not": "不得派生到海埂公园最佳月",
+      "evidence_timecode": "11:30",
+      "phase": "P1",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "B07",
+      "category": "时间/作用域",
+      "subject": "怒江大峡谷",
+      "expected": "雨季落石、冬季部分路段封闭",
+      "must_not": "不标整个景区CLOSED",
+      "evidence_timecode": "02:17",
+      "phase": "P0/P1",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "B08",
+      "category": "时间/作用域",
+      "subject": "藏文化片区",
+      "expected": "秋冬为广域偏好",
+      "must_not": "不能默认所有子景点最佳月",
+      "evidence_timecode": "04:33",
+      "phase": "P1",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "C01",
+      "category": "活动/交通",
+      "subject": "拉市海",
+      "expected": "普通游客不建议骑马",
+      "must_not": "不得转成景点整体不推荐",
+      "evidence_timecode": "04:16",
+      "phase": "P0/P1",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "C02",
+      "category": "活动/交通",
+      "subject": "泸沽湖",
+      "expected": "丽江过去车程较长、自驾更推荐",
+      "must_not": "不能杜撰耗时/公里",
+      "evidence_timecode": "04:08",
+      "phase": "P1",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "C03",
+      "category": "活动/交通",
+      "subject": "洱海海西生态廊道",
+      "expected": "海西生态廊道禁止自驾，适合骑行",
+      "must_not": "不能标整个洱海禁自驾",
+      "evidence_timecode": "12:13",
+      "phase": "P0/P2",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "C04",
+      "category": "活动/交通",
+      "subject": "洱海东线",
+      "expected": "可自驾，双廊到洼色适合骑行",
+      "must_not": "骑行与自驾不能合一",
+      "evidence_timecode": "12:31",
+      "phase": "P2",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "C05",
+      "category": "活动/交通",
+      "subject": "S二二幺",
+      "expected": "保留转录疑点 NEEDS_REVIEW",
+      "must_not": "不能自动标准化道路编号",
+      "evidence_timecode": "12:31",
+      "phase": "P1/P2",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "D01",
+      "category": "路线顺序",
+      "subject": "G219怒江主线",
+      "expected": "六库→贡山→丙中洛",
+      "must_not": "不能插入独龙江为强制途经点",
+      "evidence_timecode": "01:51",
+      "phase": "P2",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "D02",
+      "category": "路线顺序",
+      "subject": "G214细节",
+      "expected": "丽江→虎跳峡→小中甸→独克宗→梅里",
+      "must_not": "与昆明宏观串线做层级关联",
+      "evidence_timecode": "02:34",
+      "phase": "P2",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "D03",
+      "category": "路线顺序",
+      "subject": "G214宏观",
+      "expected": "昆明→大理→丽江→香格里拉→梅里",
+      "must_not": "不能把整段均称为G214道路",
+      "evidence_timecode": "13:30",
+      "phase": "P2",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "D04",
+      "category": "路线顺序",
+      "subject": "滇东南环线",
+      "expected": "昆明→建水→元阳",
+      "must_not": "不伪造闭环回程和道路几何",
+      "evidence_timecode": "13:48",
+      "phase": "P2",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "D05",
+      "category": "路线类型",
+      "subject": "骑行海西段",
+      "expected": "龙龛码头→喜洲古镇",
+      "must_not": "不输出为驾车导航",
+      "evidence_timecode": "12:23",
+      "phase": "P2",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "D06",
+      "category": "路线类型",
+      "subject": "铁路体验",
+      "expected": "建水→石屏",
+      "must_not": "不记为自驾",
+      "evidence_timecode": "10:31",
+      "phase": "P2",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "D07",
+      "category": "路线类型",
+      "subject": "美食串线",
+      "expected": "芒市/西双版纳/建水/蒙自",
+      "must_not": "未指定道路顺序不可伪造里程",
+      "evidence_timecode": "13:57",
+      "phase": "P2",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "D08",
+      "category": "路线融合",
+      "subject": "边境环线",
+      "expected": "G219、怒江及保山/腾冲/芒市/瑞丽串联",
+      "must_not": "不可补造回程与确定站序",
+      "evidence_timecode": "13:38",
+      "phase": "P2",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "E01",
+      "category": "稳定兼容",
+      "subject": "推荐评分",
+      "expected": "INFORMATIONAL/SEMANTIC_CONTEXT仅背景",
+      "must_not": "背景不得直接+1",
+      "evidence_timecode": "code",
+      "phase": "P0",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "E02",
+      "category": "稳定兼容",
+      "subject": "人工编辑",
+      "expected": "用户新增时窗与路线保持",
+      "must_not": "重跑解析不得覆盖用户编辑与墓碑",
+      "evidence_timecode": "code",
+      "phase": "P0–P3",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "E03",
+      "category": "稳定兼容",
+      "subject": "低成本",
+      "expected": "普通地图和详情读取无需模型",
+      "must_not": "不得隐式增加逐点模型/高德路线调用",
+      "evidence_timecode": "code",
+      "phase": "P0–P3",
+      "verification_status": "REFERENCE_ASSERTION"
+    },
+    {
+      "id": "E04",
+      "category": "稳定兼容",
+      "subject": "导出",
+      "expected": "旧格式继续兼容、新v2含路线证据",
+      "must_not": "无Provider验证不得输出道路几何",
+      "evidence_timecode": "code",
+      "phase": "P3",
+      "verification_status": "REFERENCE_ASSERTION"
+    }
+  ]
+}

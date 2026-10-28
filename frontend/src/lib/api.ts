@@ -188,6 +188,8 @@ export const api = {
   restoreManualPlace: (id: string) => request(`/api/travel/places/${id}/user-created/restore`, { method: 'POST' }),
   updatePlace: (id: string, action: string) => request(`/api/travel/places/${id}/${action}`, { method: 'POST' }),
   createPlacePreference: (id: string, eventType: 'LIKE' | 'DISLIKE') => request(`/api/travel/places/${id}/preferences`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ event_type: eventType }) }),
+  routeGuides: () => request<import('./types').RouteGuide[]>('/api/travel/route-guides'),
+  copyRouteGuide: (note_id: string, guide_id: string, version_id: string) => request<{ id: string }>('/api/travel/route-guides/copy', { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ note_id, guide_id, version_id }) }),
   routes: () => request<RouteDraftView[]>('/api/travel/route-drafts'),
   createRoute: (name: string, city: string) => request<RouteDraftView>('/api/travel/route-drafts', {
     method: 'POST', headers: jsonHeaders, body: JSON.stringify({ name, city, place_ids: [] }),

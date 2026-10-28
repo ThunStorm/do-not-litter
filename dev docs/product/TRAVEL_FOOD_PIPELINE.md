@@ -506,3 +506,15 @@ TravelDashboardVM：
 笔记各分包仅携本包证据；整体意见和局部限制保真传递，未能核对归纳覆盖时保留绑定原句并标HYBRID/告警，存疑或负向章节不输出未经核验的正向概括。Prompt/地图Artifact版本已独立更新，旧缓存不冒充新证据；真实召回率/误报仍需另行授权的标注视频矩阵。隔离确认/偏好写入用于验收，生产Browser只读；不新增Schema或默认模型调用。
 
 2026-10-27 用户确认的展示修订：已自动识别或人工确认进入地图的地点默认按推荐阅读，常态不显示推荐/可选/态度未明确标签；仅识别到整体不推荐时在地点名称旁标“不推荐”，正反来源并存则标“有来源不推荐”。UNKNOWN等字段继续用于内部证据与审计，不在阅读界面额外挂标签，也不回写旧证据。视频候选栏目仅展示地点当前状态与时间入口，实际位置确认留在可执行的人工复核卡。此条覆盖原计划对未知态度的常态标签展示要求，不改变来源证据、个人偏好或POI身份记录。
+
+## 10.26 地点时节与作者路线（2026-10-28）
+
+时间窗口API保留旧字段并增量返回semantics：scope/purpose/activity/precision/start/end/cross_year/interpretation_status，全部由原始source_text确定性解释；日级边界仅接受原文有效日期，不把季节换算成具体日。支持跨年月份；区域、观赏、活动与部分道路限制分别保留。INFORMATIONAL与SEMANTIC_CONTEXT不加推荐分；禁渔、骑马/骑行等活动限制及局部路段不关闭整个目的地。人工窗口显式选择原有period_type/suitability，不改变旧API缺省值或历史记录。逐mention时间分析只看本地点已归属窗口，不凭视频其他片段或标题的月份宣称已分析。
+
+出行事实复用PlaceMention.metadata_json.travel_facts及PlaceInsightItem.value_json，保留逐字引文与Segment；详情“怎么去”和“何时去/看什么/注意事项”分栏，标识视频作者观点。GENERIC_FEATURE/LINEAR_FEATURE/PLACE_UNCERTAIN及REFERENCE节点保留原词，禁止自动POI请求；名称存疑不擅自纠正。
+
+作者RouteGuide/Stop/Evidence/Condition是semantic-map-v6新产物的版本化JSON扩展，保存在GroundedMapArtifact.semantic_options_json.route_guides，非新增SQL表，无迁移。复用同一次模型提取的ROUTE Claim；缺可选对象时仅按原句明确交通语法恢复，所有恢复对象保留NEEDS_REVIEW；显式自驾路线分组可恢复原文列举，普通地名列表不成为路线。单AREA锚点可在本单元连续有名证据内读取匿名区域时间，子景点不继承；候选不再静默截在80条。解析版本进入新Artifact身份，不改旧产物；精确模型响应缓存仍可复用。写入前验证连续Segment、逐字引文、交通方式、节点存在和明确站序、条件主体与证据。多路线独立，关联道路相同的宏观/细节对象；关联不意味着全段同路，环线不据名称补闭环。当前仅“站点顺序示意，非道路导航”，navigation=null；不生成公里、时间或道路几何。
+
+GET只读当前Note Version对应Transcript版本的已存新产物，不补解析旧Artifact。地点绑定限定同笔记版本、已确认且未删除的唯一Place；未核节点显示原词。显式复制需version_id仍为当前且所有节点已确认；否则409，无部分复制或隐式确认。个人RouteDraft不与作者路线双向同步。无节点/含待核位置的来源路书仍完整保留，但暂不能复制为现有仅支持Place的个人清单。
+
+历史审计只有只读dry_run，无apply入口；真实回填需另行审批、版本化与回退准备。travel_export_v2是增量ZIP接口，地点与路线分文件，保留时间用途/活动、事实证据/来源、个人备注/清单，不含虚构导航；旧JSON/CSV/GeoJSON保持。云南常驻P0_CRITICAL测试与范围见testing/GOLDEN_SAMPLES.md；模拟标注不是模型质量或真实POI金标。

@@ -27,7 +27,7 @@ from zhijian.services.audit import record_event
 from zhijian.services.jobs import ensure_job_active
 from zhijian.services.title_temporal import title_identity
 
-MAP_PROMPT_VERSION = "semantic-map-v5-recommendation-evidence"
+MAP_PROMPT_VERSION = "semantic-map-v6-travel-routes"
 MAP_ARTIFACT_SCHEMA_VERSION = "grounded-map-v3"
 LOCAL_MAP_CHUNK_CHARS = 6_000
 LOCAL_MAP_CHUNK_SEGMENTS = 64
@@ -213,6 +213,7 @@ def _canonical_payload(
                 "subject_entity_ids": [
                     str(item)[:96] for item in value.get("subject_entity_ids", []) if item
                 ][:20],
+                "route": value.get("route") if isinstance(value.get("route"), dict) else None,
                 "claim_type": str(value.get("claim_type") or "OTHER")[:64],
                 "text": text[:1000],
                 "importance": str(value.get("importance") or "MEDIUM")[:32],
@@ -312,6 +313,8 @@ def get_or_create_grounded_map(
     )
     domain_pack_version = domain_context_hash(domain_versions)
     semantic_options = {
+        "travel_semantics_version": "travel-semantics-v1",
+        "route_parser_version": "route-guide-v2-prose",
         "temperature": policy.temperature,
         "max_output_tokens": policy.max_output_tokens,
         "thinking": policy.thinking,
@@ -697,6 +700,11 @@ def get_or_create_grounded_map(
     semantic_options["fallback_chunk_count"] = fallback_requests
     semantic_options["remote_escalation_count"] = remote_escalation_count
 
+    from zhijian.services.route_guides import extract_routes
+
+    semantic_options["route_guides"] = extract_routes(
+        claims, {segment.id: segment.corrected_text or segment.text for segment in segments}, entities
+    )
     artifact = GroundedMapArtifact(
         video_asset_id=asset.id,
         transcript_id=transcript.id,

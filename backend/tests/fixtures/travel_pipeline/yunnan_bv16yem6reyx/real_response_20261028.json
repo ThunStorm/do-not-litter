@@ -1,0 +1,4605 @@
+{
+  "origin": "authorized real codex/gpt-6-luna response 2026-10-28; not authoritative ground truth",
+  "claims": [
+    {
+      "claim_id": "e32daa1566f1:2dc60bda60b72ee4",
+      "content_unit_id": "e32daa1566f1:04454de096bd76b2",
+      "subject_entity_ids": [
+        "e32daa1566f1:9e869944131070a0"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "云南是全国九个边境省份之一，共有十六个市州；省内有雪山、高原、湖泊、热带雨林、喀斯特森林、梯田、峡谷等景观。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s2",
+        "s3"
+      ],
+      "supporting_quote": "云南是全国九个边境省份之一，一共有十六个市州。同一个省同时可以看到雪山、高原、湖泊、热带雨林、喀斯特森林、梯田、峡谷等等景观"
+    },
+    {
+      "claim_id": "e32daa1566f1:024f2f7467679e25",
+      "content_unit_id": "e32daa1566f1:04454de096bd76b2",
+      "subject_entity_ids": [
+        "e32daa1566f1:9e869944131070a0"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "作者称云南全省只有八家5A级景区，并认为其中包含植物园等“含水量比较大”的地方，云南在这方面比较吃亏。",
+      "importance": "MEDIUM",
+      "segment_ids": [
+        "s3",
+        "s4"
+      ],
+      "supporting_quote": "全省只有八家5A级景区。这八家里边还包括植物园这种含水量比较大的地方，所以云南真的在这方面比较吃亏。"
+    },
+    {
+      "claim_id": "e32daa1566f1:4d76a4a3d0050b44",
+      "content_unit_id": "e32daa1566f1:04454de096bd76b2",
+      "subject_entity_ids": [
+        "e32daa1566f1:9e869944131070a0"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "作者以大理为中心，将云南概括为西部藏传佛教片区、南部澜沧江流域南传佛教片区、东部中原文化延伸片区，并另提昭通、文山的历史归属。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s4",
+        "s5",
+        "s6",
+        "s7"
+      ],
+      "supporting_quote": "整个云南是以大理为中心，往西是藏传佛教盛行的横断山脉，包括怒江州、丽江和迪庆这些地方，都能看到喇嘛庙。往南是南传佛教盛行的澜沧江流域，包括保山、德宏、临沧、普洱和西双版纳，这里就都是金顶的小城佛教寺庙了。往东是中原文化的延伸，包括楚雄、玉溪、昆明、曲靖和红河，这部分也是最适合种地的地方。还有历史上长期属于四川的昭通和长期属于广西的文山。"
+    },
+    {
+      "claim_id": "e32daa1566f1:2f19157368243974",
+      "content_unit_id": "e32daa1566f1:04454de096bd76b2",
+      "subject_entity_ids": [
+        "e32daa1566f1:9e869944131070a0"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "作者概括藏文化影响区域以藏味为主、澜沧江流域以傣味为主、中原文化影响区域偏酸辣；昭通腊肉为烟熏做法，文山汽锅鸡不辣，大理饮食兼顾多种特点。",
+      "importance": "MEDIUM",
+      "segment_ids": [
+        "s9",
+        "s10",
+        "s11"
+      ],
+      "supporting_quote": "受藏文化影响的这个区域吃的就是以藏味为主澜沧江流域就是傣味为主中原文化影响的区域吃的就是偏酸辣。云南只有昭通的腊肉是烟熏的，和四川的做法一样。文山虽然很能吃辣，但是最出名的汽锅鸡就完全不辣了。大理的饮食就兼顾了以上所有的特点"
+    },
+    {
+      "claim_id": "e32daa1566f1:0b952c20f8233f91",
+      "content_unit_id": "e32daa1566f1:dc031d902ee5944e",
+      "subject_entity_ids": [
+        "e32daa1566f1:e84b1fc9a5a14ca1"
+      ],
+      "route": null,
+      "claim_type": "ROUTE",
+      "text": "怒江州作者只推荐自驾线路，路线为G219怒江大峡谷，从六库出发，经贡山到丙中洛。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s13",
+        "s14"
+      ],
+      "supporting_quote": "来这儿就只推荐自驾，而且只有一条线可以选，就是G219怒江大峡谷，六库出发，途经贡山到丙中洛"
+    },
+    {
+      "claim_id": "e32daa1566f1:4d120b2645fa6336",
+      "content_unit_id": "e32daa1566f1:dc031d902ee5944e",
+      "subject_entity_ids": [
+        "e32daa1566f1:e84b1fc9a5a14ca1"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "作者称怒江大峡谷号称世界三大峡谷之一，丙中洛号称“人神共居的地方”。",
+      "importance": "MEDIUM",
+      "segment_ids": [
+        "s14",
+        "s15"
+      ],
+      "supporting_quote": "其中怒江大峡谷号称世界三大峡谷之一丙中洛号称人神共居的地方"
+    },
+    {
+      "claim_id": "e32daa1566f1:25e584b37d7d2beb",
+      "content_unit_id": "e32daa1566f1:dc031d902ee5944e",
+      "subject_entity_ids": [
+        "e32daa1566f1:e84b1fc9a5a14ca1"
+      ],
+      "route": null,
+      "claim_type": "WARNING",
+      "text": "怒江片区公共交通出行不适合，建议自驾或包车；雨季有落石风险，部分路段冬天会封路，作者称该区域完全不适合休闲游。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s15",
+        "s16",
+        "s17"
+      ],
+      "supporting_quote": "来这块非常不适合公共交通出行必须自驾或者是包车，而且雨季落石的风险比较大，部分路段冬天还会封路，所以几乎没有普通的旅游团。这块适合自驾人群，完全不适合休闲游"
+    },
+    {
+      "claim_id": "e32daa1566f1:03bd6ce9f01139de",
+      "content_unit_id": "e32daa1566f1:a2bc8e5376c25f8e",
+      "subject_entity_ids": [
+        "e32daa1566f1:fce37aa975abac49"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "迪庆是云南海拔最高的地方，作者称其为三江并流的核心。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s17",
+        "s18"
+      ],
+      "supporting_quote": "迪庆是云南海拔最高的地方可能很多人对他的印象只停留在普达措实际上这里是三江并流的核心"
+    },
+    {
+      "claim_id": "e32daa1566f1:46cdd92f54471070",
+      "content_unit_id": "e32daa1566f1:a2bc8e5376c25f8e",
+      "subject_entity_ids": [
+        "e32daa1566f1:cb6dbf54934b9e1d"
+      ],
+      "route": null,
+      "claim_type": "ROUTE",
+      "text": "G214滇藏线自驾从丽江北上，经虎跳峡、小中甸、独克宗到梅里雪山；运气好可看到日照金山。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s18",
+        "s19"
+      ],
+      "supporting_quote": "G214就是一路从丽江北上，途经虎跳峡小中甸、独克宗到梅里雪山。运气好的话能看到日照金山"
+    },
+    {
+      "claim_id": "e32daa1566f1:a79aef155d31857d",
+      "content_unit_id": "e32daa1566f1:a2bc8e5376c25f8e",
+      "subject_entity_ids": [
+        "e32daa1566f1:cb6dbf54934b9e1d"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "不想折腾时可在香格里拉度假休闲；周边列举虎跳峡、独克宗古城、松赞林寺、普达措、梅里雪山、雨崩村和藏式村落。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s19",
+        "s20",
+        "s21"
+      ],
+      "supporting_quote": "如果不想折腾的话在香格里拉度假休闲的体验也非常好。周边的景区主要包括虎跳峡、独克宗古城、松赞林寺、普达措、梅里雪山、雨崩村等等地方。另外还有很多小众的藏式村落"
+    },
+    {
+      "claim_id": "e32daa1566f1:afc58158f3bdbb1b",
+      "content_unit_id": "e32daa1566f1:a2bc8e5376c25f8e",
+      "subject_entity_ids": [
+        "e32daa1566f1:cb6dbf54934b9e1d"
+      ],
+      "route": null,
+      "claim_type": "WARNING",
+      "text": "香格里拉海拔高、容易高反，需要避免剧烈运动；五月到十月梅里常被云遮挡，冬天看到日照金山的概率更高。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s22",
+        "s23"
+      ],
+      "supporting_quote": "但是这里海拔高容易高反，需要避免剧烈运动。五月到十月梅里经常被云遮挡，所以冬天看到日照金山的概率更高。"
+    },
+    {
+      "claim_id": "e32daa1566f1:f64a603ee8a511ff",
+      "content_unit_id": "e32daa1566f1:a2bc8e5376c25f8e",
+      "subject_entity_ids": [
+        "e32daa1566f1:cb6dbf54934b9e1d"
+      ],
+      "route": null,
+      "claim_type": "WARNING",
+      "text": "作者认为香格里拉适合自驾、喜欢藏地人文和摄影的人；老人、体弱者或有心肺功能障碍者不要去。跟团或自由行也方便。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s23",
+        "s24",
+        "s25"
+      ],
+      "supporting_quote": "这里更适合自驾党喜欢藏地人文和各种各样的摄影党尤其是喜欢出片儿的这里绝了如果是老人体弱的或者是有一些心肺功能障碍的那就是不要去了跟团或者是自由行也很方便"
+    },
+    {
+      "claim_id": "e32daa1566f1:c7d8ab08056378dd",
+      "content_unit_id": "e32daa1566f1:4d375896a5bb316f",
+      "subject_entity_ids": [
+        "e32daa1566f1:d3e5228b3431a850",
+        "e32daa1566f1:833035135dd541f4",
+        "e32daa1566f1:c20933c1c26847d3",
+        "e32daa1566f1:42cc7a90d7647bfc"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "丽江古城、束河古镇、沙溪古镇属古城片区；作者称丽江古城商业化最重、束河最安静且民宿较多、白沙古镇人最少并可直接看到玉龙雪山。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s26",
+        "s27"
+      ],
+      "supporting_quote": "古城片区就是丽江古城、束河古镇和沙溪古镇。丽江古城的商业化最重，束河最安静，民宿比较多，白沙古镇人最少，抬头就能直接看到玉龙雪山"
+    },
+    {
+      "claim_id": "e32daa1566f1:46d57544e05f8dbc",
+      "content_unit_id": "e32daa1566f1:4d375896a5bb316f",
+      "subject_entity_ids": [
+        "e32daa1566f1:dd254fe3e707a70e"
+      ],
+      "route": null,
+      "claim_type": "WARNING",
+      "text": "作者称玉龙雪山夏天只能看到石头。",
+      "importance": "MEDIUM",
+      "segment_ids": [
+        "s27",
+        "s28"
+      ],
+      "supporting_quote": "这里是北半球离赤道最近的雪山，但是夏天就只能看到石头。"
+    },
+    {
+      "claim_id": "e32daa1566f1:3a93917d485f2592",
+      "content_unit_id": "e32daa1566f1:4d375896a5bb316f",
+      "subject_entity_ids": [
+        "e32daa1566f1:94a353ee041bc7e8"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "泸沽湖部分属于丽江，可体验摩梭人的母系文化，适合休闲度假；秋天可看到湖面水性杨花，也可以食用。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s28",
+        "s29"
+      ],
+      "supporting_quote": "还有泸沽湖，泸沽湖的一部分属于丽江，这里可以体验摩梭人的母系文化，适合休闲度假。秋天的时候能看到湖面上的水性杨花，水性杨花也可以吃。"
+    },
+    {
+      "claim_id": "e32daa1566f1:b0cb1b854d110164",
+      "content_unit_id": "e32daa1566f1:4d375896a5bb316f",
+      "subject_entity_ids": [
+        "e32daa1566f1:94a353ee041bc7e8"
+      ],
+      "route": null,
+      "claim_type": "TRANSPORT",
+      "text": "作者称从丽江去泸沽湖路程较远、车程较长，并更推荐自驾。",
+      "importance": "MEDIUM",
+      "segment_ids": [
+        "s29"
+      ],
+      "supporting_quote": "但路程比较远，从丽江过去车程也比较长。"
+    },
+    {
+      "claim_id": "e32daa1566f1:1459d04cd0e5454f",
+      "content_unit_id": "e32daa1566f1:4d375896a5bb316f",
+      "subject_entity_ids": [
+        "e32daa1566f1:f0134c7e92b90bc5"
+      ],
+      "route": null,
+      "claim_type": "WARNING",
+      "text": "普通游客不建议在拉市海骑马，作者建议在湖边走走。",
+      "importance": "MEDIUM",
+      "segment_ids": [
+        "s30"
+      ],
+      "supporting_quote": "来这儿的话，普通游客就不建议骑马了，在湖边溜达溜达就行。"
+    },
+    {
+      "claim_id": "e32daa1566f1:dc00450b4290db1a",
+      "content_unit_id": "e32daa1566f1:4d375896a5bb316f",
+      "subject_entity_ids": [
+        "e32daa1566f1:ddc553525ba0f19b"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "作者称丽江适合打卡或在民宿休息，但“躺”有些贵；公共交通较方便。",
+      "importance": "MEDIUM",
+      "segment_ids": [
+        "s30",
+        "s31"
+      ],
+      "supporting_quote": "丽江适合打卡党或者在民宿躺平，就是来这儿躺有点贵。公共交通比较方便"
+    },
+    {
+      "claim_id": "e32daa1566f1:95e904fb849d5cc2",
+      "content_unit_id": "e32daa1566f1:4d375896a5bb316f",
+      "subject_entity_ids": [
+        "e32daa1566f1:4feae4f187c7f0a5"
+      ],
+      "route": null,
+      "claim_type": "WARNING",
+      "text": "作者概括藏文化片区人气高的地方不好玩、好玩的地方交通不方便；大部分人只推荐去香格里拉，喜欢硬核徒步者则适合该片区。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s31",
+        "s32"
+      ],
+      "supporting_quote": "以上就是藏文化片区，人气高的地方不好玩，好玩的地方交通不方便。对大部分人来说，只推荐去香格里拉。如果喜欢硬核徒步的话，那这块就是你的天堂。"
+    },
+    {
+      "claim_id": "e32daa1566f1:6336dc8f00a94eb5",
+      "content_unit_id": "e32daa1566f1:4d375896a5bb316f",
+      "subject_entity_ids": [
+        "e32daa1566f1:4feae4f187c7f0a5"
+      ],
+      "route": null,
+      "claim_type": "TIME_WINDOW",
+      "text": "作者更推荐秋冬季节前往藏文化片区，称其余时间雨水较多；并提醒香格里拉和丽江是低价团重灾区，小景点套路收费较多。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s32",
+        "s33"
+      ],
+      "supporting_quote": "来这片区域更推荐秋冬季节过来，其余的时间雨水都太多了。需要注意的是，香格里拉和丽江是低价团的重灾区，小景点的套路收费也比较多。"
+    },
+    {
+      "claim_id": "e32daa1566f1:50001a8c6114bd7a",
+      "content_unit_id": "e32daa1566f1:f61e47c446ab1b86",
+      "subject_entity_ids": [
+        "e32daa1566f1:7e280b14bbc8e4c8"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "作者称保山是滇西康养的代表，有抗战历史、火山和温泉；腾冲是核心。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s35"
+      ],
+      "supporting_quote": "保山是滇西康养的代表，有抗战历史、火山和温泉。古腾冲是核心。"
+    },
+    {
+      "claim_id": "e32daa1566f1:c870ac2ced623d01",
+      "content_unit_id": "e32daa1566f1:f61e47c446ab1b86",
+      "subject_entity_ids": [
+        "e32daa1566f1:1c164a4b35e9abfd"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "作者称腾冲的火山、温泉和和顺古镇值得游览，商业化程度适中、常住体验好；泡温泉是核心体验。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s36"
+      ],
+      "supporting_quote": "腾冲的火山、温泉还有和顺古镇都非常值得一转。这边商业化程度适中，常住的话体验非常好。泡温泉是来腾冲的核心体验。"
+    },
+    {
+      "claim_id": "e32daa1566f1:32d38e6b017a9721",
+      "content_unit_id": "e32daa1566f1:f61e47c446ab1b86",
+      "subject_entity_ids": [
+        "e32daa1566f1:7e280b14bbc8e4c8"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "保山还有松山遗址、滇西抗战历史，作者称当地咖啡有特色。",
+      "importance": "MEDIUM",
+      "segment_ids": [
+        "s37"
+      ],
+      "supporting_quote": "还有松山遗址和滇西抗战等重要历史。保山的咖啡非常有特色"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:024f2f7467679e25",
+      "content_unit_id": "f1b4dd9a3a0b:04454de096bd76b2",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:9e869944131070a0",
+        "f1b4dd9a3a0b:e84b1fc9a5a14ca1",
+        "f1b4dd9a3a0b:837cc7c46aae1b4d"
+      ],
+      "route": null,
+      "claim_type": "ROUTE",
+      "text": "自驾可将腾冲、芒市、德宏连成滇西环线。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s38"
+      ],
+      "supporting_quote": "如果是自驾的话腾冲到芒市德宏可以连成滇西环线"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:4d76a4a3d0050b44",
+      "content_unit_id": "f1b4dd9a3a0b:04454de096bd76b2",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:9e869944131070a0"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "腾冲适合喜欢古村的人；古村数量全国第三，几乎处处都是古村，不必特意设计路线。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s39",
+        "s40"
+      ],
+      "supporting_quote": "如果你喜欢古村，来这儿也非常合适。这里的古村数量全国第三，几乎处处都是古村，不用特意设计路线。"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:91e2ca3b01bb619d",
+      "content_unit_id": "f1b4dd9a3a0b:04454de096bd76b2",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:837cc7c46aae1b4d",
+        "f1b4dd9a3a0b:e84b1fc9a5a14ca1",
+        "f1b4dd9a3a0b:9d680546e9fca9da"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "德宏位于中缅边境，东南亚氛围浓；主要游览点提到芒市和瑞丽。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s40",
+        "s41"
+      ],
+      "supporting_quote": "德宏是中缅边境一个东南亚氛围感十足的地方，主要有两个点是芒市和瑞丽"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:2f19157368243974",
+      "content_unit_id": "f1b4dd9a3a0b:04454de096bd76b2",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:e84b1fc9a5a14ca1"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "作者很喜欢芒市，认为适合慢慢停留几天、不赶景区；景区不多但处处有异域风情。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s41",
+        "s42"
+      ],
+      "supporting_quote": "芒市是一个我超级喜欢的一个地这里非常适合慢慢的待几天不用赶场子一样去景区这里其实也没啥景区，但是处处都是异域风情。"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:0b952c20f8233f91",
+      "content_unit_id": "f1b4dd9a3a0b:04454de096bd76b2",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:6d8f67e50911e67b"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "大金塔是芒市主要打卡点，转写称其为国内南传佛教第一寺。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s42"
+      ],
+      "supporting_quote": "主要打卡点就是大金塔，是国内南传佛教第一寺。"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:4d120b2645fa6336",
+      "content_unit_id": "f1b4dd9a3a0b:04454de096bd76b2",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:9d680546e9fca9da"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "瑞丽的特色被概括为“一国两寨”的边境风情。",
+      "importance": "MEDIUM",
+      "segment_ids": [
+        "s42",
+        "s43"
+      ],
+      "supporting_quote": "瑞丽比较较简单主要是一个一国两寨的边境风情"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:03bd6ce9f01139de",
+      "content_unit_id": "f1b4dd9a3a0b:04454de096bd76b2",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:837cc7c46aae1b4d"
+      ],
+      "route": null,
+      "claim_type": "WARNING",
+      "text": "边境区域出行需要带身份证，不要非法跨境。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s44"
+      ],
+      "supporting_quote": "边境区域出行呢需要带身份证然后重点啊不要非法跨境"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:46cdd92f54471070",
+      "content_unit_id": "f1b4dd9a3a0b:04454de096bd76b2",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:837cc7c46aae1b4d"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "时间合适可能赶上木脑纵歌节。",
+      "importance": "MEDIUM",
+      "segment_ids": [
+        "s43",
+        "s44"
+      ],
+      "supporting_quote": "如果时间合适的话能赶上木脑纵歌节"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:a79aef155d31857d",
+      "content_unit_id": "f1b4dd9a3a0b:dc031d902ee5944e",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:63718e8e0baf7aa4"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "景迈山被称为普洱最大的王牌，转写称其为世界文化遗产。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s46"
+      ],
+      "supporting_quote": "最大的王牌就是景迈山，是世界文化遗产。"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:f64a603ee8a511ff",
+      "content_unit_id": "f1b4dd9a3a0b:dc031d902ee5944e",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:e636532b2164955d"
+      ],
+      "route": null,
+      "claim_type": "TIME_WINDOW",
+      "text": "无量山冬天的樱花出名。",
+      "importance": "MEDIUM",
+      "segment_ids": [
+        "s47"
+      ],
+      "supporting_quote": "无量山冬天的樱花非常出名。"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:46d57544e05f8dbc",
+      "content_unit_id": "f1b4dd9a3a0b:a2bc8e5376c25f8e",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:eec72130b9385b3b"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "西双版纳有云南唯一的热带雨林，是冬季避寒胜地；路线较紧凑，不折腾的话活动多在景洪周边。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s49",
+        "s50"
+      ],
+      "supporting_quote": "这块有云南唯一的热带雨林，是冬季避寒胜地。这里的路线比较紧凑，不折腾的话都在景洪周边"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:3a93917d485f2592",
+      "content_unit_id": "f1b4dd9a3a0b:a2bc8e5376c25f8e",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:eec72130b9385b3b",
+        "f1b4dd9a3a0b:833035135dd541f4",
+        "f1b4dd9a3a0b:c20933c1c26847d3"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "野象谷可以看亚洲象，原始森林公园有孔雀放飞表演。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s50"
+      ],
+      "supporting_quote": "野象谷可以看亚洲象，原始森林公园还有孔雀放飞表演。"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:1459d04cd0e5454f",
+      "content_unit_id": "f1b4dd9a3a0b:a2bc8e5376c25f8e",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:eec72130b9385b3b"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "西双版纳旅居人口超过八十万，是本地人的一点七倍。",
+      "importance": "MEDIUM",
+      "segment_ids": [
+        "s51"
+      ],
+      "supporting_quote": "西双版纳的旅居人口超过八十万，是本地人的一点七倍。"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:dc00450b4290db1a",
+      "content_unit_id": "f1b4dd9a3a0b:a2bc8e5376c25f8e",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:eec72130b9385b3b",
+        "f1b4dd9a3a0b:aee7af36a284a1f0"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "作者称冬天逛版纳夜市像回到东北，因而没有惊喜感；夏天闷热，十一月至次年三月最适合前往。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s52",
+        "s53"
+      ],
+      "supporting_quote": "如果冬天去逛版纳的夜市，我就好像回到了东北一样，算是一点惊喜感都没有。这里夏天非常闷热，十一月到次年三月是最适合来的时候。"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:95e904fb849d5cc2",
+      "content_unit_id": "f1b4dd9a3a0b:a2bc8e5376c25f8e",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:eec72130b9385b3b"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "适合亲子家庭、旅居避寒过冬的老人及喜欢热带风光的人；高铁、飞机方便，旅游配套成熟，美食选择多，适合吃货。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s53",
+        "s54"
+      ],
+      "supporting_quote": "适合亲子家庭、旅居避寒过冬的老人，以及喜欢热带风光的人。高铁、飞机都方便，旅游配套非常成熟这块也是云南美食选择最多的地方非常适合吃货"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:6336dc8f00a94eb5",
+      "content_unit_id": "f1b4dd9a3a0b:4d375896a5bb316f",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:94a353ee041bc7e8"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "作者称临沧很少有人去。",
+      "importance": "LOW",
+      "segment_ids": [
+        "s53",
+        "s54"
+      ],
+      "supporting_quote": "还有临沧这里就很少有人来了"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:50001a8c6114bd7a",
+      "content_unit_id": "f1b4dd9a3a0b:f61e47c446ab1b86",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:4feae4f187c7f0a5"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "喜欢喀斯特山水景观的话，作者称文山几乎是唯一选择。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s56"
+      ],
+      "supporting_quote": "如果你喜欢喀斯特山水景观，文山几乎是唯一的选择。"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:c870ac2ced623d01",
+      "content_unit_id": "f1b4dd9a3a0b:f61e47c446ab1b86",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:5bcf08e692a4b7fd"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "普者黑被称为文山唯一的5A级景区，包含天坑、地缝、溶洞、喀斯特湖和喀斯特森林等景观。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s57"
+      ],
+      "supporting_quote": "普者黑，是文山唯一的5A级景区，包含天坑、地缝、溶洞、喀斯特湖、喀斯特森林等各种喀斯特景观。"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:32d38e6b017a9721",
+      "content_unit_id": "f1b4dd9a3a0b:f61e47c446ab1b86",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:7e280b14bbc8e4c8"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "坝美世外桃源是喀斯特景观，需要坐船穿越溶洞才能到村子。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s58"
+      ],
+      "supporting_quote": "坝美世外桃源，同样也是喀斯特景观，需要坐船穿越溶洞才能到村子。"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:e2c7b3b69ebbd9df",
+      "content_unit_id": "f1b4dd9a3a0b:f61e47c446ab1b86",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:5bcf08e692a4b7fd",
+        "f1b4dd9a3a0b:7e280b14bbc8e4c8"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "两个景区都离高铁站近，对自由行友好；普者黑景区不要门票但里面处处收费，攻略没做好可能多花冤枉钱。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s58",
+        "s59",
+        "s60"
+      ],
+      "supporting_quote": "两个景区都离高铁站非常近，对自由行非常友好。不过普者黑对攻略的要求比较高，景区不要门票，但里面处处收费。攻略没做好的话，真的是多花很多冤枉钱"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:60d624b48e8e1cd1",
+      "content_unit_id": "f1b4dd9a3a0b:f61e47c446ab1b86",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:4feae4f187c7f0a5"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "适合喜欢喀斯特的自由行者；做好攻略可以有不错的行程体验。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s59",
+        "s60"
+      ],
+      "supporting_quote": "这块适合喜欢喀斯特的自由行的人如果是攻略党那能有一个体验还不错的行程"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:9953d0e597da2813",
+      "content_unit_id": "f1b4dd9a3a0b:f7dc926f23faffd3",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:9f1dca279c31b364"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "昭通是避暑和旅居地；每年近五十万人旅居，人均居住约八十天，适合旅居人群。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s61",
+        "s62"
+      ],
+      "supporting_quote": "是一个避暑圣地也是旅居圣地每年有将近五十万人旅居昭通人均居住八十天左右所以最适合来这儿的就是旅居人群"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:ce1543b2d7e4052f",
+      "content_unit_id": "f1b4dd9a3a0b:f7dc926f23faffd3",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:9f1dca279c31b364"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "作者称目前旅居人群中四川和湖南人最多。",
+      "importance": "MEDIUM",
+      "segment_ids": [
+        "s62"
+      ],
+      "supporting_quote": "目前旅居人群里四川和湖南的最多。"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:88282514040a5c76",
+      "content_unit_id": "f1b4dd9a3a0b:68a40b817db63985",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:1c164a4b35e9abfd"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "作者把接下来的区域概括为以中原文化为主，并称云南最好看、最适合种地的地都在这片区域，举例东川红土地、元阳梯田。",
+      "importance": "MEDIUM",
+      "segment_ids": [
+        "s62",
+        "s63"
+      ],
+      "supporting_quote": "接下来是以中原文化为主的这片区域。中原文化最大的特点是什么？就是最擅长种地了所以云南最好看的地最适合种的地都在这个区域了包括东川红土地元阳梯田等等的都在这片"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:c5b70c71dd25fd68",
+      "content_unit_id": "f1b4dd9a3a0b:68a40b817db63985",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:c2c3f800a2fc88f5"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "曲靖长期作为云南行政中心，很多人路过却不停留。",
+      "importance": "MEDIUM",
+      "segment_ids": [
+        "s63",
+        "s64"
+      ],
+      "supporting_quote": "这是一个长期作为云南行政中心的地方，很多人路过却不停留。"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:f58ddb1a8457d5dc",
+      "content_unit_id": "f1b4dd9a3a0b:455de8173b3d970b",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:3dbc8cb8635902e2"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "元谋土林适合打卡。",
+      "importance": "MEDIUM",
+      "segment_ids": [
+        "s67"
+      ],
+      "supporting_quote": "这块有元谋土林，适合打卡。"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:47b1fc19c87615ce",
+      "content_unit_id": "f1b4dd9a3a0b:3fea27221255d6fa",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:afd37c6c8a57a5ad"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "抚仙湖是国内一类水质的深水湖，适合环湖自驾。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s69"
+      ],
+      "supporting_quote": "有抚仙湖，是国内一类水质的深水湖，适合环湖自驾。"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:4e723d39fbd50f1e",
+      "content_unit_id": "f1b4dd9a3a0b:3fea27221255d6fa",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:e241d12a8af7ddbf"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "澄江化石地被称为亚洲唯一的化石主题世界遗产；作者称此地适合带孩子。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s70",
+        "s71"
+      ],
+      "supporting_quote": "澄江化石地是亚洲唯一的化石主题世界遗产。这块非常适合带孩子过来了"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:b912419c6b05eb86",
+      "content_unit_id": "f1b4dd9a3a0b:007342c7262a3a5f",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:de443852f315edf1"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "红河州有喀斯特、枫林、梯田、古城和滇越铁路等资源。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s72",
+        "s73"
+      ],
+      "supporting_quote": "这块也有一些喀斯特景观，有喀斯特、枫林、梯田、古城，还有滇越铁路"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:16e8f28eb59b0b2a",
+      "content_unit_id": "f1b4dd9a3a0b:007342c7262a3a5f",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:7a3bf79099e4a98b",
+        "f1b4dd9a3a0b:0dc5deb57bff6b23",
+        "f1b4dd9a3a0b:b1086c4eed2f0fd9"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "建水和蒙自周边为一个片区；建水古城可坐米轨小火车，从建水到石屏；转写称两个古城游客少、消费低。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s74",
+        "s75"
+      ],
+      "supporting_quote": "一个就是建水和蒙自周边首先建水古城是一个可以坐米轨小火车的地方可以从建水做到石屏两个古城都是没什么人的景区，而且消费超级低。"
+    },
+    {
+      "claim_id": "f1b4dd9a3a0b:76bc570c665a39e1",
+      "content_unit_id": "f1b4dd9a3a0b:007342c7262a3a5f",
+      "subject_entity_ids": [
+        "f1b4dd9a3a0b:0dc5deb57bff6b23"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "蒙自是过桥米线的发源地，也有米轨火车。",
+      "importance": "MEDIUM",
+      "segment_ids": [
+        "s75"
+      ],
+      "supporting_quote": "蒙自是过桥米线的发源地，同样也有米轨火车。"
+    },
+    {
+      "claim_id": "bd7fbbcf7e9e:2dc60bda60b72ee4",
+      "content_unit_id": "bd7fbbcf7e9e:04454de096bd76b2",
+      "subject_entity_ids": [
+        "bd7fbbcf7e9e:e84b1fc9a5a14ca1"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "元阳梯田被称为世界文化遗产，可看云海梯田；作者称一到四月灌水期最好看。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s76"
+      ],
+      "supporting_quote": "最知名的就是元阳梯田，是世界文化遗产，在这能看到云海梯田。一到四月的灌水期是最好看的时候。"
+    },
+    {
+      "claim_id": "bd7fbbcf7e9e:4d76a4a3d0050b44",
+      "content_unit_id": "bd7fbbcf7e9e:04454de096bd76b2",
+      "subject_entity_ids": [
+        "bd7fbbcf7e9e:9e869944131070a0"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "红河州更适合人文爱好者，作者称当地人文密度和质量都高。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s78"
+      ],
+      "supporting_quote": "整体上来说红河州就更适合人文爱好者这里的人文密度和质量都非常的高"
+    },
+    {
+      "claim_id": "bd7fbbcf7e9e:91e2ca3b01bb619d",
+      "content_unit_id": "bd7fbbcf7e9e:04454de096bd76b2",
+      "subject_entity_ids": [
+        "bd7fbbcf7e9e:9d680546e9fca9da"
+      ],
+      "route": null,
+      "claim_type": "TRANSPORT",
+      "text": "建水公共交通还不错；去元阳作者强烈建议自驾。",
+      "importance": "MEDIUM",
+      "segment_ids": [
+        "s78",
+        "s79"
+      ],
+      "supporting_quote": "建水的公共交通还不错如果去元阳的话就强烈建议自驾了"
+    },
+    {
+      "claim_id": "bd7fbbcf7e9e:2f19157368243974",
+      "content_unit_id": "bd7fbbcf7e9e:dc031d902ee5944e",
+      "subject_entity_ids": [
+        "bd7fbbcf7e9e:6d8f67e50911e67b"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "作者称昆明是旅居天堂，并提到每年有一百万人来此旅居；转写称人均居住“一百二十”，单位不明，未作解释。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s79",
+        "s80"
+      ],
+      "supporting_quote": "昆明每年有一百万人来昆明旅居人均居住一百二十。这里真的是旅居的天堂了。"
+    },
+    {
+      "claim_id": "bd7fbbcf7e9e:0b952c20f8233f91",
+      "content_unit_id": "bd7fbbcf7e9e:dc031d902ee5944e",
+      "subject_entity_ids": [
+        "bd7fbbcf7e9e:62f06034e88880f8"
+      ],
+      "route": null,
+      "claim_type": "TIME_WINDOW",
+      "text": "作者推荐冬天到滇池，理由是冬天可以喂红嘴鸥。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s81"
+      ],
+      "supporting_quote": "滇池了，是昆明的地标，推荐冬天过来，主要是冬天可以喂红嘴鸥。"
+    },
+    {
+      "claim_id": "bd7fbbcf7e9e:25e584b37d7d2beb",
+      "content_unit_id": "bd7fbbcf7e9e:dc031d902ee5944e",
+      "subject_entity_ids": [
+        "bd7fbbcf7e9e:1f455f098c3dd27d",
+        "bd7fbbcf7e9e:e636532b2164955d",
+        "bd7fbbcf7e9e:eec72130b9385b3b"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "作者称昆明人文建筑最密集的区域在翠湖公园周边，列举陆军讲武堂、西南联大，并称周边景区步行可达。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s82",
+        "s83"
+      ],
+      "supporting_quote": "园就是翠湖公园了。昆明的人文建筑最密集的区域就在这个周边包含陆军讲武堂西南联大等等地而且在这个周边的景区步行就能到达"
+    },
+    {
+      "claim_id": "bd7fbbcf7e9e:03bd6ce9f01139de",
+      "content_unit_id": "bd7fbbcf7e9e:dc031d902ee5944e",
+      "subject_entity_ids": [
+        "bd7fbbcf7e9e:aee7af36a284a1f0"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "时间充足可去斗南花市；作者称这里鲜花价格令人惊讶。",
+      "importance": "MEDIUM",
+      "segment_ids": [
+        "s84"
+      ],
+      "supporting_quote": "如果时间足够的话，推荐去一下斗南花市转转，这里的鲜花价格绝对能让你惊掉下巴。"
+    },
+    {
+      "claim_id": "bd7fbbcf7e9e:46cdd92f54471070",
+      "content_unit_id": "bd7fbbcf7e9e:a2bc8e5376c25f8e",
+      "subject_entity_ids": [
+        "bd7fbbcf7e9e:833035135dd541f4",
+        "bd7fbbcf7e9e:c20933c1c26847d3"
+      ],
+      "route": null,
+      "claim_type": "ROUTE",
+      "text": "洱海环湖分东西两条路；海西生态廊道约四十公里推荐骑行，但作者称没人能骑完，并建议走龙龛码头至喜洲古镇这一段。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s86",
+        "s87"
+      ],
+      "supporting_quote": "洱海环湖分为东西两条路，其中海西生态廊道四十公里都是推荐骑行，但没人能骑完这四十公里，所以我推荐走龙龛码头到喜洲古镇这一段就可以了。"
+    },
+    {
+      "claim_id": "bd7fbbcf7e9e:a79aef155d31857d",
+      "content_unit_id": "bd7fbbcf7e9e:a2bc8e5376c25f8e",
+      "subject_entity_ids": [
+        "bd7fbbcf7e9e:833035135dd541f4",
+        "bd7fbbcf7e9e:b4cb6e23694e9a24",
+        "bd7fbbcf7e9e:94a353ee041bc7e8"
+      ],
+      "route": null,
+      "claim_type": "ROUTE",
+      "text": "洱海东线骑行，作者建议走双廊到转写所记“洼色”这一段；名称存疑。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s88"
+      ],
+      "supporting_quote": "东线的话如果是骑行建议走双廊到洼色就够了"
+    },
+    {
+      "claim_id": "bd7fbbcf7e9e:afc58158f3bdbb1b",
+      "content_unit_id": "bd7fbbcf7e9e:a2bc8e5376c25f8e",
+      "subject_entity_ids": [
+        "bd7fbbcf7e9e:833035135dd541f4",
+        "bd7fbbcf7e9e:f0134c7e92b90bc5"
+      ],
+      "route": null,
+      "claim_type": "WARNING",
+      "text": "作者称洱海西线不能自驾，提到自驾可走转写所记“S二二幺”，停车后步行数百米到洱海；路号保留转写原词。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s88",
+        "s89"
+      ],
+      "supporting_quote": "西线不能自驾自驾可以走S二二幺谁走谁停停下来走几百米就到洱海了"
+    },
+    {
+      "claim_id": "bd7fbbcf7e9e:f64a603ee8a511ff",
+      "content_unit_id": "bd7fbbcf7e9e:a2bc8e5376c25f8e",
+      "subject_entity_ids": [
+        "bd7fbbcf7e9e:833035135dd541f4"
+      ],
+      "route": null,
+      "claim_type": "ROUTE",
+      "text": "洱海东线可全程自驾。",
+      "importance": "MEDIUM",
+      "segment_ids": [
+        "s89"
+      ],
+      "supporting_quote": "东线可以全程自驾"
+    },
+    {
+      "claim_id": "bd7fbbcf7e9e:c7d8ab08056378dd",
+      "content_unit_id": "bd7fbbcf7e9e:a2bc8e5376c25f8e",
+      "subject_entity_ids": [
+        "bd7fbbcf7e9e:d3e5228b3431a850"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "苍山可俯瞰洱海；体力一般者可选择索道上山。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s89"
+      ],
+      "supporting_quote": "另一条路线就是苍山了，能俯瞰整个洱海。体力一般的可以选择索道上山。"
+    },
+    {
+      "claim_id": "bd7fbbcf7e9e:46d57544e05f8dbc",
+      "content_unit_id": "bd7fbbcf7e9e:a2bc8e5376c25f8e",
+      "subject_entity_ids": [
+        "bd7fbbcf7e9e:4feae4f187c7f0a5"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "崇圣寺三塔是5A级景区、大理地标，作者称其出片效果好且必打卡。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s89",
+        "s90"
+      ],
+      "supporting_quote": "还有崇圣寺三塔，是一个出片无敌的5A级景区，大理的地标，也是必打卡的地方。"
+    },
+    {
+      "claim_id": "bd7fbbcf7e9e:3a93917d485f2592",
+      "content_unit_id": "bd7fbbcf7e9e:a2bc8e5376c25f8e",
+      "subject_entity_ids": [
+        "bd7fbbcf7e9e:5bcf08e692a4b7fd"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "沙溪古镇是茶马古道保存较好的古镇之一；前往需专门绕路，优点是人少，旺季也少。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s90",
+        "s91"
+      ],
+      "supporting_quote": "如果时间足够多的话，还可以去沙溪古镇。这里是茶马古道保存最好的古镇之一，不过过来需要专门绕路。优点就是这里的人真的很少，旺季人也少。"
+    },
+    {
+      "claim_id": "bd7fbbcf7e9e:b0cb1b854d110164",
+      "content_unit_id": "bd7fbbcf7e9e:a2bc8e5376c25f8e",
+      "subject_entity_ids": [
+        "bd7fbbcf7e9e:ddc553525ba0f19b"
+      ],
+      "route": null,
+      "claim_type": "WARNING",
+      "text": "作者认为大理的缺点是套路越来越多。",
+      "importance": "MEDIUM",
+      "segment_ids": [
+        "s91",
+        "s92"
+      ],
+      "supporting_quote": "大理非常的好，唯一的缺点就是套路现在越来越多。"
+    },
+    {
+      "claim_id": "bd7fbbcf7e9e:1459d04cd0e5454f",
+      "content_unit_id": "bd7fbbcf7e9e:4d375896a5bb316f",
+      "subject_entity_ids": [
+        "bd7fbbcf7e9e:7e280b14bbc8e4c8"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "亲子游优先西双版纳，理由是有热带雨林和大象。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s92",
+        "s93"
+      ],
+      "supporting_quote": "亲子游就优先去西双版纳，这里有热带雨林，有大象。"
+    },
+    {
+      "claim_id": "bd7fbbcf7e9e:dc00450b4290db1a",
+      "content_unit_id": "bd7fbbcf7e9e:4d375896a5bb316f",
+      "subject_entity_ids": [
+        "bd7fbbcf7e9e:ddc553525ba0f19b"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "亲子游还可考虑大理，作者称环湖游玩轻松、舒服。",
+      "importance": "MEDIUM",
+      "segment_ids": [
+        "s93"
+      ],
+      "supporting_quote": "其次是大理，这里环湖怎么玩都轻松、舒服。"
+    },
+    {
+      "claim_id": "bd7fbbcf7e9e:6336dc8f00a94eb5",
+      "content_unit_id": "bd7fbbcf7e9e:4d375896a5bb316f",
+      "subject_entity_ids": [
+        "bd7fbbcf7e9e:ddc553525ba0f19b",
+        "bd7fbbcf7e9e:1c164a4b35e9abfd",
+        "bd7fbbcf7e9e:c2c3f800a2fc88f5",
+        "bd7fbbcf7e9e:e84b1fc9a5a14ca1",
+        "bd7fbbcf7e9e:90dc1a8d550ab437"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "打卡拍照可选大理、丽江、芒市、建水、元阳和香格里拉。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s93",
+        "s94"
+      ],
+      "supporting_quote": "如果你是打卡拍照党，首选大理丽江芒市建水元阳和香格里拉"
+    },
+    {
+      "claim_id": "bd7fbbcf7e9e:c870ac2ced623d01",
+      "content_unit_id": "bd7fbbcf7e9e:4d375896a5bb316f",
+      "subject_entity_ids": [
+        "bd7fbbcf7e9e:5825de4bd423accc",
+        "bd7fbbcf7e9e:60c441459a2b64ab",
+        "bd7fbbcf7e9e:9f1dca279c31b364",
+        "bd7fbbcf7e9e:c2c3f800a2fc88f5",
+        "bd7fbbcf7e9e:576b7f7fab42a09b"
+      ],
+      "route": null,
+      "claim_type": "ROUTE",
+      "text": "滇西边境环线主要涉及G219和怒江大峡谷，可串联保山、腾冲、芒市、瑞丽；转写未交代站点顺序。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s95",
+        "s96"
+      ],
+      "supporting_quote": "然后是滇西的边境环线，主要是G219、怒江大峡谷，多走一走还可以串联保山、腾冲、芒市、瑞丽。"
+    },
+    {
+      "claim_id": "bd7fbbcf7e9e:32d38e6b017a9721",
+      "content_unit_id": "bd7fbbcf7e9e:4d375896a5bb316f",
+      "subject_entity_ids": [
+        "bd7fbbcf7e9e:6d8f67e50911e67b",
+        "bd7fbbcf7e9e:9d680546e9fca9da",
+        "bd7fbbcf7e9e:e84b1fc9a5a14ca1"
+      ],
+      "route": null,
+      "claim_type": "ROUTE",
+      "text": "滇东南环线列举昆明、建水、元阳；作者称铺装路路况友好，弯道比怒江少。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s96",
+        "s97"
+      ],
+      "supporting_quote": "最后一个就是滇东南环线：昆明、建水、元阳，铺装路路况非常友好，弯道比怒江少很多。"
+    },
+    {
+      "claim_id": "bd7fbbcf7e9e:e2c7b3b69ebbd9df",
+      "content_unit_id": "bd7fbbcf7e9e:4d375896a5bb316f",
+      "subject_entity_ids": [
+        "bd7fbbcf7e9e:c2c3f800a2fc88f5",
+        "bd7fbbcf7e9e:7e280b14bbc8e4c8",
+        "bd7fbbcf7e9e:9d680546e9fca9da",
+        "bd7fbbcf7e9e:3dbc8cb8635902e2"
+      ],
+      "route": null,
+      "claim_type": "ROUTE",
+      "text": "吃货路线列举芒市、西双版纳、建水、蒙自；作者称这些地方美食密度高。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s97",
+        "s98"
+      ],
+      "supporting_quote": "然后是一个推荐吃货走的路线，主要是芒市、西双版纳、建水、蒙自，这几个地方美食密度非常高，而且怎么吃都好吃。"
+    },
+    {
+      "claim_id": "bd7fbbcf7e9e:60d624b48e8e1cd1",
+      "content_unit_id": "bd7fbbcf7e9e:4d375896a5bb316f",
+      "subject_entity_ids": [
+        "bd7fbbcf7e9e:511e111f8c6dfb38",
+        "bd7fbbcf7e9e:ccf7cb97d7ac9731",
+        "bd7fbbcf7e9e:afd37c6c8a57a5ad",
+        "bd7fbbcf7e9e:cd469b3d74a91acf"
+      ],
+      "route": null,
+      "claim_type": "HIGHLIGHT",
+      "text": "硬核徒步玩家可去虎跳峡中虎跳、雨崩、丙中洛周边和独龙江。",
+      "importance": "HIGH",
+      "segment_ids": [
+        "s98",
+        "s99"
+      ],
+      "supporting_quote": "如果你是一个硬核徒步玩家推荐去虎跳峡的中虎跳雨崩丙中洛周边和独龙江"
+    }
+  ],
+  "entities": [
+    {
+      "raw_name": "云南省"
+    },
+    {
+      "raw_name": "怒江州"
+    },
+    {
+      "raw_name": "怒江大峡谷"
+    },
+    {
+      "raw_name": "支子罗"
+    },
+    {
+      "raw_name": "老母登教堂"
+    },
+    {
+      "raw_name": "丙中洛"
+    },
+    {
+      "raw_name": "迪庆"
+    },
+    {
+      "raw_name": "香格里拉"
+    },
+    {
+      "raw_name": "G214滇藏线"
+    },
+    {
+      "raw_name": "虎跳峡"
+    },
+    {
+      "raw_name": "独克宗古城"
+    },
+    {
+      "raw_name": "松赞林寺"
+    },
+    {
+      "raw_name": "普达措"
+    },
+    {
+      "raw_name": "丽江"
+    },
+    {
+      "raw_name": "丽江古城"
+    },
+    {
+      "raw_name": "束河古镇"
+    },
+    {
+      "raw_name": "沙溪古镇"
+    },
+    {
+      "raw_name": "白沙古镇"
+    },
+    {
+      "raw_name": "玉龙雪山"
+    },
+    {
+      "raw_name": "蓝月谷"
+    },
+    {
+      "raw_name": "藏文化片区"
+    },
+    {
+      "raw_name": "保山"
+    },
+    {
+      "raw_name": "古腾冲"
+    },
+    {
+      "raw_name": "腾冲"
+    },
+    {
+      "raw_name": "和顺古镇"
+    },
+    {
+      "raw_name": "松山遗址"
+    },
+    {
+      "raw_name": "腾冲"
+    },
+    {
+      "raw_name": "芒市"
+    },
+    {
+      "raw_name": "德宏"
+    },
+    {
+      "raw_name": "大金塔"
+    },
+    {
+      "raw_name": "一国两寨"
+    },
+    {
+      "raw_name": "木脑纵歌节"
+    },
+    {
+      "raw_name": "普洱市"
+    },
+    {
+      "raw_name": "景迈山"
+    },
+    {
+      "raw_name": "太阳河森林公园"
+    },
+    {
+      "raw_name": "无量山"
+    },
+    {
+      "raw_name": "西双版纳"
+    },
+    {
+      "raw_name": "星光夜市"
+    },
+    {
+      "raw_name": "曼听公园"
+    },
+    {
+      "raw_name": "傣王宫遗址"
+    },
+    {
+      "raw_name": "野象谷"
+    },
+    {
+      "raw_name": "原始森林公园"
+    },
+    {
+      "raw_name": "亚洲象"
+    },
+    {
+      "raw_name": "澜沧江流域"
+    },
+    {
+      "raw_name": "临沧"
+    },
+    {
+      "raw_name": "咖啡和茶"
+    },
+    {
+      "raw_name": "文山"
+    },
+    {
+      "raw_name": "普者黑"
+    },
+    {
+      "raw_name": "坝美世外桃源"
+    },
+    {
+      "raw_name": "昭通"
+    },
+    {
+      "raw_name": "中原文化为主的这片区域"
+    },
+    {
+      "raw_name": "曲靖"
+    },
+    {
+      "raw_name": "罗平"
+    },
+    {
+      "raw_name": "会泽古城"
+    },
+    {
+      "raw_name": "大海草山草原"
+    },
+    {
+      "raw_name": "九龙瀑布"
+    },
+    {
+      "raw_name": "楚雄"
+    },
+    {
+      "raw_name": "元谋土林"
+    },
+    {
+      "raw_name": "玉溪"
+    },
+    {
+      "raw_name": "抚仙湖"
+    },
+    {
+      "raw_name": "星云湖"
+    },
+    {
+      "raw_name": "聂耳故居"
+    },
+    {
+      "raw_name": "哈尼村寨"
+    },
+    {
+      "raw_name": "澄江化石地"
+    },
+    {
+      "raw_name": "红河州"
+    },
+    {
+      "raw_name": "建水"
+    },
+    {
+      "raw_name": "蒙自"
+    },
+    {
+      "raw_name": "建水古城"
+    },
+    {
+      "raw_name": "石屏"
+    },
+    {
+      "raw_name": "过桥米线"
+    },
+    {
+      "raw_name": "米轨火车"
+    },
+    {
+      "raw_name": "红河州"
+    },
+    {
+      "raw_name": "元阳梯田"
+    },
+    {
+      "raw_name": "弥勒"
+    },
+    {
+      "raw_name": "昆明"
+    },
+    {
+      "raw_name": "海埂公园"
+    },
+    {
+      "raw_name": "捞鱼河湿地"
+    },
+    {
+      "raw_name": "翠湖公园"
+    },
+    {
+      "raw_name": "陆军讲武堂"
+    },
+    {
+      "raw_name": "西南联大"
+    },
+    {
+      "raw_name": "斗南花市"
+    },
+    {
+      "raw_name": "大理"
+    },
+    {
+      "raw_name": "苍山"
+    },
+    {
+      "raw_name": "洱海"
+    },
+    {
+      "raw_name": "龙龛码头"
+    },
+    {
+      "raw_name": "喜洲古镇"
+    },
+    {
+      "raw_name": "双廊"
+    },
+    {
+      "raw_name": "洼色"
+    },
+    {
+      "raw_name": "S二二幺"
+    },
+    {
+      "raw_name": "崇圣寺三塔"
+    },
+    {
+      "raw_name": "沙溪古镇"
+    },
+    {
+      "raw_name": "西双版纳"
+    },
+    {
+      "raw_name": "腾冲"
+    },
+    {
+      "raw_name": "丽江"
+    },
+    {
+      "raw_name": "芒市"
+    },
+    {
+      "raw_name": "香格里拉"
+    },
+    {
+      "raw_name": "怒江大峡谷"
+    },
+    {
+      "raw_name": "保山"
+    },
+    {
+      "raw_name": "瑞丽"
+    },
+    {
+      "raw_name": "蒙自"
+    },
+    {
+      "raw_name": "虎跳峡的中虎跳"
+    },
+    {
+      "raw_name": "雨崩"
+    },
+    {
+      "raw_name": "丙中洛"
+    },
+    {
+      "raw_name": "独龙江"
+    }
+  ],
+  "content_units": [
+    {
+      "content_unit_id": "e32daa1566f1:04454de096bd76b2",
+      "unit_type": "AREA_GUIDE",
+      "topic": "云南省整体区域与文化分区",
+      "anchor_entity_ids": [
+        "e32daa1566f1:9e869944131070a0"
+      ],
+      "segment_ids": [
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "s10",
+        "s11"
+      ]
+    },
+    {
+      "content_unit_id": "e32daa1566f1:dc031d902ee5944e",
+      "unit_type": "PLACE_GUIDE",
+      "topic": "怒江州自驾攻略",
+      "anchor_entity_ids": [
+        "e32daa1566f1:e84b1fc9a5a14ca1"
+      ],
+      "segment_ids": [
+        "s12",
+        "s13",
+        "s14",
+        "s15",
+        "s16"
+      ]
+    },
+    {
+      "content_unit_id": "e32daa1566f1:a2bc8e5376c25f8e",
+      "unit_type": "PLACE_GUIDE",
+      "topic": "迪庆与香格里拉攻略",
+      "anchor_entity_ids": [
+        "e32daa1566f1:fce37aa975abac49"
+      ],
+      "segment_ids": [
+        "s17",
+        "s18",
+        "s19",
+        "s20",
+        "s21",
+        "s22",
+        "s23",
+        "s24",
+        "s25"
+      ]
+    },
+    {
+      "content_unit_id": "e32daa1566f1:4d375896a5bb316f",
+      "unit_type": "PLACE_GUIDE",
+      "topic": "丽江攻略",
+      "anchor_entity_ids": [
+        "e32daa1566f1:ddc553525ba0f19b"
+      ],
+      "segment_ids": [
+        "s25",
+        "s26",
+        "s27",
+        "s28",
+        "s29",
+        "s30",
+        "s31",
+        "s32",
+        "s33"
+      ]
+    },
+    {
+      "content_unit_id": "e32daa1566f1:f61e47c446ab1b86",
+      "unit_type": "AREA_GUIDE",
+      "topic": "澜沧江流域与保山腾冲",
+      "anchor_entity_ids": [
+        "e32daa1566f1:5bcf08e692a4b7fd"
+      ],
+      "segment_ids": [
+        "s34",
+        "s35",
+        "s36",
+        "s37"
+      ]
+    },
+    {
+      "content_unit_id": "f1b4dd9a3a0b:04454de096bd76b2",
+      "unit_type": "AREA_GUIDE",
+      "topic": "腾冲与德宏",
+      "anchor_entity_ids": [
+        "f1b4dd9a3a0b:9e869944131070a0",
+        "f1b4dd9a3a0b:837cc7c46aae1b4d"
+      ],
+      "segment_ids": [
+        "s38",
+        "s39",
+        "s40",
+        "s41",
+        "s42",
+        "s43",
+        "s44",
+        "s45"
+      ]
+    },
+    {
+      "content_unit_id": "f1b4dd9a3a0b:dc031d902ee5944e",
+      "unit_type": "AREA_GUIDE",
+      "topic": "普洱",
+      "anchor_entity_ids": [
+        "f1b4dd9a3a0b:cb6dbf54934b9e1d"
+      ],
+      "segment_ids": [
+        "s46",
+        "s47",
+        "s48"
+      ]
+    },
+    {
+      "content_unit_id": "f1b4dd9a3a0b:a2bc8e5376c25f8e",
+      "unit_type": "AREA_GUIDE",
+      "topic": "西双版纳",
+      "anchor_entity_ids": [
+        "f1b4dd9a3a0b:eec72130b9385b3b"
+      ],
+      "segment_ids": [
+        "s49",
+        "s50",
+        "s51",
+        "s52",
+        "s53",
+        "s54"
+      ]
+    },
+    {
+      "content_unit_id": "f1b4dd9a3a0b:4d375896a5bb316f",
+      "unit_type": "AREA_GUIDE",
+      "topic": "临沧与澜沧江流域",
+      "anchor_entity_ids": [
+        "f1b4dd9a3a0b:f0134c7e92b90bc5"
+      ],
+      "segment_ids": [
+        "s54",
+        "s55",
+        "s56"
+      ]
+    },
+    {
+      "content_unit_id": "f1b4dd9a3a0b:f61e47c446ab1b86",
+      "unit_type": "AREA_GUIDE",
+      "topic": "文山",
+      "anchor_entity_ids": [
+        "f1b4dd9a3a0b:4feae4f187c7f0a5"
+      ],
+      "segment_ids": [
+        "s56",
+        "s57",
+        "s58",
+        "s59",
+        "s60"
+      ]
+    },
+    {
+      "content_unit_id": "f1b4dd9a3a0b:f7dc926f23faffd3",
+      "unit_type": "AREA_GUIDE",
+      "topic": "昭通",
+      "anchor_entity_ids": [
+        "f1b4dd9a3a0b:9f1dca279c31b364"
+      ],
+      "segment_ids": [
+        "s60",
+        "s61",
+        "s62"
+      ]
+    },
+    {
+      "content_unit_id": "f1b4dd9a3a0b:68a40b817db63985",
+      "unit_type": "AREA_GUIDE",
+      "topic": "曲靖",
+      "anchor_entity_ids": [
+        "f1b4dd9a3a0b:c2c3f800a2fc88f5"
+      ],
+      "segment_ids": [
+        "s63",
+        "s64",
+        "s65",
+        "s66"
+      ]
+    },
+    {
+      "content_unit_id": "f1b4dd9a3a0b:455de8173b3d970b",
+      "unit_type": "AREA_GUIDE",
+      "topic": "楚雄",
+      "anchor_entity_ids": [
+        "f1b4dd9a3a0b:576b7f7fab42a09b"
+      ],
+      "segment_ids": [
+        "s66",
+        "s67",
+        "s68"
+      ]
+    },
+    {
+      "content_unit_id": "f1b4dd9a3a0b:3fea27221255d6fa",
+      "unit_type": "AREA_GUIDE",
+      "topic": "玉溪",
+      "anchor_entity_ids": [
+        "f1b4dd9a3a0b:ccf7cb97d7ac9731"
+      ],
+      "segment_ids": [
+        "s68",
+        "s69",
+        "s70",
+        "s71"
+      ]
+    },
+    {
+      "content_unit_id": "f1b4dd9a3a0b:007342c7262a3a5f",
+      "unit_type": "AREA_GUIDE",
+      "topic": "红河州",
+      "anchor_entity_ids": [
+        "f1b4dd9a3a0b:de443852f315edf1"
+      ],
+      "segment_ids": [
+        "s72",
+        "s73",
+        "s74",
+        "s75"
+      ]
+    },
+    {
+      "content_unit_id": "bd7fbbcf7e9e:04454de096bd76b2",
+      "unit_type": "AREA_GUIDE",
+      "topic": "红河州",
+      "anchor_entity_ids": [
+        "bd7fbbcf7e9e:9e869944131070a0"
+      ],
+      "segment_ids": [
+        "s76",
+        "s77",
+        "s78",
+        "s79"
+      ]
+    },
+    {
+      "content_unit_id": "bd7fbbcf7e9e:dc031d902ee5944e",
+      "unit_type": "PLACE_GUIDE",
+      "topic": "昆明",
+      "anchor_entity_ids": [
+        "bd7fbbcf7e9e:6d8f67e50911e67b"
+      ],
+      "segment_ids": [
+        "s79",
+        "s80",
+        "s81",
+        "s82",
+        "s83",
+        "s84",
+        "s85"
+      ]
+    },
+    {
+      "content_unit_id": "bd7fbbcf7e9e:a2bc8e5376c25f8e",
+      "unit_type": "PLACE_GUIDE",
+      "topic": "大理",
+      "anchor_entity_ids": [
+        "bd7fbbcf7e9e:ddc553525ba0f19b"
+      ],
+      "segment_ids": [
+        "s85",
+        "s86",
+        "s87",
+        "s88",
+        "s89",
+        "s90",
+        "s91",
+        "s92"
+      ]
+    },
+    {
+      "content_unit_id": "bd7fbbcf7e9e:4d375896a5bb316f",
+      "unit_type": "CATEGORY_COMPARE",
+      "topic": "按人群与玩法选择云南目的地",
+      "anchor_entity_ids": [],
+      "segment_ids": [
+        "s92",
+        "s93",
+        "s94",
+        "s95",
+        "s96",
+        "s97",
+        "s98",
+        "s99",
+        "s100"
+      ]
+    }
+  ],
+  "entities_full": [
+    {
+      "entity_id": "e32daa1566f1:9e869944131070a0",
+      "raw_name": "云南省",
+      "canonical_hint": "云南省",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "e32daa1566f1:04454de096bd76b2",
+      "subject_role": "PRIMARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "首先简单介绍一下云南省",
+      "segment_ids": [
+        "s2"
+      ],
+      "confidence": 1.0,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "云南省"
+    },
+    {
+      "entity_id": "e32daa1566f1:e84b1fc9a5a14ca1",
+      "raw_name": "怒江州",
+      "canonical_hint": "怒江傈僳族自治州",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "e32daa1566f1:dc031d902ee5944e",
+      "subject_role": "PRIMARY",
+      "visit_intent": "RECOMMENDED",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "首先藏文化片区先从最简单的怒江州开始",
+      "segment_ids": [
+        "s12"
+      ],
+      "confidence": 0.99,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "e32daa1566f1:e84b1fc9a5a14ca1:stmt_01",
+            "intent": "RECOMMENDED",
+            "scope": "PLACE_OVERALL",
+            "subject_entity_id": "e32daa1566f1:e84b1fc9a5a14ca1",
+            "speaker": "AUTHOR",
+            "quote": "你是自驾党的话那就非常推荐这边了",
+            "segment_ids": [
+              "seg_b19c218ed74c46009e7cbd763b739334"
+            ],
+            "condition": "自驾党",
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "怒江傈僳族自治州"
+    },
+    {
+      "entity_id": "e32daa1566f1:837cc7c46aae1b4d",
+      "raw_name": "怒江大峡谷",
+      "canonical_hint": "怒江大峡谷",
+      "entity_type": "PLACE",
+      "place_type": "SCENIC_AREA",
+      "content_unit_id": "e32daa1566f1:dc031d902ee5944e",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "主要的景区包括怒江大峡谷",
+      "segment_ids": [
+        "s14"
+      ],
+      "confidence": 0.9,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "怒江大峡谷"
+    },
+    {
+      "entity_id": "e32daa1566f1:9d680546e9fca9da",
+      "raw_name": "支子罗",
+      "canonical_hint": "支子罗（原文名称待核）",
+      "entity_type": "PLACE_UNCERTAIN",
+      "place_type": "OTHER",
+      "content_unit_id": "e32daa1566f1:dc031d902ee5944e",
+      "subject_role": "REFERENCE",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "REFERENCE_ONLY",
+      "quote": "主要的景区包括怒江大峡谷支子罗老母登教堂",
+      "segment_ids": [
+        "s14"
+      ],
+      "confidence": 0.45,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "支子罗（原文名称待核）"
+    },
+    {
+      "entity_id": "e32daa1566f1:6d8f67e50911e67b",
+      "raw_name": "老母登教堂",
+      "canonical_hint": "老母登教堂",
+      "entity_type": "PLACE",
+      "place_type": "OTHER",
+      "content_unit_id": "e32daa1566f1:dc031d902ee5944e",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "主要的景区包括怒江大峡谷支子罗老母登教堂",
+      "segment_ids": [
+        "s14"
+      ],
+      "confidence": 0.75,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "老母登教堂"
+    },
+    {
+      "entity_id": "e32daa1566f1:62f06034e88880f8",
+      "raw_name": "丙中洛",
+      "canonical_hint": "丙中洛",
+      "entity_type": "PLACE",
+      "place_type": "SCENIC_AREA",
+      "content_unit_id": "e32daa1566f1:dc031d902ee5944e",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "丙中洛号称人神共居的地方",
+      "segment_ids": [
+        "s15"
+      ],
+      "confidence": 0.9,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "丙中洛"
+    },
+    {
+      "entity_id": "e32daa1566f1:fce37aa975abac49",
+      "raw_name": "迪庆",
+      "canonical_hint": "迪庆藏族自治州",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "e32daa1566f1:a2bc8e5376c25f8e",
+      "subject_role": "PRIMARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "接下来迪庆是云南海拔最高的地方",
+      "segment_ids": [
+        "s17"
+      ],
+      "confidence": 0.99,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "迪庆藏族自治州"
+    },
+    {
+      "entity_id": "e32daa1566f1:cb6dbf54934b9e1d",
+      "raw_name": "香格里拉",
+      "canonical_hint": "香格里拉市",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "e32daa1566f1:a2bc8e5376c25f8e",
+      "subject_role": "PRIMARY",
+      "visit_intent": "RECOMMENDED",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "我觉得每个人都应该去一趟香格里拉",
+      "segment_ids": [
+        "s22"
+      ],
+      "confidence": 0.99,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "e32daa1566f1:cb6dbf54934b9e1d:stmt_02",
+            "intent": "RECOMMENDED",
+            "scope": "PLACE_OVERALL",
+            "subject_entity_id": "e32daa1566f1:cb6dbf54934b9e1d",
+            "speaker": "AUTHOR",
+            "quote": "我觉得每个人都应该去一趟香格里拉",
+            "segment_ids": [
+              "seg_16f9b7b6a829434b8d09ee9c84b8c1cc"
+            ],
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "香格里拉市"
+    },
+    {
+      "entity_id": "e32daa1566f1:63718e8e0baf7aa4",
+      "raw_name": "G214滇藏线",
+      "canonical_hint": "G214滇藏线",
+      "entity_type": "LINEAR_FEATURE",
+      "place_type": "OTHER",
+      "content_unit_id": "e32daa1566f1:a2bc8e5376c25f8e",
+      "subject_role": "REFERENCE",
+      "visit_intent": "NOT_APPLICABLE",
+      "poi_policy": "REFERENCE_ONLY",
+      "quote": "主要有两条路线：G214滇藏线自驾，以及香格里拉度假",
+      "segment_ids": [
+        "s18"
+      ],
+      "confidence": 0.98,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "G214滇藏线"
+    },
+    {
+      "entity_id": "e32daa1566f1:1f455f098c3dd27d",
+      "raw_name": "虎跳峡",
+      "canonical_hint": "虎跳峡",
+      "entity_type": "PLACE",
+      "place_type": "SCENIC_AREA",
+      "content_unit_id": "e32daa1566f1:a2bc8e5376c25f8e",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "周边的景区主要包括虎跳峡",
+      "segment_ids": [
+        "s20"
+      ],
+      "confidence": 0.95,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "虎跳峡"
+    },
+    {
+      "entity_id": "e32daa1566f1:e636532b2164955d",
+      "raw_name": "独克宗古城",
+      "canonical_hint": "独克宗古城",
+      "entity_type": "PLACE",
+      "place_type": "SCENIC_AREA",
+      "content_unit_id": "e32daa1566f1:a2bc8e5376c25f8e",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "周边的景区主要包括虎跳峡、独克宗古城",
+      "segment_ids": [
+        "s20"
+      ],
+      "confidence": 0.95,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "独克宗古城"
+    },
+    {
+      "entity_id": "e32daa1566f1:eec72130b9385b3b",
+      "raw_name": "松赞林寺",
+      "canonical_hint": "噶丹·松赞林寺",
+      "entity_type": "PLACE",
+      "place_type": "TEMPLE",
+      "content_unit_id": "e32daa1566f1:a2bc8e5376c25f8e",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "周边的景区主要包括虎跳峡、独克宗古城、松赞林寺",
+      "segment_ids": [
+        "s20"
+      ],
+      "confidence": 0.95,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "噶丹·松赞林寺"
+    },
+    {
+      "entity_id": "e32daa1566f1:aee7af36a284a1f0",
+      "raw_name": "普达措",
+      "canonical_hint": "普达措国家公园",
+      "entity_type": "PLACE",
+      "place_type": "SCENIC_AREA",
+      "content_unit_id": "e32daa1566f1:a2bc8e5376c25f8e",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "周边的景区主要包括虎跳峡、独克宗古城、松赞林寺、普达措",
+      "segment_ids": [
+        "s20"
+      ],
+      "confidence": 0.95,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "普达措国家公园"
+    },
+    {
+      "entity_id": "e32daa1566f1:ddc553525ba0f19b",
+      "raw_name": "丽江",
+      "canonical_hint": "丽江市",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "e32daa1566f1:4d375896a5bb316f",
+      "subject_role": "PRIMARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "丽江是一个旅游流量大户但是体验真的一般",
+      "segment_ids": [
+        "s25"
+      ],
+      "confidence": 0.99,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "e32daa1566f1:ddc553525ba0f19b:stmt_03",
+            "intent": "NEUTRAL",
+            "scope": "PLACE_OVERALL",
+            "subject_entity_id": "e32daa1566f1:ddc553525ba0f19b",
+            "speaker": "AUTHOR",
+            "quote": "丽江是一个旅游流量大户但是体验真的一般",
+            "segment_ids": [
+              "seg_d9177d24eb0840d18c7b85f71adefb3c"
+            ],
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "丽江市"
+    },
+    {
+      "entity_id": "e32daa1566f1:d3e5228b3431a850",
+      "raw_name": "丽江古城",
+      "canonical_hint": "丽江古城",
+      "entity_type": "PLACE",
+      "place_type": "NEIGHBORHOOD",
+      "content_unit_id": "e32daa1566f1:4d375896a5bb316f",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "古城片区就是丽江古城、束河古镇和沙溪古镇",
+      "segment_ids": [
+        "s26"
+      ],
+      "confidence": 0.95,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "丽江古城"
+    },
+    {
+      "entity_id": "e32daa1566f1:833035135dd541f4",
+      "raw_name": "束河古镇",
+      "canonical_hint": "束河古镇",
+      "entity_type": "PLACE",
+      "place_type": "NEIGHBORHOOD",
+      "content_unit_id": "e32daa1566f1:4d375896a5bb316f",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "束河最安静，民宿比较多",
+      "segment_ids": [
+        "s26"
+      ],
+      "confidence": 0.95,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "束河古镇"
+    },
+    {
+      "entity_id": "e32daa1566f1:c20933c1c26847d3",
+      "raw_name": "沙溪古镇",
+      "canonical_hint": "沙溪古镇",
+      "entity_type": "PLACE",
+      "place_type": "NEIGHBORHOOD",
+      "content_unit_id": "e32daa1566f1:4d375896a5bb316f",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "古城片区就是丽江古城、束河古镇和沙溪古镇",
+      "segment_ids": [
+        "s26"
+      ],
+      "confidence": 0.95,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "沙溪古镇"
+    },
+    {
+      "entity_id": "e32daa1566f1:42cc7a90d7647bfc",
+      "raw_name": "白沙古镇",
+      "canonical_hint": "白沙古镇",
+      "entity_type": "PLACE",
+      "place_type": "NEIGHBORHOOD",
+      "content_unit_id": "e32daa1566f1:4d375896a5bb316f",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "白沙古镇人最少，抬头就能直接看到玉龙雪山",
+      "segment_ids": [
+        "s26",
+        "s27"
+      ],
+      "confidence": 0.95,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "白沙古镇"
+    },
+    {
+      "entity_id": "e32daa1566f1:dd254fe3e707a70e",
+      "raw_name": "玉龙雪山",
+      "canonical_hint": "玉龙雪山",
+      "entity_type": "PLACE",
+      "place_type": "SCENIC_AREA",
+      "content_unit_id": "e32daa1566f1:4d375896a5bb316f",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "自然风光呢主要就是玉龙雪山和蓝月谷",
+      "segment_ids": [
+        "s27"
+      ],
+      "confidence": 0.95,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "e32daa1566f1:dd254fe3e707a70e:stmt_04",
+            "intent": "NEUTRAL",
+            "scope": "LOCAL_DETAIL",
+            "subject_entity_id": "e32daa1566f1:dd254fe3e707a70e",
+            "speaker": "AUTHOR",
+            "quote": "但是夏天就只能看到石头",
+            "segment_ids": [
+              "seg_f92d34874574418fb7eb23744834a615"
+            ],
+            "time_context": "夏天",
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "玉龙雪山"
+    },
+    {
+      "entity_id": "e32daa1566f1:b4cb6e23694e9a24",
+      "raw_name": "蓝月谷",
+      "canonical_hint": "蓝月谷",
+      "entity_type": "PLACE",
+      "place_type": "SCENIC_AREA",
+      "content_unit_id": "e32daa1566f1:4d375896a5bb316f",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "自然风光呢主要就是玉龙雪山和蓝月谷",
+      "segment_ids": [
+        "s27"
+      ],
+      "confidence": 0.95,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "蓝月谷"
+    },
+    {
+      "entity_id": "e32daa1566f1:4feae4f187c7f0a5",
+      "raw_name": "藏文化片区",
+      "canonical_hint": "云南藏文化片区（原文分区）",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "e32daa1566f1:4d375896a5bb316f",
+      "subject_role": "CONTEXT",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "以上就是藏文化片区，人气高的地方不好玩，好玩的地方交通不方便。",
+      "segment_ids": [
+        "s31"
+      ],
+      "confidence": 0.8,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "e32daa1566f1:4feae4f187c7f0a5:stmt_07",
+            "intent": "RECOMMENDED",
+            "scope": "PLACE_OVERALL",
+            "subject_entity_id": "e32daa1566f1:4feae4f187c7f0a5",
+            "speaker": "AUTHOR",
+            "quote": "对大部分人来说，只推荐去香格里拉。",
+            "segment_ids": [
+              "seg_f783e17eb5f54c94bc9c399092b02e26"
+            ],
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "云南藏文化片区（原文分区）"
+    },
+    {
+      "entity_id": "e32daa1566f1:7e280b14bbc8e4c8",
+      "raw_name": "保山",
+      "canonical_hint": "保山市",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "e32daa1566f1:f61e47c446ab1b86",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "保山是滇西康养的代表",
+      "segment_ids": [
+        "s35"
+      ],
+      "confidence": 0.99,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "保山市"
+    },
+    {
+      "entity_id": "e32daa1566f1:9f1dca279c31b364",
+      "raw_name": "古腾冲",
+      "canonical_hint": "腾冲（原文称“古腾冲”，名称待核）",
+      "entity_type": "PLACE_UNCERTAIN",
+      "place_type": "OTHER",
+      "content_unit_id": "e32daa1566f1:f61e47c446ab1b86",
+      "subject_role": "REFERENCE",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "REFERENCE_ONLY",
+      "quote": "古腾冲是核心",
+      "segment_ids": [
+        "s35"
+      ],
+      "confidence": 0.5,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "腾冲（原文称“古腾冲”，名称待核）"
+    },
+    {
+      "entity_id": "e32daa1566f1:1c164a4b35e9abfd",
+      "raw_name": "腾冲",
+      "canonical_hint": "腾冲市",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "e32daa1566f1:f61e47c446ab1b86",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "腾冲的火山、温泉还有和顺古镇都非常值得一转",
+      "segment_ids": [
+        "s36"
+      ],
+      "confidence": 0.98,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "e32daa1566f1:1c164a4b35e9abfd:stmt_09",
+            "intent": "RECOMMENDED",
+            "scope": "LOCAL_DETAIL",
+            "subject_entity_id": "e32daa1566f1:1c164a4b35e9abfd",
+            "speaker": "AUTHOR",
+            "quote": "腾冲的火山、温泉还有和顺古镇都非常值得一转。",
+            "segment_ids": [
+              "seg_f6527f37653d4950b4a69cecef7ec4c6"
+            ],
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "腾冲市"
+    },
+    {
+      "entity_id": "e32daa1566f1:c2c3f800a2fc88f5",
+      "raw_name": "和顺古镇",
+      "canonical_hint": "和顺古镇",
+      "entity_type": "PLACE",
+      "place_type": "NEIGHBORHOOD",
+      "content_unit_id": "e32daa1566f1:f61e47c446ab1b86",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "腾冲的火山、温泉还有和顺古镇都非常值得一转",
+      "segment_ids": [
+        "s36"
+      ],
+      "confidence": 0.96,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "和顺古镇"
+    },
+    {
+      "entity_id": "e32daa1566f1:90dc1a8d550ab437",
+      "raw_name": "松山遗址",
+      "canonical_hint": "松山遗址",
+      "entity_type": "PLACE",
+      "place_type": "LANDMARK",
+      "content_unit_id": "e32daa1566f1:f61e47c446ab1b86",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "还有松山遗址和滇西抗战等重要历史",
+      "segment_ids": [
+        "s37"
+      ],
+      "confidence": 0.9,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "松山遗址"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:9e869944131070a0",
+      "raw_name": "腾冲",
+      "canonical_hint": "腾冲市",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "f1b4dd9a3a0b:04454de096bd76b2",
+      "subject_role": "PRIMARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "普通游客基本上直奔腾冲了",
+      "segment_ids": [
+        "s38"
+      ],
+      "confidence": 0.98,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "腾冲市"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:e84b1fc9a5a14ca1",
+      "raw_name": "芒市",
+      "canonical_hint": "芒市",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "f1b4dd9a3a0b:04454de096bd76b2",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "腾冲到芒市德宏可以连成滇西环线",
+      "segment_ids": [
+        "s38"
+      ],
+      "confidence": 0.98,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "芒市"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:837cc7c46aae1b4d",
+      "raw_name": "德宏",
+      "canonical_hint": "德宏傣族景颇族自治州",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "f1b4dd9a3a0b:04454de096bd76b2",
+      "subject_role": "PRIMARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "接下来，德宏是中缅边境一个东南亚氛围感十足的地方",
+      "segment_ids": [
+        "s40"
+      ],
+      "confidence": 0.98,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "德宏傣族景颇族自治州"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:6d8f67e50911e67b",
+      "raw_name": "大金塔",
+      "canonical_hint": "大金塔",
+      "entity_type": "PLACE",
+      "place_type": "TEMPLE",
+      "content_unit_id": "f1b4dd9a3a0b:04454de096bd76b2",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "主要打卡点就是大金塔",
+      "segment_ids": [
+        "s42"
+      ],
+      "confidence": 0.85,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "大金塔"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:62f06034e88880f8",
+      "raw_name": "一国两寨",
+      "canonical_hint": "一国两寨边境风情",
+      "entity_type": "GENERIC_FEATURE",
+      "place_type": "OTHER",
+      "content_unit_id": "f1b4dd9a3a0b:04454de096bd76b2",
+      "subject_role": "REFERENCE",
+      "visit_intent": "NOT_APPLICABLE",
+      "poi_policy": "REFERENCE_ONLY",
+      "quote": "瑞丽比较较简单主要是一个一国两寨的边境风情",
+      "segment_ids": [
+        "s42",
+        "s43"
+      ],
+      "confidence": 0.75,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "一国两寨边境风情"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:fce37aa975abac49",
+      "raw_name": "木脑纵歌节",
+      "canonical_hint": "木脑纵歌节（名称待核）",
+      "entity_type": "PLACE_UNCERTAIN",
+      "place_type": "OTHER",
+      "content_unit_id": "f1b4dd9a3a0b:04454de096bd76b2",
+      "subject_role": "REFERENCE",
+      "visit_intent": "NOT_APPLICABLE",
+      "poi_policy": "REFERENCE_ONLY",
+      "quote": "如果时间合适的话能赶上木脑纵歌节",
+      "segment_ids": [
+        "s43",
+        "s44"
+      ],
+      "confidence": 0.55,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "木脑纵歌节（名称待核）"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:cb6dbf54934b9e1d",
+      "raw_name": "普洱市",
+      "canonical_hint": "普洱市",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "f1b4dd9a3a0b:dc031d902ee5944e",
+      "subject_role": "PRIMARY",
+      "visit_intent": "RECOMMENDED",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "但其实这块还不错",
+      "segment_ids": [
+        "s46"
+      ],
+      "confidence": 0.98,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "f1b4dd9a3a0b:cb6dbf54934b9e1d:stmt_01",
+            "intent": "RECOMMENDED",
+            "scope": "PLACE_OVERALL",
+            "subject_entity_id": "f1b4dd9a3a0b:cb6dbf54934b9e1d",
+            "speaker": "AUTHOR",
+            "quote": "但其实这块还不错",
+            "segment_ids": [
+              "seg_708472fa31034e88b9ea39a34597b8bf"
+            ],
+            "supersedes": []
+          },
+          {
+            "statement_id": "f1b4dd9a3a0b:cb6dbf54934b9e1d:stmt_02",
+            "intent": "NOT_RECOMMENDED",
+            "scope": "LOCAL_DETAIL",
+            "subject_entity_id": "f1b4dd9a3a0b:cb6dbf54934b9e1d",
+            "speaker": "AUTHOR",
+            "quote": "不适合赶时间的人",
+            "segment_ids": [
+              "seg_75feac68c08a457c94bbaa33a8b0119e"
+            ],
+            "condition": "赶时间",
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "普洱市"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:63718e8e0baf7aa4",
+      "raw_name": "景迈山",
+      "canonical_hint": "景迈山",
+      "entity_type": "PLACE",
+      "place_type": "SCENIC_AREA",
+      "content_unit_id": "f1b4dd9a3a0b:dc031d902ee5944e",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "最大的王牌就是景迈山",
+      "segment_ids": [
+        "s46"
+      ],
+      "confidence": 0.95,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "景迈山"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:1f455f098c3dd27d",
+      "raw_name": "太阳河森林公园",
+      "canonical_hint": "太阳河森林公园",
+      "entity_type": "PLACE",
+      "place_type": "PARK",
+      "content_unit_id": "f1b4dd9a3a0b:dc031d902ee5944e",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "还有太阳河森林公园",
+      "segment_ids": [
+        "s46"
+      ],
+      "confidence": 0.95,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "太阳河森林公园"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:e636532b2164955d",
+      "raw_name": "无量山",
+      "canonical_hint": "无量山",
+      "entity_type": "PLACE",
+      "place_type": "SCENIC_AREA",
+      "content_unit_id": "f1b4dd9a3a0b:dc031d902ee5944e",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "无量山冬天的樱花非常出名",
+      "segment_ids": [
+        "s47"
+      ],
+      "confidence": 0.92,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "无量山"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:eec72130b9385b3b",
+      "raw_name": "西双版纳",
+      "canonical_hint": "西双版纳傣族自治州",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "f1b4dd9a3a0b:a2bc8e5376c25f8e",
+      "subject_role": "PRIMARY",
+      "visit_intent": "RECOMMENDED",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "适合亲子家庭、旅居避寒过冬的老人，以及喜欢热带风光的人",
+      "segment_ids": [
+        "s53"
+      ],
+      "confidence": 0.99,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "f1b4dd9a3a0b:eec72130b9385b3b:stmt_03",
+            "intent": "RECOMMENDED",
+            "scope": "PLACE_OVERALL",
+            "subject_entity_id": "f1b4dd9a3a0b:eec72130b9385b3b",
+            "speaker": "AUTHOR",
+            "quote": "适合亲子家庭、旅居避寒过冬的老人，以及喜欢热带风光的人",
+            "segment_ids": [
+              "seg_2502b63e995649759fd0ed1e1bc24d92"
+            ],
+            "supersedes": []
+          },
+          {
+            "statement_id": "f1b4dd9a3a0b:eec72130b9385b3b:stmt_04",
+            "intent": "NOT_RECOMMENDED",
+            "scope": "LOCAL_DETAIL",
+            "subject_entity_id": "f1b4dd9a3a0b:eec72130b9385b3b",
+            "speaker": "AUTHOR",
+            "quote": "这里夏天非常闷热",
+            "segment_ids": [
+              "seg_40894e8a23314e49899a43a41ad6d798"
+            ],
+            "condition": "夏天",
+            "supersedes": []
+          },
+          {
+            "statement_id": "f1b4dd9a3a0b:eec72130b9385b3b:stmt_05",
+            "intent": "RECOMMENDED",
+            "scope": "LOCAL_DETAIL",
+            "subject_entity_id": "f1b4dd9a3a0b:eec72130b9385b3b",
+            "speaker": "AUTHOR",
+            "quote": "十一月到次年三月是最适合来的时候",
+            "segment_ids": [
+              "seg_40894e8a23314e49899a43a41ad6d798",
+              "seg_2502b63e995649759fd0ed1e1bc24d92"
+            ],
+            "time_context": "十一月到次年三月",
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "西双版纳傣族自治州"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:aee7af36a284a1f0",
+      "raw_name": "星光夜市",
+      "canonical_hint": "星光夜市",
+      "entity_type": "PLACE",
+      "place_type": "MARKET",
+      "content_unit_id": "f1b4dd9a3a0b:a2bc8e5376c25f8e",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "像星光夜市",
+      "segment_ids": [
+        "s50"
+      ],
+      "confidence": 0.91,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "星光夜市"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:ddc553525ba0f19b",
+      "raw_name": "曼听公园",
+      "canonical_hint": "曼听公园",
+      "entity_type": "PLACE",
+      "place_type": "PARK",
+      "content_unit_id": "f1b4dd9a3a0b:a2bc8e5376c25f8e",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "曼听公园",
+      "segment_ids": [
+        "s50"
+      ],
+      "confidence": 0.93,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "曼听公园"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:d3e5228b3431a850",
+      "raw_name": "傣王宫遗址",
+      "canonical_hint": "傣王宫遗址",
+      "entity_type": "PLACE",
+      "place_type": "LANDMARK",
+      "content_unit_id": "f1b4dd9a3a0b:a2bc8e5376c25f8e",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "傣王宫遗址等地方",
+      "segment_ids": [
+        "s50"
+      ],
+      "confidence": 0.88,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "傣王宫遗址"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:833035135dd541f4",
+      "raw_name": "野象谷",
+      "canonical_hint": "野象谷",
+      "entity_type": "PLACE",
+      "place_type": "SCENIC_AREA",
+      "content_unit_id": "f1b4dd9a3a0b:a2bc8e5376c25f8e",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "野象谷可以看亚洲象",
+      "segment_ids": [
+        "s50"
+      ],
+      "confidence": 0.95,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "野象谷"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:c20933c1c26847d3",
+      "raw_name": "原始森林公园",
+      "canonical_hint": "原始森林公园",
+      "entity_type": "PLACE",
+      "place_type": "PARK",
+      "content_unit_id": "f1b4dd9a3a0b:a2bc8e5376c25f8e",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "原始森林公园还有孔雀放飞表演",
+      "segment_ids": [
+        "s50"
+      ],
+      "confidence": 0.88,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "原始森林公园"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:dd254fe3e707a70e",
+      "raw_name": "亚洲象",
+      "canonical_hint": "亚洲象",
+      "entity_type": "GENERIC_FEATURE",
+      "place_type": "OTHER",
+      "content_unit_id": "f1b4dd9a3a0b:a2bc8e5376c25f8e",
+      "subject_role": "REFERENCE",
+      "visit_intent": "NOT_APPLICABLE",
+      "poi_policy": "REFERENCE_ONLY",
+      "quote": "野象谷可以看亚洲象",
+      "segment_ids": [
+        "s50"
+      ],
+      "confidence": 0.99,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "亚洲象"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:b4cb6e23694e9a24",
+      "raw_name": "澜沧江流域",
+      "canonical_hint": "澜沧江流域",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "f1b4dd9a3a0b:4d375896a5bb316f",
+      "subject_role": "PRIMARY",
+      "visit_intent": "RECOMMENDED",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "整体来看澜沧江流域异域风情非常的足",
+      "segment_ids": [
+        "s54",
+        "s55"
+      ],
+      "confidence": 0.96,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "f1b4dd9a3a0b:b4cb6e23694e9a24:stmt_07",
+            "intent": "RECOMMENDED",
+            "scope": "PLACE_OVERALL",
+            "subject_entity_id": "f1b4dd9a3a0b:b4cb6e23694e9a24",
+            "speaker": "AUTHOR",
+            "quote": "整体来看澜沧江流域异域风情非常的足旅居人口非常的多而且美食遍地",
+            "segment_ids": [
+              "seg_bda303f545a74b1e9c88c65fd31e4faa",
+              "seg_5b960239b7e6477b9af6b6bfac1036a5"
+            ],
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "澜沧江流域"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:94a353ee041bc7e8",
+      "raw_name": "临沧",
+      "canonical_hint": "临沧市",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "f1b4dd9a3a0b:4d375896a5bb316f",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "还有临沧这里就很少有人来了",
+      "segment_ids": [
+        "s53",
+        "s54"
+      ],
+      "confidence": 0.95,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "临沧市"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:f0134c7e92b90bc5",
+      "raw_name": "咖啡和茶",
+      "canonical_hint": "咖啡和茶（泛称）",
+      "entity_type": "GENERIC_FEATURE",
+      "place_type": "OTHER",
+      "content_unit_id": "f1b4dd9a3a0b:4d375896a5bb316f",
+      "subject_role": "REFERENCE",
+      "visit_intent": "NOT_APPLICABLE",
+      "poi_policy": "REFERENCE_ONLY",
+      "quote": "咖啡和茶都是世界顶级",
+      "segment_ids": [
+        "s55"
+      ],
+      "confidence": 0.98,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "咖啡和茶（泛称）"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:4feae4f187c7f0a5",
+      "raw_name": "文山",
+      "canonical_hint": "文山壮族苗族自治州",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "f1b4dd9a3a0b:f61e47c446ab1b86",
+      "subject_role": "PRIMARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "接下来是非常像广西的文山",
+      "segment_ids": [
+        "s56"
+      ],
+      "confidence": 0.97,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "文山壮族苗族自治州"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:5bcf08e692a4b7fd",
+      "raw_name": "普者黑",
+      "canonical_hint": "普者黑",
+      "entity_type": "PLACE",
+      "place_type": "SCENIC_AREA",
+      "content_unit_id": "f1b4dd9a3a0b:f61e47c446ab1b86",
+      "subject_role": "SECONDARY",
+      "visit_intent": "RECOMMENDED",
+      "poi_policy": "RESOLVE",
+      "quote": "如果你喜欢喀斯特山水景观，文山几乎是唯一的选择",
+      "segment_ids": [
+        "s56"
+      ],
+      "confidence": 0.94,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "f1b4dd9a3a0b:5bcf08e692a4b7fd:stmt_08",
+            "intent": "RECOMMENDED",
+            "scope": "LOCAL_DETAIL",
+            "subject_entity_id": "f1b4dd9a3a0b:5bcf08e692a4b7fd",
+            "speaker": "AUTHOR",
+            "quote": "普者黑对攻略的要求比较高，景区不要门票，但里面处处收费。攻略没做好的话，真的是多花很多冤枉钱",
+            "segment_ids": [
+              "seg_74a692c8e6684476ab0749c4fe106895",
+              "seg_f616cbecc7244489a658b7606f2cfc9e"
+            ],
+            "condition": "攻略没做好的话",
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "普者黑"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:7e280b14bbc8e4c8",
+      "raw_name": "坝美世外桃源",
+      "canonical_hint": "坝美世外桃源",
+      "entity_type": "PLACE",
+      "place_type": "SCENIC_AREA",
+      "content_unit_id": "f1b4dd9a3a0b:f61e47c446ab1b86",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "另一个就是坝美世外桃源",
+      "segment_ids": [
+        "s58"
+      ],
+      "confidence": 0.9,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "坝美世外桃源"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:9f1dca279c31b364",
+      "raw_name": "昭通",
+      "canonical_hint": "昭通市",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "f1b4dd9a3a0b:f7dc926f23faffd3",
+      "subject_role": "PRIMARY",
+      "visit_intent": "RECOMMENDED",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "是一个避暑圣地也是旅居圣地",
+      "segment_ids": [
+        "s61"
+      ],
+      "confidence": 0.98,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "f1b4dd9a3a0b:9f1dca279c31b364:stmt_09",
+            "intent": "RECOMMENDED",
+            "scope": "PLACE_OVERALL",
+            "subject_entity_id": "f1b4dd9a3a0b:9f1dca279c31b364",
+            "speaker": "AUTHOR",
+            "quote": "是一个避暑圣地也是旅居圣地",
+            "segment_ids": [
+              "seg_28131a0d6d7a4a27a1a52a1ef8ee1163"
+            ],
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "昭通市"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:1c164a4b35e9abfd",
+      "raw_name": "中原文化为主的这片区域",
+      "canonical_hint": "中原文化为主的区域（范围未明）",
+      "entity_type": "PLACE_UNCERTAIN",
+      "place_type": "AREA",
+      "content_unit_id": "f1b4dd9a3a0b:68a40b817db63985",
+      "subject_role": "CONTEXT",
+      "visit_intent": "NOT_APPLICABLE",
+      "poi_policy": "REFERENCE_ONLY",
+      "quote": "接下来是以中原文化为主的这片区域",
+      "segment_ids": [
+        "s62"
+      ],
+      "confidence": 0.65,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "中原文化为主的区域（范围未明）"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:c2c3f800a2fc88f5",
+      "raw_name": "曲靖",
+      "canonical_hint": "曲靖市",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "f1b4dd9a3a0b:68a40b817db63985",
+      "subject_role": "PRIMARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "首先曲靖",
+      "segment_ids": [
+        "s63",
+        "s64"
+      ],
+      "confidence": 0.98,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "曲靖市"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:90dc1a8d550ab437",
+      "raw_name": "罗平",
+      "canonical_hint": "罗平县",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "f1b4dd9a3a0b:68a40b817db63985",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "这块罗平的油菜花二到三月全国知名",
+      "segment_ids": [
+        "s64"
+      ],
+      "confidence": 0.98,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "f1b4dd9a3a0b:90dc1a8d550ab437:stmt_10",
+            "intent": "RECOMMENDED",
+            "scope": "LOCAL_DETAIL",
+            "subject_entity_id": "f1b4dd9a3a0b:90dc1a8d550ab437",
+            "speaker": "AUTHOR",
+            "quote": "罗平只适合春天",
+            "segment_ids": [
+              "seg_09f57779640b47e1b4a478f01c7acc69"
+            ],
+            "time_context": "春天",
+            "supersedes": []
+          },
+          {
+            "statement_id": "f1b4dd9a3a0b:90dc1a8d550ab437:stmt_11",
+            "intent": "NOT_RECOMMENDED",
+            "scope": "LOCAL_DETAIL",
+            "subject_entity_id": "f1b4dd9a3a0b:90dc1a8d550ab437",
+            "speaker": "AUTHOR",
+            "quote": "其余时间更适合路过",
+            "segment_ids": [
+              "seg_09f57779640b47e1b4a478f01c7acc69"
+            ],
+            "time_context": "其余时间",
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "罗平县"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:ac1817a4f79608cb",
+      "raw_name": "会泽古城",
+      "canonical_hint": "会泽古城",
+      "entity_type": "PLACE",
+      "place_type": "LANDMARK",
+      "content_unit_id": "f1b4dd9a3a0b:68a40b817db63985",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "还有会泽古城",
+      "segment_ids": [
+        "s64",
+        "s65"
+      ],
+      "confidence": 0.91,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "会泽古城"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:5825de4bd423accc",
+      "raw_name": "大海草山草原",
+      "canonical_hint": "大海草山",
+      "entity_type": "PLACE",
+      "place_type": "SCENIC_AREA",
+      "content_unit_id": "f1b4dd9a3a0b:68a40b817db63985",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "大海草山草原",
+      "segment_ids": [
+        "s65"
+      ],
+      "confidence": 0.85,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "大海草山"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:60c441459a2b64ab",
+      "raw_name": "九龙瀑布",
+      "canonical_hint": "九龙瀑布",
+      "entity_type": "PLACE",
+      "place_type": "SCENIC_AREA",
+      "content_unit_id": "f1b4dd9a3a0b:68a40b817db63985",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "九龙瀑布等地方",
+      "segment_ids": [
+        "s65"
+      ],
+      "confidence": 0.88,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "九龙瀑布"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:576b7f7fab42a09b",
+      "raw_name": "楚雄",
+      "canonical_hint": "楚雄彝族自治州",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "f1b4dd9a3a0b:455de8173b3d970b",
+      "subject_role": "PRIMARY",
+      "visit_intent": "NOT_RECOMMENDED",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "除了火把节之外，不建议专程跑过来玩",
+      "segment_ids": [
+        "s67",
+        "s68"
+      ],
+      "confidence": 0.98,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "f1b4dd9a3a0b:576b7f7fab42a09b:stmt_12",
+            "intent": "NOT_RECOMMENDED",
+            "scope": "PLACE_OVERALL",
+            "subject_entity_id": "f1b4dd9a3a0b:576b7f7fab42a09b",
+            "speaker": "AUTHOR",
+            "quote": "除了火把节之外，不建议专程跑过来玩",
+            "segment_ids": [
+              "seg_598924e0e39f4e4fa0ff5a584e48a2c8",
+              "seg_8abb0b19df314a559d81235efa777e7d"
+            ],
+            "condition": "除了火把节之外",
+            "supersedes": []
+          },
+          {
+            "statement_id": "f1b4dd9a3a0b:576b7f7fab42a09b:stmt_13",
+            "intent": "RECOMMENDED",
+            "scope": "LOCAL_DETAIL",
+            "subject_entity_id": "f1b4dd9a3a0b:576b7f7fab42a09b",
+            "speaker": "AUTHOR",
+            "quote": "火把节期间适合追少数民族节日的人过来",
+            "segment_ids": [
+              "seg_8abb0b19df314a559d81235efa777e7d"
+            ],
+            "time_context": "火把节期间",
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "楚雄彝族自治州"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:3dbc8cb8635902e2",
+      "raw_name": "元谋土林",
+      "canonical_hint": "元谋土林",
+      "entity_type": "PLACE",
+      "place_type": "SCENIC_AREA",
+      "content_unit_id": "f1b4dd9a3a0b:455de8173b3d970b",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "这块有元谋土林，适合打卡",
+      "segment_ids": [
+        "s67"
+      ],
+      "confidence": 0.92,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "f1b4dd9a3a0b:3dbc8cb8635902e2:stmt_14",
+            "intent": "RECOMMENDED",
+            "scope": "LOCAL_DETAIL",
+            "subject_entity_id": "f1b4dd9a3a0b:3dbc8cb8635902e2",
+            "speaker": "AUTHOR",
+            "quote": "这块有元谋土林，适合打卡",
+            "segment_ids": [
+              "seg_598924e0e39f4e4fa0ff5a584e48a2c8"
+            ],
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "元谋土林"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:ccf7cb97d7ac9731",
+      "raw_name": "玉溪",
+      "canonical_hint": "玉溪市",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "f1b4dd9a3a0b:3fea27221255d6fa",
+      "subject_role": "PRIMARY",
+      "visit_intent": "RECOMMENDED",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "玉溪离昆明非常近是短途的首选",
+      "segment_ids": [
+        "s68"
+      ],
+      "confidence": 0.98,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "f1b4dd9a3a0b:ccf7cb97d7ac9731:stmt_15",
+            "intent": "RECOMMENDED",
+            "scope": "PLACE_OVERALL",
+            "subject_entity_id": "f1b4dd9a3a0b:ccf7cb97d7ac9731",
+            "speaker": "AUTHOR",
+            "quote": "玉溪离昆明非常近是短途的首选",
+            "segment_ids": [
+              "seg_8abb0b19df314a559d81235efa777e7d"
+            ],
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "玉溪市"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:afd37c6c8a57a5ad",
+      "raw_name": "抚仙湖",
+      "canonical_hint": "抚仙湖",
+      "entity_type": "PLACE",
+      "place_type": "SCENIC_AREA",
+      "content_unit_id": "f1b4dd9a3a0b:3fea27221255d6fa",
+      "subject_role": "SECONDARY",
+      "visit_intent": "RECOMMENDED",
+      "poi_policy": "RESOLVE",
+      "quote": "有抚仙湖，是国内一类水质的深水湖，适合环湖自驾",
+      "segment_ids": [
+        "s69"
+      ],
+      "confidence": 0.97,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "f1b4dd9a3a0b:afd37c6c8a57a5ad:stmt_16",
+            "intent": "RECOMMENDED",
+            "scope": "LOCAL_DETAIL",
+            "subject_entity_id": "f1b4dd9a3a0b:afd37c6c8a57a5ad",
+            "speaker": "AUTHOR",
+            "quote": "有抚仙湖，是国内一类水质的深水湖，适合环湖自驾",
+            "segment_ids": [
+              "seg_9eca99e27c164fd8a49807b53a89671e"
+            ],
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "抚仙湖"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:cd469b3d74a91acf",
+      "raw_name": "星云湖",
+      "canonical_hint": "星云湖",
+      "entity_type": "PLACE",
+      "place_type": "SCENIC_AREA",
+      "content_unit_id": "f1b4dd9a3a0b:3fea27221255d6fa",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "还有星云湖",
+      "segment_ids": [
+        "s69"
+      ],
+      "confidence": 0.94,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "星云湖"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:db96147a02f12a0d",
+      "raw_name": "聂耳故居",
+      "canonical_hint": "聂耳故居",
+      "entity_type": "PLACE",
+      "place_type": "LANDMARK",
+      "content_unit_id": "f1b4dd9a3a0b:3fea27221255d6fa",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "聂耳故居",
+      "segment_ids": [
+        "s69"
+      ],
+      "confidence": 0.94,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "聂耳故居"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:fddd50472aefc4f9",
+      "raw_name": "哈尼村寨",
+      "canonical_hint": "哈尼村寨（泛称）",
+      "entity_type": "GENERIC_FEATURE",
+      "place_type": "VILLAGE",
+      "content_unit_id": "f1b4dd9a3a0b:3fea27221255d6fa",
+      "subject_role": "REFERENCE",
+      "visit_intent": "NOT_APPLICABLE",
+      "poi_policy": "REFERENCE_ONLY",
+      "quote": "周边还有一些哈尼村寨，也可以去转一转",
+      "segment_ids": [
+        "s70"
+      ],
+      "confidence": 0.89,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "哈尼村寨（泛称）"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:e241d12a8af7ddbf",
+      "raw_name": "澄江化石地",
+      "canonical_hint": "澄江化石地",
+      "entity_type": "PLACE",
+      "place_type": "SCENIC_AREA",
+      "content_unit_id": "f1b4dd9a3a0b:3fea27221255d6fa",
+      "subject_role": "SECONDARY",
+      "visit_intent": "RECOMMENDED",
+      "poi_policy": "RESOLVE",
+      "quote": "澄江化石地是亚洲唯一的化石主题世界遗产",
+      "segment_ids": [
+        "s70"
+      ],
+      "confidence": 0.95,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "f1b4dd9a3a0b:e241d12a8af7ddbf:stmt_17",
+            "intent": "RECOMMENDED",
+            "scope": "LOCAL_DETAIL",
+            "subject_entity_id": "f1b4dd9a3a0b:e241d12a8af7ddbf",
+            "speaker": "AUTHOR",
+            "quote": "澄江化石地是亚洲唯一的化石主题世界遗产",
+            "segment_ids": [
+              "seg_1685c32105eb4f21a6c081474b7a9b36"
+            ],
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "澄江化石地"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:de443852f315edf1",
+      "raw_name": "红河州",
+      "canonical_hint": "红河哈尼族彝族自治州",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "f1b4dd9a3a0b:007342c7262a3a5f",
+      "subject_role": "PRIMARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "接下来是红河州，这里是滇东南的核心",
+      "segment_ids": [
+        "s72"
+      ],
+      "confidence": 0.98,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "红河哈尼族彝族自治州"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:7a3bf79099e4a98b",
+      "raw_name": "建水",
+      "canonical_hint": "建水县",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "f1b4dd9a3a0b:007342c7262a3a5f",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "一个就是建水和蒙自周边",
+      "segment_ids": [
+        "s74"
+      ],
+      "confidence": 0.95,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "建水县"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:0dc5deb57bff6b23",
+      "raw_name": "蒙自",
+      "canonical_hint": "蒙自市",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "f1b4dd9a3a0b:007342c7262a3a5f",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "一个就是建水和蒙自周边",
+      "segment_ids": [
+        "s74"
+      ],
+      "confidence": 0.95,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "蒙自市"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:b1086c4eed2f0fd9",
+      "raw_name": "建水古城",
+      "canonical_hint": "建水古城",
+      "entity_type": "PLACE",
+      "place_type": "LANDMARK",
+      "content_unit_id": "f1b4dd9a3a0b:007342c7262a3a5f",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "首先建水古城是一个可以坐米轨小火车的地方",
+      "segment_ids": [
+        "s74"
+      ],
+      "confidence": 0.95,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "建水古城"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:4adfa4bbbf18ca98",
+      "raw_name": "石屏",
+      "canonical_hint": "石屏县",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "f1b4dd9a3a0b:007342c7262a3a5f",
+      "subject_role": "REFERENCE",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "可以从建水做到石屏",
+      "segment_ids": [
+        "s74"
+      ],
+      "confidence": 0.92,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "石屏县"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:163efa59dd40d9c2",
+      "raw_name": "过桥米线",
+      "canonical_hint": "过桥米线",
+      "entity_type": "GENERIC_FEATURE",
+      "place_type": "OTHER",
+      "content_unit_id": "f1b4dd9a3a0b:007342c7262a3a5f",
+      "subject_role": "REFERENCE",
+      "visit_intent": "NOT_APPLICABLE",
+      "poi_policy": "REFERENCE_ONLY",
+      "quote": "蒙自是过桥米线的发源地",
+      "segment_ids": [
+        "s75"
+      ],
+      "confidence": 0.98,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "过桥米线"
+    },
+    {
+      "entity_id": "f1b4dd9a3a0b:4f74790a359d1929",
+      "raw_name": "米轨火车",
+      "canonical_hint": "米轨火车",
+      "entity_type": "LINEAR_FEATURE",
+      "place_type": "TRANSIT",
+      "content_unit_id": "f1b4dd9a3a0b:007342c7262a3a5f",
+      "subject_role": "REFERENCE",
+      "visit_intent": "NOT_APPLICABLE",
+      "poi_policy": "REFERENCE_ONLY",
+      "quote": "同样也有米轨火车",
+      "segment_ids": [
+        "s75"
+      ],
+      "confidence": 0.9,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "米轨火车"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:9e869944131070a0",
+      "raw_name": "红河州",
+      "canonical_hint": "红河哈尼族彝族自治州",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "bd7fbbcf7e9e:04454de096bd76b2",
+      "subject_role": "PRIMARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "整体上来说红河州就更适合人文爱好者",
+      "segment_ids": [
+        "s78"
+      ],
+      "confidence": 0.94,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "bd7fbbcf7e9e:9e869944131070a0:stmt_01",
+            "intent": "RECOMMENDED",
+            "scope": "PLACE_OVERALL",
+            "subject_entity_id": "bd7fbbcf7e9e:9e869944131070a0",
+            "speaker": "AUTHOR",
+            "quote": "红河州就更适合人文爱好者",
+            "segment_ids": [
+              "seg_c3944454052544b69248f1cfa2baa449"
+            ],
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "红河哈尼族彝族自治州"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:e84b1fc9a5a14ca1",
+      "raw_name": "元阳梯田",
+      "canonical_hint": "元阳哈尼梯田",
+      "entity_type": "PLACE",
+      "place_type": "SCENIC_AREA",
+      "content_unit_id": "bd7fbbcf7e9e:04454de096bd76b2",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "最知名的就是元阳梯田，是世界文化遗产",
+      "segment_ids": [
+        "s76"
+      ],
+      "confidence": 0.97,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "bd7fbbcf7e9e:e84b1fc9a5a14ca1:stmt_02",
+            "intent": "NEUTRAL",
+            "scope": "LOCAL_DETAIL",
+            "subject_entity_id": "bd7fbbcf7e9e:e84b1fc9a5a14ca1",
+            "speaker": "AUTHOR",
+            "quote": "一到四月的灌水期是最好看的时候",
+            "time_context": "一到四月的灌水期",
+            "segment_ids": [
+              "seg_e3e364d8741e448ca3fd1abce4c705e6"
+            ],
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "元阳哈尼梯田"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:837cc7c46aae1b4d",
+      "raw_name": "弥勒",
+      "canonical_hint": "弥勒市",
+      "entity_type": "PLACE",
+      "place_type": "TOWN",
+      "content_unit_id": "bd7fbbcf7e9e:04454de096bd76b2",
+      "subject_role": "PRIMARY",
+      "visit_intent": "RECOMMENDED",
+      "poi_policy": "RESOLVE",
+      "quote": "还可以去一个超级被低估的小城弥勒",
+      "segment_ids": [
+        "s77"
+      ],
+      "confidence": 0.96,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "bd7fbbcf7e9e:837cc7c46aae1b4d:stmt_03",
+            "intent": "RECOMMENDED",
+            "scope": "PLACE_OVERALL",
+            "subject_entity_id": "bd7fbbcf7e9e:837cc7c46aae1b4d",
+            "speaker": "AUTHOR",
+            "quote": "非常值得一去",
+            "segment_ids": [
+              "seg_c3944454052544b69248f1cfa2baa449"
+            ],
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "弥勒市"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:6d8f67e50911e67b",
+      "raw_name": "昆明",
+      "canonical_hint": "昆明市",
+      "entity_type": "PLACE",
+      "place_type": "TOWN",
+      "content_unit_id": "bd7fbbcf7e9e:dc031d902ee5944e",
+      "subject_role": "PRIMARY",
+      "visit_intent": "RECOMMENDED",
+      "poi_policy": "RESOLVE",
+      "quote": "最后这片区域的核心昆明",
+      "segment_ids": [
+        "s79"
+      ],
+      "confidence": 0.99,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "bd7fbbcf7e9e:6d8f67e50911e67b:stmt_04",
+            "intent": "RECOMMENDED",
+            "scope": "PLACE_OVERALL",
+            "subject_entity_id": "bd7fbbcf7e9e:6d8f67e50911e67b",
+            "speaker": "AUTHOR",
+            "quote": "这里真的是旅居的天堂了",
+            "segment_ids": [
+              "seg_1aca0f9544fa4a2f992e4a940f167737"
+            ],
+            "supersedes": []
+          },
+          {
+            "statement_id": "bd7fbbcf7e9e:6d8f67e50911e67b:stmt_05",
+            "intent": "RECOMMENDED",
+            "scope": "PLACE_OVERALL",
+            "subject_entity_id": "bd7fbbcf7e9e:6d8f67e50911e67b",
+            "speaker": "AUTHOR",
+            "quote": "昆明适合所有的人过来",
+            "segment_ids": [
+              "seg_ce936fc6364c4d68b3e31d8143932651"
+            ],
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "昆明市"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:fce37aa975abac49",
+      "raw_name": "海埂公园",
+      "canonical_hint": "海埂公园",
+      "entity_type": "PLACE",
+      "place_type": "PARK",
+      "content_unit_id": "bd7fbbcf7e9e:dc031d902ee5944e",
+      "subject_role": "REFERENCE",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "REFERENCE_ONLY",
+      "quote": "周边还有海埂公园",
+      "segment_ids": [
+        "s81"
+      ],
+      "confidence": 0.88,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "海埂公园"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:cb6dbf54934b9e1d",
+      "raw_name": "捞鱼河湿地",
+      "canonical_hint": "捞鱼河湿地公园",
+      "entity_type": "PLACE",
+      "place_type": "PARK",
+      "content_unit_id": "bd7fbbcf7e9e:dc031d902ee5944e",
+      "subject_role": "REFERENCE",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "REFERENCE_ONLY",
+      "quote": "周边还有海埂公园、捞鱼河湿地等等打卡点",
+      "segment_ids": [
+        "s81"
+      ],
+      "confidence": 0.82,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "捞鱼河湿地公园"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:1f455f098c3dd27d",
+      "raw_name": "翠湖公园",
+      "canonical_hint": "翠湖公园",
+      "entity_type": "PLACE",
+      "place_type": "PARK",
+      "content_unit_id": "bd7fbbcf7e9e:dc031d902ee5944e",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "园就是翠湖公园了",
+      "segment_ids": [
+        "s82"
+      ],
+      "confidence": 0.97,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "翠湖公园"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:e636532b2164955d",
+      "raw_name": "陆军讲武堂",
+      "canonical_hint": "云南陆军讲武堂旧址",
+      "entity_type": "PLACE",
+      "place_type": "MUSEUM",
+      "content_unit_id": "bd7fbbcf7e9e:dc031d902ee5944e",
+      "subject_role": "REFERENCE",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "REFERENCE_ONLY",
+      "quote": "包含陆军讲武堂西南联大等等",
+      "segment_ids": [
+        "s83"
+      ],
+      "confidence": 0.85,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "云南陆军讲武堂旧址"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:eec72130b9385b3b",
+      "raw_name": "西南联大",
+      "canonical_hint": "国立西南联合大学旧址",
+      "entity_type": "PLACE",
+      "place_type": "LANDMARK",
+      "content_unit_id": "bd7fbbcf7e9e:dc031d902ee5944e",
+      "subject_role": "REFERENCE",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "REFERENCE_ONLY",
+      "quote": "包含陆军讲武堂西南联大等等",
+      "segment_ids": [
+        "s83"
+      ],
+      "confidence": 0.87,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "国立西南联合大学旧址"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:aee7af36a284a1f0",
+      "raw_name": "斗南花市",
+      "canonical_hint": "斗南花卉市场",
+      "entity_type": "PLACE",
+      "place_type": "MARKET",
+      "content_unit_id": "bd7fbbcf7e9e:dc031d902ee5944e",
+      "subject_role": "SECONDARY",
+      "visit_intent": "OPTIONAL",
+      "poi_policy": "RESOLVE",
+      "quote": "如果时间足够的话，推荐去一下斗南花市转转",
+      "segment_ids": [
+        "s84"
+      ],
+      "confidence": 0.96,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "bd7fbbcf7e9e:aee7af36a284a1f0:stmt_07",
+            "intent": "OPTIONAL",
+            "scope": "PLACE_OVERALL",
+            "subject_entity_id": "bd7fbbcf7e9e:aee7af36a284a1f0",
+            "speaker": "AUTHOR",
+            "quote": "如果时间足够的话，推荐去一下斗南花市转转",
+            "condition": "如果时间足够的话",
+            "segment_ids": [
+              "seg_60524c0169364585afd0ac98d97b77e3"
+            ],
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "斗南花卉市场"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:ddc553525ba0f19b",
+      "raw_name": "大理",
+      "canonical_hint": "大理市",
+      "entity_type": "PLACE",
+      "place_type": "TOWN",
+      "content_unit_id": "bd7fbbcf7e9e:a2bc8e5376c25f8e",
+      "subject_role": "PRIMARY",
+      "visit_intent": "RECOMMENDED",
+      "poi_policy": "RESOLVE",
+      "quote": "最后大理是我心中云南的天花板",
+      "segment_ids": [
+        "s85"
+      ],
+      "confidence": 0.99,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "bd7fbbcf7e9e:ddc553525ba0f19b:stmt_08",
+            "intent": "RECOMMENDED",
+            "scope": "PLACE_OVERALL",
+            "subject_entity_id": "bd7fbbcf7e9e:ddc553525ba0f19b",
+            "speaker": "AUTHOR",
+            "quote": "大理是我心中云南的天花板",
+            "segment_ids": [
+              "seg_ce936fc6364c4d68b3e31d8143932651"
+            ],
+            "supersedes": []
+          },
+          {
+            "statement_id": "bd7fbbcf7e9e:ddc553525ba0f19b:stmt_09",
+            "intent": "NEUTRAL",
+            "scope": "LOCAL_DETAIL",
+            "subject_entity_id": "bd7fbbcf7e9e:ddc553525ba0f19b",
+            "speaker": "AUTHOR",
+            "quote": "唯一的缺点就是套路现在越来越多",
+            "segment_ids": [
+              "seg_32e4c7402ec64c2bbd7f53028b9639d0"
+            ],
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "大理市"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:d3e5228b3431a850",
+      "raw_name": "苍山",
+      "canonical_hint": "苍山",
+      "entity_type": "PLACE",
+      "place_type": "SCENIC_AREA",
+      "content_unit_id": "bd7fbbcf7e9e:a2bc8e5376c25f8e",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "苍山洱海是核心，主要就是两条路线：一个苍山，一个洱海",
+      "segment_ids": [
+        "s86"
+      ],
+      "confidence": 0.95,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "bd7fbbcf7e9e:d3e5228b3431a850:stmt_10",
+            "intent": "NEUTRAL",
+            "scope": "LOCAL_DETAIL",
+            "subject_entity_id": "bd7fbbcf7e9e:d3e5228b3431a850",
+            "speaker": "AUTHOR",
+            "quote": "能俯瞰整个洱海。体力一般的可以选择索道上山",
+            "condition": "体力一般的可以选择索道上山",
+            "segment_ids": [
+              "seg_da8dba324b2346959c0be83eb2f50d9b"
+            ],
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "苍山"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:833035135dd541f4",
+      "raw_name": "洱海",
+      "canonical_hint": "洱海",
+      "entity_type": "PLACE",
+      "place_type": "SCENIC_AREA",
+      "content_unit_id": "bd7fbbcf7e9e:a2bc8e5376c25f8e",
+      "subject_role": "SECONDARY",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "RESOLVE",
+      "quote": "苍山洱海是核心",
+      "segment_ids": [
+        "s86"
+      ],
+      "confidence": 0.98,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "bd7fbbcf7e9e:833035135dd541f4:stmt_11",
+            "intent": "RECOMMENDED",
+            "scope": "LOCAL_DETAIL",
+            "subject_entity_id": "bd7fbbcf7e9e:833035135dd541f4",
+            "speaker": "AUTHOR",
+            "quote": "我推荐走龙龛码头到喜洲古镇这一段就可以了",
+            "segment_ids": [
+              "seg_4470d4fb43334f30858519d23c5f3490"
+            ],
+            "supersedes": []
+          },
+          {
+            "statement_id": "bd7fbbcf7e9e:833035135dd541f4:stmt_12",
+            "intent": "RECOMMENDED",
+            "scope": "LOCAL_DETAIL",
+            "subject_entity_id": "bd7fbbcf7e9e:833035135dd541f4",
+            "speaker": "AUTHOR",
+            "quote": "东线的话如果是骑行建议走双廊到洼色就够了",
+            "segment_ids": [
+              "seg_c56c93e926d74ebe942093320342dd5d"
+            ],
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "洱海"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:42cc7a90d7647bfc",
+      "raw_name": "龙龛码头",
+      "canonical_hint": "龙龛码头",
+      "entity_type": "PLACE",
+      "place_type": "OTHER",
+      "content_unit_id": "bd7fbbcf7e9e:a2bc8e5376c25f8e",
+      "subject_role": "REFERENCE",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "REFERENCE_ONLY",
+      "quote": "走龙龛码头到喜洲古镇这一段就可以了",
+      "segment_ids": [
+        "s87"
+      ],
+      "confidence": 0.87,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "龙龛码头"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:dd254fe3e707a70e",
+      "raw_name": "喜洲古镇",
+      "canonical_hint": "喜洲古镇",
+      "entity_type": "PLACE",
+      "place_type": "VILLAGE",
+      "content_unit_id": "bd7fbbcf7e9e:a2bc8e5376c25f8e",
+      "subject_role": "REFERENCE",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "REFERENCE_ONLY",
+      "quote": "走龙龛码头到喜洲古镇这一段就可以了",
+      "segment_ids": [
+        "s87"
+      ],
+      "confidence": 0.91,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "喜洲古镇"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:b4cb6e23694e9a24",
+      "raw_name": "双廊",
+      "canonical_hint": "双廊镇",
+      "entity_type": "PLACE",
+      "place_type": "TOWN",
+      "content_unit_id": "bd7fbbcf7e9e:a2bc8e5376c25f8e",
+      "subject_role": "REFERENCE",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "REFERENCE_ONLY",
+      "quote": "建议走双廊到洼色就够了",
+      "segment_ids": [
+        "s88"
+      ],
+      "confidence": 0.87,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "双廊镇"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:94a353ee041bc7e8",
+      "raw_name": "洼色",
+      "canonical_hint": "NEEDS_REVIEW",
+      "entity_type": "PLACE_UNCERTAIN",
+      "place_type": "OTHER",
+      "content_unit_id": "bd7fbbcf7e9e:a2bc8e5376c25f8e",
+      "subject_role": "REFERENCE",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "REFERENCE_ONLY",
+      "quote": "建议走双廊到洼色就够了",
+      "segment_ids": [
+        "s88"
+      ],
+      "confidence": 0.42,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "NEEDS_REVIEW"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:f0134c7e92b90bc5",
+      "raw_name": "S二二幺",
+      "canonical_hint": "NEEDS_REVIEW",
+      "entity_type": "LINEAR_FEATURE",
+      "place_type": "OTHER",
+      "content_unit_id": "bd7fbbcf7e9e:a2bc8e5376c25f8e",
+      "subject_role": "REFERENCE",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "REFERENCE_ONLY",
+      "quote": "西线不能自驾自驾可以走S二二幺",
+      "segment_ids": [
+        "s88"
+      ],
+      "confidence": 0.65,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "NEEDS_REVIEW"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:4feae4f187c7f0a5",
+      "raw_name": "崇圣寺三塔",
+      "canonical_hint": "崇圣寺三塔文化旅游区",
+      "entity_type": "PLACE",
+      "place_type": "TEMPLE",
+      "content_unit_id": "bd7fbbcf7e9e:a2bc8e5376c25f8e",
+      "subject_role": "SECONDARY",
+      "visit_intent": "RECOMMENDED",
+      "poi_policy": "RESOLVE",
+      "quote": "还有崇圣寺三塔，是一个出片无敌的5A级景区，大理的地标，也是必打卡的地方",
+      "segment_ids": [
+        "s89",
+        "s90"
+      ],
+      "confidence": 0.98,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "bd7fbbcf7e9e:4feae4f187c7f0a5:stmt_14",
+            "intent": "RECOMMENDED",
+            "scope": "PLACE_OVERALL",
+            "subject_entity_id": "bd7fbbcf7e9e:4feae4f187c7f0a5",
+            "speaker": "AUTHOR",
+            "quote": "也是必打卡的地方",
+            "segment_ids": [
+              "seg_f89bd4fa5e11425eaa4fafe4fe995fd3"
+            ],
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "崇圣寺三塔文化旅游区"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:5bcf08e692a4b7fd",
+      "raw_name": "沙溪古镇",
+      "canonical_hint": "沙溪古镇",
+      "entity_type": "PLACE",
+      "place_type": "VILLAGE",
+      "content_unit_id": "bd7fbbcf7e9e:a2bc8e5376c25f8e",
+      "subject_role": "SECONDARY",
+      "visit_intent": "OPTIONAL",
+      "poi_policy": "RESOLVE",
+      "quote": "如果时间足够多的话，还可以去沙溪古镇",
+      "segment_ids": [
+        "s90"
+      ],
+      "confidence": 0.97,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "bd7fbbcf7e9e:5bcf08e692a4b7fd:stmt_15",
+            "intent": "OPTIONAL",
+            "scope": "PLACE_OVERALL",
+            "subject_entity_id": "bd7fbbcf7e9e:5bcf08e692a4b7fd",
+            "speaker": "AUTHOR",
+            "quote": "如果时间足够多的话，还可以去沙溪古镇",
+            "condition": "如果时间足够多的话",
+            "segment_ids": [
+              "seg_f89bd4fa5e11425eaa4fafe4fe995fd3"
+            ],
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "沙溪古镇"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:7e280b14bbc8e4c8",
+      "raw_name": "西双版纳",
+      "canonical_hint": "西双版纳傣族自治州",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "bd7fbbcf7e9e:4d375896a5bb316f",
+      "subject_role": "PRIMARY",
+      "visit_intent": "RECOMMENDED",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "亲子游就优先去西双版纳",
+      "segment_ids": [
+        "s92"
+      ],
+      "confidence": 0.97,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "bd7fbbcf7e9e:7e280b14bbc8e4c8:stmt_16",
+            "intent": "RECOMMENDED",
+            "scope": "PLACE_OVERALL",
+            "subject_entity_id": "bd7fbbcf7e9e:7e280b14bbc8e4c8",
+            "speaker": "AUTHOR",
+            "quote": "亲子游就优先去西双版纳",
+            "segment_ids": [
+              "seg_32e4c7402ec64c2bbd7f53028b9639d0"
+            ],
+            "supersedes": []
+          },
+          {
+            "statement_id": "bd7fbbcf7e9e:7e280b14bbc8e4c8:stmt_17",
+            "intent": "RECOMMENDED",
+            "scope": "LOCAL_DETAIL",
+            "subject_entity_id": "bd7fbbcf7e9e:7e280b14bbc8e4c8",
+            "speaker": "AUTHOR",
+            "quote": "冬天的话推荐西双版纳",
+            "time_context": "冬天",
+            "segment_ids": [
+              "seg_c13effc0cd56447bb538b5d1cf1bdd80"
+            ],
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "西双版纳傣族自治州"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:9f1dca279c31b364",
+      "raw_name": "腾冲",
+      "canonical_hint": "腾冲市",
+      "entity_type": "PLACE",
+      "place_type": "TOWN",
+      "content_unit_id": "bd7fbbcf7e9e:4d375896a5bb316f",
+      "subject_role": "SECONDARY",
+      "visit_intent": "RECOMMENDED",
+      "poi_policy": "RESOLVE",
+      "quote": "然后是腾冲，这里有火山、有温泉",
+      "segment_ids": [
+        "s93"
+      ],
+      "confidence": 0.94,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "bd7fbbcf7e9e:9f1dca279c31b364:stmt_18",
+            "intent": "RECOMMENDED",
+            "scope": "PLACE_OVERALL",
+            "subject_entity_id": "bd7fbbcf7e9e:9f1dca279c31b364",
+            "speaker": "AUTHOR",
+            "quote": "然后是腾冲，这里有火山、有温泉",
+            "segment_ids": [
+              "seg_992fddf3db2f45548abdd895fb1f1230"
+            ],
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "腾冲市"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:1c164a4b35e9abfd",
+      "raw_name": "丽江",
+      "canonical_hint": "丽江市",
+      "entity_type": "PLACE",
+      "place_type": "TOWN",
+      "content_unit_id": "bd7fbbcf7e9e:4d375896a5bb316f",
+      "subject_role": "REFERENCE",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "REFERENCE_ONLY",
+      "quote": "首选大理丽江芒市建水元阳和香格里拉",
+      "segment_ids": [
+        "s93",
+        "s94"
+      ],
+      "confidence": 0.94,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "丽江市"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:c2c3f800a2fc88f5",
+      "raw_name": "芒市",
+      "canonical_hint": "芒市",
+      "entity_type": "PLACE",
+      "place_type": "TOWN",
+      "content_unit_id": "bd7fbbcf7e9e:4d375896a5bb316f",
+      "subject_role": "REFERENCE",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "REFERENCE_ONLY",
+      "quote": "首选大理丽江芒市建水元阳和香格里拉",
+      "segment_ids": [
+        "s93",
+        "s94"
+      ],
+      "confidence": 0.93,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "芒市"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:90dc1a8d550ab437",
+      "raw_name": "香格里拉",
+      "canonical_hint": "香格里拉市",
+      "entity_type": "PLACE",
+      "place_type": "TOWN",
+      "content_unit_id": "bd7fbbcf7e9e:4d375896a5bb316f",
+      "subject_role": "REFERENCE",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "REFERENCE_ONLY",
+      "quote": "首选大理丽江芒市建水元阳和香格里拉",
+      "segment_ids": [
+        "s93",
+        "s94"
+      ],
+      "confidence": 0.95,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "香格里拉市"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:5825de4bd423accc",
+      "raw_name": "怒江大峡谷",
+      "canonical_hint": "怒江大峡谷",
+      "entity_type": "PLACE",
+      "place_type": "SCENIC_AREA",
+      "content_unit_id": "bd7fbbcf7e9e:4d375896a5bb316f",
+      "subject_role": "REFERENCE",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "REFERENCE_ONLY",
+      "quote": "主要是G219、怒江大峡谷",
+      "segment_ids": [
+        "s96"
+      ],
+      "confidence": 0.94,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "怒江大峡谷"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:60c441459a2b64ab",
+      "raw_name": "保山",
+      "canonical_hint": "保山市",
+      "entity_type": "PLACE",
+      "place_type": "TOWN",
+      "content_unit_id": "bd7fbbcf7e9e:4d375896a5bb316f",
+      "subject_role": "REFERENCE",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "REFERENCE_ONLY",
+      "quote": "还可以串联保山、腾冲、芒市、瑞丽",
+      "segment_ids": [
+        "s96"
+      ],
+      "confidence": 0.94,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "保山市"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:576b7f7fab42a09b",
+      "raw_name": "瑞丽",
+      "canonical_hint": "瑞丽市",
+      "entity_type": "PLACE",
+      "place_type": "TOWN",
+      "content_unit_id": "bd7fbbcf7e9e:4d375896a5bb316f",
+      "subject_role": "REFERENCE",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "REFERENCE_ONLY",
+      "quote": "还可以串联保山、腾冲、芒市、瑞丽",
+      "segment_ids": [
+        "s96"
+      ],
+      "confidence": 0.94,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "瑞丽市"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:3dbc8cb8635902e2",
+      "raw_name": "蒙自",
+      "canonical_hint": "蒙自市",
+      "entity_type": "PLACE",
+      "place_type": "TOWN",
+      "content_unit_id": "bd7fbbcf7e9e:4d375896a5bb316f",
+      "subject_role": "REFERENCE",
+      "visit_intent": "NEUTRAL",
+      "poi_policy": "REFERENCE_ONLY",
+      "quote": "主要是芒市、西双版纳、建水、蒙自",
+      "segment_ids": [
+        "s98"
+      ],
+      "confidence": 0.92,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": []
+      },
+      "name": "蒙自市"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:511e111f8c6dfb38",
+      "raw_name": "虎跳峡的中虎跳",
+      "canonical_hint": "虎跳峡中虎跳",
+      "entity_type": "PLACE",
+      "place_type": "SCENIC_AREA",
+      "content_unit_id": "bd7fbbcf7e9e:4d375896a5bb316f",
+      "subject_role": "SECONDARY",
+      "visit_intent": "RECOMMENDED",
+      "poi_policy": "RESOLVE",
+      "quote": "硬核徒步玩家推荐去虎跳峡的中虎跳",
+      "segment_ids": [
+        "s98",
+        "s99"
+      ],
+      "confidence": 0.91,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "bd7fbbcf7e9e:511e111f8c6dfb38:stmt_19",
+            "intent": "RECOMMENDED",
+            "scope": "PLACE_OVERALL",
+            "subject_entity_id": "bd7fbbcf7e9e:511e111f8c6dfb38",
+            "speaker": "AUTHOR",
+            "quote": "硬核徒步玩家推荐去虎跳峡的中虎跳",
+            "segment_ids": [
+              "seg_93b0167efcf94f8d810c7c9f4d6f872d",
+              "seg_92dd523d2db847cc942c4861c1889f68"
+            ],
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "虎跳峡中虎跳"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:ccf7cb97d7ac9731",
+      "raw_name": "雨崩",
+      "canonical_hint": "雨崩村",
+      "entity_type": "PLACE",
+      "place_type": "VILLAGE",
+      "content_unit_id": "bd7fbbcf7e9e:4d375896a5bb316f",
+      "subject_role": "SECONDARY",
+      "visit_intent": "RECOMMENDED",
+      "poi_policy": "RESOLVE",
+      "quote": "推荐去虎跳峡的中虎跳雨崩丙中洛周边和独龙江",
+      "segment_ids": [
+        "s99"
+      ],
+      "confidence": 0.87,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "bd7fbbcf7e9e:ccf7cb97d7ac9731:stmt_20",
+            "intent": "RECOMMENDED",
+            "scope": "PLACE_OVERALL",
+            "subject_entity_id": "bd7fbbcf7e9e:ccf7cb97d7ac9731",
+            "speaker": "AUTHOR",
+            "quote": "推荐去虎跳峡的中虎跳雨崩丙中洛周边和独龙江",
+            "segment_ids": [
+              "seg_92dd523d2db847cc942c4861c1889f68"
+            ],
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "雨崩村"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:afd37c6c8a57a5ad",
+      "raw_name": "丙中洛",
+      "canonical_hint": "丙中洛镇",
+      "entity_type": "PLACE",
+      "place_type": "TOWN",
+      "content_unit_id": "bd7fbbcf7e9e:4d375896a5bb316f",
+      "subject_role": "SECONDARY",
+      "visit_intent": "RECOMMENDED",
+      "poi_policy": "RESOLVE",
+      "quote": "推荐去虎跳峡的中虎跳雨崩丙中洛周边和独龙江",
+      "segment_ids": [
+        "s99"
+      ],
+      "confidence": 0.91,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "bd7fbbcf7e9e:afd37c6c8a57a5ad:stmt_21",
+            "intent": "RECOMMENDED",
+            "scope": "PLACE_OVERALL",
+            "subject_entity_id": "bd7fbbcf7e9e:afd37c6c8a57a5ad",
+            "speaker": "AUTHOR",
+            "quote": "推荐去虎跳峡的中虎跳雨崩丙中洛周边和独龙江",
+            "segment_ids": [
+              "seg_92dd523d2db847cc942c4861c1889f68"
+            ],
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "丙中洛镇"
+    },
+    {
+      "entity_id": "bd7fbbcf7e9e:cd469b3d74a91acf",
+      "raw_name": "独龙江",
+      "canonical_hint": "独龙江",
+      "entity_type": "AREA",
+      "place_type": "AREA",
+      "content_unit_id": "bd7fbbcf7e9e:4d375896a5bb316f",
+      "subject_role": "SECONDARY",
+      "visit_intent": "RECOMMENDED",
+      "poi_policy": "AREA_RESOLVE",
+      "quote": "推荐去虎跳峡的中虎跳雨崩丙中洛周边和独龙江",
+      "segment_ids": [
+        "s99"
+      ],
+      "confidence": 0.83,
+      "recommendation_evidence": {
+        "schema_version": "recommendation-v1",
+        "statements": [
+          {
+            "statement_id": "bd7fbbcf7e9e:cd469b3d74a91acf:stmt_22",
+            "intent": "RECOMMENDED",
+            "scope": "PLACE_OVERALL",
+            "subject_entity_id": "bd7fbbcf7e9e:cd469b3d74a91acf",
+            "speaker": "AUTHOR",
+            "quote": "推荐去虎跳峡的中虎跳雨崩丙中洛周边和独龙江",
+            "segment_ids": [
+              "seg_92dd523d2db847cc942c4861c1889f68"
+            ],
+            "supersedes": []
+          }
+        ]
+      },
+      "name": "独龙江"
+    }
+  ]
+}

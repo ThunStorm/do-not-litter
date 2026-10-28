@@ -1,0 +1,15 @@
+{
+  "package_sha256": "1f93be17c6c49cf2ba57a308d76ec9b2ea0f58218a0f33cb4fcb5996728e4fcc",
+  "reference_is_verified_gold": false,
+  "files": {
+    "04_GOLDEN_SAMPLE_MANIFEST.json": "db87f22b0fc5f679475c1c02e0194104c97f35c6b324c1c3f7982e730e39e93b",
+    "zhijian-transcript-BV16Yem6REyX.txt": "715609e0e6507866deca0893a26adf25f22907aa4f8c44dddad41bd33de1c43b",
+    "YUNNAN_TRANSCRIPT_ZHIJIAN_SIMULATED_RESULT_20261028.json": "73d9f4f6ba5440794bf9b3c3759fb0900f1558e785bcac10a11062c1a43435cd",
+    "YUNNAN_TRANSCRIPT_ZHIJIAN_SIMULATED_RESULT_20261028.md": "1ff8d357ad1531c59d9e7f57f0cd6d917833e2c0281d75d83980c5c87d7a87c3"
+  },
+  "derived_fixtures": {
+    "grounded_routes.json": "fbb0bf13f961e5601186cff218475ede8d65bd05ddfed2e556e94110445e42cc",
+    "real_response_20261028.json": "a460d771041f75e17b85a6a4c14727ceac9dedbed730436f2deb0f968521810a"
+  },
+  "real_response_origin": "Authorized codex/gpt-6-luna run on 2026-10-28; segment IDs normalized to s0..s100; no provider secrets or coordinates."
+}

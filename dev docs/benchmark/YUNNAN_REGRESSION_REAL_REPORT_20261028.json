@@ -1,0 +1,1110 @@
+{
+  "schema_version": "yunnan-real-regression-v1",
+  "date": "2026-10-28",
+  "boundary": "Real Ground Map on supplied corrected transcript, followed by exact cached-response rule replay; no full video/ASR/note-generation rerun. Reference remains simulation-v1, not independently reviewed gold.",
+  "model": "codex/gpt-6-luna",
+  "provider": "localaimux",
+  "source_segments": 101,
+  "source_characters": 5093,
+  "network_model_calls": 3,
+  "model_seconds": 265.967,
+  "reported_prompt_tokens": 44839,
+  "reported_completion_tokens": 32319,
+  "provider_prefix_cache_proven": false,
+  "original_entities": 104,
+  "original_claims": 76,
+  "original_routes": 0,
+  "original_materialized_mentions": 77,
+  "replayed_routes": 13,
+  "replayed_mentions": 102,
+  "replay_new_network_calls": 0,
+  "replay_seconds": 0.088,
+  "production_writes": 0,
+  "candidate_rows": [
+    {
+      "raw_name": "怒江大峡谷",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "支子罗（转写原词）",
+      "reference_kind": "PLACE_UNCERTAIN",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "老母登教堂",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "丙中洛",
+      "reference_kind": "PLACE_AREA",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "独龙江",
+      "reference_kind": "AREA",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "三江并流",
+      "reference_kind": "AREA_FEATURE",
+      "model_entity_matched": false,
+      "materialized": false,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "虎跳峡",
+      "reference_kind": "PLACE_AREA",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "小中甸",
+      "reference_kind": "AREA_ROUTE_NODE",
+      "model_entity_matched": false,
+      "materialized": false,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "独克宗古城",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "松赞林寺",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "普达措",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "梅里雪山",
+      "reference_kind": "PLACE_AREA",
+      "model_entity_matched": false,
+      "materialized": false,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "雨崩村",
+      "reference_kind": "PLACE_AREA",
+      "model_entity_matched": false,
+      "materialized": false,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "香格里拉",
+      "reference_kind": "AREA_DESTINATION",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "丽江古城",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "束河古镇",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "沙溪古镇",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "白沙古镇",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "玉龙雪山",
+      "reference_kind": "PLACE_AREA",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "蓝月谷",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "泸沽湖",
+      "reference_kind": "PLACE_AREA",
+      "model_entity_matched": false,
+      "materialized": false,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "拉市海",
+      "reference_kind": "PLACE",
+      "model_entity_matched": false,
+      "materialized": false,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "腾冲火山（泛称）",
+      "reference_kind": "GENERIC_FEATURE",
+      "model_entity_matched": false,
+      "materialized": false,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "腾冲温泉（泛称）",
+      "reference_kind": "GENERIC_FEATURE",
+      "model_entity_matched": false,
+      "materialized": false,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "和顺古镇",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "松山遗址",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "芒市大金塔（视频仅称“大金塔”）",
+      "reference_kind": "PLACE_UNCERTAIN",
+      "model_entity_matched": false,
+      "materialized": false,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "一国两寨（转写原词）",
+      "reference_kind": "PLACE_UNCERTAIN",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "景迈山",
+      "reference_kind": "PLACE_AREA",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "太阳河森林公园",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "无量山",
+      "reference_kind": "PLACE_AREA",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "星光夜市",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "曼听公园",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "傣王宫遗址",
+      "reference_kind": "PLACE_UNCERTAIN",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "野象谷",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "原始森林公园",
+      "reference_kind": "PLACE_UNCERTAIN",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "中科院热带植物园",
+      "reference_kind": "PLACE",
+      "model_entity_matched": false,
+      "materialized": false,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "普者黑",
+      "reference_kind": "PLACE_AREA",
+      "model_entity_matched": true,
+      "materialized": false,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "坝美世外桃源",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "东川红土地",
+      "reference_kind": "PLACE_AREA",
+      "model_entity_matched": false,
+      "materialized": false,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "罗平油菜花景观（泛称）",
+      "reference_kind": "AREA_FEATURE",
+      "model_entity_matched": false,
+      "materialized": false,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "会泽古城",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "大海草山",
+      "reference_kind": "PLACE_AREA",
+      "model_entity_matched": false,
+      "materialized": false,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "九龙瀑布",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "元谋土林",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "抚仙湖",
+      "reference_kind": "PLACE_AREA",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "星云湖",
+      "reference_kind": "PLACE_AREA",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "聂耳故居",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "哀牢山",
+      "reference_kind": "PLACE_AREA",
+      "model_entity_matched": false,
+      "materialized": false,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "澄江化石地",
+      "reference_kind": "PLACE_AREA",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "建水古城",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "石屏（古城语境）",
+      "reference_kind": "AREA_ROUTE_NODE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "元阳梯田",
+      "reference_kind": "PLACE_AREA",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "弥勒",
+      "reference_kind": "AREA_DESTINATION",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "滇池",
+      "reference_kind": "PLACE_AREA",
+      "model_entity_matched": false,
+      "materialized": false,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "海埂公园",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "捞鱼河湿地",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "石林景区",
+      "reference_kind": "PLACE",
+      "model_entity_matched": false,
+      "materialized": false,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "翠湖公园",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "陆军讲武堂（转写简称）",
+      "reference_kind": "PLACE_UNCERTAIN",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "西南联大（转写简称）",
+      "reference_kind": "PLACE_UNCERTAIN",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "斗南花市",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "苍山",
+      "reference_kind": "PLACE_AREA",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "洱海",
+      "reference_kind": "PLACE_AREA",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "海西生态廊道",
+      "reference_kind": "LINEAR_FEATURE",
+      "model_entity_matched": false,
+      "materialized": false,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "龙龛码头",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "喜洲古镇",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "双廊",
+      "reference_kind": "PLACE_AREA",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "洼色",
+      "reference_kind": "AREA_ROUTE_NODE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "崇圣寺三塔",
+      "reference_kind": "PLACE",
+      "model_entity_matched": true,
+      "materialized": true,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    },
+    {
+      "raw_name": "中虎跳",
+      "reference_kind": "SUBPLACE",
+      "model_entity_matched": false,
+      "materialized": false,
+      "unresolved": true,
+      "wrong_scope": null,
+      "wrong_activity": null,
+      "wrong_order": null,
+      "review_status": "NEEDS_REVIEW"
+    }
+  ],
+  "unreviewed_extra_names": [
+    "G214滇藏线",
+    "S二二幺",
+    "中原文化为主的这片区域",
+    "临沧",
+    "丽江",
+    "丽江",
+    "云南省",
+    "亚洲象",
+    "保山",
+    "保山",
+    "古腾冲",
+    "咖啡和茶",
+    "哈尼村寨",
+    "大海草山草原",
+    "大理",
+    "大金塔",
+    "建水",
+    "德宏",
+    "怒江州",
+    "文山",
+    "昆明",
+    "昭通",
+    "普洱市",
+    "曲靖",
+    "木脑纵歌节",
+    "楚雄",
+    "澜沧江流域",
+    "玉溪",
+    "瑞丽",
+    "米轨火车",
+    "红河州",
+    "红河州",
+    "罗平",
+    "腾冲",
+    "腾冲",
+    "腾冲",
+    "芒市",
+    "芒市",
+    "蒙自",
+    "蒙自",
+    "藏文化片区",
+    "虎跳峡的中虎跳",
+    "西双版纳",
+    "西双版纳",
+    "过桥米线",
+    "迪庆",
+    "雨崩"
+  ],
+  "literal_name_set_overlap": {
+    "TP": 53,
+    "FP": 39,
+    "FN": 18,
+    "precision": 0.5761,
+    "recall": 0.7465,
+    "F1": 0.6503,
+    "warning": "Exact raw-name set comparison only. Extra names can be valid context, aliases or duplicated granularity; these numbers are not adjudicated semantic precision/recall."
+  },
+  "adjudicated_semantic_metrics": {
+    "status": "NEEDS_REVIEW",
+    "TP": null,
+    "FP": null,
+    "FN": null,
+    "wrong_scope": null,
+    "wrong_activity": null
+  },
+  "routes": [
+    {
+      "subject": "G219",
+      "mode": "SELF_DRIVE",
+      "stops": [
+        "六库",
+        "贡山",
+        "丙中洛"
+      ],
+      "sequence_kind": "EXPLICIT_SEQUENCE",
+      "review_status": "NEEDS_REVIEW",
+      "navigation": null
+    },
+    {
+      "subject": "G214",
+      "mode": "SELF_DRIVE",
+      "stops": [
+        "丽江",
+        "虎跳峡",
+        "小中甸",
+        "独克宗",
+        "梅里雪山"
+      ],
+      "sequence_kind": "EXPLICIT_SEQUENCE",
+      "review_status": "NEEDS_REVIEW",
+      "navigation": null
+    },
+    {
+      "subject": "腾冲",
+      "mode": "SELF_DRIVE",
+      "stops": [
+        "腾冲",
+        "芒市",
+        "德宏"
+      ],
+      "sequence_kind": "PARTIAL_SEQUENCE",
+      "review_status": "NEEDS_REVIEW",
+      "navigation": null
+    },
+    {
+      "subject": "抚仙湖",
+      "mode": "SELF_DRIVE",
+      "stops": [],
+      "sequence_kind": "UNORDERED_LOOP",
+      "review_status": "NEEDS_REVIEW",
+      "navigation": null
+    },
+    {
+      "subject": "建水",
+      "mode": "RAIL",
+      "stops": [
+        "建水",
+        "石屏"
+      ],
+      "sequence_kind": "EXPLICIT_SEQUENCE",
+      "review_status": "NEEDS_REVIEW",
+      "navigation": null
+    },
+    {
+      "subject": "龙龛码头",
+      "mode": "CYCLING",
+      "stops": [
+        "龙龛码头",
+        "喜洲古镇"
+      ],
+      "sequence_kind": "EXPLICIT_SEQUENCE",
+      "review_status": "NEEDS_REVIEW",
+      "navigation": null
+    },
+    {
+      "subject": "双廊",
+      "mode": "CYCLING",
+      "stops": [
+        "双廊",
+        "洼色"
+      ],
+      "sequence_kind": "EXPLICIT_SEQUENCE",
+      "review_status": "NEEDS_REVIEW",
+      "navigation": null
+    },
+    {
+      "subject": "S二二幺",
+      "mode": "SELF_DRIVE",
+      "stops": [],
+      "sequence_kind": "CORRIDOR_ONLY",
+      "review_status": "NEEDS_REVIEW",
+      "navigation": null
+    },
+    {
+      "subject": "东线",
+      "mode": "SELF_DRIVE",
+      "stops": [],
+      "sequence_kind": "CORRIDOR_ONLY",
+      "review_status": "NEEDS_REVIEW",
+      "navigation": null
+    },
+    {
+      "subject": "芒市",
+      "mode": "FOOD_THEME",
+      "stops": [
+        "芒市",
+        "西双版纳",
+        "建水",
+        "蒙自"
+      ],
+      "sequence_kind": "EXPLICIT_LIST",
+      "review_status": "NEEDS_REVIEW",
+      "navigation": null
+    },
+    {
+      "subject": "G214",
+      "mode": "SELF_DRIVE",
+      "stops": [
+        "昆明",
+        "大理",
+        "丽江",
+        "香格里拉",
+        "梅里雪山"
+      ],
+      "sequence_kind": "EXPLICIT_LIST",
+      "review_status": "NEEDS_REVIEW",
+      "navigation": null
+    },
+    {
+      "subject": "G219",
+      "mode": "SELF_DRIVE",
+      "stops": [
+        "保山",
+        "腾冲",
+        "芒市",
+        "瑞丽"
+      ],
+      "sequence_kind": "PARTIAL_SEQUENCE",
+      "review_status": "NEEDS_REVIEW",
+      "navigation": null
+    },
+    {
+      "subject": "滇东南环线",
+      "mode": "SELF_DRIVE",
+      "stops": [
+        "昆明",
+        "建水",
+        "元阳"
+      ],
+      "sequence_kind": "EXPLICIT_LIST",
+      "review_status": "NEEDS_REVIEW",
+      "navigation": null
+    }
+  ],
+  "poi_samples": [
+    {
+      "raw_name": "元阳梯田",
+      "city": "红河哈尼族彝族自治州",
+      "candidate_count": 20,
+      "top3": [
+        {
+          "name": "元阳梯田景区",
+          "provider_id": "B0FFH6PA0J",
+          "typecode": "110200",
+          "province": "云南省",
+          "city": "红河哈尼族彝族自治州",
+          "district": "元阳县"
+        },
+        {
+          "name": "元阳梯田服务区",
+          "provider_id": "B0FFM9017W",
+          "typecode": "150000",
+          "province": "云南省",
+          "city": "红河哈尼族彝族自治州",
+          "district": "元阳县"
+        },
+        {
+          "name": "元阳·哈尼梯田",
+          "provider_id": "B0FFGJV3YF",
+          "typecode": "110200",
+          "province": "云南省",
+          "city": "红河哈尼族彝族自治州",
+          "district": "元阳县"
+        }
+      ],
+      "confirmed": false
+    },
+    {
+      "raw_name": "罗平油菜花",
+      "city": "罗平县",
+      "candidate_count": 7,
+      "top3": [
+        {
+          "name": "罗平油菜花海世界",
+          "provider_id": "B0JBLZT9J1",
+          "typecode": "110000",
+          "province": "云南省",
+          "city": "曲靖市",
+          "district": "罗平县"
+        },
+        {
+          "name": "金鸡峰丛",
+          "provider_id": "B0FFHNKJHJ",
+          "typecode": "110200",
+          "province": "云南省",
+          "city": "曲靖市",
+          "district": "罗平县"
+        },
+        {
+          "name": "那色峰海景区",
+          "provider_id": "B0FFHI0942",
+          "typecode": "110200",
+          "province": "云南省",
+          "city": "曲靖市",
+          "district": "罗平县"
+        }
+      ],
+      "confirmed": false
+    },
+    {
+      "raw_name": "支子罗",
+      "city": "怒江傈僳族自治州",
+      "candidate_count": 1,
+      "top3": [
+        {
+          "name": "知子罗游客服务中心",
+          "provider_id": "B0JR2UJLH3",
+          "typecode": "070000",
+          "province": "云南省",
+          "city": "怒江傈僳族自治州",
+          "district": "福贡县"
+        }
+      ],
+      "confirmed": false
+    }
+  ],
+  "amap_requests": 3,
+  "remaining": [
+    "Model omitted some entities and local details (including the riding warning); do not claim full semantic recall.",
+    "C02 local lake quote does not explicitly recommend driving; preserve unknown transport preference.",
+    "13 routes represent 11 reference groups plus G214 detail and a separate partial border description; no real navigation.",
+    "No production replay/backfill or POI confirmation performed."
+  ]
+}

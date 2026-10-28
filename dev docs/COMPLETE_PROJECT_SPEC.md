@@ -76,7 +76,7 @@
 | 控制台 / 运维 | [CONTROL_CENTER](product/CONTROL_CENTER.md) 信息结构；[OPERATIONS_UI_SPEC](operations/OPERATIONS_UI_SPEC.md) 工作台交互；[LOGGING](operations/LOGGING.md) 日志契约与维护 |
 | 运行监控 / Provider | [监控与预设](operations/RUNTIME_MONITOR_AND_MODEL_PRESETS_SPEC.md)、[内存口径与预设切换](operations/RUNTIME_MONITOR_AND_PROVIDER_SWITCH_V06_SPEC.md) |
 | 部署 | [DEPLOYMENT_OPTIONS](operations/DEPLOYMENT_OPTIONS.md) 支持边界；[Mac mini 操作说明](../deploy/macos/README.md) 安装与维护 |
-| 验证 / 样本 | [TESTING_AND_ACCEPTANCE](testing/TESTING_AND_ACCEPTANCE.md) 验证策略；[GOLDEN_SAMPLES](testing/GOLDEN_SAMPLES.md) 样本/Fixture；[视频 Fixture Golden](benchmark/video-workflow-golden-v1.json) 与 benchmark/ 仅验收任务按需查看 |
+| 验证 / 样本 | [TESTING_AND_ACCEPTANCE](testing/TESTING_AND_ACCEPTANCE.md) 验证策略；[GOLDEN_SAMPLES](testing/GOLDEN_SAMPLES.md) 样本/Fixture；[视频 Fixture Golden](benchmark/video-workflow-golden-v1.json) 、[云南时节与路线回归](benchmark/YUNNAN_REGRESSION_ACCEPTANCE_20261028.md) 与 benchmark/ 仅验收任务按需查看 |
 | 设计 / 授权 | [design/ui](../design/ui/README.md) → 目标版本/页面；[THIRD_PARTY_NOTICES](../THIRD_PARTY_NOTICES.md) 授权记录 |
 | 提示词 / 写交接 | [CODEX_TASK_TEMPLATES](CODEX_TASK_TEMPLATES.md) 三条短指令；交接固定更新 CURRENT_HANDOFF.md 的任务续接段，不另建文件 |
 | 历史 / 未来 | [历史实施记录](history/IMPLEMENTATION_HISTORY.md)、[归档实施计划](history/planning/README.md)、[早期工程计划](history/PROJECT_PLAN.md)、[FUTURE_ROADMAP](planning/FUTURE_ROADMAP.md)；均非默认阅读 |
@@ -187,6 +187,7 @@
 | 前端、UI、视觉、样式、布局、组件、Dropdown、Filter | [前端视觉设计系统](design/FRONTEND_VISUAL_DESIGN_SYSTEM.md) |
 | 地图 V2 草案（仅用户指定时） | [文档目录](README.md#地图-v2-草案的按需路由) 选章节，不能推断已冻结或已实现 |
 | 数据目录、搬迁、日志压缩/保留 | [存储与日志生命周期](operations/STORAGE_AND_LOG_LIFECYCLE.md)；实际搬迁需明确目标授权，不由设置保存代替 |
+| 地点时节、作者路线、云南回归、v2导出 | [旅行领域](product/TRAVEL_FOOD_PIPELINE.md#1026-地点时节与作者路线2026-10-28)；常驻样本见 testing/GOLDEN_SAMPLES.md |
 | 地点推荐态度、整体/局部否定 | [旅行领域](product/TRAVEL_FOOD_PIPELINE.md#1025-地点整体态度与局部限制2026-10-27)；真实模型质量仍需独立验收 |
 | 运维日志、监控、北京时间 | [日志](operations/LOGGING.md)；监控选 operations/OPERATIONS_UI_SPEC.md，时间选 jobs/TASK_STATUS_AND_BEIJING_TIME_SPEC.md |
 | 数据迁移、API、安全 | 分别在 architecture/DATA_MODEL.md、architecture/API_DESIGN.md、architecture/SECURITY_PRIVACY.md 中按表/路由/威胁定位 |
@@ -279,6 +280,7 @@
 | 运维 | CPU/内存/磁盘与 Worker 心跳为 SQLite 持久化快照；内存百分比使用可回收页口径；日志支持筛选、关联 Job、分页与脱敏 | `operations/OPERATIONS_UI_SPEC.md`、`operations/LOGGING.md` |
 | 步骤续跑 | ERROR/CRITICAL 事件先查询 Replay Options；Artifact 有效时从失败步骤继续，上游 REUSED、当前/下游顺次执行；过期后只允许完整重跑；日志页不直接改步骤 | `jobs/PIPELINE_STEP_REPLAY_V044_SPEC.md`、`operations/LOGGING.md`、ADR-026 |
 | 存储与日志生命周期 | 启动根/锁统一；缺卷/实例不符拒绝建空库；搬迁保持旧副本，放行后不回旧库；日志只删已登记封卷，gzip核验后删原件；转录180天与永久资料独立 | `operations/STORAGE_AND_LOG_LIFECYCLE.md`、`test_storage_lifecycle.py`、`test_storage_api.py` |
+| 地点时节与作者路线 | 背景零推荐加权，活动/路段限制不关闭区域，跨年/用途/精度有据；新作者路线仅绑定当前版本、逐字证据/站序校验、原词待核、非导航；个人清单独立、旧导出兼容、历史仅dry_run；云南P0_CRITICAL必跑 | `product/TRAVEL_FOOD_PIPELINE.md` 10.26、`test_yunnan_multiregion_travel_golden.py` |
 | 作者地点态度 | 整体态度需逐字证据/主体/版本，局部限制不建地点；合并顺序无关，负向/存疑自动POI零调用，确认位置/个人偏好不改作者；负向来源不被体验筛选吞掉，旧证据不回写；默认无态度标签，仅负向名称标记 | `product/TRAVEL_FOOD_PIPELINE.md` 10.25、`services/recommendation_intent.py`、`test_recommendation_intent.py` |
 | 内容保留 | 终态任务和内容可删除；删除不破坏共享来源、地点、路线或证据；密钥只进 Keychain/Secret Store | `ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md`、`architecture/SECURITY_PRIVACY.md` |
 | 视频 v0.3 | Bilibili 元数据/字幕优先/受控音频/Whisper 转写；同一视频的每次提交产生独立 Note/Content/Transcript Version，重跑只给所属 Note 增新版本；Place 按 Provider POI ID 复用，地点与笔记证据不跨任务串联；章节、时间码、POI、Place Note 和失败/部分成功均为真实数据 | `video/04-jobs-data-api.md`、`services/video_pipeline.py` |
@@ -375,7 +377,13 @@
 
 # 当前实施状态
 
-> 状态记录日期：2026-10-27。本文唯一记录当前源码能力与自动验证；生产状态只见带原采样日期的 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
+> 状态记录日期：2026-10-28。本文唯一记录当前源码能力与自动验证；生产状态只见带原采样日期的 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
+
+## 2026-10-28 地点时节、作者路线与云南回归
+
+P0–P3：逐地点时间分析、背景零推荐加权、活动/局部道路限制独立；人工用途/适宜程度、怎么去分栏；用途/活动/精度/跨年与单AREA锚点背景；取消候选80条静默截尾。新Artifact扩展保存作者路线，连续逐字Evidence/原词/站序/条件校验，模型缺route对象可用证据语法恢复，版本/解析器标记隔离缓存；未知位置待核、非导航，显式复制全确认节点且不影响RouteDraft。只读dry_run与地点/来源候选/路线分文件v2 ZIP兼容旧导出，无Schema迁移。
+
+后端全量703、最终相关79、云南46/29断言、前端59及页面目标4、Ruff/ESLint/类型/隔离构建通过。962/390px隔离/生产Browser交互与布局通过，写请求模拟拦截；现场见交接。经授权真实Ground Map 3次、输入44,839/输出32,319 Token，保存响应后禁网精确缓存重放恢复13待核路线/102候选，新增请求0；真实高德3只读小样，无确认或生产历史回写。字面候选53重合/39额外/18未匹配，语义金标仍待人工，不能宣称完整语义/视频端到端验收通过。契约见旅行领域10.26，完整边界与成本见[验收报告](benchmark/YUNNAN_REGRESSION_ACCEPTANCE_20261028.md)。原包已备份，计划归档、fixture/provenance常驻，普通GET不重解析历史。
 
 ## 2026-10-27 POI代码复核与升级
 
@@ -399,7 +407,7 @@
 
 ## 当前冻结范围
 
-- 当前分支为 `codex/mac-mini-implementation`；当前交付含POI解析与复核升级；既有标题时间证据、同模型重跑及Z0–Z7能力保持，Z8仍为独立backlog，不修改LocalAiMux。
+- 当前分支为 `codex/mac-mini-implementation`；当前交付含地点时节/作者路线/云南回归及POI解析与复核升级；既有标题时间证据、同模型重跑及Z0–Z7能力保持，Z8仍为独立backlog，不修改LocalAiMux。
 - 仓库 Alembic head 为 0026；生产版本由交接现场证明，不由仓库推断。本轮复核无新增 Schema 变更；重新部署和已授权真实模型/视频矩阵另由交接及验收报告证明。
 - 唯一支持的后端为 Mac mini，FastAPI、SQLite/WAL 与独立 Worker；单用户通过可信局域网访问。
 - 源码实现、离线验证、生产加载与真实业务验收分别记录。规格中的待实施项、历史工作包和新草案不自动成为已授权任务。
@@ -3463,6 +3471,18 @@ TravelDashboardVM：
 笔记各分包仅携本包证据；整体意见和局部限制保真传递，未能核对归纳覆盖时保留绑定原句并标HYBRID/告警，存疑或负向章节不输出未经核验的正向概括。Prompt/地图Artifact版本已独立更新，旧缓存不冒充新证据；真实召回率/误报仍需另行授权的标注视频矩阵。隔离确认/偏好写入用于验收，生产Browser只读；不新增Schema或默认模型调用。
 
 2026-10-27 用户确认的展示修订：已自动识别或人工确认进入地图的地点默认按推荐阅读，常态不显示推荐/可选/态度未明确标签；仅识别到整体不推荐时在地点名称旁标“不推荐”，正反来源并存则标“有来源不推荐”。UNKNOWN等字段继续用于内部证据与审计，不在阅读界面额外挂标签，也不回写旧证据。视频候选栏目仅展示地点当前状态与时间入口，实际位置确认留在可执行的人工复核卡。此条覆盖原计划对未知态度的常态标签展示要求，不改变来源证据、个人偏好或POI身份记录。
+
+## 10.26 地点时节与作者路线（2026-10-28）
+
+时间窗口API保留旧字段并增量返回semantics：scope/purpose/activity/precision/start/end/cross_year/interpretation_status，全部由原始source_text确定性解释；日级边界仅接受原文有效日期，不把季节换算成具体日。支持跨年月份；区域、观赏、活动与部分道路限制分别保留。INFORMATIONAL与SEMANTIC_CONTEXT不加推荐分；禁渔、骑马/骑行等活动限制及局部路段不关闭整个目的地。人工窗口显式选择原有period_type/suitability，不改变旧API缺省值或历史记录。逐mention时间分析只看本地点已归属窗口，不凭视频其他片段或标题的月份宣称已分析。
+
+出行事实复用PlaceMention.metadata_json.travel_facts及PlaceInsightItem.value_json，保留逐字引文与Segment；详情“怎么去”和“何时去/看什么/注意事项”分栏，标识视频作者观点。GENERIC_FEATURE/LINEAR_FEATURE/PLACE_UNCERTAIN及REFERENCE节点保留原词，禁止自动POI请求；名称存疑不擅自纠正。
+
+作者RouteGuide/Stop/Evidence/Condition是semantic-map-v6新产物的版本化JSON扩展，保存在GroundedMapArtifact.semantic_options_json.route_guides，非新增SQL表，无迁移。复用同一次模型提取的ROUTE Claim；缺可选对象时仅按原句明确交通语法恢复，所有恢复对象保留NEEDS_REVIEW；显式自驾路线分组可恢复原文列举，普通地名列表不成为路线。单AREA锚点可在本单元连续有名证据内读取匿名区域时间，子景点不继承；候选不再静默截在80条。解析版本进入新Artifact身份，不改旧产物；精确模型响应缓存仍可复用。写入前验证连续Segment、逐字引文、交通方式、节点存在和明确站序、条件主体与证据。多路线独立，关联道路相同的宏观/细节对象；关联不意味着全段同路，环线不据名称补闭环。当前仅“站点顺序示意，非道路导航”，navigation=null；不生成公里、时间或道路几何。
+
+GET只读当前Note Version对应Transcript版本的已存新产物，不补解析旧Artifact。地点绑定限定同笔记版本、已确认且未删除的唯一Place；未核节点显示原词。显式复制需version_id仍为当前且所有节点已确认；否则409，无部分复制或隐式确认。个人RouteDraft不与作者路线双向同步。无节点/含待核位置的来源路书仍完整保留，但暂不能复制为现有仅支持Place的个人清单。
+
+历史审计只有只读dry_run，无apply入口；真实回填需另行审批、版本化与回退准备。travel_export_v2是增量ZIP接口，地点与路线分文件，保留时间用途/活动、事实证据/来源、个人备注/清单，不含虚构导航；旧JSON/CSV/GeoJSON保持。云南常驻P0_CRITICAL测试与范围见testing/GOLDEN_SAMPLES.md；模拟标注不是模型质量或真实POI金标。
 
 
 ---
@@ -10216,6 +10236,14 @@ API 返回给产品前端的是 ViewModel，而不是 ORM Row。
 
 Session保护的GET /api/settings/storage返回当前根/加载代次、后台方案与日志维护结果；POST /plan只启动受限本机清点并保存待应用方案；POST /logs/preview与/logs/apply以清单token约束策略应用，不提供任意shell或请求内切库。详见[存储契约](operations/STORAGE_AND_LOG_LIFECYCLE.md)。地点/审核/地图DTO新增可选recommendation_summary，UNKNOWN为兼容默认；共享投影不改历史。确认位置与作者态度、个人偏好独立，详情保留所有有效态度来源的笔记链接。
 
+### 地点时节与作者路线扩展（2026-10-28）
+
+- `GET /api/travel/route-guides?note_id=...`：当前笔记/转写版本的已存作者路线，包含原词节点、交通模式、独立条件、逐字Evidence、source_id/version_id/artifact_id；普通GET零Provider调用。
+- `POST /api/travel/route-guides/copy`：`note_id/guide_id/version_id`显式复制为个人RouteDraft；版本变化、节点未全部确认或为空返回409；原来源不随清单编辑变化。
+- `GET /api/travel/history-audit`：只读`dry_run=true/writes=0`，列出mention缺时间/出行事实/证据的原因；没有生产回填入口。
+- `GET /api/travel/export-v2`：ZIP含manifest.json、places.json、routes.json；保留来源证据和人工备注，路线无Provider实证不含导航几何；旧POST export原契约不变。
+- 现有visit-windows响应增量`semantics`字典；编辑仍用旧period_type/suitability字段。存储与身份约束见旅行领域10.26。
+
 
 ---
 
@@ -11394,3 +11422,13 @@ Worker 进程使用独立于同步 Job 执行循环的周期性心跳报告存�
 - 至少一份结构复杂的 XLS/XLSX 岗位表；
 - R-001/R-002 的人工期望答案与脱敏 Fixture；
 - T-001/T-002 的人工地点清单与时间码答案。
+
+## 云南多区域/时节/路线常驻样本（2026-10-28）
+
+`YUNNAN_MULTI_REGION_ROUTE_001` / `BV16Yem6REyX` / `P0_CRITICAL`。原转录稿、simulation-v1 JSON/MD、原manifest与哈希在`backend/tests/fixtures/travel_pipeline/yunnan_bv16yem6reyx/`；grounded_routes.json是从同稿冻结的模型边界夹具，11组参考拆为12个作用域对象（G214宏观/细节分别保存）。每次P0–P3、解析/路线Schema、时节评分、导出变更必须复跑：
+
+```bash
+'/Volumes/D/Library/Application Support/Zhijian/venv/bin/python' scripts/check_yunnan_regression.py --output /tmp/yunnan-regression-report.json
+```
+
+检查29条硬性断言、71条已标类型候选的原词保全、12个路线对象、跨年/日期精度、禁渔/道路/局部否定、版本/清单隔离、旧导出与dry_run。46项离线测试仅证明规则及模拟提取边界。报告分别列出typed_name_retention与model_extraction；前者TP/FP/FN及1.0指标不表示真实模型召回或POI正确率。后者需显式真实调用取证，不能凭simulation-v1复制预期冒称金标。完整记录见[验收报告](benchmark/YUNNAN_REGRESSION_ACCEPTANCE_20261028.md)。
