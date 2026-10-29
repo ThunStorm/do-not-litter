@@ -895,7 +895,8 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
 
         try:
             selected_track, raw_segments, subtitle_failures = first_usable_subtitle(
-                resolved.subtitles, fetch_track,
+                resolved.subtitles,
+                fetch_track,
                 accept=lambda track, rows: bool(_subtitle_decision(asset, track, rows)["accepted"]),
             )
         except VideoResolveError as exc:
@@ -1061,6 +1062,11 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
                 candidates=grounded_map.entities_json or grounded_map.places_json,
                 claims=grounded_map.claims_json,
                 content_units=grounded_map.content_units_json,
+                cover_contexts=[
+                    c
+                    for c in grounded_map.semantic_options_json.get("temporal_contexts", [])
+                    if c.get("source_kind") == "COVER_TEXT"
+                ],
             )
         except ProviderUnavailable as exc:
             raise NeedsUser(exc.code, str(exc)) from exc
@@ -1565,6 +1571,11 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                 candidates=grounded_map.entities_json or grounded_map.places_json,
                 claims=grounded_map.claims_json,
                 content_units=grounded_map.content_units_json,
+                cover_contexts=[
+                    c
+                    for c in grounded_map.semantic_options_json.get("temporal_contexts", [])
+                    if c.get("source_kind") == "COVER_TEXT"
+                ],
             )
             _done(
                 db,
@@ -1687,10 +1698,15 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
                     _fail_step(db, step, RuntimeError(screenshot_error))
                 if video_path is not None:
                     _done(
-                        db, job, step, 95,
-                        {"cache_path": storage_ref(video_path, settings)
-                         if video_path.resolve().is_relative_to(settings.data_dir.resolve())
-                         else str(video_path)},
+                        db,
+                        job,
+                        step,
+                        95,
+                        {
+                            "cache_path": storage_ref(video_path, settings)
+                            if video_path.resolve().is_relative_to(settings.data_dir.resolve())
+                            else str(video_path)
+                        },
                     )
             else:
                 screenshot_error = "SCREENSHOT_PLAN_EMPTY: 未找到可用于截图的章节或转写时间轴"

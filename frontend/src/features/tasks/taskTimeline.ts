@@ -23,6 +23,7 @@ const STEP_LABELS: Record<string, string> = {
   NORMALIZE_TRANSCRIPT: '归一化字幕',
   CORRECT_TRANSCRIPT: 'AI 校对转写',
   GENERATE_AI_NOTE: '生成 AI 笔记',
+  COVER_TEXT: '识别封面文字',
   EXTRACT_TRAVEL_FACTS: '提取地点',
   RESOLVE_POI: '解析地点',
   BUILD_PLACE_NOTES: '生成地点笔记',

@@ -62,6 +62,7 @@ def parse_json_object(content: str) -> dict[str, Any]:
 
 
 _REQUIRED_FIELDS = {
+    "COVER_TEXT": ("regions",),
     "GROUND_MAP": ("section_facts", "places", "warnings"),
     "EXTRACT_TRAVEL_FACTS": ("places",),
     "GENERATE_AI_NOTE": ("overview", "warnings", "sections", "section_facts"),
@@ -76,6 +77,33 @@ _LIST_LIMITS = {
 
 
 def stage_json_schema(stage: str) -> dict | None:
+    if stage == "COVER_TEXT":
+        return {
+            "type": "object",
+            "required": ["regions"],
+            "properties": {
+                "regions": {
+                    "type": "array",
+                    "maxItems": 64,
+                    "items": {
+                        "type": "object",
+                        "required": ["text", "bounds", "confidence"],
+                        "properties": {
+                            "text": {"type": "string", "maxLength": 500},
+                            "bounds": {
+                                "type": "object",
+                                "required": ["left", "top", "right", "bottom"],
+                                "properties": {
+                                    k: {"type": "number", "minimum": 0, "maximum": 1}
+                                    for k in ["left", "top", "right", "bottom"]
+                                },
+                            },
+                            "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                        },
+                    },
+                }
+            },
+        }
     fields = (
         ("content_units", "entities", "relations", "claims", "warnings")
         if stage == "GROUND_MAP"

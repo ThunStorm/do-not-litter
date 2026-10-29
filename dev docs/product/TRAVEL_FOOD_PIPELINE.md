@@ -518,3 +518,8 @@ TravelDashboardVM：
 GET仅按AINoteVersion.grounded_map_artifact_id读取生成该版本时的既存产物，同时校验video_asset_id与transcript_version；不选择最新Artifact，不补解析历史。新笔记生成时写固定引用；0027为可空外键，删除产物置空，历史未知关联保持NULL且不展示作者路线，不按时间或单一候选猜绑。地点绑定限定同笔记版本、已确认且未删除的唯一Place；未核节点显示原词。显式复制需version_id仍为当前且所有节点已确认；否则409，无部分复制或隐式确认。个人RouteDraft不与作者路线双向同步。无节点/含待核位置的来源路书仍完整保留，但暂不能复制为现有仅支持Place的个人清单。
 
 历史审计只有只读dry_run，无apply入口；真实回填需另行审批、版本化与回退准备。travel_export_v2是增量ZIP接口，地点与路线分文件，保留时间用途/活动、事实证据/来源、个人备注/清单，不含虚构导航；旧JSON/CSV/GeoJSON保持。云南常驻P0_CRITICAL测试与范围见testing/GOLDEN_SAMPLES.md；模拟标注不是模型质量或真实POI金标。
+
+
+### 10.27 作者推荐主题与统一时间投影（2026-10-29）
+
+经确认新增THEME_CONTEXT，具体证据、成员与版本门禁见[标题时间与推荐主题](../video/TITLE_TEMPORAL_EVIDENCE.md#作者推荐主题2026-10-29用户确认)。主题关联与正文SOURCE_FACT、标题TITLE_CONTEXT、共同景观SEMANTIC_CONTEXT分别保留。背景/历史统计仍不产生推荐月份；假期保留原词与HOLIDAY精度。地点/区域使用同一只读有效窗口，暑期/寒假/避暑语义筛选与精确月份筛选分离；局部条件、人工信息及来源冲突不覆盖。旧Note缺固定产物保持未知，代码发布不授权历史重算、POI确认或真实模型调用。

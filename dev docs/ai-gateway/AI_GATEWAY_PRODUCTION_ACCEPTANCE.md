@@ -23,7 +23,7 @@
 
 ## 生产门禁（尚未由本文件宣称完成）
 
-生产迁移前确认无 `QUEUED/RUNNING` Job 或 lease，备份 SQLite，并执行 `PRAGMA integrity_check`。仓库 migration head 为 `0025`；生产实际版本须在操作时读取，不由本文推断。迁移或重启只通过 `deploy/macos/manage.py`，不得以临时开发服务替代 LaunchAgent。
+生产迁移前确认无 `QUEUED/RUNNING` Job 或 lease，备份 SQLite，并执行 `PRAGMA integrity_check`。仓库迁移与生产实际版本须在操作时分别读取；本契约页不维护现场版本号。迁移或重启只通过 `deploy/macos/manage.py`，不得以临时开发服务替代 LaunchAgent。
 
 已有一条真实视频样本完成字幕、笔记、地点提取和截图，并因 POI 待人工确认以 `PARTIAL_SUCCESS` 结束；该样本不覆盖本门禁。真实 E2E 仍须分别留存：本地 Ollama text/JSON/structured output、一个已配置远程 Provider、LOCAL_ONLY/REMOTE_ONLY/LOCAL_FIRST/REMOTE_FIRST/AUTO 路由、跨进程 ASR 与模型测试等待、缓存与 force-regenerate（含 fallback 后再命中）、低预算拦截、AI 阶段取消与 Replay、一个平台字幕视频及一个 ASR 视频。未配置的 Key、Cookie、模型或可访问样本是明确的外部条件，不能以 Mock 或空记录替代。
 

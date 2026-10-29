@@ -14,7 +14,8 @@ def _unique(values):
 
 def travel_brief(experience, windows, *, default_all_year=False, recommendation_summary=None):
     windows = [w for w in windows if valid_window(w)]
-    local = [w for w in windows if w.provenance != "SEMANTIC_CONTEXT"]
+    theme = [w for w in windows if w.provenance == "THEME_CONTEXT"]
+    local = [w for w in windows if w.provenance not in {"SEMANTIC_CONTEXT", "THEME_CONTEXT"}]
     positive = [
         w
         for w in local
@@ -43,11 +44,28 @@ def travel_brief(experience, windows, *, default_all_year=False, recommendation_
         timing = f"视频提到，从{window_label(frequency)}开始几乎天天有雾凇。"
     elif seasons:
         timing = f"视频介绍的是{'、'.join(seasons)}的{''.join(themes[:2]) or '游览体验'}。"
+    elif theme:
+        timing = (
+            "；".join(_unique(getattr(w, "context_label", "作者推荐主题") for w in theme))
+            + " · 来自视频推荐主题。"
+        )
     elif context:
         season = "、".join(_unique(SEASON_LABELS.get(w.season, "") for w in context))
         timing = f"这组{''.join(themes[:1]) or '景观'}在视频中按{season}介绍。"
     else:
-        timing = "视频未提及季节限制。" if default_all_year else "视频未明确说明适合的时节。"
+        timing = "视频未提及季节限制。" if default_all_year else "暂未提取到该地点的时节依据。"
+    from zhijian.services.temporal_context import window_semantics
+
+    activity_names = {"RAFTING": "漂流", "HORSE_RIDING": "骑马", "CYCLING": "骑行", "HIKING": "徒步"}
+    activity_times = _unique(
+        window_label(w) + activity_names[window_semantics(w)["activity"]]
+        for w in local
+        if w.suitability == "RECOMMENDED"
+        and window_semantics(w)["activity"] in activity_names
+        and window_label(w) != "时段待明确"
+    )
+    if activity_times:
+        timing += " 活动时节：" + "、".join(activity_times) + "（来自视频原句）。"
     conditions = []
     statements = [
         s for o in (recommendation_summary or {}).get("source_opinions", []) for s in o.get("statements", [])

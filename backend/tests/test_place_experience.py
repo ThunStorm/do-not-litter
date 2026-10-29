@@ -91,6 +91,8 @@ def test_single_anchor_recovers_owned_unit_without_writing_or_broadcast(client, 
             ],
         )
         db.add_all([artifact, mention])
+        db.flush()
+        version.grounded_map_artifact_id = artifact.id
         db.commit()
         pid = place.id
         assert any(w.month == 12 for w in effective_windows(db, [pid]))

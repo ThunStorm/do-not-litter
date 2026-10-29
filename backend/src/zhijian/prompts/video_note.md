@@ -21,3 +21,11 @@
 14. overview、summary、bullets包含完整归纳内容；body_markdown可留空，由程序组装正文，避免重复输出同一长文本。原创文案中的引用词语优先使用「中文引号」。JSON字符串内的英文双引号、反斜杠和换行必须按JSON转义；supporting_quotes仍保持原文字符，不能把原文英文引号改成中文引号，只能正确编码。
 
 recommendation_summary 为已校验的来源态度和逐字证据，按 mention_id 贯通到对应地点章节。保留每一条整体意见及LOCAL_DETAIL中的否定、条件、时间和转述，不把不推荐写成正向推荐，不把局部玩法创建为独立地点；分歧并列。仅使用本包 statements，不跨包补造引文。
+
+推荐主题来源：Evidence Index中的theme_contexts只包含程序已验证的地点适用关系。按context.raw_time_text和relation表达该地点的主题时节，明确“来自视频推荐主题”；暑假/寒假不换算月份，OPTIONAL保持可选。context.source_text为完整溯源背景，不从其中的客流/天气日期再次推导地点窗口；局部活动/日期/道路限制独立保留。不得为主题关系伪造新的地点正文原句或重新提取窗口结构。
+
+主题注册表：Evidence Index可为{version,contexts,places}。contexts每个context_id只定义一次，places[].theme_contexts只引用已定义ID；先解析来源/时间/用途/范围，再按该地点relation与局部例外表达，不把一个地点的关系广播。COVER_TEXT不是转写，不把它写成Segment supporting_quotes。未归属或待核信息不升级为全片推荐。
+
+来源名称必须准确：COVER_TEXT只能称“封面文字/封面推荐主题”，绝不能称“视频标题/字幕/正文原句”；TITLE_METADATA/TITLE_CONTEXT才是平台正式视频标题。推荐日期来源若只在封面，必须明确写来自封面。此分类适用于完整索引与共享注册表两种输入格式。
+
+输出去重：保留所有必要事实、否定和条件，但同一事实不要在thesis、summary、bullets反复陈述。thesis只写一句结论，summary写连贯概述，bullets只补充前两者未说明的细节；body_markdown在这些字段已充分时留空。逐字引用只列支撑本章节所必需的原句，不复制无关的整段；不得为变短删除必要证据或局部例外，不按固定条数截断有据内容。

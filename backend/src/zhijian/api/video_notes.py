@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse, Response
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from zhijian.ai.job_config import SNAPSHOT_KEY, capture_ai_config
@@ -37,8 +37,9 @@ from zhijian.services.area_anchors import representative_anchor_valid
 from zhijian.services.audit import record_event
 from zhijian.services.auth import require_session
 from zhijian.services.note_structure import organize_sections, structured_overview
+from zhijian.services.place_retention import remove_note_places
 from zhijian.services.recommendation_intent import summarize as intent_summary
-from zhijian.services.source_retention import prune_source_if_orphan
+from zhijian.services.source_retention import delete_content_projection, prune_source_if_orphan
 from zhijian.services.video_note_search import remove_video_note_search_index, search_video_note_ids
 from zhijian.services.video_support import _ground_map_facts, note_render_profile
 
@@ -177,6 +178,18 @@ def video_note_detail(note_id: str, _: Protected, db: Session = Depends(get_db))
     version = db.get(AINoteVersion, note.current_version_id) if note.current_version_id else None
     data["markdown"] = version.markdown if version else ""
     data["warnings"] = version.warnings_json if version else []
+    bound_map = (
+        db.get(GroundedMapArtifact, version.grounded_map_artifact_id)
+        if version and version.grounded_map_artifact_id
+        else None
+    )
+    data["temporal_review"] = (
+        (bound_map.semantic_options_json or {}).get("unresolved_temporal_evidence", [])
+        if bound_map
+        and bound_map.video_asset_id == asset.id
+        and bound_map.transcript_version == version.transcript_version
+        else []
+    )
     section_rows = db.scalars(
         select(AINoteSection)
         .where(AINoteSection.ai_note_version_id == (version.id if version else ""))
@@ -495,8 +508,139 @@ def video_cover_image(
     )
 
 
+@router.post("/api/video-notes/{note_id}/cover-text")
+def queue_cover_text(
+    note_id: str,
+    _: Protected,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+    allow_visual: bool = False,
+) -> dict:
+    note, asset = _asset_for_note(db, note_id)
+    active = db.scalar(
+        select(Job).where(
+            Job.payload_json["cover_text_video_asset_id"].as_string() == asset.id,
+            Job.status.in_(["QUEUED", "RUNNING"]),
+        )
+    )
+    if active:
+        return {"job_id": active.id, "status": active.status}
+    job = Job(
+        job_type=JobType.TRAVEL.value,
+        status="QUEUED",
+        payload_json={
+            "cover_text_video_asset_id": asset.id,
+            "allow_visual": allow_visual,
+            SNAPSHOT_KEY: capture_ai_config(db, settings),
+        },
+    )
+    db.add(job)
+    db.commit()
+    return {"job_id": job.id, "status": job.status}
+
+
+@router.get("/api/video-covers/{cover_id}/evidence-image")
+def cover_evidence_image(
+    cover_id: str,
+    _: Protected,
+    content_hash: str = Query(pattern="^[0-9a-f]{64}$"),
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+):
+    import hashlib
+
+    cover = db.get(VideoCoverAsset, cover_id)
+    if not cover:
+        raise HTTPException(status_code=404, detail="封面不可用")
+    known = cover.content_hash == content_hash
+    if not known:
+        maps = db.scalars(
+            select(GroundedMapArtifact).where(GroundedMapArtifact.video_asset_id == cover.video_asset_id)
+        )
+        known = any(
+            (a.semantic_options_json or {}).get("cover_text", {}).get("cover_hash") == content_hash
+            for a in maps
+        )
+    if not known:
+        raise HTTPException(status_code=404, detail="没有该版本的封面证据")
+    for candidate in (settings.permanent_dir / "video-covers").glob(content_hash + ".*"):
+        try:
+            path = resolve_ref(str(candidate), settings)
+        except ValueError:
+            continue
+        if path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == content_hash:
+            return FileResponse(path, headers={"Cache-Control": "private, max-age=31536000, immutable"})
+    raise HTTPException(status_code=404, detail="封面原图已不可用")
+
+
+@router.get("/api/video-notes/{note_id}/cover-text")
+def get_cover_text(note_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
+    note, asset = _asset_for_note(db, note_id)
+    version = db.get(AINoteVersion, note.current_version_id) if note.current_version_id else None
+    artifact = (
+        db.get(GroundedMapArtifact, version.grounded_map_artifact_id)
+        if version and version.grounded_map_artifact_id
+        else None
+    )
+    evidence = (
+        (artifact.semantic_options_json or {}).get("cover_text")
+        if artifact
+        and artifact.video_asset_id == asset.id
+        and artifact.transcript_version == version.transcript_version
+        else None
+    )
+    cover = db.scalar(select(VideoCoverAsset).where(VideoCoverAsset.video_asset_id == asset.id))
+    recent = db.scalar(
+        select(Job)
+        .where(
+            Job.payload_json["cover_text_video_asset_id"].as_string() == asset.id,
+            Job.status.in_(["COMPLETED", "PARTIAL_SUCCESS"]),
+        )
+        .order_by(Job.created_at.desc())
+    )
+    latest = (recent.payload_json or {}).get("cover_text_result") if recent else None
+    if latest and (not cover or latest.get("cover_hash") != cover.content_hash):
+        latest = None
+    applicable = []
+    if evidence and artifact:
+        entities = {e.get("entity_id"): e for e in artifact.entities_json}
+        for mention in _mentions_for_note(db, note):
+            entity = entities.get((mention.metadata_json or {}).get("semantic", {}).get("entity_id"), {})
+            apps = (mention.metadata_json or {}).get("temporal_applications", [])
+            if (
+                mention.extraction_status != "EXTRACTED"
+                or mention.subject_role not in {"PRIMARY", "SECONDARY"}
+                or mention.visit_intent == "NOT_RECOMMENDED"
+                or mention.poi_policy not in {"RESOLVE", "AREA_RESOLVE"}
+                or (mention.metadata_json or {}).get("temporal_artifact_hash") != artifact.semantic_hash
+                or apps != entity.get("verified_temporal_applications", [])
+            ):
+                continue
+            for app in apps:
+                context = app.get("context", {})
+                if context.get("source_kind") == "COVER_TEXT":
+                    applicable.append(
+                        {
+                            "name": mention.name,
+                            "time_text": context.get("raw_time_text", ""),
+                            "relation": app.get("relation"),
+                            "source_kind": "COVER_TEXT",
+                        }
+                    )
+    return {
+        "applied_to_current_note": bool(evidence),
+        "latest_extraction": latest,
+        "applicable_places": applicable,
+        "latest_job_id": recent.id if latest else None,
+        "evidence": evidence,
+        "notice": "封面文字是独立来源；提取任务不会修改当前笔记或确认地点。",
+    }
+
+
 @router.get("/api/video-notes/{note_id}/places")
 def video_note_places(note_id: str, _: Protected, db: Session = Depends(get_db)) -> list[dict]:
+    from zhijian.services.temporal_context import analysis_status
+
     note, asset = _asset_for_note(db, note_id)
     transcript = _transcript_for_note(db, note, asset)
     segment_rows = (
@@ -543,6 +687,7 @@ def video_note_places(note_id: str, _: Protected, db: Session = Depends(get_db))
                 "id": mention.id,
                 "name": mention.name,
                 "place_type": mention.place_type,
+                "temporal_analysis": {"status": analysis_status(mention.metadata_json)},
                 "content_unit_id": mention.content_unit_id,
                 "subject_role": mention.subject_role,
                 "visit_intent": mention.visit_intent,
@@ -635,18 +780,19 @@ def regenerate_video_note(
 @router.delete("/api/video-notes/bulk")
 def bulk_delete_video_notes(payload: BulkDeleteRequest, _: Protected, db: Session = Depends(get_db)) -> dict:
     notes_assets = [_asset_for_note(db, note_id) for note_id in dict.fromkeys(payload.ids)]
-    source_ids = {asset.source_id for _, asset in notes_assets}
+    source_ids = list(dict.fromkeys(asset.source_id for _, asset in notes_assets))
     active = db.scalar(
         select(Job).where(
             Job.payload_json["source_id"].as_string().in_(source_ids),
-            Job.status.in_(["QUEUED", "RUNNING"]),
+            or_(Job.status.in_(["QUEUED", "RUNNING"]), Job.lease_owner.is_not(None)),
         )
     )
     if active:
         raise HTTPException(status_code=409, detail="请先取消或等待关联活跃任务结束")
     for note, asset in notes_assets:
         for content in _note_contents(db, note, asset):
-            db.delete(content)
+            delete_content_projection(db, content)
+        remove_note_places(db, note)
         remove_video_note_search_index(db, note.id)
         db.delete(note)
     db.flush()
@@ -673,19 +819,22 @@ def delete_video_note(note_id: str, _: Protected, db: Session = Depends(get_db))
     active = db.scalar(
         select(Job).where(
             Job.payload_json["source_id"].as_string() == asset.source_id,
-            Job.status.in_(["QUEUED", "RUNNING"]),
+            or_(Job.status.in_(["QUEUED", "RUNNING"]), Job.lease_owner.is_not(None)),
         )
     )
     if active:
         raise HTTPException(status_code=409, detail="该视频仍有活跃任务，请先取消或等待结束")
     title, canonical_id, source_id = asset.title, note.id, asset.source_id
     for content in _note_contents(db, note, asset):
-        db.delete(content)
+        delete_content_projection(db, content)
+    place_deleted_ids = remove_note_places(db, note)
     remove_video_note_search_index(db, note.id)
     db.delete(note)
     db.flush()
     source_deleted = prune_source_if_orphan(db, source_id)
-    preserved = ["places"] if source_deleted else ["source", "video_asset", "transcript", "places"]
+    preserved = ["shared_or_personal_places"] if source_deleted else [
+        "source", "video_asset", "transcript", "shared_or_personal_places",
+    ]
     record_event(
         db,
         "video.note.deleted",
@@ -693,7 +842,10 @@ def delete_video_note(note_id: str, _: Protected, db: Session = Depends(get_db))
         actor="user",
         entity_type="video_note",
         entity_id=canonical_id,
-        detail={"preserved": preserved, "source_deleted": source_deleted},
+        detail={
+            "preserved": preserved, "source_deleted": source_deleted,
+            "place_deleted_ids": place_deleted_ids,
+        },
         commit=False,
     )
     db.commit()

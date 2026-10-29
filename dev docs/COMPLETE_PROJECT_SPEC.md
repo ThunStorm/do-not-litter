@@ -69,6 +69,7 @@
 | 任务表达 / 时间 | [摘要与部分成功](jobs/TASK_SUMMARY_AND_PARTIAL_SUCCESS_SPEC.md)、[状态与北京时间](jobs/TASK_STATUS_AND_BEIJING_TIME_SPEC.md) |
 | AI Gateway | [AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2](ai-gateway/AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md) 六篇索引：模型边界、公共能力、Pipeline/Provider、阶段参数、单任务策略、历史工作包/验收 |
 | 标题时间证据 | [契约](video/TITLE_TEMPORAL_EVIDENCE.md)、[离线 A/B](benchmark/TITLE_TEMPORAL_PROMPT_AB_REPORT.md)、[归档计划](history/planning/ZHIJIAN_TITLE_TEMPORAL_EVIDENCE_AND_PROMPT_OPTIMIZATION_PLAN.md)；真实模型质量与缓存收益未验证 |
+| 推荐时节与封面提取 | [待评审方案](planning/VIDEO_TEMPORAL_CONTEXT_AND_COVER_PLAN.md)：暑期主题继承、正文时间与跨句证据、地图一致性、按需OCR/视觉；不自动授权实施或历史更新 |
 | 请求优化工作包 | [Z0–Z8/E2E 计划](history/planning/ZHIJIAN_AI_OPTIMIZATION_AND_E2E_PLAN.md)、[合成 A/B](benchmark/AI_REQUEST_OPTIMIZATION_AB_REPORT.md)、[本包发布门禁](benchmark/RELEASE_ACCEPTANCE.md)；真实 E2E 独立开放 |
 | AI 运行 / 生产验收 | [AI_RUNTIME_AND_PROVIDERS](ai-gateway/AI_RUNTIME_AND_PROVIDERS.md) 运行配置；[AI_GATEWAY_PRODUCTION_ACCEPTANCE](ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md) 真实验收门禁 |
 | 本机路由 Provider | [LocalAiMux 客户端接入](ai-gateway/LOCAL_ROUTER_PROVIDER_COMPATIBILITY_SPEC.md) 至简已实现的参数/消息协商与上游边界；[2026-10-06 参数及 55 型号调查](history/LOCALMUX_PARAMETER_SURVEY_20261006.md) 为有日期的证据快照，不代表真实模型验收 |
@@ -282,14 +283,14 @@
 | 存储与日志生命周期 | 启动根/锁统一；缺卷/实例不符拒绝建空库；搬迁保持旧副本，放行后不回旧库；日志只删已登记封卷，gzip核验后删原件；转录180天与永久资料独立 | `operations/STORAGE_AND_LOG_LIFECYCLE.md`、`test_storage_lifecycle.py`、`test_storage_api.py` |
 | 地点时节与作者路线 | 背景零推荐加权，活动/路段限制不关闭区域，跨年/用途/精度有据；新作者路线仅绑定当前版本、逐字证据/站序校验、原词待核、非导航；个人清单独立、旧导出兼容、历史仅dry_run；云南P0_CRITICAL必跑 | `product/TRAVEL_FOOD_PIPELINE.md` 10.26、`test_yunnan_multiregion_travel_golden.py` |
 | 作者地点态度 | 整体态度需逐字证据/主体/版本，局部限制不建地点；合并顺序无关，负向/存疑自动POI零调用，确认位置/个人偏好不改作者；负向来源不被体验筛选吞掉，旧证据不回写；默认无态度标签，仅负向名称标记 | `product/TRAVEL_FOOD_PIPELINE.md` 10.25、`services/recommendation_intent.py`、`test_recommendation_intent.py` |
-| 内容保留 | 终态任务和内容可删除；删除不破坏共享来源、地点、路线或证据；密钥只进 Keychain/Secret Store | `ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md`、`architecture/SECURITY_PRIVACY.md` |
+| 内容保留 | 终态任务和内容可删除；删除清理专属关联和无来源/人工记录的自动地点，不破坏共享来源、地点、路线或证据；密钥只进 Keychain/Secret Store | `ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md`、`architecture/SECURITY_PRIVACY.md` |
 | 视频 v0.3 | Bilibili 元数据/字幕优先/受控音频/Whisper 转写；同一视频的每次提交产生独立 Note/Content/Transcript Version，重跑只给所属 Note 增新版本；Place 按 Provider POI ID 复用，地点与笔记证据不跨任务串联；章节、时间码、POI、Place Note 和失败/部分成功均为真实数据 | `video/04-jobs-data-api.md`、`services/video_pipeline.py` |
 | Bilibili 登录与字幕 | 登录只走站内二维码与 Keychain；登录失效必须进入 `NEEDS_USER` 并提供可用的续跑/非核心跳过选择；字幕 CDN 使用用途级 HTTPS Host Policy，安全支持官方子域；人工中文、AI 中文、其他语言依次尝试，单轨失败不得击穿整个 Job。AI/自动字幕不可单独成为权威 Transcript，必须保留 BV/CID、轨道与非敏感哈希审计并回退 ASR；生成 Note 前校验来源身份、验证状态与时间轴 | `video/VIDEO_AI_NOTE_PIPELINE.md` 4.4–4.7、`core/url_policy.py`、`services/video_pipeline.py` |
 | 视频 v0.4 截图 | 笔记先综合元数据与 Transcript；`PLAN_SCREENSHOTS → DOWNLOAD_VIDEO_FOR_FRAMES → EXTRACT_SCREENSHOTS → MATERIALIZE` 为显式步骤；3–12 张全文截图、主要地点优先，绑定章节/地点候选/Segment/时间码；过滤黑帧、曝光异常、低清晰度和重复帧 | `video/VIDEO_AI_NOTE_PIPELINE.md` 4.12–4.15、`services/video_screenshots.py` |
 | 地点笔记与确认同步 | 多地点笔记按已验证地点/主题组织，跨包合并但比较不广播；模型引用必须局限当前包，逐字引文与要点覆盖校验，缺项明确HYBRID；历史阅读投影不改版本/证据，旧anchor与截图可达；确认后跨页面通知/焦点刷新/前台15秒兜底，定位入口清旧筛选且选中Marker从聚合拆出且原生层级更高、PC/Mobile预览避让并能实点，隐藏/删除边界保留 | `services/note_structure.py`、`services/video_support.py`、`features/places/PlaceReviewCard.tsx`、`lib/travelChanges.ts` |
 | 视频 v0.4.2 阅读返工 | Hero 有真实封面、缺省为空；摘要/主体目录/正文优先，地点候选与完整转写放底部；默认使用 AI corrected Transcript；截图以侧排缩略图嵌入并支持 contain Lightbox；TXT 按钮使用统一视觉 | `video/VIDEO_NOTE_READING_EXPERIENCE_V042_SPEC.md` |
 | 视频 v0.4.3 列表封面 | 主按钮为“添加视频链接”并使用统一 40px/14px Token；Card 展示本地持久真实封面、16:9 cover 和时长徽标；封面失败只显示占位，不阻塞 Note | `video/VIDEO_NOTE_LIST_V043_SPEC.md` |
-| 视频笔记删除 | 列表/详情共用删除；删除 Note/Version/Section/TOC/Content 投影，保留共享 Source/Asset/Cover/Transcript/Place/Evidence；活跃 Job 阻止删除 | `video/VIDEO_NOTE_DELETE_V044_SPEC.md` |
+| 视频笔记删除 | 列表/详情共用删除；删除 Note/Version/Section/TOC/Content 投影，保留共享 Source/Asset/Cover/Transcript/Evidence及共享/人工地点，清理本Note所有版本生成关联和孤立自动地点；活跃Job/lease阻止删除 | `video/VIDEO_NOTE_DELETE_V044_SPEC.md` |
 | 地点与 POI | 保留 `raw_name`，人工改名仅更新 `suggested_name`；高德确认写 `canonical_name`；`REFERENCE_ONLY`/`SKIP` 不进入POI；推荐区域或景区可在严格门禁后以 Destination 代表点上图，政府/游客中心不是 Place 本体；同名区域按行政链隔离，歧义不自动确认，拒绝项不再显示且可撤销 | `product/TRAVEL_FOOD_PIPELINE.md`、`services/video_support.py` |
 | POI并发与代表点 | 人工确认先于意见门禁保护；搜索/确认/拒绝原子revision且所属运行Job拒绝编辑；地域不跨提交/版本，引用和无效证据不传播；满页候选为不完整；代表点绑定来源/目标/证据，冲突先于bbox判定，Provider身份大小写归一且保留删除墓碑 | `benchmark/POI_RESOLUTION_CODE_REVIEW_REPORT.md`、`test_poi_audit_regressions.py` |
 | 全国地图 | 首次中国大陆全境、之后恢复 viewport；按 bbox + zoom 查询且低 zoom 聚合、放大后直出独立 Marker；不得恢复厦门/思明区默认参数、标题、静态伪地图或路线默认城市 | `video/VIDEO_AI_NOTE_PIPELINE.md` 4.16、`MapOverviewPage.tsx` |
@@ -318,6 +319,8 @@
 
 标题时间必须区分 TITLE_METADATA/TITLE_CONTEXT 与转写 SOURCE_FACT，不伪造 Segment；正文时间/限制优先，比较/否定/记录/范围不明不继承。Semantic Claim 先按 subject_entity_ids 绑定地点，无效或多地点歧义不能 Segment 广播；派生窗口重放保持唯一并保护人工窗口。标题/解析版本必须进入 Map 缓存身份，Prompt 分片保持完整系统守卫；应用结果缓存不冒充上游前缀缓存。契约见 [标题时间证据](video/TITLE_TEMPORAL_EVIDENCE.md)。
 
+2026-10-29 经用户确认新增THEME_CONTEXT推荐关系：只对作者明确主题、当前块内有逐字成员证据且通过主体/ContentUnit/连续同Snapshot/主题边界门禁的PRIMARY/SECONDARY推荐对象投影；OPTIONAL不升级推荐，比较/中转/背景/整体否定不继承。来源注册表随请求实际提供并还原短ID，新Note固定Artifact身份；旧NULL不猜绑，GET不回写。暑假/寒假保持假期语义，不命中精确月份；历史客流气候和既有SEMANTIC_CONTEXT仍零推荐加权。局部活动、日期与道路限制独立保留，Place/Destination展示、筛选与v2导出共用有效时间投影。
+
 2026-10-21 JSON恢复：定点错误行列/限长用户数据+原始完整Evidence，同模型有界重答，重验Schema/ID/引文/覆盖；不猜修双引号、不以失败输出作事实、不向无历史接口添加assistant轮次。修复上下文超输入预算不得发出，备用仍用原始请求；取消、时限及总尝试硬门禁保持。审计只记错误位置/哈希和恢复血缘，不落响应全文；新逻辑调用不继承旧修复状态。
 
 地图定位点阅读（2026-10-23）：浮窗先显示地点、适合时节和有据简短理由，路线收起，管理/编辑在详情保存。主地点允许同版本PLACE_GUIDE完整单元投影；跨单元共同季节须按旅行领域10.24的同Note版本/重复地点/共同景观/无冲突门禁，具体日期时刻不广播，历史日期不升级年度最佳，地图筛选和详情使用相同有效窗口。保留旧记录与修订号冲突保护，PC/Mobile验证编辑草稿和保存刷新。
@@ -329,6 +332,11 @@
 2026-10-26 详情阅读不可整体折叠：关联笔记/时间依据/来源默认可读，时间锚点仍能定位；资料/历史维持紧凑辅助层级，历史独立按需加载，管理按钮直接可达。PC要点卡片同行等高等分，Mobile边缘对齐且长内容不裁切；高德入口沿用共享按钮水平留白，业务主操作不得被导航遮挡。
 
 2026-10-26 底部操作/历史：五个状态偏好按钮须在同一底栏且不在正文重复；移动端不得换行/溢出/被导航遮挡。历史默认展开自动加载，保存后刷新，资料与历史都固定160px并内部滚动；长历史样例不得撑高辅助区或写入生产。
+
+
+2026-10-29 封面来源与验收重放：COVER_TEXT独立Stage/Worker产物，默认仅本地OCR、视觉显式启用且绑定图片能力/有效参数；现行LOCAL_ROUTER不接受图片，接口能力未验不能冒称通过。日期与否定/多候选/区域质量检查失败保留待核，不阻塞正文；封面不造Segment、不由画面猜月份。成功证据按图片及内容身份不可变保存，失败15分钟缓存；GET只读，按哈希追溯原图。真实阶段与确定性重放分别计量，旧NULL不猜绑，Note/Section/Mention新版本不得覆盖旧身份。局部未归属限制保留原句待核，不做全城否定；清单关系恢复必须有明确原句/唯一主体与derivation，不按地理关系广播。
+
+2026-10-29 审查回归：小字否定不得被大字推荐覆盖；冬季限制不能降级8月，明确日期与跨年窗口按交集判断；视觉关闭时探测等Profile运维变化不能打穿OCR/Map缓存，未触发视觉且内容相同时下游身份保持。新解析版本与显式强制重算仍允许必要失效，不能用压缩方案删除成员/否定/局部条件证据。
 
 
 ---
@@ -377,7 +385,39 @@
 
 # 当前实施状态
 
-> 状态记录日期：2026-10-28。本文唯一记录当前源码能力与自动验证；生产状态只见带原采样日期的 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
+> 状态记录日期：2026-10-30。本文唯一记录当前源码能力与自动验证；生产状态只见带原采样日期的 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
+
+## 2026-10-30 投递入口、内容分类与关联删除
+
+PC管理导航新增投递入口，Mobile沿用已有入口。内容“旅行”包含TRAVEL与VIDEO_NOTE，增加独立视频笔记分类并修复类型图标；招聘无记录保持真实空态，分类不改Content身份。删除来源证据链/笔记时按Note所有版本及提交清理Mention、生成Insight/时节/区域关联和专属截图事实；孤立自动地点同步删除，共享/人工确认或编辑/个人备注偏好/路线引用保留。保留地点的自动汇总按剩余证据重建，删除事务内不调用模型；同视频不同提交隔离、活跃Job/lease保护、批量缺失原子拒绝。内容/笔记共用Content投影清理，删除通知地图/地点/路线缓存；来源先移除本地缓存再刷新，避免已删来源重复请求404。手机分类不折行，来源长链接不撑宽列。
+
+后端全量822项、前端全量62项与Ruff/ESLint/TypeScript/隔离构建通过；收尾124项目标回归通过（含截图事实及个人补充脱钩保留）。Browser插件未提供，采用Edge/Playwright；隔离API+真实页面1440/390px完成来源与批量笔记实际删除、专属地点清理和共享/人工资料保留；生产同断点导航、真实20条分类、删除确认后取消、无溢出/相关错误通过，未用真实生产记录做删除测试。真实BV1bgKm6YE4m重跑已完成全部步骤，新Note `note_2e53e29519954de5a57d58794a3d5917`，29章/11有效截图，PARTIAL_SUCCESS为22地点待确认。首轮Qoder非法引用被拒绝，仅此Job换已保存GPT-6 Luna、笔记输入4000→8192后复用前序恢复，全局配置未变；仅宁武通过封面8月主题、3条待归纳原文及名称/态度疑点保留，未宣称人工语义验收或自动确认POI。生产新Note同断点正文/封面证据验收通过。发布与提交结果见CURRENT_HANDOFF生产快照。
+
+## 2026-10-29 主题Token优化与真实对照
+
+已实施每包共享context注册表/地点引用、精简LLM语义投影，保留Canonical Artifact与UI完整出处；旧格式兼容、碰撞/越界引用拒绝、短ID还原保持，仅Note阶段升级投影身份。语义待核成功缓存不按15分钟当临时失败重试，临时错误/显式force仍保留重算。真实A/B发现封面月份误称正式标题后补充来源指令和校验，输出去重保留全部必要事实/否定/引用，不硬截条数。
+
+同一已存BV1bgKm6YE4m包、同模型参数：最终基线输入19,891/输出5,843，候选18,182/5,550，总25,734→23,732（-7.8%，输入-8.6%、输出-5.0%）；候选本次更慢，费用/上游缓存UNKNOWN，不作全局收益承诺。完整物化重放引文不合法0；生产Note未切换。后端全量811、收尾目标97与前端全量/Lint/TS/隔离构建通过，未提交/推送。先前问题输出与全部5次调用保留，详见[真实对照](benchmark/NOTE_THEME_TOKEN_OPTIMIZATION_20261029.md)。生产只见交接快照。
+
+## 2026-10-29 时节审查三项修复
+
+小字号否定参与封面质量校验；季节/日期范围交集避免冬季限制降级8月；OCR/视觉身份分离并排除探测等无关Profile元信息，内容语义身份稳定。原三个反例复验通过，新增跨年/日期/开关/缓存回归；后端全量807、前端全量与Lint/TS/隔离构建、Ruff通过。本轮真实模型调用0、历史切换0，必要解析版本正常失效仍保留。Token模块与候选格式离线分析见[报告](benchmark/VIDEO_TEMPORAL_REPAIR_AND_TOKEN_ANALYSIS_20261029.md)：共享注册表+精简投影可使该单包估算输入从11,026降至8,371，当时尚未实施；后续实施与真实实测见上方主题Token优化章节，此处估算不能当费用实测节省。生产现场只见CURRENT_HANDOFF。
+
+## 2026-10-29 封面文字P2与P3真实阶段验收
+
+新增独立COVER_TEXT Worker任务/阶段、macOS Vision原图OCR、默认关闭的按需视觉兜底、命名边界坐标严格转换、质量/否定/多日期/超密文字门禁、有效参数与图片/内容哈希缓存身份、不可变证据/失败15分钟缓存、运行fence/lease与取消。API只入队/读已存证据，按哈希查看原图，前端区分当前Note已用/新提取未应用结果并显示区域；现行LOCAL_ROUTER不接受图像，Ollama实际验证通过，未改LocalAiMux或生产全局路由。
+
+真实BV1bgKm6YE4m原封面与既存转写完成目标阶段验收；另有否定/多月份/空白/模糊4张明确合成封面。原模型有漏关系/截句，已按显式清单与连续原句恢复，保留derivation与原整体态度；漏掉的八月中旬草原限制作为主体待核保留，不生成全城否定。最终对比在同一真实Map事实基础上分别应用正文/OCR/视觉证据；暑假不猜月，独立封面8月不冒充最佳观赏期，抓喜秀龙/古龙山目标门禁通过。不是3条独立全视频E2E或全部语义金标。
+
+模型调用、隔离新Note版本、原始响应、失败/重试/Token与可回退差异已保存，生产旧Note/窗口/POI未切换、未猜绑。后端生产Python3.14全量799项及收尾主题等级21项，前端61项/ESLint/TS/隔离构建、Ruff、1440/390×844隔离真实GET/区域查看/显式视觉选择/排队模拟通过。代码已完成安全发布，生产资源PC/Mobile真实旧数据及隔离真实新版本Browser通过，API/Worker READY、业务表摘要无变化；生产现场见CURRENT_HANDOFF。扩大用户人工金标、其他视频/型号与生产历史应用未完成。详见[真实验收报告](benchmark/VIDEO_COVER_TEMPORAL_ACCEPTANCE_20261029.md)。
+
+## 2026-10-29 视频时间P0/P1（阶段记录；P2/P3已在后续章节实施）
+
+统一时间词、假期HOLIDAY原词/无月份猜测、标题修饰词、单主体Claim完整连续证据、历史修饰词及新旧时间状态归一化。用户确认THEME_CONTEXT后，在既有GROUND_MAP中提供当前激活主题/本块切换的真实来源注册表，短ID可还原，未提供引用拒绝；成员须有同ContentUnit连续逐字证据及主体/意图/主题边界校验。Artifact JSON扩展、Prompt/解析器/缓存身份与Mention语义哈希固定；Note绑定产物，普通GET不写历史、旧NULL不猜绑。
+
+Place/Destination共用有效时间投影；地图主题与月份/季节筛选、浮窗/时间详情、聚合成员、v2导出及NOTE_REDUCE保持来源区分。暑期/寒假/避暑语义不冒充精确月份，背景零推荐加权，局部活动/日期/道路限制与人工窗口保留。生产Python3.14后端全量774项，收尾目标100项（含新增注册表分块边界）、前端60项及ESLint/TS/隔离构建、Ruff通过；云南常驻46项保留。1440/390×844隔离Browser主题筛选/月份组合/来源展开/清除通过，无溢出或相关错误，主题API响应为明确标注的离线模拟，不代表真实提取。
+
+生产1440/390×844同资源哈希Browser通过（主题展示用拦截模拟，真实API的旧数据空结果与清除另验），API/Worker READY，业务表摘要无变化，现场见交接。P2封面OCR/视觉、P3真实模型语义质量与指定历史新版本后置；真实Provider/视频重跑/POI确认0，无迁移、提交或推送。目标旧版本产物引用仍NULL，不声称历史问题已更新；生产现场只见CURRENT_HANDOFF日期快照。[计划及范围](planning/VIDEO_TEMPORAL_CONTEXT_AND_COVER_PLAN.md)。
 
 ## 2026-10-28 视频最小修复与V07固定版本绑定
 
@@ -414,7 +454,7 @@ P0–P3：逐地点时间分析、背景零推荐加权、活动/局部道路限
 ## 当前冻结范围
 
 - 当前分支为 `codex/mac-mini-implementation`；当前交付含地点时节/作者路线/云南回归及POI解析与复核升级；既有标题时间证据、同模型重跑及Z0–Z7能力保持，Z8仍为独立backlog，不修改LocalAiMux。
-- 仓库 Alembic head 为 0026；生产版本由交接现场证明，不由仓库推断。本轮复核无新增 Schema 变更；重新部署和已授权真实模型/视频矩阵另由交接及验收报告证明。
+- 仓库 Alembic head 为 0027；生产版本由交接现场证明，不由仓库推断。本轮复核无新增 Schema 变更；重新部署和已授权真实模型/视频矩阵另由交接及验收报告证明。
 - 唯一支持的后端为 Mac mini，FastAPI、SQLite/WAL 与独立 Worker；单用户通过可信局域网访问。
 - 源码实现、离线验证、生产加载与真实业务验收分别记录。规格中的待实施项、历史工作包和新草案不自动成为已授权任务。
 
@@ -936,7 +976,7 @@ Eligibility：
 
 ## 12.1.2 视频笔记删除
 
-视频笔记列表和详情均通过 `…` 菜单提供“删除笔记”，共用同一删除语义。删除 Note 正文、版本、Section、目录和内容投影，但保留共享 Source、VideoAsset、CoverAsset、Transcript、Place 和 Evidence；活跃生成任务阻止删除。第一版不可恢复，必须确认标题和保留边界。完整契约见 `video/VIDEO_NOTE_DELETE_V044_SPEC.md`。
+视频笔记列表和详情均通过 `…` 菜单提供“删除笔记”，共用同一删除语义。删除 Note 正文、版本、Section、目录和内容投影，保留仍被使用的共享 Source、VideoAsset、CoverAsset、Transcript 和 Evidence；按笔记归属清理生成地点关联，无其他来源和人工记录的自动地点同步删除，共享地点、人工资料与路线保留（2026-10-30用户授权更新）；活跃生成任务阻止删除。第一版不可恢复，必须确认标题和保留边界。完整契约见 `video/VIDEO_NOTE_DELETE_V044_SPEC.md`。
 
 地点归纳笔记的入口至少包括视频笔记、地点列表和地图 Marker，所有入口必须进入同一个 Place Detail，不建立多套地点详情。完整流程、BiliNote 复用边界、DeepSeek 调用、异常回退、数据模型和 UI 决策门见 `video/VIDEO_AI_NOTE_PIPELINE.md`。
 
@@ -1024,6 +1064,8 @@ Eligibility：
 - 通用 Agent 系统。
 
 这些能力记录于 planning/FUTURE_ROADMAP.md。
+
+2026-10-30 内容分类：PC管理导航新增“投递”直达 `/capture`，Mobile沿用原投递入口；内容“旅行”包含TRAVEL与VIDEO_NOTE，另提供独立“视频笔记”分类且保留原Content身份。没有招聘记录时如实显示空态。
 
 
 ---
@@ -3493,6 +3535,11 @@ GET仅按AINoteVersion.grounded_map_artifact_id读取生成该版本时的既存
 历史审计只有只读dry_run，无apply入口；真实回填需另行审批、版本化与回退准备。travel_export_v2是增量ZIP接口，地点与路线分文件，保留时间用途/活动、事实证据/来源、个人备注/清单，不含虚构导航；旧JSON/CSV/GeoJSON保持。云南常驻P0_CRITICAL测试与范围见testing/GOLDEN_SAMPLES.md；模拟标注不是模型质量或真实POI金标。
 
 
+### 10.27 作者推荐主题与统一时间投影（2026-10-29）
+
+经确认新增THEME_CONTEXT，具体证据、成员与版本门禁见[标题时间与推荐主题](video/TITLE_TEMPORAL_EVIDENCE.md#作者推荐主题2026-10-29用户确认)。主题关联与正文SOURCE_FACT、标题TITLE_CONTEXT、共同景观SEMANTIC_CONTEXT分别保留。背景/历史统计仍不产生推荐月份；假期保留原词与HOLIDAY精度。地点/区域使用同一只读有效窗口，暑期/寒假/避暑语义筛选与精确月份筛选分离；局部条件、人工信息及来源冲突不覆盖。旧Note缺固定产物保持未知，代码发布不授权历史重算、POI确认或真实模型调用。
+
+
 ---
 
 # FILE: video/VIDEO_AI_NOTE_PIPELINE.md
@@ -4167,7 +4214,7 @@ FFmpeg 按计划时间码抽帧，并进行确定性质量过滤：
 
 ## 标题时间来源
 
-平台正式 `VideoAsset.title` 可作为 `TITLE_METADATA` 时间上下文，分享文案不进入此链路。解析版本 `title-temporal-v1` 保留原标题精确文本、月份/季节/旬/时段、period_type、intent、scope、scope_terms 和 confidence；标题不是 Transcript，不创建 Segment 或转写引文。
+平台正式 `VideoAsset.title` 可作为 `TITLE_METADATA` 时间上下文，分享文案不进入此链路。解析版本 `title-temporal-v2` 保留原标题精确文本、月份/季节/旬/时段、period_type、intent、scope、scope_terms 和 confidence；标题不是 Transcript，不创建 Segment 或转写引文。v2识别暑假/寒假/暑期并保留假期原词，不猜月份；“月份”“宝藏”“到底”等修饰词不作范围，实际地域与观赏主题门禁仍保留。
 
 只有明确推荐、PRIMARY/SECONDARY 且 RESOLVE/AREA_RESOLVE 的已有转写地点可继承。行程/记录、含混多时间子句、未知或否定推荐、限制标题、比较/背景、用户拒绝均不产生标题推荐窗口。特定地点标题须命中该地点名；主题标题的残余范围词须由地点证据或省市提示匹配，红叶/赏花等主题须有该地点的相应证据。正文月份、季节、时段或限制优先；冲突/正文优先原因保存在 `PlaceMention.metadata_json.temporal_context` 的 status 与 conflict_recorded，来源 ID 另存 temporal_source_id。保守拒绝可能降低召回率，不能凭常识扩展范围。
 
@@ -4201,6 +4248,45 @@ request_metrics 增加 metrics_version、prompt_fingerprint、static_prompt_fing
 ## 地图展示补充（2026-10-20）
 
 地图以统一时间判断过滤无时间语义的历史派生记录，仅改变读取投影，不改历史Evidence。明确日期范围从source_text保真展示；来源详情对不可用旧窗口显示待核实。新提取允许读取同一Mention已绑定且相邻的Segment拼接句子，保存全部原Segment ID与连续引文；不读取其他地点片段。NO_TIME_MENTIONED仅在完整转写与正式标题均无时间语义时记录，历史无窗口不自动补造此状态。无Schema迁移，未触发真实模型/视频重跑。
+
+
+## 正文时间补证据（2026-10-29）
+
+map-timing-v4统一候选识别与窗口验证的时间词；假期保持HOLIDAY精度与原词，不能自动命中月份筛选。新Mention用HAS_LOCAL_TIME/NO_LOCAL_TIME描述本地提取结果，NO_LOCAL_TIME不等于视频未提时间或全年适宜；旧状态和旧记录不回写。单主体Claim可读取独立于Mention地名片段的完整连续原句，须同Snapshot、输入转写顺序连续且逐字匹配；保存完整原Segment引用，不向Mention无差别扩展。相邻已归属片段拼句保留“去年”等历史修饰词，历史年份与客流高峰保持INFORMATIONAL。GROUND_MAP身份包含map-timing-v4和travel-semantics-v2；新增漂流活动语义。新增主题关系见下节。
+
+
+## 作者推荐主题（2026-10-29用户确认）
+
+GROUND_MAP semantic-map-v7-temporal-context在既有调用中读取连续正文主题候选；每包只携带当前激活的前置主题及本包主题切换，注册表中实际Segment使用既有短ID编译器，未提供的主题引用拒绝。实体temporal_applications必须有本ContentUnit的逐字成员依据，服务端复验主次角色、推荐意图、命名主体或唯一锚点、连续顺序、同Snapshot和主题切换边界。OPTIONAL保持可选，比较/背景/中转/整体否定不继承；不按共享Segment或地理包含广播。
+
+Artifact.semantic_options_json保存版本化temporal_contexts/temporal_applications；新Mention保存经复验的关联和Artifact语义哈希。读取只使用Note版本的固定grounded_map_artifact_id并复核视频/转写/哈希与原句，旧NULL不猜绑。新增THEME_CONTEXT为只读投影，source_id/主题Segment及原句、成员原句、Note/version均可追溯；不物化为地点正文事实，不写入历史窗口。正文限制不会被主题覆盖；同用途、重叠时间的局部限制将主题降为条件性参考，观赏/活动限制不泛化为全地点关闭。
+
+Place与Destination共用effective_windows；区域的本地时间也通过固定产物核验，区域浮窗/时间详情API、语义/月份季节筛选、聚合成员及v2导出复用结果。假期主题匹配暑期/寒假语义，避暑目的不生成月份；主题日历字段只取推荐时间原词，不从完整溯源背景中的日期提取。NOTE_REDUCE接收已验证关联并注明主题来源，不再次提取窗口结构。P2封面来源与P3真实模型/历史更新仍后置。
+
+
+## 封面文字与真实案例重放（2026-10-29 P2/P3）
+
+默认在Worker/CLI对受控本地原封面做macOS Vision OCR；API只入队或读已存证据。COVER_TEXT是独立视觉文字Stage，不复用截图身份，不从山水/衣着推断日期。`video:cover-text`支持enabled与visual_fallback_enabled，默认本地OCR开启、真实视觉兜底关闭；单次入队的allow_visual仍需用户选择。视觉必须显式配置支持图片的Profile，LOCAL_ROUTER现行契约拒绝图片，不能借目录声明绕过；可用Ollama图像Profile已有目标实测。
+
+识别结果保留图片SHA256、原图ID、引擎/Swift脚本/预处理版本、逐行原文/置信度/区域、方法/用量/耗时与失败状态。视觉采用左上原点的命名四边坐标，程序严格转换为统一的左下原点bbox，不猜坐标制；低可信、多月份、超密文字、错误坐标或接口失败保留待核/回退，不阻塞正文。默认视觉关闭思考、单次尝试与输出/时限有界，OCR排队与子进程检查取消/截止时间，Worker不重置运行fence且终态释放lease。
+
+提取身份包括封面字节、引擎/预处理/解析器、Profile与有效参数；成功/失败的语义内容也进入下游身份。成功证据保存不可变内容记录，失败缓存15分钟，JobStepArtifact独立保存；GET不重新OCR、调用模型或绑定旧结果。新封面、策略或可信内容变化生成不同结果身份，保留旧版记录。图片证据GET按所属视频与哈希核对，不能把旧文字指向已更换的新封面。
+
+COVER_TEXT上下文仍须经过ContentUnit成员、主体与局部例外校验才成为THEME_CONTEXT投影；DTO同时标明来源COVER_TEXT并提供封面/区域追溯，不造Segment。模型遗漏的明确清单成员可按连续原句与唯一锚点恢复，保留derivation；原整体态度NEUTRAL不因此改成整体推荐。遗漏的局部时节否定以UNRESOLVED_LOCAL_SUBJECT保留原句待核，不升级为城市窗口。
+
+`benchmark_cover_temporal.py`只在指定隔离库执行真实阶段验收或对显式指定的新Map做确定性重放；旧NULL不能猜绑。`temporal_replay.py`复核同视频/转写/内容哈希与封面归属，新建Artifact；投影更新可追加Note版本并复用相同事实源的已存模型正文，Section/Mention均换新身份，原版本保留，不能伪称新增模型输出。生产历史切换仍须明确授权并建立事务备份/回退材料。
+
+接口：POST `/api/video-notes/{note_id}/cover-text?allow_visual=false`只排Worker任务并去重活跃任务；GET同路径分别返回当前Note已用证据和独立最新提取，不自动应用。GET `/api/video-covers/{cover_id}/evidence-image?content_hash=...`读取绑定哈希的原图。前端显示文字区域、当前/未应用新结果、适用地点和未归属的正文限制；模型来源与原句分开。
+
+
+### 审查修复补充（2026-10-29）
+
+小字号否定/限制不按字体过滤，无法明确归属保持NEEDS_REVIEW；冲突按实际日历交集而不是仅凭month空值判定，跨季节/日期范围不互相取消，假期不猜月份。OCR键排除未使用的视觉策略，视觉键只纳入推理相关字段，探测/显示名等运维信息不影响结果；下游内容身份不因未触发视觉的配置变化失效。force_regenerate保留显式重算，版本升级仍产生一次必要失效。Token共享表/精简投影尚属方案，见修复与Token分析。
+
+
+### Note模型语义投影（2026-10-29）
+
+每包Evidence Index可为{version,contexts,places}：同一context只定义一次，地点保留成员原句/Segment、relation与exclusions并引用context_id；机器追溯/图片区域保留在Artifact/UI。编译器接受旧列表与新注册表，未知/冲突引用拒绝。原始数据不因投影缩短而改写，当前主题和来源所需原句、用途、范围均保留。COVER_TEXT只称封面文字，不称正式标题/字幕；确定的月份误归因由校验拒绝。成功识别但语义待核按内容缓存，临时错误才走短期失败TTL。
 
 
 ---
@@ -5380,7 +5466,7 @@ Replay Options：
 
 > 实施状态：列表/详情菜单、后端删除边界与保留式删除测试已完成。
 
-> 状态：规格已冻结，待实施
+> 状态：已实施；2026-10-30 按用户要求更新关联地点清理边界
 > 更新日期：2026-08-24
 > 标注设计：`design/ui/v0.4.4/pipeline-step-replay-and-delete-pc-annotated.png`
 
@@ -5410,11 +5496,11 @@ Replay Options：
 
 - Source 与原始 URL；
 - VideoAsset 与共享 CoverAsset；
-- Place、Route、Marker 和地点笔记；
+- 仍有其他来源或人工记录的共享 Place、Route、Marker 和个人地点笔记；
 - 仍被其他内容或 Note 引用的共享 Source/资产；
-- Route、Marker 和地点笔记。
+- 独立人工路线、Marker 和个人地点笔记。
 
-v0.4.6 起，最后一个内容/Note 引用消失且无活跃 Job 时，同一事务删除孤立 Source，并由外键级联清理其 Snapshot、Segment、VideoAsset、Transcript、Cover 与截图；Place 和路线不随 Source 删除。
+v0.4.6 起，最后一个内容/Note 引用消失且无活跃 Job 时，同一事务删除孤立 Source，并由外键级联清理其 Snapshot、Segment、VideoAsset、Transcript、Cover 与截图；2026-10-30 起，删除笔记前按所有版本/提交归属清理 Mention 及其生成的 Insight、时间窗口和区域关联；Source 清理同时移除该来源专属投影。没有其他来源、内容或人工资料的自动地点同步删除；人工确认/编辑、个人备注/偏好、路线引用及共享地点保留，共享地点汇总按剩余证据刷新。所有操作位于同一事务，不新增模型调用，不为自动清理创建阻止再次导入的地点墓碑。
 
 ---
 
@@ -5443,7 +5529,7 @@ DELETE /api/video-notes/{note_id}
 {
   "status": "DELETED",
   "note_id": "note_...",
-  "preserved": ["places"],
+  "preserved": ["shared_or_personal_places"],
   "source_deleted": true
 }
 ```
@@ -5458,7 +5544,7 @@ DELETE /api/video-notes/{note_id}
 
 正文示例：
 
-> 将删除《中秋国庆人少景美又便宜的地方》及其内容投影。若来源已无其他内容或活跃任务，来源视频、完整转写和审计记录会一并清理；地点与路线保留。此操作目前无法撤销。
+> 将删除《中秋国庆人少景美又便宜的地方》及其内容投影。若来源已无其他内容或活跃任务，来源视频、完整转写和审计记录会一并清理；无其他来源和人工记录的自动地点同步删除；共享地点、人工资料与路线保留。此操作目前无法撤销。
 
 按钮：`取消` / `确认删除`。确认按钮使用 destructive variant；默认焦点在取消。
 
@@ -5470,7 +5556,7 @@ DELETE /api/video-notes/{note_id}
 2. 删除前显示标题、保留边界和不可恢复提示；
 3. 活跃 Job 阻止删除；
 4. 删除 Note 后列表立即移除，旧 URL 显示已删除；
-5. Source、VideoAsset、Transcript、Place、Evidence 仍存在；
+5. 共享 Source、VideoAsset、Transcript 仍存在；专属地点与其生成关联同步删除，共享/人工地点保留；
 6. Note 专属版本、Section、TOC 和无共享引用截图被清理；
 7. 共享 Cover/Screenshot 不被删除；
 8. 审计事件不包含 Transcript 正文或 Secret；
@@ -5583,7 +5669,7 @@ Worker 启动时及最多每 24 小时执行幂等清理：正文、Segment 文�
 
 ### 2.2 视频笔记删除（已实施，v0.4.6 更新）
 
-视频笔记列表和详情均在 `…` 菜单提供“删除笔记”，共用 `DELETE /api/video-notes/{note_id}`。删除 AINote、版本、Section、TOC 和 Content 投影；若 Source 已无其他内容或活跃 Job，再清理 Source、VideoAsset、CoverAsset、Transcript、截图与 Segment Evidence。Place、路线及独立地点信息保留。活跃生成 Job 阻止删除，第一版不提供回收站。
+视频笔记列表和详情均在 `…` 菜单提供“删除笔记”，共用 `DELETE /api/video-notes/{note_id}`。删除 AINote、版本、Section、TOC 和 Content 投影；若 Source 已无其他内容或活跃 Job，再清理 Source、VideoAsset、CoverAsset、Transcript、截图与 Segment Evidence。按笔记/来源归属清理生成关联；无其他来源和人工记录的自动地点同步删除，共享地点、路线及独立人工资料保留（2026-10-30用户授权更新）。活跃生成 Job 阻止删除，第一版不提供回收站。
 
 ## 3. 页面与响应式
 
@@ -5884,7 +5970,7 @@ API 每 30 秒写入 SQLite 的同一快照仍是局域网与本机的唯一数�
 
 ## 生产门禁（尚未由本文件宣称完成）
 
-生产迁移前确认无 `QUEUED/RUNNING` Job 或 lease，备份 SQLite，并执行 `PRAGMA integrity_check`。仓库 migration head 为 `0025`；生产实际版本须在操作时读取，不由本文推断。迁移或重启只通过 `deploy/macos/manage.py`，不得以临时开发服务替代 LaunchAgent。
+生产迁移前确认无 `QUEUED/RUNNING` Job 或 lease，备份 SQLite，并执行 `PRAGMA integrity_check`。仓库迁移与生产实际版本须在操作时分别读取；本契约页不维护现场版本号。迁移或重启只通过 `deploy/macos/manage.py`，不得以临时开发服务替代 LaunchAgent。
 
 已有一条真实视频样本完成字幕、笔记、地点提取和截图，并因 POI 待人工确认以 `PARTIAL_SUCCESS` 结束；该样本不覆盖本门禁。真实 E2E 仍须分别留存：本地 Ollama text/JSON/structured output、一个已配置远程 Provider、LOCAL_ONLY/REMOTE_ONLY/LOCAL_FIRST/REMOTE_FIRST/AUTO 路由、跨进程 ASR 与模型测试等待、缓存与 force-regenerate（含 fallback 后再命中）、低预算拦截、AI 阶段取消与 Replay、一个平台字幕视频及一个 ASR 视频。未配置的 Key、Cookie、模型或可访问样本是明确的外部条件，不能以 Mock 或空记录替代。
 
@@ -6219,7 +6305,7 @@ CMS 可配置。
 3. 转写参数为字符预算、最多 Segment、单次超时，默认 `12000 / 128 / 180`，范围 `2000–24000 / 16–256 / 30–300`。
 4. 三个 Prompt 阶段各完整显示 6 条只读核心契约；补充文本仍只有语气、篇幅、受众和关注重点权限。
 5. 来源详情返回删除可用性及内容、视频笔记、活跃任务三个阻塞计数；有任一阻塞时手动删除返回 409。
-6. 删除最后一个内容或视频笔记后自动删除孤立 Source、Snapshot、Segment 和 Source 专属 VideoAsset/Transcript；Place、路线与独立地点信息保留。
+6. 删除最后一个内容或视频笔记后自动删除孤立 Source、Snapshot、Segment 和 Source 专属 VideoAsset/Transcript；按笔记/来源归属清理生成关联；无其他来源和人工记录的自动地点同步删除，共享地点、路线与独立人工资料保留（2026-10-30用户授权更新）。
 7. 所有保存、删除与自动清理均刷新关联页面缓存并写入脱敏审计；不触发真实模型或任务重跑。
 
 ## 验收记录
@@ -8604,6 +8690,11 @@ JSON格式或结构错误可在同模型上限内重答。保持原始系统指�
 `POST /api/ai/stage-policies/limits-preview`接受未保存Stage草稿，只读取当前配置并调用与执行共用的`ai/stage_limits.py`；不创建Job、不保存Setting、不读取或返回明文Secret、不调用Provider。返回逐候选单次秒数/来源、计入阶段和Job总时限的初始上限，以及校对批次回退值。预览只描述新任务配置与候选，不冒充AUTO最终选路或正在运行任务的实时剩余值；真实调用审计保留`timeout_seconds/timeout_source`。
 
 回归必须覆盖：阶段660覆盖模型300、留空继承及旧校对回退；旧Job不变与明确重跑升级；批次Stage优先与旧值回退；预览零业务写/零Provider；兼容路径deadline传递；PC/Mobile修改/保存/刷新与长说明布局。生产验收只读，配置保存使用隔离库；离线通过不替代真实模型成功率或上游限时验证。
+
+
+## 封面文字Stage（2026-10-29）
+
+COVER_TEXT的Capability为SCREENSHOT_UNDERSTANDING，独立于VISION_FACT，显式图像Profile与接口能力门禁保持。默认温度0、关闭思考、单次尝试、输出2048、请求180秒/阶段240秒；仍受Job剩余预算、截止时间和取消约束。`video:cover-text`默认enabled=true、visual_fallback_enabled=false；单次提取任务allow_visual选择不修改全局开关。普通OCR无需模型，视觉仅在启用且识别困难时触发。LOCAL_ROUTER目前不能发送图片，不以目录image标签当已支持证据；真实成本/失败边界见封面验收报告。
 
 
 ---
@@ -11440,3 +11531,8 @@ Worker 进程使用独立于同步 Job 执行循环的周期性心跳报告存�
 ```
 
 检查29条硬性断言、71条已标类型候选的原词保全、12个路线对象、跨年/日期精度、禁渔/道路/局部否定、版本/清单隔离、旧导出与dry_run。46项离线测试仅证明规则及模拟提取边界。报告分别列出typed_name_retention与model_extraction；前者TP/FP/FN及1.0指标不表示真实模型召回或POI正确率。后者需显式真实调用取证，不能凭simulation-v1复制预期冒称金标。完整记录见[验收报告](benchmark/YUNNAN_REGRESSION_ACCEPTANCE_20261028.md)。
+
+
+## 封面与时节目标样例（2026-10-29）
+
+BV1bgKm6YE4m：正文暑假主题不猜月份，封面“8月份宝藏目的地推荐！”独立来源；抓喜秀龙有清单成员原句，古龙山保留夏季漂流，八月中旬草原限制不广播给阿尔山。原图SHA256为0e8ee5761985bfb15865f476f7a85ae667ce0fae0611cc83e43b26b78e9b772f，原始输入/响应/隔离库位于data/benchmarks/cover-temporal-20261029。另有明确标注的否定、多月份、空白、模糊4张合成封面用于源守卫，不冒充真实视频。标签依据冻结计划及模型调用前的原图/转写复核，未把输出当金标；更广泛用户人工金标尚待评审。结果见[报告](benchmark/VIDEO_COVER_TEMPORAL_ACCEPTANCE_20261029.md)，普通测试只运行fixture，不调用真实Provider。

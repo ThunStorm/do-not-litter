@@ -21,6 +21,9 @@ ALL_YEAR = re.compile(r"全年|一年四季|四季皆宜|四季都(?:适合|可�
 TEMPORAL_SCOPE = re.compile(
     r"\d{1,2}月|[一二三四五六七八九十]{1,3}月|春[季天日]|夏[季天日]|秋[季天日]|冬[季天日]|上旬|中旬|下旬|清晨|日出|上午|中午|下午|日落|黄昏|傍晚|夜[间晚]|全年|四季|观赏期|游览时间|旅行季节|丰水|枯水|汛期|休渔|禁渔|禁捕|封山|闭园|停航|封航|花[期季]|红叶[期季]|赏枫|雪季|雪后|下雪|晴天|早晨|结冰|融冰|候鸟|迁徙期|雨季|旱季|旺季|淡季"
 )
+# Keep extraction and validation on the same vocabulary. Holidays retain their words,
+# rather than being assigned invented calendar months.
+TEMPORAL_SCOPE = re.compile(TEMPORAL_SCOPE.pattern + r"|暑假|寒假|暑期|寒暑假|盛夏|初春|初夏|深秋|隆冬")
 
 
 def has_temporal_scope(text: str) -> bool:
@@ -29,9 +32,12 @@ def has_temporal_scope(text: str) -> bool:
 
 def valid_window(item: Any) -> bool:
     # Human windows may intentionally be qualitative. Derived windows need temporal evidence.
-    return item.provenance not in {"SOURCE_FACT", "TITLE_CONTEXT", "SEMANTIC_CONTEXT"} or has_temporal_scope(
-        item.source_text or ""
-    )
+    return item.provenance not in {
+        "SOURCE_FACT",
+        "TITLE_CONTEXT",
+        "SEMANTIC_CONTEXT",
+        "THEME_CONTEXT",
+    } or has_temporal_scope(item.source_text or "")
 
 
 def matches_window(
@@ -44,6 +50,14 @@ def matches_window(
 ) -> bool:
     if not valid_window(item):
         return False
+    if item.provenance in {"SOURCE_FACT", "SEMANTIC_CONTEXT"} and re.search(
+        r"去年|前年|20\d{2}年|游客最多|客流|气温统计|出行高峰", item.source_text or ""
+    ):
+        return False
+    if item.provenance == "THEME_CONTEXT":
+        raw = getattr(item, "theme_context", {}).get("context", {}).get("raw_time_text", "")
+        if re.search(r"暑假|寒假|暑期", raw) and any((month, season, month_segment, day_time_slot)):
+            return False
     if month is not None:
         if item.month is not None and item.month != month:
             return False
@@ -76,6 +90,24 @@ def _number(value: str) -> int:
 
 
 def window_label(item: Any) -> str:
+    if getattr(item, "provenance", None) == "THEME_CONTEXT":
+        from types import SimpleNamespace
+
+        raw = getattr(item, "theme_context", {}).get("context", {}).get("raw_time_text", "")
+        return window_label(
+            SimpleNamespace(
+                source_text=raw,
+                month=item.month,
+                season=item.season,
+                month_segment=item.month_segment,
+                day_time_slot=item.day_time_slot,
+                period_type=item.period_type,
+                provenance="SOURCE_FACT",
+            )
+        )
+    holiday = re.search(r"暑假|寒假|暑期", item.source_text or "")
+    if holiday and not item.month and not item.season:
+        return holiday.group(0)
     relative = re.search(
         r"雪后(?:的)?[一二三四五六七八九十\d]+(?:到|至|–|-)?[一二三四五六七八九十\d]*天",
         item.source_text or "",

@@ -94,7 +94,7 @@ from zhijian.services.title_temporal import (
 )
 from zhijian.services.transcript_retention import retention_deadline
 from zhijian.services.travel_semantics import classify_entity, scoped_travel_facts, temporal_semantics
-from zhijian.services.travel_timing import has_temporal_scope
+from zhijian.services.travel_timing import TEMPORAL_SCOPE, has_temporal_scope
 from zhijian.services.video_note_search import sync_video_note_search_index
 
 TRANSCRIPT_CORRECTION_TIMEOUT_SECONDS = 180.0
@@ -162,6 +162,7 @@ ROLE_STAGE = {
     "grounded_map_escalation": "GROUND_MAP",
     "travel_place_extraction": "EXTRACT_TRAVEL_FACTS",
     "visual_fact": "VISION_FACT",
+    "cover_text": "COVER_TEXT",
 }
 NOTE_RENDER_PROFILES = {
     "CURRENT_DEFAULT": {
@@ -293,6 +294,7 @@ TEMPORAL_CUE = re.compile(
     r"候鸟季|迁徙期|雨季|旱季|旺季|淡季|雪后|下雪|冬天|冬季|晴天|早晨|\d{1,2}月|[一二三四五六七八九十]{1,3}月"
 )
 MONTH_TOKEN = re.compile(r"(?<![0-9])(?:(1[0-2]|0?[1-9])|([一二三四五六七八九十]{1,3}))月")
+TEMPORAL_CUE = re.compile(TEMPORAL_CUE.pattern + "|" + TEMPORAL_SCOPE.pattern)
 
 
 def _chinese_month(value: str) -> int | None:
@@ -364,13 +366,15 @@ def _period_type_from_text(value: str) -> str:
 
 
 def _suitability_from_text(value: str, period_type: str) -> str:
+    if re.search(r"去年|前年|20\d{2}年|游客最多|客流|气温统计|出行高峰", value):
+        return "INFORMATIONAL"
     if period_type in {"FISHING_CLOSURE", "SEASONAL_CLOSURE"} and re.search(
         r"休渔|禁渔|禁捕|封山|闭园|停航|封航", value
     ):
         return "RESTRICTED"
     if re.search(r"避开|不推荐|不建议|不适合|不要|谨慎", value):
         return "AVOID"
-    if re.search(r"最佳|最好|最美|最漂亮|最适合|最合适|推荐|适宜|值得", value):
+    if re.search(r"最佳|最好|最美|最漂亮|最适合|最合适|推荐|适宜|值得|比较好的体验", value):
         return "RECOMMENDED"
     return "INFORMATIONAL"
 
@@ -378,7 +382,7 @@ def _suitability_from_text(value: str, period_type: str) -> str:
 def _calendar_fields_from_text(value: str) -> dict[str, object]:
     seasons = (
         (r"春季|春天|春日", "SPRING"),
-        (r"夏季|夏天|夏日", "SUMMER"),
+        (r"夏季|夏天|夏日|盛夏|初夏", "SUMMER"),
         (r"秋季|秋天|秋日", "AUTUMN"),
         (r"冬季|冬天|冬日", "WINTER"),
     )
@@ -440,6 +444,10 @@ def _visit_windows_from_candidate(
                 int(value) for value in raw_months if str(value).isdigit() and 1 <= int(value) <= 12
             )
         )
+        if re.search(r"去年|前年|20\d{2}年|游客最多|客流|气温统计|出行高峰", source_text):
+            suitability = "INFORMATIONAL"
+        if re.search(r"暑假|寒假|暑期", source_text) and not _months_in_text(source_text):
+            months, season = [], None
         for month in months or [None]:
             candidate = {
                 "period_type": period_type,
@@ -453,7 +461,8 @@ def _visit_windows_from_candidate(
             }
             key = tuple(candidate[field] for field in candidate if field != "segment_ids")
             candidate["semantics"] = temporal_semantics(
-                source_text, scope="AREA" if item.get("entity_type") == "AREA" else "PLACE"
+                source_text, scope="AREA" if item.get("entity_type") == "AREA" else "PLACE",
+                period_type=period_type
             )
             if key not in seen:
                 seen.add(key)
@@ -467,17 +476,21 @@ def _visit_windows_from_candidate(
 
     covered_sources = {_normalized_evidence_text(window["source_text"]) for window in windows}
     ordered_ids = list(segment_texts)
+    consumed_ids: set[str] = set()
     for segment_id in segment_ids:
+        if segment_id in consumed_ids:
+            continue
         text = segment_texts.get(segment_id, "")
         evidence_ids = [segment_id]
         # Read a split sentence only across adjacent segments already owned by this mention.
         position = ordered_ids.index(segment_id) if segment_id in ordered_ids else -1
-        if position >= 0 and TEMPORAL_CUE.search(text) and not re.search(r"[。！？!?；;]$", text):
+        if position >= 0 and not re.search(r"[。！？!?；;]$", text):
             for following in ordered_ids[position + 1 : position + 3]:
                 if following not in segment_ids:
                     break
                 text += segment_texts[following]
                 evidence_ids.append(following)
+                consumed_ids.add(following)
                 if re.search(r"[。！？!?；;]", segment_texts[following]):
                     break
         if not TEMPORAL_CUE.search(text):
@@ -1547,6 +1560,7 @@ def _place_evidence_index(mentions: list[PlaceMention]) -> list[dict[str, object
         {
             "mention_id": mention.id,
             "recommendation_summary": mention_opinion(mention),
+            "theme_contexts": (mention.metadata_json or {}).get("temporal_applications", []),
             "name": mention.name,
             "place_type": mention.place_type,
             "segment_ids": mention.segment_ids_json,
@@ -2462,7 +2476,9 @@ def generate_note(
             if "title_temporal_context" in entry
         )
     )
-    place_evidence_json = json.dumps(place_evidence, ensure_ascii=False)
+    from zhijian.ai.note_evidence import project_note_evidence, validate_source_attribution
+
+    place_evidence_json = json.dumps(project_note_evidence(place_evidence), ensure_ascii=False)
     raw_sections: list[dict[str, object]] = []
     semantic_claims = list(grounded_map.claims_json or []) if grounded_map else []
     claim_facts = [
@@ -2613,7 +2629,7 @@ def generate_note(
                 )
             logical_attempts += 1
             pack_evidence_json = json.dumps(
-                _pack_place_evidence(place_evidence, pack),
+                project_note_evidence(_pack_place_evidence(place_evidence, pack)),
                 ensure_ascii=False,
             )
             messages = [
@@ -2637,6 +2653,11 @@ def generate_note(
                     job=job,
                     stage="NOTE_REDUCE",
                     capability="GLOBAL_SYNTHESIS",
+                    result_validator=lambda result: validate_source_attribution(
+                        parse_model_json(result.content),
+                        _pack_place_evidence(place_evidence, pack),
+                        asset.title,
+                    ),
                     provider=provider,
                     provider_name=provider_name,
                     model=model,
@@ -2902,7 +2923,7 @@ def generate_note(
         map_facts_json=map_facts,
         model_provider=response.provider,
         model_name=response.model,
-        prompt_version=f"video-note-v3-place+{prompt_supplement_hash(db, 'video_note_summary', job)[:8]}",
+        prompt_version=f"video-note-v4-theme+{prompt_supplement_hash(db, 'video_note_summary', job)[:8]}",
         render_profile_id=profile_id,
         render_profile_version=str(render_profile["version"]),
         transcript_version=transcript.version,
@@ -3025,6 +3046,7 @@ def extract_place_mentions(
     candidates: list[dict[str, Any]] | None = None,
     claims: list[dict[str, Any]] | None = None,
     content_units: list[dict[str, Any]] | None = None,
+    cover_contexts: list[dict[str, Any]] | None = None,
 ) -> list[PlaceMention]:
     if candidates is None:  # Explicit legacy / force re-extract path only.
         policy = _resolved_stage_policy(db, "EXTRACT_TRAVEL_FACTS", job)
@@ -3087,6 +3109,9 @@ def extract_place_mentions(
             )
         )
     }
+    from zhijian.services.temporal_context import candidate_contexts, validate_applications
+
+    theme_sources = candidate_contexts(segments) + (cover_contexts or [])
     created: list[PlaceMention] = []
     for item in _merge_place_candidates(candidates):
         if str(item.get("raw_name") or item.get("name") or "").strip() in {
@@ -3216,12 +3241,29 @@ def extract_place_mentions(
             if claim.get("subject_entity_ids") != [item.get("entity_id")]:
                 continue
             quote = str(claim.get("supporting_quote") or "")
-            claim_ids = [value for value in claim.get("segment_ids", []) if value in ids]
+            claim_ids = claim.get("segment_ids", [])
+            if not claim_ids or any(value not in valid_ids for value in claim_ids):
+                continue
+            positions = [list(segment_texts).index(value) for value in claim_ids]
+            if positions != list(range(positions[0], positions[0] + len(positions))):
+                continue
+            snapshots = {segment.snapshot_id for segment in segments if segment.id in claim_ids}
+            if len(snapshots) != 1:
+                continue
             evidence = "".join(segment_texts.get(value, "") for value in claim_ids)
-            if quote and _normalized_evidence_text(quote) in _normalized_evidence_text(evidence):
-                visit_windows.extend(
-                    _visit_windows_from_candidate({}, claim_ids, {value: quote for value in claim_ids})
-                )
+            if quote and quote in evidence:
+                # Recover only a same-subject temporal tail already inside the verified Claim interval.
+                tail = evidence[evidence.index(quote) + len(quote):]
+                tail = re.split(r"同时|接下来|另外|其次|随后|[。！？!?；;]", tail, maxsplit=1)[0]
+                if (len(tail) <= 120 and re.match(
+                    r"^[，, ]*(?:春[季天]|夏[季天]|秋[季天]|冬[季天]|暑假|寒假|"
+                    r"[一二三四五六七八九十0-9]+月)(?:去|来|前往|体验)", tail
+                ) and not any(name and name in tail for name in item.get("_peer_names", []))):
+                    quote += tail
+                claim_windows = _visit_windows_from_candidate({}, [claim_ids[0]], {claim_ids[0]: quote})
+                for window in claim_windows:
+                    window["segment_ids"] = list(claim_ids)
+                visit_windows.extend(claim_windows)
         mention = PlaceMention(
             video_asset_id=asset.id,
             submission_job_id=job.id if job else None,
@@ -3251,14 +3293,18 @@ def extract_place_mentions(
             ),
             metadata_json={
                 "travel_identity": identity,
+                "temporal_applications": validate_applications(
+                    item, content_units or [], theme_sources, segments
+                ),
+                "temporal_artifact_hash": item.get("temporal_artifact_hash"),
                 "travel_facts": travel_facts,
                 "recommendation_evidence": recommendation_evidence,
                 "insights": insights,
                 "insight_rejections": item.get("insight_rejections", []),
                 "visit_windows": visit_windows,
                 "temporal_analysis": {
-                    "version": "map-timing-v3",
-                    "status": "ANALYZED" if visit_windows else "NO_TIME_MENTIONED",
+                    "version": "map-timing-v4",
+                    "status": "HAS_LOCAL_TIME" if visit_windows else "NO_LOCAL_TIME",
                 },
                 "semantic": {
                     "entity_id": str(item.get("entity_id") or "")[:96],
@@ -3292,6 +3338,10 @@ def extract_place_mentions(
                 parse_title_temporal_context(asset.title), mention, body, visit_windows
             ),
         }
+        if mention.metadata_json["temporal_applications"] and not visit_windows:
+            mention.metadata_json["temporal_analysis"]["status"] = "HAS_THEME_CONTEXT"
+        elif item.get("temporal_applications") and not visit_windows:
+            mention.metadata_json["temporal_analysis"]["status"] = "TIME_UNRESOLVED"
         mention.metadata_json = {**mention.metadata_json, "temporal_source_id": asset.source_id}
         db.add(mention)
         created.append(mention)
@@ -4856,7 +4906,9 @@ def _candidate_metadata(candidate: POICandidate) -> dict[str, Any]:
     }
 
 
-def build_place_notes(db: Session, asset: VideoAsset, mentions: list[PlaceMention]) -> int:
+def build_place_notes(
+    db: Session, asset: VideoAsset | None, mentions: list[PlaceMention], *, commit: bool = True,
+) -> int:
     count = 0
     for place_id in dict.fromkeys(mention.place_id for mention in mentions if mention.place_id):
         place = db.get(Place, place_id)
@@ -4922,5 +4974,6 @@ def build_place_notes(db: Session, asset: VideoAsset, mentions: list[PlaceMentio
             )
         )
         count += 1
-    db.commit()
+    if commit:
+        db.commit()
     return count

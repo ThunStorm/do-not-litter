@@ -21,7 +21,6 @@ from zhijian.db.models import (
     PlaceMention,
     PlaceUserNote,
     PlaceUserOverlay,
-    PlaceVisitWindow,
     RouteDraft,
     RouteDraftItem,
     VideoAsset,
@@ -29,7 +28,6 @@ from zhijian.db.models import (
 from zhijian.db.session import get_db
 from zhijian.services.auth import require_session
 from zhijian.services.route_guides import list_route_guides
-from zhijian.services.travel_semantics import temporal_semantics
 
 router = APIRouter(prefix="/api/travel", dependencies=[Depends(require_session)])
 Database = Annotated[Session, Depends(get_db)]
@@ -112,11 +110,10 @@ def export_bundle(db):
     hidden = set(db.scalars(select(MapMarkerState.place_id).where(MapMarkerState.visibility != "VISIBLE")))
     places = [p for p in places if p.id not in hidden]
     ids = [p.id for p in places]
-    windows = db.scalars(
-        select(PlaceVisitWindow).where(
-            PlaceVisitWindow.place_id.in_(ids), PlaceVisitWindow.status == "ACTIVE"
-        )
-    ).all()
+    from zhijian.services.place_experience import effective_windows
+    from zhijian.services.temporal_context import window_semantics
+
+    windows = effective_windows(db, ids)
     insights = db.scalars(
         select(PlaceInsightItem).where(
             PlaceInsightItem.place_id.in_(ids), PlaceInsightItem.status == "ACTIVE"
@@ -149,7 +146,8 @@ def export_bundle(db):
                         "day_time_slot": w.day_time_slot,
                         "period_type": w.period_type,
                         "suitability": w.suitability,
-                        "semantics": temporal_semantics(w.source_text, period_type=w.period_type),
+                        "semantics": window_semantics(w),
+                        "theme_context": getattr(w, "theme_context", None),
                         "source_id": w.source_id,
                         "quote": w.source_text,
                         "segment_ids": w.segment_ids_json,
@@ -184,6 +182,24 @@ def export_bundle(db):
         )
         .order_by(PlaceMention.id)
     ).all()
+    destination_ids = {m.destination_id for m, _, _ in candidate_rows if m.destination_id}
+    projected = effective_windows(db, [*ids, *destination_ids])
+
+    def window_row(w):
+        return {
+            "season": w.season,
+            "month": w.month,
+            "month_segment": w.month_segment,
+            "day_time_slot": w.day_time_slot,
+            "period_type": w.period_type,
+            "suitability": w.suitability,
+            "source_text": w.source_text,
+            "segment_ids": w.segment_ids_json,
+            "provenance": w.provenance,
+            "semantics": window_semantics(w),
+            "theme_context": getattr(w, "theme_context", None),
+        }
+
     source_candidates = [
         {
             "id": m.id,
@@ -200,7 +216,11 @@ def export_bundle(db):
             "visit_intent": m.visit_intent,
             "quote": m.quote,
             "segment_ids": m.segment_ids_json,
-            "visit_windows": (m.metadata_json or {}).get("visit_windows", []),
+            "visit_windows": [
+                window_row(w) for w in projected if getattr(w, "place_mention_id", None) == m.id
+            ]
+            if m.place_id or m.destination_id
+            else (m.metadata_json or {}).get("visit_windows", []),
             "travel_facts": (m.metadata_json or {}).get("travel_facts", []),
         }
         for m, version, asset in candidate_rows
@@ -212,6 +232,10 @@ def export_bundle(db):
     return {
         "schema_version": "travel_export_v2",
         "places": rows,
+        "destinations": [
+            {"id": did, "visit_windows": [window_row(w) for w in projected if w.place_id == did]}
+            for did in sorted(destination_ids)
+        ],
         "source_candidates": source_candidates,
         "route_guides": guides,
         "route_drafts": [
@@ -233,10 +257,18 @@ def export_v2(db: Database):
                 {
                     k: v
                     for k, v in bundle.items()
-                    if k not in {"places", "source_candidates", "route_guides", "route_drafts"}
+                    if k
+                    not in {"places", "source_candidates", "route_guides", "route_drafts", "destinations"}
                 },
             ),
-            ("places.json", {"places": bundle["places"], "source_candidates": bundle["source_candidates"]}),
+            (
+                "places.json",
+                {
+                    "places": bundle["places"],
+                    "destinations": bundle["destinations"],
+                    "source_candidates": bundle["source_candidates"],
+                },
+            ),
             ("routes.json", {"author_guides": bundle["route_guides"], "user_drafts": bundle["route_drafts"]}),
         ):
             archive.writestr(filename, json.dumps(value, ensure_ascii=False, indent=2))

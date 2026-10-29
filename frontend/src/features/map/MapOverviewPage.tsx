@@ -50,6 +50,7 @@ export function MapOverviewPage() {
   const [state, setState] = useState(saved.state || '')
   const [query, setQuery] = useState(saved.query || '')
   const [placeType, setPlaceType] = useState(saved.placeType || '')
+  const [temporalTheme, setTemporalTheme] = useState(saved.temporalTheme || '')
   const [season, setSeason] = useState(saved.season || '')
   const [month, setMonth] = useState(saved.month || '')
   const [monthSegment, setMonthSegment] = useState(saved.monthSegment || '')
@@ -63,7 +64,7 @@ export function MapOverviewPage() {
   const [chinaReset, setChinaReset] = useState(0)
   const [addOpen, setAddOpen] = useState(false)
   const [viewport, setViewport] = useState(() => focusPlaceId ? { bbox: [73.5, 18, 135.1, 53.6], zoom: 4 } : readViewport())
-  useEffect(() => { sessionStorage.setItem('zhijian-map-filters', JSON.stringify({ selectedId, state, query, placeType, season, month, monthSegment, dayTimeSlot, visitWindowState, recommendationTier, routeId })) }, [selectedId, state, query, placeType, season, month, monthSegment, dayTimeSlot, visitWindowState, recommendationTier, routeId])
+  useEffect(() => { sessionStorage.setItem('zhijian-map-filters', JSON.stringify({ selectedId, state, query, placeType, temporalTheme, season, month, monthSegment, dayTimeSlot, visitWindowState, recommendationTier, routeId })) }, [selectedId, state, query, placeType, temporalTheme, season, month, monthSegment, dayTimeSlot, visitWindowState, recommendationTier, routeId])
   const deferredQuery = useDeferredValue(query)
   const persistViewport = useCallback((next: { bbox: number[]; zoom: number }) => {
     if (next.bbox.length !== 4 || next.bbox.some((value) => !Number.isFinite(value)) || !Number.isFinite(next.zoom)) return
@@ -74,7 +75,7 @@ export function MapOverviewPage() {
       return next
     })
   }, [])
-  const overview = useQuery({ placeholderData: keepPreviousData, staleTime: 0, refetchOnWindowFocus: 'always', refetchInterval: 15_000, refetchIntervalInBackground: false, queryKey: ['map', selectedId, state, deferredQuery, placeType, season, month, monthSegment, dayTimeSlot, visitWindowState, recommendationTier, visibility, routeId, viewport], queryFn: () => api.map({ selectedPlaceId: selectedId, state, query: deferredQuery, placeType, season, month, monthSegment, dayTimeSlot, visitWindowState, recommendationTier, visibility, routeId, bbox: viewport.bbox, zoom: viewport.zoom }) })
+  const overview = useQuery({ placeholderData: keepPreviousData, staleTime: 0, refetchOnWindowFocus: 'always', refetchInterval: 15_000, refetchIntervalInBackground: false, queryKey: ['map', selectedId, state, deferredQuery, placeType, temporalTheme, season, month, monthSegment, dayTimeSlot, visitWindowState, recommendationTier, visibility, routeId, viewport], queryFn: () => api.map({ selectedPlaceId: selectedId, state, query: deferredQuery, placeType, temporalTheme, season, month, monthSegment, dayTimeSlot, visitWindowState, recommendationTier, visibility, routeId, bbox: viewport.bbox, zoom: viewport.zoom }) })
   const routes = useQuery({ queryKey: ['routes'], queryFn: api.routes })
   const reviewCount = useQuery({ queryKey: ['place-review-count'], queryFn: api.placeReviewCount })
   const selected = overview.data?.markers.find((item) => item.id === selectedId)
@@ -134,10 +135,10 @@ export function MapOverviewPage() {
     URL.revokeObjectURL(url)
   }
 
-  const timeCount = [season, month, monthSegment, dayTimeSlot, visitWindowState].filter(Boolean).length
+  const timeCount = [temporalTheme, season, month, monthSegment, dayTimeSlot, visitWindowState].filter(Boolean).length
   const moreCount = [recommendationTier, routeId, visibility !== 'VISIBLE' ? visibility : ''].filter(Boolean).length
   const hasFilters = !!(state || query || placeType || timeCount || moreCount)
-  const clearFilters = () => { setState(''); setQuery(''); setPlaceType(''); setSeason(''); setMonth(''); setMonthSegment(''); setDayTimeSlot(''); setVisitWindowState(''); setRecommendationTier(''); setRouteId(''); setVisibility('VISIBLE') }
+  const clearFilters = () => { setState(''); setQuery(''); setPlaceType(''); setTemporalTheme(''); setSeason(''); setMonth(''); setMonthSegment(''); setDayTimeSlot(''); setVisitWindowState(''); setRecommendationTier(''); setRouteId(''); setVisibility('VISIBLE') }
   const groupSummary = cluster ? clusterSummary(cluster) : null
 
   return (
@@ -148,6 +149,7 @@ export function MapOverviewPage() {
           <FilterMenu label="状态" value={state} onChange={setState} options={options({ SAVED: '想去', PLANNED: '已计划', VISITED: '去过', DISMISSED: '不感兴趣' })} />
           <FilterMenu label="类型" value={placeType} onChange={setPlaceType} options={[{ value: '', label: '全部' }, ...placeTypes.map((value) => ({ value, label: labelPlaceType(value) }))]} />
           <FilterPopover label={timeCount ? `出行时间 · ${timeCount}` : '出行时间'} active={!!timeCount}>
+            <FilterChoices label="推荐主题" value={temporalTheme} onChange={setTemporalTheme} values={[{ value: '', label: '全部' }, { value: 'SUMMER_HOLIDAY', label: '暑期' }, { value: 'WINTER_HOLIDAY', label: '寒假' }, { value: 'SUMMER_ESCAPE', label: '避暑' }]} />
             <FilterChoices label="季节" value={season} onChange={setSeason} values={options(seasonLabels)} />
             <FilterChoices label="月份" value={month} onChange={setMonth} values={[{ value: '', label: '全部' }, ...Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), label: `${i + 1}月` }))]} />
             <FilterChoices label="旬段" value={monthSegment} onChange={setMonthSegment} values={options(segmentLabels)} />
@@ -189,7 +191,7 @@ export function MapOverviewPage() {
         <div className="place-preview__handle" />
         <div className="place-preview__nav"><span><strong>{activeIndex + 1}</strong> / {markerIds.length}</span><div><button onClick={() => moveSelection(-1)} aria-label="上一地点"><ChevronLeft /></button><button onClick={() => moveSelection(1)} aria-label="下一地点"><ChevronRight /></button><button onClick={() => setSelectedId(undefined)} aria-label="关闭地点预览"><X /></button></div></div>
         <div className="place-name-line place-preview__title"><h2>{selected.name}</h2><RecommendationSummary value={selected.recommendation_summary} compact /></div><RecommendationSummary value={selected.recommendation_summary} />
-        {selected.entity_type === 'DESTINATION' ? <><p>{selected.brief.anchor_kind === 'SCENIC_ENTRY' ? '景区 · 游客中心代表点' : '行政区域 · 政府驻地代表点'}</p><p className="place-preview__address">{selected.address}</p><p>{selected.summary}</p><details className="place-preview__evidence"><summary>查看来源</summary>{selected.source_notes?.map((note) => <p key={`${note.note_id}-${note.version_id}`}><Link to={`/video-notes/${note.note_id}`}>{note.title}</Link></p>)}{selected.visit_window_evidence?.map((item, i) => <blockquote key={i}>{item.source_text}</blockquote>)}</details><a className="button button--primary" href={`https://uri.amap.com/marker?position=${selected.longitude},${selected.latitude}&name=${encodeURIComponent(selected.address)}&src=zhijian&coordinate=gaode&callnative=1`} target="_blank" rel="noreferrer">在高德查看代表点</a></> : <>
+        {selected.entity_type === 'DESTINATION' ? <><TravelBrief brief={selected.travel_brief} /><p>{selected.brief.anchor_kind === 'SCENIC_ENTRY' ? '景区 · 游客中心代表点' : '行政区域 · 政府驻地代表点'}</p><p className="place-preview__address">{selected.address}</p><p>{selected.summary}</p><details className="place-preview__evidence"><summary>查看来源</summary>{selected.source_notes?.map((note) => <p key={`${note.note_id}-${note.version_id}`}><Link to={`/video-notes/${note.note_id}`}>{note.title}</Link></p>)}{selected.visit_window_evidence?.map((item, i) => <blockquote key={i}><small>{item.source_kind === 'COVER_TEXT' ? '封面文字推荐主题' : item.source_kind === 'THEME_CONTEXT' ? '视频推荐主题' : '正文原句'}</small><p>{item.source_text}</p></blockquote>)}</details><a className="button button--primary" href={`https://uri.amap.com/marker?position=${selected.longitude},${selected.latitude}&name=${encodeURIComponent(selected.address)}&src=zhijian&coordinate=gaode&callnative=1`} target="_blank" rel="noreferrer">在高德查看代表点</a></> : <>
         <p>{labelPlaceType(selected.place_type)} · {stateLabels[selected.user_state] ?? selected.user_state}</p>
         <p className="place-preview__address">{selected.address}</p>
         {selected.preview_image ? <img className="place-preview__image" src={selected.preview_image} alt={`${selected.name}的视频截图`} /> : null}
@@ -198,7 +200,7 @@ export function MapOverviewPage() {
           <p className="place-preview__meta">{selected.origin === 'USER_CREATED' ? '用户创建' : '地点来源'} · {selected.source_count} 个独立来源</p>
           {selected.travel_brief?.inherited && <p>时节采用同篇笔记中关联地点的共同景观背景，未继承具体日期或时刻。</p>}
           {selected.source_notes?.map((note) => <p key={`${note.note_id}-${note.version_id}`}><Link to={`/video-notes/${note.note_id}`}>{note.title}</Link></p>)}
-          {selected.visit_window_evidence?.map((item, i) => <blockquote key={i}><small>{item.source_kind === 'TITLE_METADATA' ? '视频标题' : item.source_kind === 'USER' ? '人工补充' : item.source_kind === 'SEMANTIC_CONTEXT' ? '同笔记共同景观的时节背景' : '正文原句'}</small><p>{item.source_text}</p></blockquote>)}
+          {selected.visit_window_evidence?.map((item, i) => <blockquote key={i}><small>{item.source_kind === 'COVER_TEXT' ? '封面文字推荐主题' : item.source_kind === 'THEME_CONTEXT' ? '视频推荐主题' : item.source_kind === 'TITLE_METADATA' ? '视频标题' : item.source_kind === 'USER' ? '人工补充' : item.source_kind === 'SEMANTIC_CONTEXT' ? '同笔记共同景观的时节背景' : '正文原句'}</small><p>{item.source_text}</p></blockquote>)}
           <Link to={`/places/${selected.id}#time-evidence`} state={{ fromMap: true }}>完整地点与来源</Link>
         </details>
         <details className="place-preview__route-disclosure" key={`route-${selected.id}`}><summary>加入路线</summary><div className="place-preview__route">{routes.data?.length ? <><FilterMenu label="目标路线" value={targetRouteId} onChange={setTargetRouteId} options={[{ value: '', label: '选择路线' }, ...routes.data.map((item) => ({ value: item.id, label: item.name }))]} /><button className="button button--outline" onClick={() => addToRoute.mutate()} disabled={!route || route.places.some((place) => place.id === selected.id) || addToRoute.isPending}>{route?.places.some((place) => place.id === selected.id) ? '已加入' : addToRoute.isPending ? '加入中…' : '加入路线'}</button></> : <button className="button button--outline" onClick={() => quickCreateRoute.mutate()} disabled={routes.isPending || routes.isError || quickCreateRoute.isPending}>新建路线并加入</button>}</div></details>

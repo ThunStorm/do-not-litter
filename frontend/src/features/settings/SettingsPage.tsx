@@ -1144,6 +1144,7 @@ export function StagePolicyEditor({
         GENERATE_AI_NOTE: "视频笔记（兼容路径）",
         SCREENSHOT_UNDERSTANDING: "截图理解（预留策略）",
         VISION_FACT: "视觉事实",
+        COVER_TEXT: "封面文字兜底",
       } as Record<string, string>
     )[policy.stage] ?? "未命名阶段";
   const local = profiles.filter(

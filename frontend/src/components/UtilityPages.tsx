@@ -20,8 +20,9 @@ import { FormEvent, useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
 import { api } from '../lib/api'
+import { notifyTravelChange } from '../lib/travelChanges'
 import { formatBeijingTime } from '../lib/time'
-import type { ProfileView } from '../lib/types'
+import type { ProfileView, SourceView } from '../lib/types'
 import { EmptyState, PageHeader } from './AppShell'
 import { BulkSelectionToolbar } from './ui/BulkSelection'
 import { ConfirmDialog } from './ui/ConfirmDialog'
@@ -37,8 +38,13 @@ export function SourcesPage() {
   const sources = useQuery({ queryKey: ['sources', query], queryFn: () => api.sources(query) })
   const detail = useQuery({ queryKey: ['source', selectedId], queryFn: () => api.source(selectedId!), enabled: Boolean(selectedId) })
   const selection = useBulkSelection((sources.data ?? []).map((source) => source.id))
-  const remove = useMutation({ mutationFn: () => api.deleteSources(selection.selectedIds), onSuccess: (result) => { selection.clear(); setBatchDeleteOpen(false); setBatchResult({ deleted: result.deleted_ids.length, skipped: result.skipped.length }); void queryClient.invalidateQueries({ queryKey: ['sources'] }); void queryClient.invalidateQueries({ queryKey: ['content'] }); void queryClient.invalidateQueries({ queryKey: ['video-notes'] }); void queryClient.removeQueries({ queryKey: ['source'] }) } })
-  const removeEvidenceChain = useMutation({ mutationFn: () => api.deleteSourceEvidenceChain(selectedId!), onSuccess: () => { setEvidenceDeleteOpen(false); setSelectedId(undefined); void queryClient.invalidateQueries({ queryKey: ['sources'] }); void queryClient.invalidateQueries({ queryKey: ['content'] }); void queryClient.invalidateQueries({ queryKey: ['video-notes'] }); void queryClient.invalidateQueries({ queryKey: ['dashboard'] }); void queryClient.removeQueries({ queryKey: ['source'] }) } })
+  const remove = useMutation({ mutationFn: () => api.deleteSources(selection.selectedIds), onSuccess: (result) => { notifyTravelChange(queryClient); selection.clear(); setBatchDeleteOpen(false); setBatchResult({ deleted: result.deleted_ids.length, skipped: result.skipped.length }); queryClient.setQueriesData<SourceView[]>({ queryKey: ['sources'] }, (items) => items?.filter((item) => !result.deleted_ids.includes(item.id))); void queryClient.invalidateQueries({ queryKey: ['sources'] }); void queryClient.invalidateQueries({ queryKey: ['content'] }); void queryClient.invalidateQueries({ queryKey: ['video-notes'] }); void queryClient.removeQueries({ queryKey: ['source'] }) } })
+  const removeEvidenceChain = useMutation({ mutationFn: () => api.deleteSourceEvidenceChain(selectedId!), onSuccess: (result) => {
+    queryClient.setQueriesData<SourceView[]>({ queryKey: ['sources'] }, (items) => items?.filter((item) => item.id !== result.id))
+    queryClient.removeQueries({ queryKey: ['source', result.id] })
+    setEvidenceDeleteOpen(false); setSelectedId(undefined); notifyTravelChange(queryClient)
+    for (const key of ['sources', 'content', 'video-notes', 'dashboard']) void queryClient.invalidateQueries({ queryKey: [key] })
+  } })
   useEffect(() => {
     if (!sources.data?.length) setSelectedId(undefined)
     else if (!sources.data.some((source) => source.id === selectedId)) setSelectedId(sources.data[0].id)
@@ -61,7 +67,7 @@ export function SourcesPage() {
         <h4>快照记录</h4>{snapshots.map((snapshot) => <div className="snapshot-row" key={snapshot.id}><ShieldCheck /><span><strong>{formatDate(snapshot.captured_at)}</strong><small>SHA-256 {snapshot.content_hash?.slice(0, 18)}…</small></span></div>)}
       </div>}
     </section></div>
-  </div>{batchDeleteOpen && <ConfirmDialog title="批量删除来源" description={`将尝试删除 ${selection.selectedIds.length} 条来源；有关联内容、视频笔记或活跃任务的来源会跳过，且不会删除关联内容。`} confirmLabel={`删除 ${selection.selectedIds.length} 条来源`} danger pending={remove.isPending} error={remove.error instanceof Error ? remove.error.message : ''} onCancel={() => setBatchDeleteOpen(false)} onConfirm={() => remove.mutate()} />}{evidenceDeleteOpen && <ConfirmDialog title="删除来源证据链" description={`确认后将删除此来源的 ${deletion?.content_count ?? 0} 条关联内容、${deletion?.video_note_count ?? 0} 条视频笔记及快照/分段；地点和路线保留。`} confirmLabel="确认同步删除" danger pending={removeEvidenceChain.isPending} error={removeEvidenceChain.error instanceof Error ? removeEvidenceChain.error.message : ''} onCancel={() => setEvidenceDeleteOpen(false)} onConfirm={() => removeEvidenceChain.mutate()} />}</>
+  </div>{batchDeleteOpen && <ConfirmDialog title="批量删除来源" description={`将尝试删除 ${selection.selectedIds.length} 条来源；有关联内容、视频笔记或活跃任务的来源会跳过，且不会删除关联内容。`} confirmLabel={`删除 ${selection.selectedIds.length} 条来源`} danger pending={remove.isPending} error={remove.error instanceof Error ? remove.error.message : ''} onCancel={() => setBatchDeleteOpen(false)} onConfirm={() => remove.mutate()} />}{evidenceDeleteOpen && <ConfirmDialog title="删除来源证据链" description={`确认后将删除此来源的 ${deletion?.content_count ?? 0} 条关联内容、${deletion?.video_note_count ?? 0} 条视频笔记及快照/分段；同步清理专属地点关联和无其他来源的自动地点；共享地点、人工资料及路线保留。此操作无法撤销。`} confirmLabel="确认同步删除" danger pending={removeEvidenceChain.isPending} error={removeEvidenceChain.error instanceof Error ? removeEvidenceChain.error.message : ''} onCancel={() => setEvidenceDeleteOpen(false)} onConfirm={() => removeEvidenceChain.mutate()} />}</>
 }
 
 export function TodosPage() {

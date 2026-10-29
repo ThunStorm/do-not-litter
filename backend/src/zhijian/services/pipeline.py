@@ -101,6 +101,11 @@ def _extract_travel(text: str) -> dict:
 
 
 def process_job(db: Session, job: Job) -> None:
+    if job.payload_json.get("cover_text_video_asset_id"):
+        from zhijian.services.cover_text import process_cover_text_job
+
+        process_cover_text_job(db, job, get_settings())
+        return
     if job.payload_json.get("visual_fact_screenshot_id"):
         from zhijian.services.visual_facts import process_visual_fact_job
 

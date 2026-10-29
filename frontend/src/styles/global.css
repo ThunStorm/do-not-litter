@@ -246,7 +246,7 @@ svg { flex: 0 0 auto; }
 
 .search-field { display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 16px; border: 1px solid var(--line); border-radius: 7px; background: var(--paper); }
 .content-tabs { display: flex; gap: 5px; align-items: center; margin: 18px 0; border-bottom: 1px solid var(--line); }
-.content-tabs button { min-width: 72px; padding: 12px 14px; border: 0; border-bottom: 2px solid transparent; background: transparent; cursor: pointer; }
+.content-tabs button { min-width: 72px; padding: 12px 14px; border: 0; border-bottom: 2px solid transparent; background: transparent; cursor: pointer; white-space: nowrap; }
 .content-tabs button.is-active { border-color: var(--accent); color: var(--accent); font-weight: 600; }
 .content-tabs .content-tabs__filter { display: flex; min-width: auto; align-items: center; gap: 6px; margin-left: auto; color: var(--muted); }
 .map-entry { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; padding: 18px; border: 1px solid var(--line); border-radius: 8px; background: #f7f5f0; }
@@ -628,6 +628,7 @@ svg { flex: 0 0 auto; }
 .task-summary dl { display: grid; grid-template-columns: minmax(72px, .8fr) minmax(0, 1.2fr); gap: 12px; font-size: 12px; }
 .task-summary dt { color: var(--muted); }
 .task-summary dd { min-width: 0; margin: 0; overflow-wrap: anywhere; text-align: right; word-break: break-word; }
+.source-layout > .panel { min-width: 0; }
 .source-layout { display: grid; grid-template-columns: minmax(360px, .9fr) minmax(400px, 1.1fr); gap: 16px; margin-top: 16px; }
 .source-row { display: grid; width: calc(100% - 24px); grid-template-columns: 24px 1fr 18px; align-items: center; gap: 11px; min-height: 82px; margin: 0 12px; padding: 10px 8px; border: 0; border-bottom: 1px solid var(--line-soft); background: transparent; text-align: left; cursor: pointer; }
 .source-row.is-active { background: #f3eee7; }.source-row > svg:first-child { color: var(--accent); }.source-row > span { display: grid; min-width: 0; gap: 5px; }.source-row small, .source-row em { overflow: hidden; color: var(--muted); font-style: normal; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
@@ -703,6 +704,7 @@ svg { flex: 0 0 auto; }
   .content-page .page-header { margin-bottom: 8px; }
   .search-field { height: 43px; }
   .content-tabs { overflow-x: auto; margin: 10px 0 14px; }
+  .content-tabs button { min-width: auto; padding: 12px 8px; }
   .map-entry { margin-bottom: 12px; padding: 14px; }
   .map-entry small { font-size: 10px; }
   .content-list-section { border-radius: 6px; }
@@ -796,7 +798,7 @@ svg { flex: 0 0 auto; }
   .task-detail-grid { grid-template-columns: 1fr; }
   .task-error-card { grid-template-columns: 1fr; }.task-error-card a { justify-self: start; }
   .task-hero { padding: 20px; }
-  .source-layout { grid-template-columns: 1fr; }.source-inspector { min-height: 320px; }.source-row { width: calc(100% - 16px); margin: 0 8px; }.log-header-actions { gap: 4px; }.log-header-actions button { font-size: 0; }.log-header-actions button svg { width: 16px; }.log-health { grid-template-columns: 1fr 1fr; }.log-health div:nth-child(2) { border-right: 0; }.log-health div:nth-child(-n + 2) { border-bottom: 1px solid var(--line-soft); }.log-toolbar, .log-toolbar--operations { grid-template-columns: 1fr 1fr; }.log-toolbar .search-field { grid-column: 1 / -1; }.log-toolbar select { height: 42px; }.log-row { grid-template-columns: 84px 54px 1fr; gap: 7px; padding: 10px; }.log-row p { grid-column: 1 / -1; }.log-row--head { display: none; }.log-attempt { grid-template-columns: 1fr; gap: 8px; }.log-attempt > span { justify-items: start; }.log-drawer { width: 100vw; }.route-row { margin: 0 10px; }.route-row__actions button { width: 27px; }.profile-form .field-grid { padding: 14px; }
+  .source-layout { grid-template-columns: minmax(0, 1fr); }.source-inspector { min-height: 320px; }.source-row { width: calc(100% - 16px); margin: 0 8px; }.log-header-actions { gap: 4px; }.log-header-actions button { font-size: 0; }.log-header-actions button svg { width: 16px; }.log-health { grid-template-columns: 1fr 1fr; }.log-health div:nth-child(2) { border-right: 0; }.log-health div:nth-child(-n + 2) { border-bottom: 1px solid var(--line-soft); }.log-toolbar, .log-toolbar--operations { grid-template-columns: 1fr 1fr; }.log-toolbar .search-field { grid-column: 1 / -1; }.log-toolbar select { height: 42px; }.log-row { grid-template-columns: 84px 54px 1fr; gap: 7px; padding: 10px; }.log-row p { grid-column: 1 / -1; }.log-row--head { display: none; }.log-attempt { grid-template-columns: 1fr; gap: 8px; }.log-attempt > span { justify-items: start; }.log-drawer { width: 100vw; }.route-row { margin: 0 10px; }.route-row__actions button { width: 27px; }.profile-form .field-grid { padding: 14px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

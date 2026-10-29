@@ -511,3 +511,8 @@ JSON格式或结构错误可在同模型上限内重答。保持原始系统指�
 `POST /api/ai/stage-policies/limits-preview`接受未保存Stage草稿，只读取当前配置并调用与执行共用的`ai/stage_limits.py`；不创建Job、不保存Setting、不读取或返回明文Secret、不调用Provider。返回逐候选单次秒数/来源、计入阶段和Job总时限的初始上限，以及校对批次回退值。预览只描述新任务配置与候选，不冒充AUTO最终选路或正在运行任务的实时剩余值；真实调用审计保留`timeout_seconds/timeout_source`。
 
 回归必须覆盖：阶段660覆盖模型300、留空继承及旧校对回退；旧Job不变与明确重跑升级；批次Stage优先与旧值回退；预览零业务写/零Provider；兼容路径deadline传递；PC/Mobile修改/保存/刷新与长说明布局。生产验收只读，配置保存使用隔离库；离线通过不替代真实模型成功率或上游限时验证。
+
+
+## 封面文字Stage（2026-10-29）
+
+COVER_TEXT的Capability为SCREENSHOT_UNDERSTANDING，独立于VISION_FACT，显式图像Profile与接口能力门禁保持。默认温度0、关闭思考、单次尝试、输出2048、请求180秒/阶段240秒；仍受Job剩余预算、截止时间和取消约束。`video:cover-text`默认enabled=true、visual_fallback_enabled=false；单次提取任务allow_visual选择不修改全局开关。普通OCR无需模型，视觉仅在启用且识别困难时触发。LOCAL_ROUTER目前不能发送图片，不以目录image标签当已支持证据；真实成本/失败边界见封面验收报告。

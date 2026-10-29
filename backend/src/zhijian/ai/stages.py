@@ -65,6 +65,11 @@ STAGE_SPECS = {
         AICapability.SCREENSHOT_UNDERSTANDING,
         _COMMON,
     ),
+    "COVER_TEXT": StageParameterSpec(
+        "COVER_TEXT",
+        AICapability.SCREENSHOT_UNDERSTANDING,
+        _COMMON,
+    ),
     "VISION_FACT": StageParameterSpec(
         "VISION_FACT",
         AICapability.SCREENSHOT_UNDERSTANDING,
@@ -103,6 +108,19 @@ def stage_defaults(stage: str) -> dict[str, object]:
             retry_count=0,
             confidence_threshold=0.75,
             domain="travel",
+            cache_enabled=True,
+        )
+    elif stage == "COVER_TEXT":
+        values.update(
+            execution_mode=AIExecutionMode.AUTO,
+            temperature=0.0,
+            thinking=False,
+            retry_count=0,
+            json_retry_count=0,
+            max_attempts=1,
+            max_output_tokens=2048,
+            timeout_seconds=180,
+            wall_time_seconds=240,
             cache_enabled=True,
         )
     elif stage in {"GENERATE_AI_NOTE", "NOTE_REDUCE"}:

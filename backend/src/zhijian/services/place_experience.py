@@ -92,6 +92,7 @@ def experience_projection(db, place_ids=None):
                 a
                 for a in artifacts
                 if version
+                and a.id == version.grounded_map_artifact_id
                 and a.video_asset_id == m.video_asset_id
                 and a.transcript_version == version.transcript_version
                 and any(u.get("content_unit_id") == m.content_unit_id for u in a.content_units_json)
@@ -278,4 +279,7 @@ def effective_windows(db, place_ids=None, *, experiences=None):
             if key not in keys:
                 saved.append(w)
                 keys.add(key)
+    from zhijian.services.temporal_context import projected_theme_windows
+
+    saved.extend(projected_theme_windows(db, place_ids))
     return saved

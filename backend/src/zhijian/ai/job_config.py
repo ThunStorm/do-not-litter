@@ -19,7 +19,13 @@ RECOVERY_KEY = "ai_recovery_config"
 EXECUTION_KEY = "ai_execution_config"
 PENDING_EXECUTION_KEY = "ai_pending_execution_config"
 EXECUTION_HISTORY_KEY = "ai_execution_history"
-_SETTING_KEYS = {"model-routing", "app:general", "prompt:supplements", "transcript-processing"}
+_SETTING_KEYS = {
+    "model-routing",
+    "app:general",
+    "prompt:supplements",
+    "transcript-processing",
+    "video:cover-text",
+}
 _SETTING_PREFIXES = ("model-profile:", "ai-stage-policy:", "ai-domain-pack:")
 _SECRET_FIELDS = {"api_key", "secret", "token", "password", "cookie", "authorization"}
 ASR_DEFAULT_KEY = "asr:default"

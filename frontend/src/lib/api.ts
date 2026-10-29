@@ -133,13 +133,14 @@ export const api = {
     body.append('upload', file)
     return request<{ job_id: string }>('/api/capture/file', { method: 'POST', body })
   },
-  map: (options: { selectedPlaceId?: string; state?: string; origin?: string; query?: string; placeType?: string; bestMonth?: string; bestSeason?: string; bestTimeSlot?: string; season?: string; month?: string; monthSegment?: string; dayTimeSlot?: string; visitWindowState?: string; recommendationTier?: string; routeId?: string; sourceId?: string; visibility?: 'VISIBLE' | 'HIDDEN' | 'ALL'; bbox?: number[]; zoom?: number } = {}) => {
+  map: (options: { selectedPlaceId?: string; state?: string; origin?: string; query?: string; placeType?: string; temporalTheme?: string; bestMonth?: string; bestSeason?: string; bestTimeSlot?: string; season?: string; month?: string; monthSegment?: string; dayTimeSlot?: string; visitWindowState?: string; recommendationTier?: string; routeId?: string; sourceId?: string; visibility?: 'VISIBLE' | 'HIDDEN' | 'ALL'; bbox?: number[]; zoom?: number } = {}) => {
     const params = new URLSearchParams()
     if (options.selectedPlaceId) params.set('selected_place_id', options.selectedPlaceId)
     if (options.state) params.set('user_state', options.state)
     if (options.origin) params.set('origin', options.origin)
     if (options.query) params.set('query', options.query)
     if (options.placeType) params.set('place_type', options.placeType)
+    if (options.temporalTheme) params.set('temporal_theme', options.temporalTheme)
     if (options.bestMonth) params.set('best_month', options.bestMonth)
     if (options.bestSeason) params.set('best_season', options.bestSeason)
     if (options.bestTimeSlot) params.set('best_time_slot', options.bestTimeSlot)
@@ -274,6 +275,8 @@ export const api = {
     return request<LogsView>(`/api/logs${params.size ? `?${params}` : ''}`)
   },
   videoNotes: (query?: string) => request<VideoNoteView[]>(`/api/video-notes${query ? `?query=${encodeURIComponent(query)}` : ''}`),
+  videoCoverText: (id: string) => request<import('./types').CoverTextView>(`/api/video-notes/${id}/cover-text`),
+  queueCoverText: (id: string, allowVisual: boolean) => request<{ job_id: string }>(`/api/video-notes/${id}/cover-text?allow_visual=${allowVisual}`, { method: 'POST' }),
   videoNote: (id: string) => request<VideoNoteDetail>(`/api/video-notes/${id}`),
   videoTranscript: (id: string) => request<{ text: string; correction_status: string; correction_coverage: number; segments: Array<{ id: string; text: string; raw_text: string; corrected_text: string; correction_status: string; start_ms: number; end_ms: number }> }>(`/api/video-notes/${id}/transcript`),
   videoTranscriptExportUrl: (id: string, version: 'raw' | 'corrected' = 'corrected') => `/api/video-notes/${id}/transcript/export?version=${version}`,

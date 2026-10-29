@@ -22,6 +22,7 @@ import { formatBeijingTime } from '../lib/time'
 
 const desktopNav = [
   { to: '/', label: '概览', icon: LayoutGrid },
+  { to: '/capture', label: '投递', icon: Plus },
   { to: '/content', label: '内容', icon: FileText },
   { to: '/video-notes', label: '视频笔记', icon: Clapperboard },
   { to: '/tasks', label: '任务', icon: CheckSquare },

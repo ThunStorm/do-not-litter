@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BriefcaseBusiness, ChevronRight, FileQuestion, Filter, Luggage, Map, Search } from 'lucide-react'
+import { BriefcaseBusiness, ChevronRight, Clapperboard, FileQuestion, Filter, Luggage, Map, Search } from 'lucide-react'
 import { useDeferredValue, useState } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -8,12 +8,14 @@ import { BulkSelectionToolbar } from '../../components/ui/BulkSelection'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { api } from '../../lib/api'
 import { useBulkSelection } from '../../lib/useBulkSelection'
+import { notifyTravelChange } from '../../lib/travelChanges'
 import type { ContentType } from '../../lib/types'
 
 const filters: Array<{ label: string; value?: ContentType }> = [
   { label: '全部' },
   { label: '招聘', value: 'RECRUITMENT' },
   { label: '旅行', value: 'TRAVEL' },
+  { label: '视频笔记', value: 'VIDEO_NOTE' },
 ]
 
 export function ContentPage() {
@@ -29,11 +31,12 @@ export function ContentPage() {
   const queryClient = useQueryClient()
   const [deleteOpen, setDeleteOpen] = useState(false)
   const selection = useBulkSelection((visibleContents ?? []).map((item) => item.id))
-  const remove = useMutation({ mutationFn: () => api.deleteContents(selection.selectedIds), onSuccess: () => { selection.clear(); setDeleteOpen(false); void queryClient.invalidateQueries({ queryKey: ['content'] }); void queryClient.invalidateQueries({ queryKey: ['dashboard'] }); void queryClient.invalidateQueries({ queryKey: ['todos'] }); void queryClient.invalidateQueries({ queryKey: ['sources'] }) } })
+  const remove = useMutation({ mutationFn: () => api.deleteContents(selection.selectedIds), onSuccess: () => { notifyTravelChange(queryClient); selection.clear(); setDeleteOpen(false); void queryClient.invalidateQueries({ queryKey: ['content'] }); void queryClient.invalidateQueries({ queryKey: ['dashboard'] }); void queryClient.invalidateQueries({ queryKey: ['todos'] }); void queryClient.invalidateQueries({ queryKey: ['sources'] }) } })
 
   const typeMeta = (contentType: ContentType) => {
     if (contentType === 'RECRUITMENT') return { icon: <BriefcaseBusiness />, label: '招聘' }
     if (contentType === 'TRAVEL') return { icon: <Luggage />, label: '旅行' }
+    if (contentType === 'VIDEO_NOTE') return { icon: <Clapperboard />, label: '视频笔记' }
     return { icon: <FileQuestion />, label: '未支持' }
   }
 
@@ -76,7 +79,7 @@ export function ContentPage() {
           )) : <EmptyState title="没有符合条件的内容" detail="调整分类或投递新的链接" />}
         </div>
       </section>
-      {deleteOpen && <ConfirmDialog title="删除内容" description={`将删除 ${selection.selectedIds.length} 条内容及其专属事实/证据；孤立来源会一并清理，地点和路线保留。`} confirmLabel={`删除 ${selection.selectedIds.length} 条内容`} danger pending={remove.isPending} error={remove.error instanceof Error ? remove.error.message : ''} onCancel={() => setDeleteOpen(false)} onConfirm={() => remove.mutate()} />}
+      {deleteOpen && <ConfirmDialog title="删除内容" description={`将删除 ${selection.selectedIds.length} 条内容及其专属事实/证据；孤立来源会一并清理，同步清理专属地点关联和无其他来源的自动地点；共享地点、人工资料及路线保留。此操作无法撤销。`} confirmLabel={`删除 ${selection.selectedIds.length} 条内容`} danger pending={remove.isPending} error={remove.error instanceof Error ? remove.error.message : ''} onCancel={() => setDeleteOpen(false)} onConfirm={() => remove.mutate()} />}
     </div>
   )
 }

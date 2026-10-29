@@ -27,7 +27,7 @@ from zhijian.services.audit import record_event
 from zhijian.services.jobs import ensure_job_active
 from zhijian.services.title_temporal import title_identity
 
-MAP_PROMPT_VERSION = "semantic-map-v6-travel-routes"
+MAP_PROMPT_VERSION = "semantic-map-v9-cover-membership"
 MAP_ARTIFACT_SCHEMA_VERSION = "grounded-map-v3"
 LOCAL_MAP_CHUNK_CHARS = 6_000
 LOCAL_MAP_CHUNK_SEGMENTS = 64
@@ -306,6 +306,16 @@ def get_or_create_grounded_map(
     )
     if job and isinstance(provider, FallbackLLMProvider):
         provider.before_fallback = lambda: ensure_job_active(db, job)
+    from zhijian.services.cover_text import extract_cover_text
+    from zhijian.services.temporal_context import (
+        VERSION,
+        candidate_contexts,
+        contexts_for_chunk,
+        validate_applications,
+    )
+
+    cover_evidence = extract_cover_text(db, settings, asset, job)
+    temporal_contexts = candidate_contexts(segments) + cover_evidence.get("contexts", [])
     content_hash = _content_hash(segments)
     supplement_hash = prompt_supplement_hash(db, "travel_place_extraction", job)
     _, domain_versions = domain_context_messages(
@@ -313,7 +323,10 @@ def get_or_create_grounded_map(
     )
     domain_pack_version = domain_context_hash(domain_versions)
     semantic_options = {
-        "travel_semantics_version": "travel-semantics-v1",
+        "travel_semantics_version": "travel-semantics-v2",
+        "temporal_parser_version": "map-timing-v4",
+        "temporal_context_version": VERSION,
+        "cover_text_identity": cover_evidence.get("semantic_identity", cover_evidence["identity"]),
         "route_parser_version": "route-guide-v2-prose",
         "temperature": policy.temperature,
         "max_output_tokens": policy.max_output_tokens,
@@ -422,18 +435,60 @@ def get_or_create_grounded_map(
             f"{segment.corrected_text or segment.text}"
             for segment in chunk
         )
+        context_text = "\n推荐主题来源注册表（只读，不能作为当前分块新地点）：\n"
+        by_id = {s.id: s for s in segments}
+        request_contexts = contexts_for_chunk(temporal_contexts, segments, chunk)
+        for context in request_contexts:
+            if context.get("source_kind") == "COVER_TEXT":
+                context_text += (
+                    "COVER_TEXT(独立封面文字，无转写Segment)："
+                    + json.dumps(
+                        {
+                            k: context[k]
+                            for k in [
+                                "context_id",
+                                "source_kind",
+                                "source_text",
+                                "raw_time_text",
+                                "cover_hash",
+                                "scope",
+                                "scope_terms",
+                                "intent",
+                            ]
+                            if k in context
+                        },
+                        ensure_ascii=False,
+                    )
+                    + "\n"
+                )
+                continue
+            context_text += f"context_id={context['context_id']} 时间原词={context['raw_time_text']}\n"
+            for sid in context["segment_ids"]:
+                source = by_id[sid]
+                context_text += (
+                    f"[segment:{sid} {source.locator_json.get('start_ms', 0)}-"
+                    f"{source.locator_json.get('end_ms', 0)}ms] "
+                    f"{source.corrected_text or source.text}\n"
+                )
         messages = [
             {"role": "system", "content": prompt},
             *prompt_supplement_messages(db, "travel_place_extraction", job),
             {
                 "role": "user",
-                "content": f"视频标题：{asset.title}\n分块：{chunk_index}/{chunk_count}\n{text}",
+                "content": (
+                    f"视频标题：{asset.title}\n分块：{chunk_index}/{chunk_count}\n{text}{context_text}"
+                ),
             },
         ]
 
         def validate_evidence(result: LLMResult) -> None:
             payload = parse_model_json(result.content)
             accepted = _canonical_payload(payload, chunk)
+            allowed_contexts = {c["context_id"] for c in request_contexts}
+            for entity in accepted[4]:
+                for app in entity.get("temporal_applications", []) or []:
+                    if not isinstance(app, dict) or app.get("context_id") not in allowed_contexts:
+                        raise AIProviderError("AI_PROVIDER_SCHEMA_INVALID", "主题引用不在本分块来源注册表")
             collections = ("entities", "claims") if "entities" in payload else ("section_facts", "places")
             counts = (
                 (len(accepted[4]), len(accepted[6]))
@@ -705,6 +760,20 @@ def get_or_create_grounded_map(
     semantic_options["route_guides"] = extract_routes(
         claims, {segment.id: segment.corrected_text or segment.text for segment in segments}, entities
     )
+    from zhijian.services.temporal_context import unresolved_temporal_evidence
+
+    semantic_options["unresolved_temporal_evidence"] = unresolved_temporal_evidence(segments, claims)
+    semantic_options["cover_text"] = cover_evidence
+    semantic_options["temporal_contexts"] = temporal_contexts
+    from zhijian.services.temporal_context import recover_source_membership
+
+    recover_source_membership(entities, content_units, temporal_contexts, segments)
+    semantic_options["temporal_applications"] = []
+    for entity in entities:
+        apps = validate_applications(entity, content_units, temporal_contexts, segments)
+        entity["verified_temporal_applications"] = apps
+        entity["temporal_artifact_hash"] = semantic_hash
+        semantic_options["temporal_applications"].extend(apps)
     artifact = GroundedMapArtifact(
         video_asset_id=asset.id,
         transcript_id=transcript.id,

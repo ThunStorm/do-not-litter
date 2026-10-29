@@ -59,6 +59,7 @@
 | 任务表达 / 时间 | [摘要与部分成功](jobs/TASK_SUMMARY_AND_PARTIAL_SUCCESS_SPEC.md)、[状态与北京时间](jobs/TASK_STATUS_AND_BEIJING_TIME_SPEC.md) |
 | AI Gateway | [AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2](ai-gateway/AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md) 六篇索引：模型边界、公共能力、Pipeline/Provider、阶段参数、单任务策略、历史工作包/验收 |
 | 标题时间证据 | [契约](video/TITLE_TEMPORAL_EVIDENCE.md)、[离线 A/B](benchmark/TITLE_TEMPORAL_PROMPT_AB_REPORT.md)、[归档计划](history/planning/ZHIJIAN_TITLE_TEMPORAL_EVIDENCE_AND_PROMPT_OPTIMIZATION_PLAN.md)；真实模型质量与缓存收益未验证 |
+| 推荐时节与封面提取 | [待评审方案](planning/VIDEO_TEMPORAL_CONTEXT_AND_COVER_PLAN.md)：暑期主题继承、正文时间与跨句证据、地图一致性、按需OCR/视觉；不自动授权实施或历史更新 |
 | 请求优化工作包 | [Z0–Z8/E2E 计划](history/planning/ZHIJIAN_AI_OPTIMIZATION_AND_E2E_PLAN.md)、[合成 A/B](benchmark/AI_REQUEST_OPTIMIZATION_AB_REPORT.md)、[本包发布门禁](benchmark/RELEASE_ACCEPTANCE.md)；真实 E2E 独立开放 |
 | AI 运行 / 生产验收 | [AI_RUNTIME_AND_PROVIDERS](ai-gateway/AI_RUNTIME_AND_PROVIDERS.md) 运行配置；[AI_GATEWAY_PRODUCTION_ACCEPTANCE](ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md) 真实验收门禁 |
 | 本机路由 Provider | [LocalAiMux 客户端接入](ai-gateway/LOCAL_ROUTER_PROVIDER_COMPATIBILITY_SPEC.md) 至简已实现的参数/消息协商与上游边界；[2026-10-06 参数及 55 型号调查](history/LOCALMUX_PARAMETER_SURVEY_20261006.md) 为有日期的证据快照，不代表真实模型验收 |

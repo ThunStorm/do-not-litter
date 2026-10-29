@@ -38,7 +38,7 @@ Worker 启动时及最多每 24 小时执行幂等清理：正文、Segment 文�
 
 ### 2.2 视频笔记删除（已实施，v0.4.6 更新）
 
-视频笔记列表和详情均在 `…` 菜单提供“删除笔记”，共用 `DELETE /api/video-notes/{note_id}`。删除 AINote、版本、Section、TOC 和 Content 投影；若 Source 已无其他内容或活跃 Job，再清理 Source、VideoAsset、CoverAsset、Transcript、截图与 Segment Evidence。Place、路线及独立地点信息保留。活跃生成 Job 阻止删除，第一版不提供回收站。
+视频笔记列表和详情均在 `…` 菜单提供“删除笔记”，共用 `DELETE /api/video-notes/{note_id}`。删除 AINote、版本、Section、TOC 和 Content 投影；若 Source 已无其他内容或活跃 Job，再清理 Source、VideoAsset、CoverAsset、Transcript、截图与 Segment Evidence。按笔记/来源归属清理生成关联；无其他来源和人工记录的自动地点同步删除，共享地点、路线及独立人工资料保留（2026-10-30用户授权更新）。活跃生成 Job 阻止删除，第一版不提供回收站。
 
 ## 3. 页面与响应式
 

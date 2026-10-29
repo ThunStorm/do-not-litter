@@ -7,7 +7,7 @@ import re
 from hashlib import sha256
 from typing import Any
 
-TITLE_TEMPORAL_VERSION = "title-temporal-v1"
+TITLE_TEMPORAL_VERSION = "title-temporal-v2"
 TOPICS = {
     "FOLIAGE": r"红叶|赏枫|枫叶",
     "BLOOM": r"赏花|花期|花季|樱花",
@@ -31,7 +31,7 @@ def parse_title_temporal_context(title: str) -> dict[str, Any]:
     scope = "SPECIFIC_PLACE"
     if re.search(r"去年|前年|记录|回顾|游记|出发|回来|返程|拍摄|摄于|实录", title):
         scope = "TRIP_TIME"
-    elif months or any(fields.values()):
+    elif months or any(fields.values()) or re.search(r"暑假|寒假|暑期", title):
         if re.search(r"闭园|封山|停航|禁渔|休渔", title):
             intent = "RESTRICTED"
             period = "FISHING_CLOSURE" if re.search(r"禁渔|休渔", title) else "SEASONAL_CLOSURE"
@@ -49,13 +49,16 @@ def parse_title_temporal_context(title: str) -> dict[str, Any]:
     scope_terms = []
     if scope == "VIDEO_THEME":
         residual = re.sub(
-            r"[一二三四五六七八九十\d]+月|上旬|中旬|下旬|春季|夏季|秋季|冬季|春天|夏天|秋天|冬天", "", title
+            r"[一二三四五六七八九十\d]+月份?|上旬|中旬|下旬|春季|夏季|秋季|冬季|春天|夏天|秋天|冬天|暑假|寒假|暑期",
+            "",
+            title,
         )
         residual = re.sub(
             r"哪里|去哪儿?|人少景美|目的地|推荐|适合|适宜|最佳|最好|最美|小众|旅行|旅游|攻略|赏红叶|赏枫|赏花|赏雪|花期|花季|雪季|红叶|枫叶|樱花|清晨|日出|上午|中午|下午|日落|黄昏|傍晚|夜间|夜晚",
             "",
             residual,
         )
+        residual = re.sub(r"到底|宝藏|圣地|避暑|又", "", residual)
         scope_terms = re.findall(r"[\w]+", residual)
     return {
         "source_kind": "TITLE_METADATA",
@@ -150,4 +153,6 @@ def title_context_label(context: dict) -> str:
         "EVENING": "傍晚",
         "NIGHT": "夜间",
     }.get(context.get("day_time_slot"), "")
-    return f"{months + ' 月' if months else season}{part}{slot}适合前往 · 来自视频标题"
+    holiday = re.search(r"暑假|寒假|暑期", context.get("source_text", ""))
+    when = months + " 月" if months else season or (holiday.group(0) if holiday else "")
+    return f"{when}{part}{slot}适合前往 · 来自视频标题"

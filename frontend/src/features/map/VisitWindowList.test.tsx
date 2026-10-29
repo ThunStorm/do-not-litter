@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { PlaceVisitWindow } from '../../lib/types'
@@ -19,4 +20,12 @@ describe('VisitWindowList source boundaries', () => {
     expect(remove).toHaveBeenCalledWith('window-2')
     expect(screen.queryByText('window-0')).toBeNull()
   })
+})
+
+it('keeps theme evidence immutable and links its note', () => {
+  const item: PlaceVisitWindow = { id: 'theme-window', provenance: 'THEME_CONTEXT', source_kind: 'THEME_CONTEXT', note_id: 'note-theme', month: null, season: null, month_segment: null, day_time_slot: null, period_type: 'BEST_VISIT', suitability: 'RECOMMENDED', source_text: '暑假推荐几个小城', segment_ids: ['intro'], confidence: 0.8, status: 'ACTIVE' }
+  render(<MemoryRouter><VisitWindowList windows={[item]} onRemove={vi.fn()} /></MemoryRouter>)
+  expect(screen.getByText('视频推荐主题')).toBeVisible()
+  expect(screen.getByRole('link', { name: '查看主题来源' })).toHaveAttribute('href', '/video-notes/note-theme')
+  expect(screen.queryByRole('button', { name: '移除' })).toBeNull()
 })

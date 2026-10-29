@@ -213,19 +213,23 @@ def compile_request(
             if stage in {"GENERATE_AI_NOTE", "NOTE_REDUCE"} and marker in body:
                 offset = body.index(marker) + len(marker)
                 value, size = json.JSONDecoder().raw_decode(body[offset:])
+                from zhijian.ai.note_evidence import evidence_places
+
+                entries = evidence_places(value)
                 if stage == "NOTE_REDUCE":
                     pack_offset = body.index("仅据此生成全局笔记：\n") + len("仅据此生成全局笔记：\n")
                     pack = json.loads(body[pack_offset:])
                     quotes = {str(quote) for fact in pack for quote in fact.get("supporting_quotes", [])}
-                    value = [
+                    value_places = [
                         {
                             key: item
                             for key, item in entry.items()
                             if key != "quotes"
                             or not all(quote in quotes for quote in entry.get("quotes", []))
                         }
-                        for entry in value
+                        for entry in entries
                     ]
+                    value = {**value, "places": value_places} if isinstance(value, dict) else value_places
                 body = body[:offset] + compact(project(value)) + body[offset + size :]
             if stage == "NOTE_REDUCE":
                 offset = body.index("仅据此生成全局笔记：\n") + len("仅据此生成全局笔记：\n")
@@ -239,7 +243,13 @@ def compile_request(
         }
     identity = {
         "compiler_version": COMPILER_VERSION,
-        "stage_projection_version": ID_REPAIR_VERSION if stage == "GROUND_MAP" else f"{stage}-v1",
+        "stage_projection_version": (
+            ID_REPAIR_VERSION
+            if stage == "GROUND_MAP"
+            else f"{stage}-v2-theme-registry"
+            if stage in {"NOTE_REDUCE", "GENERATE_AI_NOTE"}
+            else f"{stage}-v1"
+        ),
         "snapshot_identity": snapshot_identity,
         "source_content_hash": fingerprint([[item.id, texts[item.id]] for item in ordered]),
         "short_id_map_fingerprint": fingerprint(ids),

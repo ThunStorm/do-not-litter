@@ -177,6 +177,7 @@ from zhijian.services.job_replay import (
 )
 from zhijian.services.place_experience import effective_windows, experience_projection
 from zhijian.services.place_knowledge import aggregate_place_knowledge, normalize_insight
+from zhijian.services.place_retention import remove_source_places
 from zhijian.services.recommendation_intent import (
     mention_opinion,
 )
@@ -188,14 +189,17 @@ from zhijian.services.recommendation_intent import (
     summarize as intent_summary,
 )
 from zhijian.services.runtime_monitor import read_runtime_metrics_sample
-from zhijian.services.source_retention import prune_source_if_orphan, source_deletion_state
+from zhijian.services.source_retention import (
+    delete_content_projection,
+    prune_source_if_orphan,
+    source_deletion_state,
+)
 from zhijian.services.travel_brief import travel_brief
 from zhijian.services.travel_recommendations import (
     group_by_place,
     recommendation_for_place,
     visit_window_summary,
 )
-from zhijian.services.travel_semantics import temporal_semantics
 from zhijian.services.travel_timing import matches_window, valid_window
 from zhijian.services.video_note_search import remove_video_note_search_index
 from zhijian.services.video_support import (
@@ -1145,7 +1149,8 @@ def list_content(
 ) -> list[ContentView]:
     statement = select(ContentItem).order_by(ContentItem.updated_at.desc())
     if content_type:
-        statement = statement.where(ContentItem.content_type == content_type.upper())
+        types = ["TRAVEL", "VIDEO_NOTE"] if content_type.upper() == "TRAVEL" else [content_type.upper()]
+        statement = statement.where(ContentItem.content_type.in_(types))
     if query:
         statement = statement.where(ContentItem.title.contains(query))
     return [content_view(item) for item in db.scalars(statement).all()]
@@ -1174,14 +1179,7 @@ def get_content(content_id: str, _: Protected, db: Session = Depends(get_db)) ->
 
 
 def _delete_content_item(db: Session, item: ContentItem) -> None:
-    claims = db.scalars(
-        select(Claim).where(Claim.subject_type == "CONTENT", Claim.subject_id == item.id)
-    ).all()
-    claim_ids = [claim.id for claim in claims]
-    if claim_ids:
-        db.execute(delete(Evidence).where(Evidence.claim_id.in_(claim_ids)))
-        db.execute(delete(Claim).where(Claim.id.in_(claim_ids)))
-    db.delete(item)
+    delete_content_projection(db, item)
 
 
 @router.delete("/api/content/bulk")
@@ -1302,6 +1300,7 @@ def source_detail(source_id: str, _: Protected, db: Session = Depends(get_db)) -
 
 
 def _delete_source_record(db: Session, source: Source, state: dict[str, int | bool]) -> None:
+    place_deleted_ids = remove_source_places(db, source.id)
     record_event(
         db,
         "source.deleted",
@@ -1309,7 +1308,7 @@ def _delete_source_record(db: Session, source: Source, state: dict[str, int | bo
         actor="user",
         entity_type="deleted_source",
         entity_id=source.id,
-        detail=state,
+        detail={**state, "place_deleted_ids": place_deleted_ids},
         commit=False,
     )
     db.delete(source)
@@ -1956,6 +1955,7 @@ def _destination_map_markers(
         else {}
     )
     markers = []
+    windows_by_entity = group_by_place(effective_windows(db, list(grouped)))
     for destination, evidence in grouped.values():
         # Conflicting representative identities are not silently collapsed.
         if len({anchor.get("provider_id") for _, anchor in evidence}) != 1:
@@ -1998,7 +1998,17 @@ def _destination_map_markers(
                     for item, _ in evidence
                     if item.ai_note_version_id in versions and item.video_asset_id in assets
                 ],
-                visit_window_evidence=[
+                visit_window_summary=visit_window_summary(windows_by_entity.get(destination.id, []))[
+                    "summary"
+                ],
+                visit_window_state=visit_window_summary(windows_by_entity.get(destination.id, []))["state"],
+                visit_window_reason=visit_window_summary(windows_by_entity.get(destination.id, []))["reason"],
+                timing_status="EVIDENCE" if windows_by_entity.get(destination.id) else "UNANALYZED",
+                travel_brief=travel_brief({}, windows_by_entity.get(destination.id, [])),
+                visit_window_evidence=visit_window_summary(windows_by_entity.get(destination.id, []))[
+                    "evidence"
+                ]
+                + [
                     {
                         "source_kind": "TRANSCRIPT",
                         "source_text": item.quote,
@@ -2040,6 +2050,9 @@ def map_overview(
     route_id: str | None = None,
     source_id: str | None = None,
     visibility: str = Query(default="VISIBLE", pattern="^(VISIBLE|HIDDEN|ALL)$"),
+    temporal_theme: str | None = Query(
+        default=None, pattern="^(SUMMER_HOLIDAY|WINTER_HOLIDAY|SUMMER_ESCAPE)$"
+    ),
     selected_place_id: str | None = None,
     bbox: str | None = Query(default=None, description="west,south,east,north"),
     zoom: float = Query(default=4.0, ge=3, le=20),
@@ -2174,6 +2187,14 @@ def map_overview(
             for place in visible_places
             if (states.get(place.id).origin if states.get(place.id) else place.origin) == origin
         ]
+    if temporal_theme:
+        from zhijian.services.temporal_context import matches_theme
+
+        visible_places = [
+            p
+            for p in visible_places
+            if any(matches_theme(w, temporal_theme) for w in windows_by_place.get(p.id, []))
+        ]
     selected = next((place for place in visible_places if place.id == selected_place_id), None)
     route_count = db.scalar(select(func.count(RouteDraftItem.id))) or 0
     projection = _map_projection(db, place_ids)
@@ -2184,17 +2205,9 @@ def map_overview(
             (
                 user_state,
                 origin,
-                season,
-                month,
-                visit_window_state,
                 recommendation_tier,
-                month_segment,
-                day_time_slot,
                 route_id,
                 source_id,
-                best_month,
-                best_season,
-                best_time_slot,
             )
         )
         and visibility != "HIDDEN"
@@ -2202,6 +2215,51 @@ def map_overview(
         area_markers = _destination_map_markers(
             db, bbox=(west, south, east, north), query=query, city=city, district=district
         )
+    if any(
+        (
+            month,
+            season,
+            month_segment,
+            day_time_slot,
+            best_month,
+            best_season,
+            best_time_slot,
+            visit_window_state,
+        )
+    ):
+        area_windows = group_by_place(effective_windows(db, [a.id for a in area_markers]))
+        area_markers = [
+            a
+            for a in area_markers
+            if (
+                (
+                    not any(
+                        (month, season, month_segment, day_time_slot, best_month, best_season, best_time_slot)
+                    )
+                    or any(
+                        matches_window(
+                            w,
+                            month=month or best_month,
+                            season=season or best_season,
+                            month_segment=month_segment,
+                            day_time_slot=day_time_slot or best_time_slot,
+                        )
+                        for w in area_windows.get(a.id, [])
+                    )
+                )
+                and (
+                    not visit_window_state
+                    or visit_window_summary(area_windows.get(a.id, []), month)["state"] == visit_window_state
+                )
+            )
+        ]
+    if temporal_theme:
+        area_windows = group_by_place(effective_windows(db, [a.id for a in area_markers]))
+        area_markers = [
+            a
+            for a in area_markers
+            if any(matches_theme(w, temporal_theme) for w in area_windows.get(a.id, []))
+        ]
     selected_destination = next((item for item in area_markers if item.id == selected_place_id), None)
     return MapOverviewView(
         total_places=len(places) + len(area_markers),
@@ -2754,6 +2812,21 @@ def place_detail(place_id: str, _: Protected, db: Session = Depends(get_db)) -> 
     )
 
 
+@router.get("/api/travel/destinations/{destination_id}/temporal")
+def destination_temporal(destination_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
+    destination = db.get(Destination, destination_id)
+    if not destination:
+        raise HTTPException(status_code=404, detail="区域不存在")
+    windows = effective_windows(db, [destination_id])
+    return {
+        "id": destination.id,
+        "name": destination.name,
+        "visit_windows": [_visit_window_view(w).model_dump() for w in windows],
+        "visit_window": visit_window_summary(windows),
+        "travel_brief": travel_brief({}, windows),
+    }
+
+
 @router.get("/api/travel/places/{place_id}/destinations")
 def place_destinations(place_id: str, _: Protected, db: Session = Depends(get_db)) -> list[dict]:
     if db.get(Place, place_id) is None:
@@ -2786,12 +2859,21 @@ def _revision_conflict(current: int) -> HTTPException:
 
 
 def _visit_window_view(item: PlaceVisitWindow) -> PlaceVisitWindowView:
+    from zhijian.services.temporal_context import window_semantics
+
     return PlaceVisitWindowView(
-        semantics=temporal_semantics(item.source_text or "", period_type=item.period_type),
+        semantics=window_semantics(item),
+        theme_context=getattr(item, "theme_context", None),
+        note_id=getattr(item, "note_id", None),
+        note_version_id=getattr(item, "note_version_id", None),
         valid_as_time=valid_window(item),
         id=item.id,
         source_id=item.source_id,
-        source_kind="TITLE_METADATA"
+        source_kind="COVER_TEXT"
+        if getattr(item, "theme_context", {}).get("context", {}).get("source_kind") == "COVER_TEXT"
+        else "THEME_CONTEXT"
+        if item.provenance == "THEME_CONTEXT"
+        else "TITLE_METADATA"
         if item.provenance == "TITLE_CONTEXT"
         else "SEMANTIC_CONTEXT"
         if item.provenance == "SEMANTIC_CONTEXT"

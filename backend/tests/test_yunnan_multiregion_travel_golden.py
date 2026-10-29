@@ -354,8 +354,8 @@ def test_P0_materialization_is_per_mention_not_video(app_and_session):
                 },
             ],
         )
-        assert mentions[0].metadata_json["temporal_analysis"]["status"] == "ANALYZED"
-        assert mentions[1].metadata_json["temporal_analysis"]["status"] == "NO_TIME_MENTIONED"
+        assert mentions[0].metadata_json["temporal_analysis"]["status"] == "HAS_LOCAL_TIME"
+        assert mentions[1].metadata_json["temporal_analysis"]["status"] == "NO_LOCAL_TIME"
 
 
 def test_all_71_typed_candidates_are_not_71_confirmed_pins():
@@ -449,7 +449,10 @@ def test_real_region_anchor_keeps_background_local_and_does_not_truncate_80(app_
 
     real = json.loads((FIXTURE / "real_response_20261028.json").read_text())
     _, factory = app_and_session
-    segs = [SimpleNamespace(id=sid, text=text, corrected_text="") for sid, text in transcript().items()]
+    segs = [
+        SimpleNamespace(id=sid, text=text, corrected_text="", snapshot_id="fixture-yunnan")
+        for sid, text in transcript().items()
+    ]
     with factory() as db:
         source = Source(source_type="URL", locator="fixture://real-replay")
         db.add(source)

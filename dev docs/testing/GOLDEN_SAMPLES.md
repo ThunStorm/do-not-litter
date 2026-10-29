@@ -152,3 +152,8 @@
 ```
 
 检查29条硬性断言、71条已标类型候选的原词保全、12个路线对象、跨年/日期精度、禁渔/道路/局部否定、版本/清单隔离、旧导出与dry_run。46项离线测试仅证明规则及模拟提取边界。报告分别列出typed_name_retention与model_extraction；前者TP/FP/FN及1.0指标不表示真实模型召回或POI正确率。后者需显式真实调用取证，不能凭simulation-v1复制预期冒称金标。完整记录见[验收报告](../benchmark/YUNNAN_REGRESSION_ACCEPTANCE_20261028.md)。
+
+
+## 封面与时节目标样例（2026-10-29）
+
+BV1bgKm6YE4m：正文暑假主题不猜月份，封面“8月份宝藏目的地推荐！”独立来源；抓喜秀龙有清单成员原句，古龙山保留夏季漂流，八月中旬草原限制不广播给阿尔山。原图SHA256为0e8ee5761985bfb15865f476f7a85ae667ce0fae0611cc83e43b26b78e9b772f，原始输入/响应/隔离库位于data/benchmarks/cover-temporal-20261029。另有明确标注的否定、多月份、空白、模糊4张合成封面用于源守卫，不冒充真实视频。标签依据冻结计划及模型调用前的原图/转写复核，未把输出当金标；更广泛用户人工金标尚待评审。结果见[报告](../benchmark/VIDEO_COVER_TEMPORAL_ACCEPTANCE_20261029.md)，普通测试只运行fixture，不调用真实Provider。

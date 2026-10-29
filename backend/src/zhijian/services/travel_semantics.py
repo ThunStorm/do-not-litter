@@ -7,7 +7,7 @@ import re
 
 from zhijian.services.travel_timing import _number
 
-VERSION = "travel-semantics-v1"
+VERSION = "travel-semantics-v2"
 
 
 def temporal_semantics(text: str, *, scope: str = "PLACE", period_type: str | None = None) -> dict:
@@ -17,6 +17,7 @@ def temporal_semantics(text: str, *, scope: str = "PLACE", period_type: str | No
             for pattern, code in (
                 (r"禁渔|休渔|禁捕|钓鱼|捕捞", "FISHING"),
                 (r"骑马", "HORSE_RIDING"),
+                (r"漂流", "RAFTING"),
                 (r"骑行|骑车", "CYCLING"),
                 (r"自驾|封路|道路|路段|公路|落石", "SELF_DRIVE"),
                 (r"观赏|观花|油菜花|水性杨花|红嘴鸥|日照金山|灌水|红叶|雾凇", "VIEWING"),
@@ -70,6 +71,8 @@ def temporal_semantics(text: str, *, scope: str = "PLACE", period_type: str | No
             precision = "MONTH"
         elif re.search(r"春[季天]|夏[季天]|秋[季天]|冬[季天]", text):
             precision = "SEASON"
+        elif re.search(r"暑假|寒假|暑期", text):
+            precision = "HOLIDAY"
     return {
         "schema_version": VERSION,
         "scope": scope,

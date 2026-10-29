@@ -1,0 +1,50 @@
+{
+  "sampled_at": "2026-10-29",
+  "bvid": "BV1bgKm6YE4m",
+  "note_version_id": "ntv_39e83862aecc41e4bf0a5ba9ddba5fa3",
+  "grounded_map_artifact_id": null,
+  "scope": "Read-only transcript evidence; no inferred Artifact binding; expected subject relation is an offline counterexample, not human gold.",
+  "segments": [
+    {
+      "id": "seg_3e0331849ff2407b833a0fed1d288387",
+      "ordinal": 19,
+      "snapshot_id": "snap_9da06b74450a4aa3a51e8d0b2d4d99ee",
+      "text": "的丹吉大瀑布和侏罗纪时代的桫椤树。隔壁呢是古龙山大峡谷，同样是一个有瀑布、有溶洞的地方。古龙山最值得体验",
+      "corrected_text": "的丹吉大瀑布和侏罗纪时代的桫椤树。隔壁呢是古龙山大峡谷，同样是一个有瀑布、有溶洞的地方。古龙山最值得体验",
+      "start_ms": 163602,
+      "end_ms": 172002
+    },
+    {
+      "id": "seg_5a6c14aa34fb45ee86e5561e90181191",
+      "ordinal": 20,
+      "snapshot_id": "snap_9da06b74450a4aa3a51e8d0b2d4d99ee",
+      "text": "的是一个可以穿越好几个溶洞的地心漂流号称是一漂穿三洞夏天去肯定是一个比较好的体验了同时静溪呢因为",
+      "corrected_text": "的是一个可以穿越好几个溶洞的地心漂流号称是一漂穿三洞夏天去肯定是一个比较好的体验了同时静溪呢因为",
+      "start_ms": 172002,
+      "end_ms": 181154
+    }
+  ],
+  "opening_segments": [
+    {
+      "id": "seg_d84bb498d53349bda9f30984cfe19579",
+      "snapshot_id": "snap_9da06b74450a4aa3a51e8d0b2d4d99ee",
+      "ordinal": 0,
+      "text": "暑假到底哪里人少景美又避暑？作为中国国家地理风景评审师，我总结了一些好玩又避暑的小城。每年七月十五号到",
+      "corrected_text": "暑假到底哪里人少景美又避暑？作为中国国家地理风景评审师，我总结了一些好玩又避暑的小城。每年七月十五号到"
+    },
+    {
+      "id": "seg_8315ccf5e7e44e089bf3454982bb5150",
+      "snapshot_id": "snap_9da06b74450a4aa3a51e8d0b2d4d99ee",
+      "ordinal": 1,
+      "text": "八月十五号是全年游客出行最多的时候，同时也是最热的时候。那有没有一些地方人少景美又避暑呢？我继续给大家",
+      "corrected_text": "八月十五号是全年游客出行最多的时候，同时也是最热的时候。那有没有一些地方人少景美又避暑呢？我继续给大家"
+    },
+    {
+      "id": "seg_8389c037bc244a90909be75618ac620c",
+      "snapshot_id": "snap_9da06b74450a4aa3a51e8d0b2d4d99ee",
+      "ordinal": 2,
+      "text": "整理一些人少景美又避暑的地方从天气人流量便利度消费和独特性几个维度来展开首先天气暑假期间出门最主",
+      "corrected_text": "整理一些人少景美又避暑的地方从天气人流量便利度消费和独特性几个维度来展开首先天气暑假期间出门最主"
+    }
+  ]
+}

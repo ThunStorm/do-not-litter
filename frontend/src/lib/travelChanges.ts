@@ -1,7 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query'
 
 const channelName = 'zhijian-travel-changes'
-const keys = ['map', 'places', 'place-reviews', 'place-review-count', 'video-places', 'video-note', 'video-notes', 'travel-dashboard']
+const keys = ['map', 'places', 'place', 'place-destinations', 'place-history', 'routes', 'place-reviews', 'place-review-count', 'video-places', 'video-note', 'video-notes', 'travel-dashboard']
 export function invalidateTravel(client: QueryClient) {
   return Promise.all(keys.map((key) => client.invalidateQueries({ queryKey: [key] })))
 }

@@ -7,6 +7,7 @@ const labels: Record<string, string> = {
   PRIMARY_DIRECT: '主模型', PRIMARY_RETRY: '重试', FALLBACK: '备用模型', CACHE_HIT: '缓存',
   QUEUED: '等待本地资源', DISPATCHED: '模型执行中', VALIDATING: '校验结果中',
   GROUND_MAP: '证据地图', NOTE_REDUCE: '笔记归纳', TRANSCRIPT_CORRECTION: '转写校对',
+  COVER_TEXT: '封面文字识别',
   GENERATE_AI_NOTE: '生成笔记', EXTRACT_TRAVEL_FACTS: '提取旅行事实',
 }
 

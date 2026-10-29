@@ -397,7 +397,7 @@ Eligibility：
 
 ## 12.1.2 视频笔记删除
 
-视频笔记列表和详情均通过 `…` 菜单提供“删除笔记”，共用同一删除语义。删除 Note 正文、版本、Section、目录和内容投影，但保留共享 Source、VideoAsset、CoverAsset、Transcript、Place 和 Evidence；活跃生成任务阻止删除。第一版不可恢复，必须确认标题和保留边界。完整契约见 `video/VIDEO_NOTE_DELETE_V044_SPEC.md`。
+视频笔记列表和详情均通过 `…` 菜单提供“删除笔记”，共用同一删除语义。删除 Note 正文、版本、Section、目录和内容投影，保留仍被使用的共享 Source、VideoAsset、CoverAsset、Transcript 和 Evidence；按笔记归属清理生成地点关联，无其他来源和人工记录的自动地点同步删除，共享地点、人工资料与路线保留（2026-10-30用户授权更新）；活跃生成任务阻止删除。第一版不可恢复，必须确认标题和保留边界。完整契约见 `video/VIDEO_NOTE_DELETE_V044_SPEC.md`。
 
 地点归纳笔记的入口至少包括视频笔记、地点列表和地图 Marker，所有入口必须进入同一个 Place Detail，不建立多套地点详情。完整流程、BiliNote 复用边界、DeepSeek 调用、异常回退、数据模型和 UI 决策门见 `video/VIDEO_AI_NOTE_PIPELINE.md`。
 
@@ -485,3 +485,5 @@ Eligibility：
 - 通用 Agent 系统。
 
 这些能力记录于 planning/FUTURE_ROADMAP.md。
+
+2026-10-30 内容分类：PC管理导航新增“投递”直达 `/capture`，Mobile沿用原投递入口；内容“旅行”包含TRAVEL与VIDEO_NOTE，另提供独立“视频笔记”分类且保留原Content身份。没有招聘记录时如实显示空态。

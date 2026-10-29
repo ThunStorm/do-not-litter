@@ -460,7 +460,7 @@ export interface MapOverviewView {
 }
 
 export interface PlaceListView { items: MapMarker[]; next_cursor: string | null; total: number }
-export interface PlaceVisitWindow { valid_as_time?: boolean; id: string; source_id?: string | null; source_kind?: string; season: string | null; month: number | null; month_segment: string | null; day_time_slot: string | null; period_type: string; suitability: string; source_text: string; segment_ids: string[]; provenance: string; confidence: number; status: string }
+export interface PlaceVisitWindow { note_id?: string | null; theme_context?: { start_ms?: number; context?: { cover_id?: string; cover_hash?: string } }; valid_as_time?: boolean; id: string; source_id?: string | null; source_kind?: string; season: string | null; month: number | null; month_segment: string | null; day_time_slot: string | null; period_type: string; suitability: string; source_text: string; segment_ids: string[]; provenance: string; confidence: number; status: string }
 
 export interface RouteDraftView {
   id: string
@@ -477,6 +477,7 @@ export interface VideoNoteView {
   platform: 'BILIBILI' | 'LOCAL' | 'YOUTUBE'
   canonical_url: string
   cover_url: string | null
+  temporal_review?: Array<{ source_text: string; segment_ids: string[]; status: string }>
   cover_status?: string
   cover_image_url?: string | null
   cover_width?: number | null
@@ -545,3 +546,6 @@ export interface RouteGuide {
   stops: Array<{ raw_name: string; place_id: string | null; review_status: string }>
   evidence: { quote: string; segment_ids: string[] }; conditions: Array<{ subject: string; quote: string }>
 }
+
+export interface CoverTextEvidence { status: string; cover_id?: string; cover_hash?: string; method?: string; regions?: Array<{ text: string; bbox: number[]; confidence: number }>; vision_error_code?: string }
+export interface CoverTextView { applicable_places?: Array<{ name: string; time_text: string; relation: string; source_kind: string }>; applied_to_current_note: boolean; evidence?: CoverTextEvidence | null; latest_extraction?: CoverTextEvidence | null; latest_job_id?: string | null; notice: string }

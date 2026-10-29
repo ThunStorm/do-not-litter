@@ -7,7 +7,6 @@ from collections import defaultdict
 from typing import Any
 
 from zhijian.services.place_knowledge import aggregate_place_knowledge
-from zhijian.services.travel_semantics import temporal_semantics
 from zhijian.services.travel_timing import matches_window, valid_window, window_label
 
 VISIT_STATE_LABELS = {
@@ -111,7 +110,14 @@ def visit_window_summary(windows: list[Any], month: int | None = None) -> dict[s
                 "segment_ids": list(item.segment_ids_json or []),
                 "source_text": item.source_text,
                 "context_label": getattr(item, "context_label", ""),
-                "source_kind": "SEMANTIC_CONTEXT"
+                "note_id": getattr(item, "note_id", None),
+                "version_id": getattr(item, "note_version_id", None),
+                "theme_context": getattr(item, "theme_context", None),
+                "source_kind": "COVER_TEXT"
+                if getattr(item, "theme_context", {}).get("context", {}).get("source_kind") == "COVER_TEXT"
+                else "THEME_CONTEXT"
+                if item.provenance == "THEME_CONTEXT"
+                else "SEMANTIC_CONTEXT"
                 if item.provenance == "SEMANTIC_CONTEXT"
                 else "TITLE_METADATA"
                 if item.provenance == "TITLE_CONTEXT"
@@ -260,7 +266,9 @@ def group_by_place(items: list[Any]) -> dict[str, list[Any]]:
 def _window_state(item: Any) -> str:
     if item.provenance == "SEMANTIC_CONTEXT":
         return "UNKNOWN"
-    semantics = temporal_semantics(item.source_text or "")
+    from zhijian.services.temporal_context import window_semantics
+
+    semantics = window_semantics(item)
     if semantics["purpose"] == "ACTIVITY" or semantics["scope"] == "ROAD_SECTION":
         return "UNKNOWN"
     if item.period_type == "FISHING_CLOSURE":
