@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from hashlib import sha256
 
-VERSION = "temporal-context-v6-source-review"
+VERSION = "temporal-context-v7-split-month"
 INTENT = re.compile(r"推荐|整理|盘点|分享|适合|哪里|避暑小城")
 TIME = re.compile(
     r"暑假|寒假|暑期|春[季天]|夏[季天]|秋[季天]|冬[季天]|盛夏|(?<![0-9])(?:1[0-2]|[1-9]|[一二三四五六七八九十]{1,3})月份?(?:[0-9一二三四五六七八九十]{1,3}[日号])?(?:(?:到|至|[-—～])(?:次年)?(?:1[0-2]|[1-9]|[一二三四五六七八九十]{1,3})月份?(?:[0-9一二三四五六七八九十]{1,3}[日号])?)?"
@@ -19,7 +19,12 @@ def candidate_contexts(segments):
         if not getattr(segment, "snapshot_id", None):
             continue
         # Each candidate has a bounded continuous source interval. No truncation of its quote.
-        if not TIME.search(segment.corrected_text or segment.text):
+        text_at_start = str(segment.corrected_text or segment.text)
+        if index and segments[index - 1].snapshot_id == segment.snapshot_id:
+            previous = str(segments[index - 1].corrected_text or segments[index - 1].text)
+            if previous.endswith("十") and re.match(r"^[一二]月份?", text_at_start):
+                continue  # The preceding continuous window already carries 十一/十二月.
+        if not TIME.search(text_at_start):
             continue
         chain = [segment]
         for following in segments[index + 1 : index + 3]:

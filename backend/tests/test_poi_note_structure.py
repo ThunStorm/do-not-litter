@@ -229,11 +229,30 @@ def test_historical_read_grouping_keeps_stored_version_untouched(client, app_and
     assert len(view["sections"]) == 2 and len(view["reading_sections"]) == 1
     assert view["reading_sections"][0]["heading"] == "甲园"
     assert view["markdown"] == "原始Markdown"
+    assert view["quality_summary"]["note_version_id"] == vid
+    assert view["quality_summary"]["generation_mode"] == "UNKNOWN"
+    assert view["quality_summary"]["summarized_fact_count"] is None
     with factory() as db:
         assert db.get(AINoteVersion, vid).overview == "原始概览"
         assert (
             len(db.scalars(select(AINoteSection).where(AINoteSection.ai_note_version_id == vid)).all()) == 2
         )
+        old_ids = list(db.scalars(select(AINoteSection.id).where(AINoteSection.ai_note_version_id == vid)))
+        updated = AINoteVersion(
+            ai_note_id=nid, version=2, markdown="新正文", transcript_version=transcript.version,
+            prompt_version="video-note-v5-quality",
+        )
+        db.add(updated)
+        db.flush()
+        db.add(AINoteSection(
+            ai_note_version_id=updated.id, ordinal=0, heading="甲园", section_kind="PLACE_GUIDE",
+            body_markdown="门票与拍摄", segment_ids_json=[segments[0].id, segments[2].id],
+            place_mention_ids_json=[mentions[0].id],
+        ))
+        db.get(AINote, nid).current_version_id = updated.id
+        db.commit()
+    refreshed = client.get(f"/api/video-notes/{nid}").json()
+    assert set(old_ids) <= set(refreshed["reading_sections"][0]["source_section_ids"])
 
 
 def test_new_generation_merges_across_packs_and_audits_omitted_facts(app_and_session, monkeypatch):
@@ -280,6 +299,41 @@ def test_new_generation_merges_across_packs_and_audits_omitted_facts(app_and_ses
         assert any("未被模型章节完整覆盖" in w for w in version.warnings_json)
         assert "本包" not in version.overview
         assert set(sid for s in sections for sid in s.segment_ids_json) == {s.id for s in segments}
+
+
+def test_opinion_review_preserves_facts_and_all_merged_quotes(app_and_session, monkeypatch):
+    import zhijian.services.video_support as support
+
+    _, factory = app_and_session
+    with factory() as db:
+        asset, transcript, segments, mentions, facts = sample(db)
+        mentions[0].metadata_json = {
+            **mentions[0].metadata_json,
+            "recommendation_evidence": {
+                "schema_version": "recommendation-v1", "status": "UNKNOWN",
+                "assessment_status": "NEEDS_REVIEW", "statements": [],
+                "reason_codes": ["POLARITY_NEEDS_REVIEW"],
+            },
+        }
+        artifact = note_artifact(db, asset, transcript, facts)
+        provider = SimpleNamespace(request_options=SimpleNamespace(max_output_tokens=4096))
+        monkeypatch.setattr(support, "provider_for_role", lambda *a: (provider, "fixture", "fixture"))
+        payload = {"sections": [{
+            "heading": "甲园", "unit_type": "PLACE_GUIDE", "summary": "强烈推荐甲园",
+            "body_markdown": "强烈推荐甲园，门票20元。", "segment_ids": [segments[0].id],
+            "place_mention_ids": [mentions[0].id], "supporting_quotes": [segments[0].text],
+        }]}
+        monkeypatch.setattr(support, "_cached_stage_json", lambda *a, **k: LLMResult(
+            json.dumps(payload, ensure_ascii=False), "fixture", "fixture", {}
+        ))
+        version = generate_note(
+            db, Settings(_env_file=None), asset, transcript, segments,
+            mentions=mentions, grounded_map=artifact,
+        )
+        assert "门票20元" in version.markdown
+        assert "强烈推荐" not in version.markdown
+        assert "作者意见或归纳待核对，以原文为准" not in version.markdown
+        assert mentions[0].metadata_json["recommendation_evidence"]["status"] == "UNKNOWN"
 
 
 def test_valid_global_id_from_another_package_is_rejected(app_and_session, monkeypatch):

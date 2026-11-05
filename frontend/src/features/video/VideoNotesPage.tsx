@@ -15,6 +15,7 @@ import { PlaceReviewCard } from '../places/PlaceReviewCard'
 import { videoTimestampUrl } from './videoTime'
 import { CoverTextPanel } from './CoverTextPanel'
 import { VideoPlaceCandidate } from './VideoPlaceCandidate'
+import { noteQualityGroups } from './noteQuality'
 
 function duration(value: number | null) {
   if (!value) return '时长待读取'
@@ -74,6 +75,7 @@ export function VideoNoteDetailPage() {
     return () => window.removeEventListener('keydown', close)
   }, [lightbox])
   const readingSections = note.data?.reading_sections ?? note.data?.sections
+  const qualityGroups = useMemo(() => noteQualityGroups(note.data?.quality_summary, readingSections ?? []), [note.data?.quality_summary, readingSections])
   const sectionForSegment = useMemo(() => {
     const result = new Map<string, string>()
     readingSections?.forEach((section) => section.segment_ids.forEach((id) => result.set(id, section.id)))
@@ -94,7 +96,8 @@ export function VideoNoteDetailPage() {
   return <div className="video-detail"><header className="detail-topbar"><Link to="/video-notes"><ArrowLeft />返回笔记</Link><span>视频 AI 笔记</span><div className="video-detail__tools"><small className="video-detail__model" title={note.data.model_name || modelLabel}>{modelLabel}</small><div className="video-detail__actions"><DeleteMenu label={note.data.title} disabled={remove.isPending} onDelete={requestDelete} /><button onClick={() => regenerate.mutate()} disabled={regenerate.isPending}><RotateCcw />重新生成</button></div></div></header><article className="video-detail__body">
     <section className={`video-hero ${note.data.cover_image_url ? '' : 'video-hero--no-cover'}`}>{note.data.cover_image_url && <div className="video-hero__cover"><VideoCover url={note.data.cover_image_url} alt={`${note.data.title} 封面`} fallback={false} /><span>{duration(note.data.duration_ms)}</span></div>}<div><h1>{note.data.title}</h1>{note.data.platform === 'LOCAL' ? <span>本地视频 · 时间码仅供定位</span> : <a href={note.data.canonical_url} target="_blank" rel="noreferrer">在来源打开 <ExternalLink size={15} /></a>}</div></section>
     {legacyNeedsRegeneration && <section className="video-quality-notice"><div><strong>旧版正文已隐藏</strong><span>这份笔记生成于 AI 转写校对工序上线前。为避免口音误读继续影响摘要、目录和地点，请重新生成。</span></div><button className="button button--primary" onClick={() => regenerate.mutate()} disabled={regenerate.isPending}><RotateCcw />应用新版校对流程</button></section>}
-    <section className="video-note-prose video-summary"><h2><TextQuote />AI 摘要</h2><div className="video-markdown"><MarkdownContent value={legacyNeedsRegeneration ? '等待按新版 AI 校对流程重新生成，未经校对的旧摘要不再展示。' : note.data.overview || '笔记正在生成，请稍后刷新。'} /></div></section>
+    <section className="video-note-prose video-summary"><h2><TextQuote />AI 摘要</h2><div className="video-markdown"><MarkdownContent value={legacyNeedsRegeneration ? '等待按新版 AI 校对流程重新生成，未经校对的旧摘要不再展示。' : note.data.reading_overview || note.data.overview || '笔记正在生成，请稍后刷新。'} /></div></section>
+    {!legacyNeedsRegeneration && note.data.quality_summary && <section className="video-note-prose" aria-label="笔记质量说明"><p>{note.data.quality_summary.status === 'NEEDS_REVIEW' ? `部分内容待核对，共 ${note.data.quality_summary.issue_count} 项。` : '内容已生成，归纳完整性尚未经过人工验收。'}已保存事实证据 {note.data.quality_summary.evidence_represented_count}/{note.data.quality_summary.fact_count} 条；证据保留不代表归纳完成。</p>{note.data.quality_summary.issues.length > 0 && <details><summary>查看待核对内容</summary><ul>{qualityGroups.map((group, index) => <li key={index}>{group.label}{group.count > 1 ? `（${group.count}项）` : ''}{group.sectionId && <> <button className="transcript-export" onClick={() => jump(group.sectionId)}>查看对应章节</button></>}</li>)}</ul></details>}</section>}
     <nav className="video-toc" aria-label="主旨目录"><h2><TextQuote />主旨目录</h2><div>{(readingSections ?? []).map((section, index) => <button key={section.id} onClick={() => jump(section.id)}><time>{timecode(section.start_ms)}</time><span>{legacyNeedsRegeneration ? `章节 ${index + 1} · 待重新归纳` : section.heading}</span></button>)}</div></nav>
     <section className="video-note-prose video-timeline"><h2>地点与主题要点</h2>{(readingSections ?? []).length ? (readingSections ?? []).map((section) => {
       const shots = screenshots.data?.filter((shot) => (section.source_section_ids ?? [section.id]).includes(shot.section_id || '') && shot.status === 'READY') ?? []

@@ -105,13 +105,14 @@ class AIWorkloadGateway:
         def check_request_limits(attempt_messages: list[dict[str, str]]) -> None:
             from zhijian.ai.reliability import AIProviderError
 
-            if (
-                max_input_tokens
-                and estimate_tokens(sum(len(item.get("content") or "") for item in attempt_messages))
-                > max_input_tokens
-            ):
+            input_chars = sum(len(item.get("content") or "") for item in attempt_messages)
+            estimated_input = estimate_tokens(input_chars)
+            if max_input_tokens and estimated_input > max_input_tokens:
                 raise AIProviderError(
-                    "AI_STAGE_INPUT_BUDGET", "完整请求的输入估算超过阶段预算，需缩小分块", switch_model=False
+                    "AI_STAGE_INPUT_BUDGET",
+                    f"完整请求估算 {estimated_input} Token（{input_chars}字符），"
+                    f"超过阶段输入预算 {max_input_tokens}，需缩小分块",
+                    switch_model=False,
                 )
             if job and max_stage_attempts:
                 rows = db.scalars(

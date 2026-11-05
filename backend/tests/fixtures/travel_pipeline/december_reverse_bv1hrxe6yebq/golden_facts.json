@@ -1,0 +1,338 @@
+[
+  {
+    "fact_id": "gold-01",
+    "owner": "河池",
+    "kind": "枯水",
+    "quote": "水量会下降不少",
+    "segment_ids": [
+      "seg_5279e7b7219743779420ce30dd41c889",
+      "seg_7eba5b629fbd4fbd92f9cf97c807d4f6",
+      "seg_7c7060fa552b48abb4883db4794e62da",
+      "seg_3f1c8ddc1081434cb5c7ef7a22976a62"
+    ],
+    "source": "AUTHOR_SOURCE_FACT",
+    "expectation": "preserve_all_qualifiers"
+  },
+  {
+    "fact_id": "gold-02",
+    "owner": "河池",
+    "kind": "交通",
+    "quote": "景区有点太分散了",
+    "segment_ids": [
+      "seg_7eba5b629fbd4fbd92f9cf97c807d4f6",
+      "seg_7c7060fa552b48abb4883db4794e62da",
+      "seg_3f1c8ddc1081434cb5c7ef7a22976a62",
+      "seg_1ee25fcbc7984f6b8b25c2cf51d51572"
+    ],
+    "source": "AUTHOR_SOURCE_FACT",
+    "expectation": "preserve_all_qualifiers"
+  },
+  {
+    "fact_id": "gold-03",
+    "owner": "河池",
+    "kind": "客流",
+    "quote": "元旦前后人流量会逐渐的增加",
+    "segment_ids": [
+      "seg_29b89cfc1edb4402a8220ee26ed5e154",
+      "seg_5279e7b7219743779420ce30dd41c889",
+      "seg_7eba5b629fbd4fbd92f9cf97c807d4f6",
+      "seg_7c7060fa552b48abb4883db4794e62da"
+    ],
+    "source": "AUTHOR_SOURCE_FACT",
+    "expectation": "preserve_all_qualifiers"
+  },
+  {
+    "fact_id": "gold-04",
+    "owner": "河池",
+    "kind": "费用",
+    "quote": "经济型酒店就一百多",
+    "segment_ids": [
+      "seg_7c7060fa552b48abb4883db4794e62da",
+      "seg_3f1c8ddc1081434cb5c7ef7a22976a62",
+      "seg_1ee25fcbc7984f6b8b25c2cf51d51572",
+      "seg_1ae77f82ba724a039dc25d33097bb2a4"
+    ],
+    "source": "AUTHOR_SOURCE_FACT",
+    "expectation": "preserve_all_qualifiers"
+  },
+  {
+    "fact_id": "gold-05",
+    "owner": "丙中洛",
+    "kind": "交通",
+    "quote": "如果你不是自驾来的话可能会稍微折腾一点",
+    "segment_ids": [
+      "seg_43a0715ad1804db897a1bf31fb83460c",
+      "seg_03a51613306a4e0a99874eac3ea4e9b0",
+      "seg_6613dcd01c404f379082b2055773ec55",
+      "seg_0cb5473dc0f54e78b915b13d9424f424"
+    ],
+    "source": "AUTHOR_SOURCE_FACT",
+    "expectation": "preserve_all_qualifiers"
+  },
+  {
+    "fact_id": "gold-06",
+    "owner": "丙中洛",
+    "kind": "限制",
+    "quote": "普通的家用轿车那就不建议走这条路",
+    "segment_ids": [
+      "seg_03a51613306a4e0a99874eac3ea4e9b0",
+      "seg_6613dcd01c404f379082b2055773ec55",
+      "seg_0cb5473dc0f54e78b915b13d9424f424",
+      "seg_65fd08dac0c74f81814e787b19ff93ac"
+    ],
+    "source": "AUTHOR_SOURCE_FACT",
+    "expectation": "preserve_all_qualifiers"
+  },
+  {
+    "fact_id": "gold-07",
+    "owner": "丙中洛",
+    "kind": "费用",
+    "quote": "国庆期间的百分之六十左右",
+    "segment_ids": [
+      "seg_6613dcd01c404f379082b2055773ec55",
+      "seg_0cb5473dc0f54e78b915b13d9424f424",
+      "seg_65fd08dac0c74f81814e787b19ff93ac",
+      "seg_8432b11b61704931805c0c6b170f9a93"
+    ],
+    "source": "AUTHOR_SOURCE_FACT",
+    "expectation": "preserve_all_qualifiers"
+  },
+  {
+    "fact_id": "gold-08",
+    "owner": "丙中洛",
+    "kind": "客流",
+    "quote": "元旦的时候人才会多一点",
+    "segment_ids": [
+      "seg_af79b78fa7a545a7b20bfee42037b21f",
+      "seg_e13a81aadc5e4a1cb26c914972730ae6",
+      "seg_43a0715ad1804db897a1bf31fb83460c",
+      "seg_03a51613306a4e0a99874eac3ea4e9b0"
+    ],
+    "source": "AUTHOR_SOURCE_FACT",
+    "expectation": "preserve_all_qualifiers"
+  },
+  {
+    "fact_id": "gold-09",
+    "owner": "从江",
+    "kind": "景观",
+    "quote": "十二月份开始是梯田的灌水期",
+    "segment_ids": [
+      "seg_69fe5e474361468db3ff0d12426c59dd",
+      "seg_7ca03e83da494e8393946fdb5e0ee3f7",
+      "seg_dd13d86fc43b498ab267a40f68ae7d1e",
+      "seg_3a3616f61a284a87af6d5c693b77ea94"
+    ],
+    "source": "AUTHOR_SOURCE_FACT",
+    "expectation": "preserve_all_qualifiers"
+  },
+  {
+    "fact_id": "gold-10",
+    "owner": "从江",
+    "kind": "客流",
+    "quote": "节庆期间这个村寨的人流会有一些上涨",
+    "segment_ids": [
+      "seg_4e3a256128f5411189d8392d6c2b58f2",
+      "seg_c557215a2ed043ef9ed1942eab13b038",
+      "seg_2082c7bdbb6743de895e9f8089d91d5c",
+      "seg_69fe5e474361468db3ff0d12426c59dd"
+    ],
+    "source": "AUTHOR_SOURCE_FACT",
+    "expectation": "preserve_all_qualifiers"
+  },
+  {
+    "fact_id": "gold-11",
+    "owner": "从江",
+    "kind": "费用",
+    "quote": "人均一两百就能玩一天",
+    "segment_ids": [
+      "seg_69fe5e474361468db3ff0d12426c59dd",
+      "seg_7ca03e83da494e8393946fdb5e0ee3f7",
+      "seg_dd13d86fc43b498ab267a40f68ae7d1e",
+      "seg_3a3616f61a284a87af6d5c693b77ea94"
+    ],
+    "source": "AUTHOR_SOURCE_FACT",
+    "expectation": "preserve_all_qualifiers"
+  },
+  {
+    "fact_id": "gold-12",
+    "owner": "从江",
+    "kind": "交通",
+    "quote": "从江有高铁",
+    "segment_ids": [
+      "seg_c557215a2ed043ef9ed1942eab13b038",
+      "seg_2082c7bdbb6743de895e9f8089d91d5c",
+      "seg_69fe5e474361468db3ff0d12426c59dd",
+      "seg_7ca03e83da494e8393946fdb5e0ee3f7"
+    ],
+    "source": "AUTHOR_SOURCE_FACT",
+    "expectation": "preserve_all_qualifiers"
+  },
+  {
+    "fact_id": "gold-13",
+    "owner": "拉萨",
+    "kind": "限制",
+    "quote": "冬天去拉萨就不是特别推荐自驾了",
+    "segment_ids": [
+      "seg_42292e116ed04c629c9db4b60f391cd6",
+      "seg_a5259cb16d794d8cad4b32d20e623ba8",
+      "seg_5b341ade776040b2b4bf9d9b977b337b",
+      "seg_71b89858f6934cf591d2fbf2de3c3cbc"
+    ],
+    "source": "AUTHOR_SOURCE_FACT",
+    "expectation": "preserve_all_qualifiers"
+  },
+  {
+    "fact_id": "gold-14",
+    "owner": "拉萨",
+    "kind": "交通",
+    "quote": "飞机和火车是首选",
+    "segment_ids": [
+      "seg_42292e116ed04c629c9db4b60f391cd6",
+      "seg_a5259cb16d794d8cad4b32d20e623ba8",
+      "seg_5b341ade776040b2b4bf9d9b977b337b",
+      "seg_71b89858f6934cf591d2fbf2de3c3cbc"
+    ],
+    "source": "AUTHOR_SOURCE_FACT",
+    "expectation": "preserve_all_qualifiers"
+  },
+  {
+    "fact_id": "gold-15",
+    "owner": "拉萨",
+    "kind": "费用",
+    "quote": "冬天几乎所有的景区都不要门票",
+    "segment_ids": [
+      "seg_97b452bedc7045a49b46cc4931d9a865",
+      "seg_42292e116ed04c629c9db4b60f391cd6",
+      "seg_a5259cb16d794d8cad4b32d20e623ba8",
+      "seg_5b341ade776040b2b4bf9d9b977b337b"
+    ],
+    "source": "AUTHOR_SOURCE_FACT",
+    "expectation": "preserve_all_qualifiers"
+  },
+  {
+    "fact_id": "gold-16",
+    "owner": "拉萨",
+    "kind": "活动",
+    "quote": "仙女节燃灯节",
+    "segment_ids": [
+      "seg_12345eec70304674a7dfde699e396ad1",
+      "seg_5967873f9f1a4c1c885c3803bf15fdde",
+      "seg_85fa413be22a42dd9f1ec851cd0fdaea",
+      "seg_d47798cab3ff4124a1cd1747db666463"
+    ],
+    "source": "AUTHOR_SOURCE_FACT",
+    "expectation": "preserve_all_qualifiers"
+  },
+  {
+    "fact_id": "gold-17",
+    "owner": "拉萨",
+    "kind": "看点",
+    "quote": "成片的酥油灯非常的壮观",
+    "segment_ids": [
+      "seg_71b89858f6934cf591d2fbf2de3c3cbc",
+      "seg_aecb55699aa946c9934c1c70fe2a4846",
+      "seg_3d58988bc6604cc0a2021b2e2ac279fa",
+      "seg_d9b5b6a106e94e6081e8cdaaf5bb11a8"
+    ],
+    "source": "AUTHOR_SOURCE_FACT",
+    "expectation": "preserve_all_qualifiers"
+  },
+  {
+    "fact_id": "gold-18",
+    "owner": "玉溪",
+    "kind": "时间",
+    "quote": "开渔节是二十五号前后",
+    "segment_ids": [
+      "seg_ca4ceba7383a4882b45d02c0f9925ea6",
+      "seg_84bc6e4f0e1149d78fa050d5d6247870",
+      "seg_33e9e1c5ef5c4bf19c4f1146c719e069",
+      "seg_169d1eb1d36f4d05b36c36c10e225ab9"
+    ],
+    "source": "AUTHOR_SOURCE_FACT",
+    "expectation": "preserve_all_qualifiers"
+  },
+  {
+    "fact_id": "gold-19",
+    "owner": "玉溪",
+    "kind": "住宿",
+    "quote": "可能会遇到没有房的情况",
+    "segment_ids": [
+      "seg_84bc6e4f0e1149d78fa050d5d6247870",
+      "seg_33e9e1c5ef5c4bf19c4f1146c719e069",
+      "seg_169d1eb1d36f4d05b36c36c10e225ab9",
+      "seg_9bfa63059f2b49ebb041077144767504"
+    ],
+    "source": "AUTHOR_SOURCE_FACT",
+    "expectation": "preserve_all_qualifiers"
+  },
+  {
+    "fact_id": "gold-20",
+    "owner": "玉溪",
+    "kind": "费用",
+    "quote": "开渔节期间人多价格高",
+    "segment_ids": [
+      "seg_84bc6e4f0e1149d78fa050d5d6247870",
+      "seg_33e9e1c5ef5c4bf19c4f1146c719e069",
+      "seg_169d1eb1d36f4d05b36c36c10e225ab9",
+      "seg_9bfa63059f2b49ebb041077144767504"
+    ],
+    "source": "AUTHOR_SOURCE_FACT",
+    "expectation": "preserve_all_qualifiers"
+  },
+  {
+    "fact_id": "gold-21",
+    "owner": "玉溪",
+    "kind": "客流",
+    "quote": "之后是元旦假期人也越来越多了",
+    "segment_ids": [
+      "seg_33e9e1c5ef5c4bf19c4f1146c719e069",
+      "seg_169d1eb1d36f4d05b36c36c10e225ab9",
+      "seg_9bfa63059f2b49ebb041077144767504",
+      "seg_2f0d21f37bc94b88910d7858d801ed88"
+    ],
+    "source": "AUTHOR_SOURCE_FACT",
+    "expectation": "preserve_all_qualifiers"
+  },
+  {
+    "fact_id": "gold-22",
+    "owner": "玉溪",
+    "kind": "时间",
+    "quote": "十二月份中旬上旬非常适合过来转一下",
+    "segment_ids": [
+      "seg_33e9e1c5ef5c4bf19c4f1146c719e069",
+      "seg_169d1eb1d36f4d05b36c36c10e225ab9",
+      "seg_9bfa63059f2b49ebb041077144767504",
+      "seg_2f0d21f37bc94b88910d7858d801ed88"
+    ],
+    "source": "AUTHOR_SOURCE_FACT",
+    "expectation": "preserve_all_qualifiers"
+  },
+  {
+    "fact_id": "gold-23",
+    "owner": "玉溪",
+    "kind": "看点",
+    "quote": "抚仙湖的红嘴鸥飞过来了",
+    "segment_ids": [
+      "seg_aecb55699aa946c9934c1c70fe2a4846",
+      "seg_3d58988bc6604cc0a2021b2e2ac279fa",
+      "seg_d9b5b6a106e94e6081e8cdaaf5bb11a8",
+      "seg_7278f93286044eeeab4b6bd7666d3c77"
+    ],
+    "source": "AUTHOR_SOURCE_FACT",
+    "expectation": "preserve_all_qualifiers"
+  },
+  {
+    "fact_id": "gold-24",
+    "owner": "玉溪",
+    "kind": "天气",
+    "quote": "温差比较大",
+    "segment_ids": [
+      "seg_d9b5b6a106e94e6081e8cdaaf5bb11a8",
+      "seg_7278f93286044eeeab4b6bd7666d3c77",
+      "seg_ca4ceba7383a4882b45d02c0f9925ea6",
+      "seg_84bc6e4f0e1149d78fa050d5d6247870"
+    ],
+    "source": "AUTHOR_SOURCE_FACT",
+    "expectation": "preserve_all_qualifiers"
+  }
+]

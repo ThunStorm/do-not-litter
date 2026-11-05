@@ -83,7 +83,7 @@ from zhijian.services.area_anchors import bind_representative_anchor, representa
 from zhijian.services.audit import record_event
 from zhijian.services.jobs import JobCancelled, ensure_job_active
 from zhijian.services.model_attempts import begin_model_attempt, finish_model_attempt
-from zhijian.services.note_structure import organize_sections, structured_overview
+from zhijian.services.note_structure import destination_overview, organize_sections, structured_overview
 from zhijian.services.place_knowledge import aggregate_place_knowledge, normalize_insight
 from zhijian.services.recommendation_intent import assess, mention_opinion, merge_evidence
 from zhijian.services.title_temporal import (
@@ -103,6 +103,7 @@ TRANSCRIPT_CORRECTION_BATCH_SIZE = 128
 PLACE_EXTRACTION_CHUNK_CHARS = 8_000
 PLACE_EXTRACTION_NEIGHBOR_SEGMENTS = 3
 NOTE_SECTION_KINDS = {
+    "SOURCE_REVIEW",
     "PLACE",
     "AREA",
     "ROUTE",
@@ -562,6 +563,36 @@ def parse_model_json(content: str) -> dict[str, Any]:
     return parse_json_object(content)
 
 
+def _prepare_stage_request(
+    db: Session,
+    *,
+    job: Job | None,
+    stage: str,
+    capability: str,
+    messages: list[dict[str, str]],
+    request_segments: list[Segment] | None,
+):
+    """Use the same final message projection for preflight and execution."""
+    policy = _resolved_stage_policy(db, stage, job)
+    domain_messages, domain_versions = domain_context_messages(
+        db,
+        policy.domain_pack_ids,
+        AICapability(capability),
+        job,
+        context_text="\n".join(item["content"] for item in messages if item["role"] == "user"),
+    )
+    # Keep invariant task/safety/supplement rules ahead of projected dynamic domain context.
+    stable_messages = [message for message in messages if message["role"] != "user"]
+    user_messages = [message for message in messages if message["role"] == "user"]
+    enriched_messages = [*stable_messages, *domain_messages, *user_messages]
+    compiled = (
+        compile_request(stage, enriched_messages, request_segments, request_segments[0].snapshot_id)
+        if request_segments
+        else None
+    )
+    return compiled.messages if compiled else enriched_messages, compiled, domain_messages, domain_versions
+
+
 def _cached_stage_json(
     db: Session,
     *,
@@ -584,21 +615,13 @@ def _cached_stage_json(
     effective_thinking = policy.thinking
     if effective_thinking is None and isinstance(provider, FallbackLLMProvider):
         effective_thinking = getattr(provider.request_options, "thinking", None)
-    domain_messages, domain_versions = domain_context_messages(
+    final_messages, compiled, domain_messages, domain_versions = _prepare_stage_request(
         db,
-        policy.domain_pack_ids,
-        AICapability(capability),
-        job,
-        context_text="\n".join(item["content"] for item in messages if item["role"] == "user"),
-    )
-    # Keep invariant task/safety/supplement rules ahead of projected dynamic domain context.
-    stable_messages = [message for message in messages if message["role"] != "user"]
-    user_messages = [message for message in messages if message["role"] == "user"]
-    enriched_messages = [*stable_messages, *domain_messages, *user_messages]
-    compiled = (
-        compile_request(stage, enriched_messages, request_segments, request_segments[0].snapshot_id)
-        if request_segments
-        else None
+        job=job,
+        stage=stage,
+        capability=capability,
+        messages=messages,
+        request_segments=request_segments,
     )
     return AIWorkloadGateway().execute_cached_json(
         db,
@@ -608,7 +631,7 @@ def _cached_stage_json(
         provider=provider,
         provider_name=provider_name,
         model=model,
-        messages=compiled.messages if compiled else enriched_messages,
+        messages=final_messages,
         compiled_request=compiled,
         stage_deadline=stage_deadline,
         domain_chars=sum(len(item["content"]) for item in domain_messages),
@@ -1678,7 +1701,12 @@ def _ground_section(
         "heading": heading[:500],
         "segment_ids": ids,
         "place_mention_ids": [mention.id for mention in related],
-        "supporting_quotes": quotes[:8],
+        "supporting_quotes": quotes,
+        "start_ms": min(
+            (s.locator_json.get("start_ms", 0) for s in segments
+             if s.id in ids and hasattr(s, "locator_json")),
+            default=item.get("start_ms"),
+        ),
     }
 
 
@@ -2595,10 +2623,10 @@ def generate_note(
         packs = _note_evidence_packs(
             compact_facts,
             max_chars=min(
-                max(1000, max_input_tokens * 4 - fixed_chars),
+                max(1000, max_input_tokens * 2 - fixed_chars),
                 int(
                     (reduce_policy.chunk_size if modern_limits else None)
-                    or max(1000, max_input_tokens * 4 - fixed_chars)
+                    or max(1000, max_input_tokens * 2 - fixed_chars)
                 ),
             ),
             max_facts=max_facts,
@@ -2627,7 +2655,6 @@ def generate_note(
                 raise AIProviderError(
                     "AI_PROVIDER_ATTEMPT_BUDGET", "笔记归纳已达到尝试上限", switch_model=False
                 )
-            logical_attempts += 1
             pack_evidence_json = json.dumps(
                 project_note_evidence(_pack_place_evidence(place_evidence, pack)),
                 ensure_ascii=False,
@@ -2648,6 +2675,7 @@ def generate_note(
                 },
             ]
             try:
+                logical_attempts += 1
                 reduced = _cached_stage_json(
                     db,
                     job=job,
@@ -2675,9 +2703,19 @@ def generate_note(
                     },
                 )
             except AIProviderError as exc:
-                if exc.code != "AI_PROVIDER_OUTPUT_TRUNCATED":
+                if exc.code not in {"AI_PROVIDER_OUTPUT_TRUNCATED", "AI_STAGE_INPUT_BUDGET"}:
                     raise
+                if exc.code == "AI_STAGE_INPUT_BUDGET":
+                    # Gateway checks after exact-cache lookup, before auditing/dispatch.
+                    logical_attempts -= 1
                 if len(pack) <= 1:
+                    if exc.code == "AI_STAGE_INPUT_BUDGET":
+                        raise AIProviderError(
+                            exc.code,
+                            f"{exc}；单条证据无法继续拆分，请提高本阶段输入预算或减少提示词/领域上下文",
+                            switch_model=False,
+                            cause=exc,
+                        ) from exc
                     if (
                         not isinstance(provider, FallbackLLMProvider)
                         or provider.fallback is None
@@ -2703,15 +2741,45 @@ def generate_note(
                 else:
                     midpoint = len(pack) // 2
                     planned_calls += 1
-                    tighten_note_reduce_hint(
-                        db,
-                        model,
-                        safe_max_input_tokens=max(
-                            1, len(json.dumps(pack[:midpoint], ensure_ascii=False)) // 4
-                        ),
-                        safe_max_facts=midpoint,
-                        scope=hint_scope,
-                    )
+                    if exc.code == "AI_STAGE_INPUT_BUDGET":
+                        final_messages, _, _, _ = _prepare_stage_request(
+                            db,
+                            job=job,
+                            stage="NOTE_REDUCE",
+                            capability="GLOBAL_SYNTHESIS",
+                            messages=messages,
+                            request_segments=segments,
+                        )
+                        estimated_input = estimate_tokens(
+                            sum(len(item.get("content") or "") for item in final_messages)
+                        )
+                        record_event(
+                            db,
+                            "video.note.input_split",
+                            "笔记完整请求超输入预算，发送前拆分",
+                            component="video-pipeline",
+                            entity_type="job",
+                            entity_id=job.id if job else None,
+                            detail={
+                                "stage": "NOTE_REDUCE",
+                                "estimated_original_input_tokens": estimated_input,
+                                "reason": str(exc)[:400],
+                                "max_input_tokens": reduce_policy.max_input_tokens,
+                                "fact_count": len(pack),
+                                "split_path": split_path,
+                            },
+                            commit=False,
+                        )
+                    if exc.code == "AI_PROVIDER_OUTPUT_TRUNCATED":
+                        tighten_note_reduce_hint(
+                            db,
+                            model,
+                            safe_max_input_tokens=max(
+                                1, estimate_tokens(len(json.dumps(pack[:midpoint], ensure_ascii=False)))
+                            ),
+                            safe_max_facts=midpoint,
+                            scope=hint_scope,
+                        )
                     request_pack(
                         pack[:midpoint],
                         pack_index=pack_index,
@@ -2788,11 +2856,8 @@ def generate_note(
                     detail={"reason": str(exc)[:240], "pack": pack_index, "pack_count": len(packs)},
                 )
         if reduced_sections:
-            failed_segments = [segment for segment in segments if segment.id in failed_segment_ids]
-            raw_sections = [
-                *reduced_sections,
-                *_fallback_sections(_transcript_chunks(failed_segments, 12_000)),
-            ]
+            # The missing-fact pass below retains evidence once at its known scope.
+            raw_sections = reduced_sections
             if failed_segment_ids:
                 note_generation_mode = "HYBRID"
         else:
@@ -2845,7 +2910,20 @@ def generate_note(
             ]
             quote = statement["quote"]
             # Exact evidence coverage is stronger than a polarity keyword in an unrelated section.
-            if not any(quote in str(section.get("body_markdown", "")) for section in related):
+            local_only = set(opinion.get("reason_codes", [])) <= {"MISSING_OVERALL_EVIDENCE"}
+            may_use_citation = (
+                (not opinion["review_required"] or local_only)
+                and statement["intent"] not in {"NOT_RECOMMENDED"}
+                and statement["scope"] != "UNCERTAIN"
+                and not statement.get("condition") and not statement.get("time_context")
+            )
+            if not any(
+                quote in str(section.get("body_markdown", ""))
+                or (may_use_citation and any(
+                    _normalized_text(quote) in _normalized_text(q)
+                    for q in section.get("supporting_quotes", [])
+                )) for section in related
+            ):
                 item = {
                     "heading": f"{mention.name} · 作者意见与限制",
                     "section_kind": "PLACE_GUIDE",
@@ -2864,9 +2942,33 @@ def generate_note(
         if mention_opinion(m)["status"] in {"NOT_RECOMMENDED", "CONFLICT"}
         or mention_opinion(m)["review_required"]
     }
+    from zhijian.services.note_quality import clean_note_prose, safe_note_prose
+
+    split_months = {
+        month for month in ("一", "二")
+        if any(str(a.corrected_text or a.text).endswith("十")
+               and str(b.corrected_text or b.text).startswith(month + "月")
+               for a, b in zip(segments, segments[1:], strict=False))
+        and not re.search(rf"(?<!十){month}月份?", "".join(str(s.corrected_text or s.text) for s in segments))
+        and (1 if month == "一" else 2) not in _months_in_text(asset.title)
+    }
+    guarded_sections = 0
     for section in grounded_sections:
         owners = [unsafe[mid] for mid in section.get("place_mention_ids", []) if mid in unsafe]
-        if owners:
+        for field in ("summary", "thesis", "heading", "body_markdown"):
+            if section.get(field):
+                section[field] = "\n".join(
+                    line if line.startswith("> ") else clean_note_prose(line)
+                    for line in str(section[field]).splitlines()
+                )
+        section["bullets"] = [clean_note_prose(str(b)) for b in section.get("bullets", [])]
+        prose = "\n".join(str(section.get(k) or "") for k in ("heading", "summary", "thesis"))
+        prose += "\n" + "\n".join(
+            line for line in str(section.get("body_markdown") or "").splitlines() if not line.startswith("> ")
+        )
+        invalid_prose = not safe_note_prose(prose, section.get("supporting_quotes", []), split_months)
+        if owners or invalid_prose:
+            guarded_sections += int(invalid_prose)
             evidence_quotes = list(
                 dict.fromkeys(
                     [
@@ -2880,12 +2982,33 @@ def generate_note(
                     ]
                 )
             )
-            section["body_markdown"] = "作者意见或归纳待核对，以原文为准：\n\n" + "\n\n".join(
-                "> " + q for q in evidence_quotes
+            # An opinion warning is not a failure of independently grounded factual evidence.
+            factual = [
+                str(fact.get("summary") or "") for fact in map_facts
+                if set(fact.get("segment_ids", [])) <= set(section["segment_ids"])
+                and set(fact.get("place_mention_ids", [])) <= set(section.get("place_mention_ids", []))
+                and fact.get("summary")
+                and not re.search(r"(?<!不)推荐|适合|值得|首选|不可错过|最高性价比", str(fact["summary"]))
+                and safe_note_prose(str(fact["summary"]), fact.get("supporting_quotes", []), split_months)
+            ]
+            factual = list(dict.fromkeys(factual))
+            opinion_quotes = list(dict.fromkeys(
+                s["quote"] for m in owners for s in mention_opinion(m).get("statements", [])
+                if set(s["segment_ids"]) <= set(section["segment_ids"])
+            ))
+            section["body_markdown"] = (
+                "\n".join("- " + text for text in factual)
+                + ("\n\n作者意见与条件原文：\n\n" if factual and opinion_quotes
+                   else "作者意见与条件原文：\n\n" if not factual else "")
+                + "\n\n".join("> " + q for q in (opinion_quotes if factual else evidence_quotes))
             )
-            section["summary"] = section["thesis"] = "作者意见或归纳待核对"
+            section["summary"] = section["thesis"] = factual[0] if factual else "作者意见与条件见原文"
+            if invalid_prose:
+                section["heading"] = "来源事实与限制"
             section["bullets"] = []
             note_generation_mode = "HYBRID"
+    if guarded_sections:
+        warnings.append(f"{guarded_sections}处月份或外部评定表述缺少依据，已按来源保留事实")
     attitude_lines = [
         m.name + "：" + "；".join(s["quote"] for s in mention_opinion(m).get("statements", []))
         for m in mentions
@@ -2896,7 +3019,26 @@ def generate_note(
         warnings.append("存在整体负向、分歧或态度证据疑点，相关归纳按原文保留待核对")
     elif attitude_lines:
         overview += "\n\n作者意见与条件：\n" + "\n".join(attitude_lines)
-    raw_sections = organize_sections(grounded_sections, mentions, map_facts)
+    if grounded_map is not None:
+        from zhijian.services.note_quality import source_gaps
+
+        gaps = source_gaps(segments, semantic_claims, grounded_map.content_units_json or [])
+        for gap in gaps:
+            item = {
+                "heading": "待核对的原文限制", "section_kind": "SOURCE_REVIEW",
+                "segment_ids": gap["segment_ids"], "place_mention_ids": [],
+                "supporting_quotes": [gap["supporting_quote"]],
+                "body_markdown": "以下来源片段可能含尚未归纳的限制：\n\n> " + gap["supporting_quote"],
+            }
+            if (value := _ground_section(item, segments, mentions, place_scopes)) is not None:
+                grounded_sections.append(value)
+        if gaps:
+            note_generation_mode = "HYBRID"
+            warnings.append(f"{len(gaps)}条来源风险片段保留待核对，关键词检查不代表完整语义召回")
+    raw_sections = organize_sections(
+        grounded_sections, mentions, map_facts,
+        content_units=grounded_map.content_units_json if grounded_map else None,
+    )
     note = note_for_job(db, asset, job)
     if note is None:
         note = AINote(video_asset_id=asset.id, submission_job_id=job.id if job else None)
@@ -2910,7 +3052,10 @@ def generate_note(
     ]
     if not overview:
         overview = "已根据完整校对稿整理视频主题、关键地点与注意事项。"
-    overview = structured_overview(raw_sections, overview, min(int(render_profile["overview_limit"]), 420))
+    overview = (
+        destination_overview(raw_sections) if grounded_map else
+        structured_overview(raw_sections, overview, min(int(render_profile["overview_limit"]), 420))
+    )
     if title_labels:
         overview += " " + "；".join(title_labels) + "。"
     markdown = "# " + asset.title + "\n\n" + overview + "\n"
@@ -2923,7 +3068,7 @@ def generate_note(
         map_facts_json=map_facts,
         model_provider=response.provider,
         model_name=response.model,
-        prompt_version=f"video-note-v4-theme+{prompt_supplement_hash(db, 'video_note_summary', job)[:8]}",
+        prompt_version=f"video-note-v5-quality+{prompt_supplement_hash(db, 'video_note_summary', job)[:8]}",
         render_profile_id=profile_id,
         render_profile_version=str(render_profile["version"]),
         transcript_version=transcript.version,
@@ -3303,11 +3448,12 @@ def extract_place_mentions(
                 "insight_rejections": item.get("insight_rejections", []),
                 "visit_windows": visit_windows,
                 "temporal_analysis": {
-                    "version": "map-timing-v4",
+                    "version": "map-timing-v5-date-range",
                     "status": "HAS_LOCAL_TIME" if visit_windows else "NO_LOCAL_TIME",
                 },
                 "semantic": {
                     "entity_id": str(item.get("entity_id") or "")[:96],
+                    "identity_derivation": item.get("identity_derivation"),
                     "content_unit_id": str(item.get("content_unit_id") or "")[:96],
                     "subject_role": subject_role,
                     "visit_intent": visit_intent,

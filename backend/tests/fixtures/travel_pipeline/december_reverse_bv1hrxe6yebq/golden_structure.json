@@ -1,0 +1,18 @@
+{
+  "destinations": [
+    "广西河池",
+    "丙中洛",
+    "贵州从江",
+    "拉萨",
+    "玉溪"
+  ],
+  "missing_entity": "抚仙湖",
+  "duplicate_name": "拉萨",
+  "negative_cases": [
+    "same_name_different_region",
+    "unrelated_topic",
+    "shared_segment",
+    "different_version",
+    "unresolved_subject"
+  ]
+}

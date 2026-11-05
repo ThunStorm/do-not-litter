@@ -7,6 +7,7 @@
 3. 每个实体必须给出 `subject_role`（PRIMARY、SECONDARY、REFERENCE、CONTEXT）、`visit_intent`（RECOMMENDED、OPTIONAL、NEUTRAL、NOT_RECOMMENDED、NOT_APPLICABLE）和 `poi_policy`（RESOLVE、AREA_RESOLVE、REFERENCE_ONLY、SKIP）。比较或背景地点保留 Evidence，但 `REFERENCE_ONLY` / `SKIP` 绝不进入 POI；比较视频中的两个主题地点仍可均为 RESOLVE。
 4. `AREA` 必须使用 AREA_RESOLVE，不得把行政区域编造成政府 POI。`place_type` 只能用 RESTAURANT、SCENIC_AREA、NEIGHBORHOOD、PEDESTRIAN_STREET、BUSINESS_DISTRICT、MARKET、PARK、MUSEUM、TEMPLE、VILLAGE、TOWN、LANDMARK、ACCOMMODATION、TRANSIT、OTHER、AREA。
 5. Claim 只保留有 Evidence 的具体特色、推荐理由、路线、季节、时长、价格、预约、排队、交通、注意事项或比较结论；不输出没有实际信息的泛化评价。不要用固定条数截断有 Evidence 的 Claim。
+   逐个内容单元核对原文覆盖：主要景点实体不能只藏在其他实体的Claim里；景观成因/观赏阶段、日期节点、客流转折、价格变化、住宿售罄风险、否定和交通限制均独立保留，不能用“适合淡季去”替代具体例外。同一Segment可有多条Claim；跨Segment断句使用连续原文及全部对应ID，不用截断引文或概括词充当逐字证据。保留原述的约数、条件与不确定性，不推导为今年有效安排。
 6. 所有局部ID引用必须先在本次输出中定义：content_unit_id指向content_units中的ID；anchor_entity_ids、subject_entity_ids以及relations的source_entity_id、target_entity_id只引用entities中的ID。不得引用示例占位ID、其他分块ID或未输出的实体；没有两个有效实体时relations为空。`relations` 只表达语义，不会自动产生 POI；只返回 JSON，不要 Markdown。顶层五个数组都要保留，没有对应项目时返回空数组；不要输出空字符串或重复别名占位。
 
 7. 视频标题仅辅助理解主题，不是 Segment 证据。时间 Claim 必须用 subject_entity_ids 指向具体适用实体；同段多地点不得共享不属于自己的时间事实；标题时间由服务端独立处理，不得伪造转写引文。

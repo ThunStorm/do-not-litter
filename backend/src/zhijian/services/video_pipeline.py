@@ -1328,7 +1328,7 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
         job = db.get(Job, job_id)
         if job is None:
             raise
-        if isinstance(exc, VideoResolveError):
+        if isinstance(exc, (VideoResolveError, AIProviderError)):
             job.error_code = exc.code
         current_step = db.scalar(
             select(JobStep).where(

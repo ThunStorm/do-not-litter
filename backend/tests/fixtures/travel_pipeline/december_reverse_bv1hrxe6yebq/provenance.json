@@ -1,0 +1,14 @@
+{
+  "note_id": "note_5d4ce16b1ba34f8d97fed7e740f18fea",
+  "version_id": "ntv_4d380c29c19e4b0faf0754f1eb30bb09",
+  "video": "BV1Hrxe6YEbQ",
+  "captured_at": "2026-11-05T03:05:28.302299+00:00",
+  "source": "read-only production API and version-bound mentions",
+  "golden_source": "manually selected original transcript clauses; not model output",
+  "hashes": {
+    "golden_facts.json": "45e2f9e4594bbbb142ea52e530d19c2df7a9170b6d37b217535c0531c466fcfe",
+    "golden_structure.json": "eddc1c641106f7c451fd6be4ae42156281adfd99ddee590422be16c016580435",
+    "baseline.json": "94fe815eaeb9389ad9b1ebfe4a9e56578a85e46ddfba3f6bed32e687562eaf62"
+  },
+  "fixture_scope": "Only note structure, transcript evidence, semantic claims/identity and opinion assessment; temporal/resolver metadata omitted."
+}

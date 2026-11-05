@@ -27,7 +27,7 @@ from zhijian.services.audit import record_event
 from zhijian.services.jobs import ensure_job_active
 from zhijian.services.title_temporal import title_identity
 
-MAP_PROMPT_VERSION = "semantic-map-v9-cover-membership"
+MAP_PROMPT_VERSION = "semantic-map-v12-topic-identity"
 MAP_ARTIFACT_SCHEMA_VERSION = "grounded-map-v3"
 LOCAL_MAP_CHUNK_CHARS = 6_000
 LOCAL_MAP_CHUNK_SEGMENTS = 64
@@ -157,6 +157,7 @@ def _canonical_payload(
             {
                 "content_unit_id": unit_id,
                 "unit_type": unit_type if unit_type in UNIT_TYPES else "MIXED",
+                **({"unit_type_omitted": True} if not value.get("unit_type") else {}),
                 "topic": str(value.get("topic") or "")[:500],
                 "anchor_entity_ids": [str(item)[:96] for item in value.get("anchor_entity_ids", []) if item][
                     :20
@@ -164,6 +165,14 @@ def _canonical_payload(
                 "segment_ids": ids,
             }
         )
+    for entity in entities:
+        if entity["content_unit_id"] == unit_default:
+            anchored = [u for u in units if entity["entity_id"] in u["anchor_entity_ids"]]
+            contained = [u for u in units if set(entity["segment_ids"]) <= set(u["segment_ids"])]
+            owners = anchored or contained
+            if len(owners) == 1:
+                entity["content_unit_id"] = owners[0]["content_unit_id"]
+                entity["unit_derivation"] = "explicit-anchor" if anchored else "unique-source-unit"
     for entity in entities:
         if entity["content_unit_id"] not in seen_units:
             seen_units.add(entity["content_unit_id"])
@@ -401,7 +410,11 @@ def get_or_create_grounded_map(
         chunk_chars = min(chunk_chars, int(saved_hint["safe_max_chars"]) + 80 * hint_segments)
     if saved_hint.get("safe_max_segments"):
         max_segments = min(max_segments or len(segments), saved_hint["safe_max_segments"])
-    chunks = _transcript_chunks(segments, chunk_chars, max_segments=max_segments)
+    from zhijian.services.semantic_identity import topic_chunks
+
+    chunks = topic_chunks(
+        segments, lambda group: _transcript_chunks(group, chunk_chars, max_segments=max_segments)
+    )
     planned_calls = max(1, len(chunks))
     stage_started = perf_counter()
     logical_attempts = 0
@@ -653,6 +666,12 @@ def get_or_create_grounded_map(
                     },
                 )
 
+    from zhijian.services.semantic_identity import join_boundary_entities
+
+    entities, content_units, claims, relations = join_boundary_entities(
+        entities, content_units, claims, relations, segments
+    )
+    places = entities
     remote_escalation_count = 0
     escalation_reasons = _semantic_escalation_reasons(entities, float(policy.escalation_threshold or 0.6))
     if job and provider_name.lower() == "ollama" and escalation_reasons:

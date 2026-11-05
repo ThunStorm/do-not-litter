@@ -505,6 +505,16 @@ export interface VideoNoteDetail extends VideoNoteView {
   reading_sections?: VideoNoteSection[]
   reading_overview?: string
   reading_organization?: string
+  quality_summary?: {
+    note_version_id: string | null
+    assessment_version: string
+    status: 'NEEDS_REVIEW' | 'UNKNOWN'
+    fact_count: number
+    evidence_represented_count: number
+    summarized_fact_count: number | null
+    issue_count: number
+    issues: Array<{ kind: string; section_ids: string[]; mention_id?: string }>
+  }
   transcript_status: 'AVAILABLE' | 'EXPIRED' | 'NOT_READY'
   transcript_segment_count: number
   transcript_retention_until: string | null

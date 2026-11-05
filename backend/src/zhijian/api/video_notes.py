@@ -183,6 +183,10 @@ def video_note_detail(note_id: str, _: Protected, db: Session = Depends(get_db))
         if version and version.grounded_map_artifact_id
         else None
     )
+    if bound_map and (
+        bound_map.video_asset_id != asset.id or bound_map.transcript_version != version.transcript_version
+    ):
+        bound_map = None
     data["temporal_review"] = (
         (bound_map.semantic_options_json or {}).get("unresolved_temporal_evidence", [])
         if bound_map
@@ -229,9 +233,49 @@ def video_note_detail(note_id: str, _: Protected, db: Session = Depends(get_db))
             .order_by(Segment.ordinal)
         ).all()
         reading_facts = _ground_map_facts(reading_facts, reading_segments, reading_mentions)
+    reading_units = bound_map.content_units_json if bound_map else None
+    if bound_map and reading_segments:
+        from zhijian.services.semantic_identity import join_boundary_entities
+
+        _, reading_units, _, _ = join_boundary_entities(
+            bound_map.entities_json or [], reading_units or [], [], [], reading_segments
+        )
     data["reading_sections"] = organize_sections(
-        data["sections"], reading_mentions, reading_facts, segments=reading_segments, legacy=True
+        data["sections"], reading_mentions, reading_facts, segments=reading_segments, legacy=True,
+        content_units=reading_units,
     )
+    if version and version.prompt_version.startswith("video-note-v5-quality"):
+        from zhijian.services.semantic_identity import region_name_forms
+
+        # Keep old links only where the same transcript evidence and place scope agree.
+        previous = db.execute(
+            select(AINoteSection.id, AINoteSection.segment_ids_json, AINoteSection.place_mention_ids_json)
+            .join(AINoteVersion, AINoteSection.ai_note_version_id == AINoteVersion.id)
+            .where(
+                AINoteVersion.ai_note_id == note.id, AINoteVersion.version < version.version,
+                AINoteVersion.transcript_version == version.transcript_version,
+            )
+        ).all()
+        previous_ids = {mid for row in previous for mid in row.place_mention_ids_json}
+        previous_names = dict(db.execute(
+            select(PlaceMention.id, PlaceMention.name).where(PlaceMention.id.in_(previous_ids))
+        ).all())
+        current_names = {
+            m.id: region_name_forms({"name": m.name, "raw_name": m.raw_name}) for m in reading_mentions
+        }
+        for row in previous:
+            names = {form for mid in row.place_mention_ids_json if mid in previous_names
+                     for form in region_name_forms({"name": previous_names[mid]})}
+            matches = [s for s in data["reading_sections"] if row.segment_ids_json
+                       and set(row.segment_ids_json) <= set(s["segment_ids"])]
+            if len(matches) > 1 and names:
+                matches = [s for s in matches if names & {
+                    form for mid in s["place_mention_ids"] for form in current_names.get(mid, [])
+                }]
+            if len(matches) == 1:
+                aliases = matches[0]["source_section_ids"]
+                if row.id not in aliases:
+                    aliases.append(row.id)
     for section in data["reading_sections"]:
         cited = set(section["segment_ids"])
         ranges = []
@@ -249,8 +293,20 @@ def video_note_detail(note_id: str, _: Protected, db: Session = Depends(get_db))
             previous_ordinal = segment.ordinal
         if ranges:
             section["source_ranges"] = ranges
-    data["reading_overview"] = structured_overview(data["reading_sections"], data.get("overview", ""))
-    data["reading_organization"] = "place-theme-v1"
+    data["reading_overview"] = (
+        version.overview if version and version.prompt_version.startswith("video-note-v5-quality")
+        else structured_overview(data["reading_sections"], data.get("overview", ""))
+    )
+    data["reading_organization"] = "place-theme-v2"
+    from zhijian.services.note_quality import quality_summary, source_gaps
+
+    gaps = (
+        source_gaps(reading_segments, bound_map.claims_json or [], bound_map.content_units_json or [])
+        if bound_map else []
+    )
+    data["quality_summary"] = quality_summary(
+        version.id if version else None, data["reading_sections"], reading_facts, reading_mentions, gaps=gaps
+    )
     # Section shape is not correction provenance: body-only sections and coverage
     # warnings are valid outputs of the current pipeline. Check the bound transcript.
     correction = transcript.metadata_json if transcript else {}
@@ -269,18 +325,7 @@ def video_note_detail(note_id: str, _: Protected, db: Session = Depends(get_db))
         )
     )
     data["needs_regeneration"] = bool(section_rows and not correction_complete)
-    artifact = (
-        db.scalar(
-            select(GroundedMapArtifact)
-            .where(
-                GroundedMapArtifact.transcript_id == transcript.id,
-                GroundedMapArtifact.transcript_version == transcript.version,
-            )
-            .order_by(GroundedMapArtifact.created_at.desc())
-        )
-        if transcript
-        else None
-    )
+    artifact = bound_map
     screenshot_total = (
         db.scalar(
             select(func.count(VideoScreenshot.id)).where(

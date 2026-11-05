@@ -13,7 +13,11 @@
 - 文件：benchmark/video-minimal-fix-20261028四报告/跟踪表；alembic/versions/0027_note_grounded_map_binding.py。
 - 边界：本轮允许0027；真实Provider/视频重跑、历史回填和POI确认仍需另行授权。
 
-## 生产快照（最新采样2026-10-30 01:41，北京时间）
+## 生产快照（最新采样2026-11-05 16:02，北京时间）
+
+- 2026-11-05 16:02 视频笔记质量修复已发布。API与Worker READY，新Worker PID50316。SQLite 0027，完整性ok，外键错误0。发布前任务、租约及在途调用为空闲，已验证逻辑备份和停止后备份。生产业务摘要一致，HTTP index SHA256 `4ddc945b52ce014b294fdbbc11d82ebb1547400c382ec222ad273c0330936e7d`，JS/CSS与隔离构建一致。目标笔记原版本以五章只读呈现，22个锚点和12张READY截图保留。PC 1440及手机390px生产Edge/Playwright验收通过。保存点 `data/backups/note-quality-20261105/release/`，回退未触发。真实调用与新候选在隔离库，详见[验收报告](benchmark/NOTE_QUALITY_ACCEPTANCE_20261105.md)。Git交付记录见保存点 `git-delivery.json`。
+
+- 2026-11-05 02:00 笔记输入预算修复与生产重跑：01:30发布后按当前Qoder/4000预算完整投递BV1Hrxe6YEbQ，Job `job_5884a06be97f482cb621ba1da3cf5555`，Note `note_5d4ce16b1ba34f8d97fed7e740f18fea`。3个父包输入超限自动二分，8笔记调用全成功、最大估算3982；22章/12 READY截图、引用核对错误0。终态PARTIAL_SUCCESS/HYBRID：13条未完整归纳证据保留原文，15 REVIEW地点，未确认POI或冒称语义全通过。共14次LLM含2次格式失败后修复；估算输入43257/输出37524，Provider用量/费用UNKNOWN。01:59空闲发布最终缓存保护版本；保存点`data/backups/note-input-budget-20261105/final-release`及父目录含源码/静态/已验DB/数值证据。两次发布均无迁移，完整性ok/FK0、业务摘要无漂移、API/Worker READY（PID64041），index仍`d8f3094346a4aa6b1415374939ca1bf8b8c0cc1df6a2f50db96c3c971c271a34`，无回退。后端871/前端62与Lint/TS/隔离构建、生产Python3.14目标20通过；全局配置未改，未提交/推送。[验收与参数建议](benchmark/NOTE_INPUT_BUDGET_ACCEPTANCE_20261105.md)。旧快照保留原日期，本次不外推其旧任务健康。
 
 - 2026-10-30 01:41 投递/分类/关联删除发布与真实重跑：PC新增投递，旅行包含VIDEO_NOTE并可单独筛选；删除专属Mention/Insight/时节/区域/截图事实及无其他来源和人工资料的自动地点，共享/个人资料与路线保留，自动汇总刷新；手机分类与来源长链接列宽修复。生产1440/390px导航、真实20条分类、删除确认后取消、无溢出/应用错误通过；实际来源/笔记删除在隔离API与Browser验证。后端全量822、收尾124/11，前端62及Lint/TS/隔离构建通过。两次发布均无迁移（0027）、空闲Job/lease/在途门禁、已验证SQLite备份和完整性/FK、资源哈希通过，发布窗口业务数据不变；最新保存点`data/backups/capture-delete-20261030-013000`，首次`data/backups/capture-delete-20261030-010608`，未回退。当前API/Worker RUNNING、新心跳正常；HTTP index SHA256 `d8f3094346a4aa6b1415374939ca1bf8b8c0cc1df6a2f50db96c3c971c271a34`。
 

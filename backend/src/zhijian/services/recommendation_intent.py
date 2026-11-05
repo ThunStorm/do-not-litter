@@ -77,8 +77,15 @@ def assess(candidate, texts):
             clause = parts[0] if local_tail else s.quote
             if re.search(r"(?:游船|菜品|门票|费用|天气|玩法).{0,6}(?:不推荐|不建议|不好)", clause):
                 reasons.add("LOCAL_DETAIL_MISSCOPED")
-            negative = bool(re.search(r"不值得|不推荐|不建议.{0,5}(?:来|去|到访)|别来|别去", clause))
-            positive = bool(re.search(r"值得(?:来|去|到访)|推荐.{0,8}(?:来|去)|建议.{0,8}(?:来|去)", s.quote))
+            negative = bool(re.search(
+                r"不值得|不推荐|不建议.{0,5}(?:来|去|到访)|别来|别去|不.{0,3}适合|不(?:是|算).{0,3}首选",
+                clause,
+            ))
+            positive = bool(re.search(
+                r"值得(?:来|去|到访)|推荐.{0,8}(?:来|去)|建议.{0,8}(?:来|去)|"
+                r"(?:非常|超级|最)?适合.{0,24}(?:旅游|游玩|喜欢|过来|目的地)|首选",
+                s.quote,
+            ))
             if (s.intent == "RECOMMENDED" and (negative or not positive)) or (
                 s.intent == "NOT_RECOMMENDED" and not negative
             ):
