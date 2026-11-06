@@ -214,7 +214,11 @@ def test_grounded_map_is_reused_and_place_materialization_is_llm_free(app_and_se
             )
 
 
-def test_grounded_map_splits_truncated_chunks(app_and_session, monkeypatch) -> None:
+@pytest.mark.parametrize("response,metadata", [
+    ("", {"finish_reason": "length"}),
+    ('{"claims":[{"supporting_quote":"前句"},{"supporting_quote":"后句未完成', {}),
+])
+def test_grounded_map_splits_truncated_chunks(app_and_session, monkeypatch, response, metadata) -> None:
     _, factory = app_and_session
     batch_sizes: list[int] = []
 
@@ -223,7 +227,7 @@ def test_grounded_map_splits_truncated_chunks(app_and_session, monkeypatch) -> N
             batch_size = messages[-1]["content"].count("[segment:")
             batch_sizes.append(batch_size)
             if batch_size > 2:
-                return LLMResult("", "fixture", model, {}, {"finish_reason": "length"})
+                return LLMResult(response, "fixture", model, {}, metadata.copy())
             return LLMResult(
                 '{"section_facts":[],"places":[],"warnings":[]}',
                 "fixture",

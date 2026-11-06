@@ -13,7 +13,9 @@
 - 文件：benchmark/video-minimal-fix-20261028四报告/跟踪表；alembic/versions/0027_note_grounded_map_binding.py。
 - 边界：本轮允许0027；真实Provider/视频重跑、历史回填和POI确认仍需另行授权。
 
-## 生产快照（最新采样2026-11-05 16:02，北京时间）
+## 生产快照（最新采样2026-11-06 15:40，北京时间）
+
+- 2026-11-06 15:40 视频 JSON 截断与笔记归纳精简已发布。API、Worker READY，Worker PID 70624。无迁移，SQLite 0027，完整性通过，外键错误 0，44 张业务表摘要一致。实际 HTTP 静态哈希与隔离构建一致，现存笔记 `note_2e53e29519954de5a57d58794a3d5917` 的详情响应一致。发布保存点 `data/backups/note-json-20261106/release/`，含源码、静态、逻辑备份与停止后备份。回退未触发。真实两包在隔离环境验收，详见[验收报告](benchmark/NOTE_JSON_RECOVERY_ACCEPTANCE_20261106.md)。Git 交付记录见保存点 `git-delivery.json`。
 
 - 2026-11-05 16:02 视频笔记质量修复已发布。API与Worker READY，新Worker PID50316。SQLite 0027，完整性ok，外键错误0。发布前任务、租约及在途调用为空闲，已验证逻辑备份和停止后备份。生产业务摘要一致，HTTP index SHA256 `4ddc945b52ce014b294fdbbc11d82ebb1547400c382ec222ad273c0330936e7d`，JS/CSS与隔离构建一致。目标笔记原版本以五章只读呈现，22个锚点和12张READY截图保留。PC 1440及手机390px生产Edge/Playwright验收通过。保存点 `data/backups/note-quality-20261105/release/`，回退未触发。真实调用与新候选在隔离库，详见[验收报告](benchmark/NOTE_QUALITY_ACCEPTANCE_20261105.md)。Git交付记录见保存点 `git-delivery.json`。
 

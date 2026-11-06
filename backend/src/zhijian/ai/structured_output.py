@@ -9,6 +9,20 @@ from typing import Any
 from zhijian.ai.reliability import AIProviderError
 
 
+def _check_incomplete_json(error: json.JSONDecodeError) -> None:
+    tail = error.doc[error.pos:]
+    partial_literal = tail in {"t", "tr", "tru", "f", "fa", "fal", "fals", "n", "nu", "nul"}
+    if (
+        not tail
+        or error.msg == "Unterminated string starting at"
+        or (error.msg == "Expecting value" and partial_literal)
+    ):
+        raise AIProviderError(
+            "AI_PROVIDER_OUTPUT_TRUNCATED", "模型返回的 JSON 被截断，响应末尾未闭合",
+            switch_model=False, cause=error,
+        ) from error
+
+
 def parse_json_with_quality(content: str) -> tuple[dict[str, Any], str, list[str]]:
     original = str(content or "")
     text = original.removeprefix("\ufeff").strip()
@@ -25,14 +39,29 @@ def parse_json_with_quality(content: str) -> tuple[dict[str, Any], str, list[str
         except json.JSONDecodeError:
             pass
         raise AIProviderError("AI_PROVIDER_INVALID_JSON", "模型没有返回 JSON 对象", retryable=True)
-    if end < start:
-        raise AIProviderError("AI_PROVIDER_OUTPUT_TRUNCATED", "模型返回的 JSON 被截断")
+    if end != len(text) - 1:
+        # A last brace may close an inner object. Inspect the complete tail first.
+        try:
+            _, consumed = json.JSONDecoder().raw_decode(text, start)
+        except json.JSONDecodeError as exc:
+            _check_incomplete_json(exc)
+            if end < start:
+                raise AIProviderError(
+                    "AI_PROVIDER_INVALID_JSON", "模型返回的 JSON 无法解析", retryable=True, cause=exc
+                ) from exc
+        else:
+            if text[consumed:].lstrip().startswith(("{", "[", ",")):
+                raise AIProviderError(
+                    "AI_PROVIDER_INVALID_JSON", "模型返回了额外的 JSON 片段", retryable=True
+                )
     # Repair only commas outside quoted strings; never rewrite evidence text.
     candidate = text[start : end + 1]
     rules: list[str] = ["outer_commentary"] if start != 0 or end != len(text) - 1 else []
     try:
         value = json.loads(candidate)
     except json.JSONDecodeError as exc:
+        if end == len(text) - 1:
+            _check_incomplete_json(exc)
         repaired = re.sub(r'("(?:[^"\\]|\\.)*")|,\s*(?=[}\]])', lambda match: match[1] or "", candidate)
         if repaired != candidate:
             rules.append("trailing_comma")

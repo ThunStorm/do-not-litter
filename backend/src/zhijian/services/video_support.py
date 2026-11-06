@@ -2597,6 +2597,7 @@ def generate_note(
     if not raw_sections:
         raw_sections = _fallback_sections(chunks)
     if map_facts:
+        reduce_system_text = system.with_name("video_note_reduce.md").read_text(encoding="utf-8")
         reduce_policy = _resolved_stage_policy(db, "NOTE_REDUCE", job)
         hint_scope = runtime_hint_scope(provider, model)
         saved_hint = read_runtime_hint(db, "NOTE_REDUCE", model, scope=hint_scope)
@@ -2615,7 +2616,7 @@ def generate_note(
         )
         compact_facts = _compact_note_facts(map_facts)
         fixed_chars = (
-            len(system_text)
+            len(reduce_system_text)
             + sum(len(message.get("content") or "") for message in supplement_messages)
             + len(str(render_profile["instruction"]))
             + 500
@@ -2660,7 +2661,7 @@ def generate_note(
                 ensure_ascii=False,
             )
             messages = [
-                {"role": "system", "content": system_text},
+                {"role": "system", "content": reduce_system_text},
                 *supplement_messages,
                 {
                     "role": "user",
@@ -2966,6 +2967,7 @@ def generate_note(
         prose += "\n" + "\n".join(
             line for line in str(section.get("body_markdown") or "").splitlines() if not line.startswith("> ")
         )
+        prose += "\n" + "\n".join(section["bullets"])
         invalid_prose = not safe_note_prose(prose, section.get("supporting_quotes", []), split_months)
         if owners or invalid_prose:
             guarded_sections += int(invalid_prose)

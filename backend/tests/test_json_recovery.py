@@ -9,6 +9,27 @@ from zhijian.ai.structured_output import parse_json_with_quality, validate_struc
 from zhijian.providers.llm import FallbackLLMProvider, LLMResult, provider_error_details
 
 
+@pytest.mark.parametrize("content", [
+    '{"entities":[],"claims":[{"supporting_quote":"原句"}],"warnings":[]',
+    '{"claims":[{"supporting_quote":"完整原句"},{"supporting_quote":"缺失尾部',
+    '{"sections":[{"heading":"完整子对象"}',
+    '```json\n{"sections":[{"heading":"完整子对象"},{"heading":"缺失尾部',
+    '{"ok":tru',
+])
+def test_truncated_document_uses_complete_tail_before_extracting_last_brace(content):
+    with pytest.raises(AIProviderError) as raised:
+        parse_json_with_quality(content)
+    assert raised.value.code == "AI_PROVIDER_OUTPUT_TRUNCATED"
+    assert raised.value.switch_model is False
+
+
+@pytest.mark.parametrize("content", ['{"ok":true} {"sections":[', '{"heading":BAD', '{"quote":"原"文"'])
+def test_malformed_or_extra_document_cannot_pass_as_truncation_or_complete_prefix(content):
+    with pytest.raises(AIProviderError) as raised:
+        parse_json_with_quality(content)
+    assert raised.value.code == "AI_PROVIDER_INVALID_JSON"
+
+
 @pytest.mark.parametrize("phrase", ["蘑菇雪", "南方最具代表性雪景，没有之一", "一定要有雪"])
 def test_quote_failure_gets_precise_bounded_recovery_without_mutating_evidence(phrase):
     content = '{"overview":"描述"' + phrase + '"的文字","sections":[]}'

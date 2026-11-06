@@ -265,13 +265,11 @@ def test_new_generation_merges_across_packs_and_audits_omitted_facts(app_and_ses
         provider = SimpleNamespace(request_options=SimpleNamespace(max_output_tokens=4096))
         monkeypatch.setattr(support, "provider_for_role", lambda *a: (provider, "fixture", "fixture"))
         payload = {
-            "overview": "本包的时间顺序总结",
             "sections": [
                 {
                     "heading": "甲园费用",
                     "unit_type": "PLACE_GUIDE",
-                    "thesis": "门票20元。",
-                    "summary": "门票20元。",
+                    "bullets": ["门票20元。"],
                     "segment_ids": [segments[0].id],
                     "place_mention_ids": [mentions[0].id],
                     "supporting_quotes": [segments[0].text],
@@ -296,6 +294,7 @@ def test_new_generation_merges_across_packs_and_audits_omitted_facts(app_and_ses
             select(AINoteSection).where(AINoteSection.ai_note_version_id == version.id)
         ).all()
         assert len([s for s in sections if s.heading == "甲园"]) == 1
+        assert "- 门票20元。" in next(s for s in sections if s.heading == "甲园").body_markdown
         assert any("未被模型章节完整覆盖" in w for w in version.warnings_json)
         assert "本包" not in version.overview
         assert set(sid for s in sections for sid in s.segment_ids_json) == {s.id for s in segments}

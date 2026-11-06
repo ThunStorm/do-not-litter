@@ -24,7 +24,7 @@ def test_note_full_request_preflight_preserves_evidence_and_bounds_calls(
         vs,
         "domain_context_messages",
         lambda *a, **kw: (
-            [{"role": "system", "content": "领域规则" * (2000 if single_oversized else 150)}],
+            [{"role": "system", "content": "领域规则" * (2000 if single_oversized else 450)}],
             {},
         ),
     )
