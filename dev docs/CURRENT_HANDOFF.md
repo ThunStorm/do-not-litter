@@ -13,9 +13,9 @@
 - 文件：benchmark/video-minimal-fix-20261028四报告/跟踪表；alembic/versions/0027_note_grounded_map_binding.py。
 - 边界：本轮允许0027；真实Provider/视频重跑、历史回填和POI确认仍需另行授权。
 
-## 生产快照（最新采样2026-11-09 09:46，北京时间）
+## 生产快照（最新采样2026-11-09 10:04，北京时间）
 
-- 2026-11-09 09:46 LocalAiMux M1 与至简 M2 已部署。Mux 二进制 SHA256 `5f0b5e0be563da10bf0f93434834b448588d6837b688f898ea2867265b92c321`，回环 API 健康。至简 API、Worker READY，PID 34178，SQLite 0027，完整性通过、外键错误 0。生产静态资源逐文件一致；业务数据一致，仅两项运行状态与本次两条服务启动审计产生预期变化。首轮因比对把启动审计当业务差异回退，明确核对后复发成功。备份、旧 plist、旧应用和精确至简运行快照位于 `data/backups/localmux-m1m2-20261109/`。两条真实视频重跑记录写入该保存点的 `rerun-results.json`。
+- 2026-11-09 09:46 LocalAiMux M1 与至简 M2 已部署。Mux 二进制 SHA256 `5f0b5e0be563da10bf0f93434834b448588d6837b688f898ea2867265b92c321`，回环 API 健康。至简 API、Worker READY，PID 34178，SQLite 0027，完整性通过、外键错误 0。生产静态资源逐文件一致；业务数据一致，仅两项运行状态与本次两条服务启动审计产生预期变化。首轮因比对把启动审计当业务差异回退，明确核对后复发成功。备份、旧 plist、旧应用和精确至简运行快照位于 `data/backups/localmux-m1m2-20261109/`。真实重跑串行执行，两个任务均通过 ASR 和字幕校对。BV1EWnp6mEUN 在地点抽取第 1/7 块失败，BV1Hrxe6YEbQ 在第 3/6 块失败，均为通用 502，Qoder 会话日志记录首包超时。未触发本机冷却续跑。详见该保存点的 `rerun-results.json`。
 
 - 2026-11-06 15:40 视频 JSON 截断与笔记归纳精简已发布。API、Worker READY，Worker PID 70624。无迁移，SQLite 0027，完整性通过，外键错误 0，44 张业务表摘要一致。实际 HTTP 静态哈希与隔离构建一致，现存笔记 `note_2e53e29519954de5a57d58794a3d5917` 的详情响应一致。发布保存点 `data/backups/note-json-20261106/release/`，含源码、静态、逻辑备份与停止后备份。回退未触发。真实两包在隔离环境验收，详见[验收报告](benchmark/NOTE_JSON_RECOVERY_ACCEPTANCE_20261106.md)。Git 交付记录见保存点 `git-delivery.json`。
 
