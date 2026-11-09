@@ -53,7 +53,7 @@ from zhijian.ai.reliability import AIProviderError
 from zhijian.ai.resource_manager import local_ai_resource_manager
 from zhijian.ai.schemas import AIStagePolicy
 from zhijian.ai.stages import STAGE_SPECS, stage_spec
-from zhijian.ai.token_usage import token_usage
+from zhijian.ai.token_usage import is_model_attempt, token_usage
 from zhijian.core.config import Settings, get_settings
 from zhijian.core.ids import new_id
 from zhijian.core.secret_store import SecretStore
@@ -772,18 +772,19 @@ def job_ai_usage(job_id: str, _: Protected, db: Session = Depends(get_db)) -> di
         model = str(request_meta.get("model") or row.provider)
         location = str(request_meta.get("location") or ("LOCAL" if row.provider == "ollama" else "REMOTE"))
         cache_hit = bool(request_meta.get("cache_hit"))
-        retry_call = not cache_hit and int(request_meta.get("attempt") or 1) > 1
-        fallback_call = not cache_hit and str(request_meta.get("route") or "").lower() == "fallback"
+        actual = is_model_attempt(request_meta)
+        retry_call = actual and int(request_meta.get("attempt") or 1) > 1
+        fallback_call = actual and str(request_meta.get("route") or "").lower() == "fallback"
         values = {
-            "calls": 0 if cache_hit else 1,
-            "attempt_count": 0 if cache_hit else 1,
+            "calls": int(actual),
+            "attempt_count": int(actual),
             **(
                 {key: 0 for key in token_usage({})}
-                if cache_hit
+                if not actual
                 else token_usage(response_meta, int(request_meta.get("input_chars") or 0))
             ),
             "cached_tokens": int(response_meta.get("cached_tokens") or 0),
-            "input_chars": 0 if cache_hit else int(request_meta.get("input_chars") or 0),
+            "input_chars": int(request_meta.get("input_chars") or 0) if actual else 0,
             "cache_hit_count": int(cache_hit),
             "retry_count": int(retry_call),
             "fallback_count": int(fallback_call),
@@ -807,7 +808,7 @@ def job_ai_usage(job_id: str, _: Protected, db: Session = Depends(get_db)) -> di
                 for key, value in values.items():
                     target[key] += value
         input_hash = str(request_meta.get("input_hash") or "")
-        if input_hash and not cache_hit:
+        if input_hash and actual:
             if input_hash in seen_input_hashes:
                 repeated_input_tokens += values["input_tokens"] + values["estimated_input_tokens"]
             seen_input_hashes.add(input_hash)

@@ -73,6 +73,7 @@
 | 请求优化工作包 | [Z0–Z8/E2E 计划](history/planning/ZHIJIAN_AI_OPTIMIZATION_AND_E2E_PLAN.md)、[合成 A/B](benchmark/AI_REQUEST_OPTIMIZATION_AB_REPORT.md)、[本包发布门禁](benchmark/RELEASE_ACCEPTANCE.md)；真实 E2E 独立开放 |
 | AI 运行 / 生产验收 | [AI_RUNTIME_AND_PROVIDERS](ai-gateway/AI_RUNTIME_AND_PROVIDERS.md) 运行配置；[AI_GATEWAY_PRODUCTION_ACCEPTANCE](ai-gateway/AI_GATEWAY_PRODUCTION_ACCEPTANCE.md) 真实验收门禁 |
 | 本机路由 Provider | [LocalAiMux 客户端接入](ai-gateway/LOCAL_ROUTER_PROVIDER_COMPATIBILITY_SPEC.md) 至简已实现的参数/消息协商与上游边界；[2026-10-06 参数及 55 型号调查](history/LOCALMUX_PARAMETER_SURVEY_20261006.md) 为有日期的证据快照，不代表真实模型验收 |
+| 本机路由故障恢复 | [本期首包诊断与冷却续跑](planning/LOCALMUX_FIRST_PAYLOAD_AND_COOLDOWN_PLAN.md)、[后续首包超时备用恢复](planning/LOCALMUX_FIRST_PAYLOAD_FALLBACK_FOLLOWUP.md) |
 | 模型 / Prompt / 来源保留 | [模型与历史删除](ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md)、[补充 Prompt](ai-gateway/PROMPT_SUPPLEMENTS_V045_SPEC.md)、[转写路由与来源保留](ai-gateway/AI_ROUTING_SOURCE_RETENTION_V046_SPEC.md) |
 | 控制台 / 运维 | [CONTROL_CENTER](product/CONTROL_CENTER.md) 信息结构；[OPERATIONS_UI_SPEC](operations/OPERATIONS_UI_SPEC.md) 工作台交互；[LOGGING](operations/LOGGING.md) 日志契约与维护 |
 | 运行监控 / Provider | [监控与预设](operations/RUNTIME_MONITOR_AND_MODEL_PRESETS_SPEC.md)、[内存口径与预设切换](operations/RUNTIME_MONITOR_AND_PROVIDER_SWITCH_V06_SPEC.md) |
@@ -385,7 +386,13 @@
 
 # 当前实施状态
 
-> 状态记录日期：2026-10-30。本文唯一记录当前源码能力与自动验证；生产状态只见带原采样日期的 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
+> 状态记录日期：2026-11-06。本文唯一记录当前源码能力与自动验证；生产状态只见带原采样日期的 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
+
+## LocalAiMux 首包诊断与视频抽取冷却续跑
+
+视频地点事实抽取仅对受信回环 LocalAiMux 明确未发出的短暂冷却自动等待一次。Worker 释放租约、按时重新领取，校验原转写与产物并复用成功分块，保留原阶段预算和调用审计。未发出记录单列标记，不计模型用量。已发出的首包超时保留结构化原因和时限。详见[工作包与离线证据](planning/LOCALMUX_FIRST_PAYLOAD_AND_COOLDOWN_PLAN.md)。
+
+后端全量 912 项，前端 64 项与 Ruff、ESLint、类型和隔离构建通过。合成 Qoder CLI 通过实际回环 HTTP 验证 504 → 503 零派发 → 到期继续。实际 Qoder 公开错误形状、发布和生产视频续跑待独立验收。
 
 ## 2026-11-06 视频 JSON 截断分流与归纳精简
 
@@ -8189,6 +8196,11 @@ Mux：本轮独立基线完整验证 Rust 87 passed / 2 ignored、前端 7 passe
 LOCAL_ROUTER 请求设置 `trust_env=False`，避免回环 Gateway 被环境代理接管。同步顶层 `httpx.post` 可接收该参数；Job 的可取消路径使用 `httpx.AsyncClient` 时必须把它传入客户端构造函数，不能传给 `.post()`。普通 DIRECT/Ollama 请求保持 httpx 的默认环境策略。取消检查和客户端等待回收不等于上游已停止生成；Ollama 清理缺口见 [模型释放边界](ai-gateway/AI_RUNTIME_AND_PROVIDERS.md#41-ollama-响应后的释放契约与取消边界)。
 
 离线回归同时覆盖本地路由成功请求、环境代理禁用和 DIRECT/LOCAL_ROUTER 等待取消；真实 Job 的原 TypeError 修复后步骤续跑结果见交接，不在本规格复制生产状态。
+
+
+## LocalAiMux 首包诊断与 Worker 短冷却
+
+`LMX_PROCESS_TIMEOUT` 可携带固定的 `upstream_first_payload_timeout`、`upstream_first_payload` 和已验证时限。保留原超时重试边界。对视频 `GROUND_MAP`，受信回环接口只有同时返回 HTTP 503、`LMX_PROVIDER_COOLDOWN`、`upstream_dispatched=false`、`cooldown_reason=transient_failure`、可关联请求 ID 和 1–30 秒整数 `Retry-After`，才允许原 Job 释放租约并延迟续跑一次。该路径由 Worker 调度，已发出的请求和旧版无明确字段的 503 沿用原处置。预算与验证见[本期工作包](planning/LOCALMUX_FIRST_PAYLOAD_AND_COOLDOWN_PLAN.md)。
 
 
 ---

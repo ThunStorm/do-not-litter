@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from hashlib import sha256
 from pathlib import Path
 from time import perf_counter
@@ -24,7 +25,7 @@ from zhijian.core.time import utc_now
 from zhijian.db.models import GroundedMapArtifact, Job, JobStep, Segment, Transcript, VideoAsset
 from zhijian.providers.llm import FallbackLLMProvider, LLMResult
 from zhijian.services.audit import record_event
-from zhijian.services.jobs import ensure_job_active
+from zhijian.services.jobs import COOLDOWN_RESUME_KEY, ensure_job_active
 from zhijian.services.title_temporal import title_identity
 
 MAP_PROMPT_VERSION = "semantic-map-v12-topic-identity"
@@ -417,6 +418,11 @@ def get_or_create_grounded_map(
     )
     planned_calls = max(1, len(chunks))
     stage_started = perf_counter()
+    cooldown_boundary = job.payload_json.get(COOLDOWN_RESUME_KEY) if job else None
+    if cooldown_boundary:
+        original_started = datetime.fromisoformat(cooldown_boundary["stage_started_at"])
+        stage_elapsed = (utc_now() - original_started).total_seconds()
+        stage_started -= max(0.0, stage_elapsed)
     logical_attempts = 0
     fallback_requests = 0
     local_chunk_durations: list[float] = []
@@ -431,7 +437,7 @@ def get_or_create_grounded_map(
         split_path: str = "root",
         fallback_only: bool = False,
     ) -> None:
-        nonlocal completed_chars, logical_attempts, fallback_requests, planned_calls
+        nonlocal completed_chars, logical_attempts, fallback_requests, planned_calls, cooldown_boundary
         if policy.wall_time_seconds and perf_counter() - stage_started >= policy.wall_time_seconds:
             raise AIProviderError(
                 "AI_STAGE_WALL_TIME_EXCEEDED", "证据地图已达到阶段总时限", switch_model=False
@@ -538,6 +544,7 @@ def get_or_create_grounded_map(
                 request_segments=segments,
                 stage_deadline=stage_started + policy.wall_time_seconds if policy.wall_time_seconds else None,
                 fallback_only=fallback_only,
+                **({"cooldown_boundary": cooldown_boundary} if cooldown_boundary else {}),
                 attempt_metadata={
                     "chunk_index": chunk_index,
                     "chunk_count": chunk_count,
@@ -607,6 +614,8 @@ def get_or_create_grounded_map(
             chunk_relations,
             chunk_claims,
         ) = _canonical_payload(parse_model_json(response.content), chunk)
+        if response.metadata.get("cooldown_boundary_reached"):
+            cooldown_boundary = None
         facts.extend(chunk_facts)
         places.extend(chunk_places)
         warnings.extend(chunk_warnings)

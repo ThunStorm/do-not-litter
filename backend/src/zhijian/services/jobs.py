@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from zhijian.core.config import Settings, get_settings
@@ -12,6 +12,8 @@ from zhijian.core.time import as_utc, utc_now
 from zhijian.db.models import ExternalCallAudit, Job, JobStep, JobStepArtifact
 from zhijian.domain.enums import JobStatus
 from zhijian.services.audit import record_event
+
+COOLDOWN_RESUME_KEY = "localmux_cooldown_resume"
 
 
 class JobCancelled(RuntimeError):
@@ -226,9 +228,12 @@ def recover_stale_jobs(
 
 def lease_next_job(db: Session, owner: str, lease_seconds: int) -> Job | None:
     now = utc_now()
+    ready = (
+        func.coalesce(Job.payload_json[COOLDOWN_RESUME_KEY]["not_before"].as_float(), 0) <= now.timestamp()
+    )
     candidate_id = db.scalar(
         select(Job.id)
-        .where(Job.status == JobStatus.QUEUED.value, Job.job_type != "MODEL_TEST")
+        .where(Job.status == JobStatus.QUEUED.value, Job.job_type != "MODEL_TEST", ready)
         .order_by(Job.priority.asc(), Job.created_at.asc())
         .limit(1)
     )
@@ -236,7 +241,7 @@ def lease_next_job(db: Session, owner: str, lease_seconds: int) -> Job | None:
         return None
     result = db.execute(
         update(Job)
-        .where(Job.id == candidate_id, Job.status == JobStatus.QUEUED.value)
+        .where(Job.id == candidate_id, Job.status == JobStatus.QUEUED.value, ready)
         .values(
             status=JobStatus.RUNNING.value,
             lease_owner=owner,
@@ -248,4 +253,4 @@ def lease_next_job(db: Session, owner: str, lease_seconds: int) -> Job | None:
     db.commit()
     if not result.rowcount:
         return None
-    return db.get(Job, candidate_id)
+    return db.get(Job, candidate_id, populate_existing=True)

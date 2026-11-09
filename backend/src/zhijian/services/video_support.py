@@ -608,6 +608,7 @@ def _cached_stage_json(
     fallback_only: bool = False,
     request_segments: list[Segment] | None = None,
     stage_deadline: float | None = None,
+    cooldown_boundary: dict[str, Any] | None = None,
 ) -> LLMResult:
     if not hasattr(db, "scalar"):
         return provider.generate_json(messages, model=model)
@@ -634,6 +635,7 @@ def _cached_stage_json(
         messages=final_messages,
         compiled_request=compiled,
         stage_deadline=stage_deadline,
+        cooldown_boundary=cooldown_boundary,
         domain_chars=sum(len(item["content"]) for item in domain_messages),
         max_stage_attempts=stage_attempt_limit(
             policy.max_attempts,
@@ -991,6 +993,8 @@ def provider_for_role(
         usage = result.usage if result else {}
         error = provider_error_details(exc) if exc else {}
         status_code = error.get("status_code")
+        if error.get("upstream_dispatched") is False:
+            attempt_metadata["upstream_dispatched"] = False
         cached = usage.get("cached_tokens")
         if cached is None:
             cached = (usage.get("prompt_tokens_details") or {}).get("cached_tokens")

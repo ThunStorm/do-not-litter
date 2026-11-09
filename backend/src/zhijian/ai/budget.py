@@ -1,14 +1,16 @@
 from dataclasses import dataclass
+from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from zhijian.ai.job_config import job_setting
-from zhijian.ai.token_usage import token_usage
+from zhijian.ai.token_usage import is_model_attempt, token_usage
 from zhijian.core.time import as_utc, utc_now
 from zhijian.db.models import ExternalCallAudit, Job, Transcript, VideoAsset
 from zhijian.domain.schemas import GeneralConfig
 from zhijian.services.audit import record_event
+from zhijian.services.jobs import COOLDOWN_RESUME_KEY
 
 
 class AIBudgetExceeded(RuntimeError):
@@ -37,7 +39,10 @@ def _config(db: Session, job: Job | None) -> GeneralConfig:
 
 
 def remaining_ai_wall_seconds(db: Session, job: Job) -> float:
-    elapsed = (utc_now() - as_utc(job.started_at)).total_seconds() if job.started_at else 0
+    started = job.started_at
+    if resume := job.payload_json.get(COOLDOWN_RESUME_KEY):
+        started = datetime.fromisoformat(resume["prior_fence"]["started_at"])
+    elapsed = (utc_now() - as_utc(started)).total_seconds() if started else 0
     return _config(db, job).ai_max_wall_time_seconds_per_job - elapsed
 
 
@@ -105,7 +110,7 @@ def soft_budget_state(
         ExternalCallAudit.capability == "LLM",
     ]
     rows = db.scalars(select(ExternalCallAudit).where(*filters)).all()
-    actual = [row for row in rows if not (row.request_meta_json or {}).get("cache_hit")]
+    actual = [row for row in rows if is_model_attempt(row.request_meta_json)]
     if location == "REMOTE" and (provider or model or profile_id):
         actual = [
             row
@@ -189,7 +194,7 @@ def ensure_ai_budget(
         ExternalCallAudit.capability == "LLM",
     ]
     rows = db.scalars(select(ExternalCallAudit).where(*filters)).all()
-    actual = [row for row in rows if not (row.request_meta_json or {}).get("cache_hit")]
+    actual = [row for row in rows if is_model_attempt(row.request_meta_json)]
     target_rows = (
         [
             row

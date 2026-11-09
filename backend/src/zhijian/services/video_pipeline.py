@@ -48,7 +48,8 @@ from zhijian.services.asr_context import build_asr_context
 from zhijian.services.audit import record_event
 from zhijian.services.external_audit import audited_call
 from zhijian.services.grounded_map import artifact_for_transcript, get_or_create_grounded_map
-from zhijian.services.jobs import JobCancelled, ensure_job_active
+from zhijian.services.job_replay import defer_localmux_cooldown, validate_cooldown_resume
+from zhijian.services.jobs import COOLDOWN_RESUME_KEY, JobCancelled, ensure_job_active, job_run_fence
 from zhijian.services.transcript_validation import assess_transcript_quality
 from zhijian.services.video_cover import materialize_cover
 from zhijian.services.video_screenshots import (
@@ -628,9 +629,12 @@ def _observe_cancelled_job(db: Session, job_id: str) -> None:
 
 def process_video_job(db: Session, job: Job, settings: Settings | None = None) -> None:
     settings = settings or get_settings()
+    fence = job_run_fence(job)
     if job.payload_json.get("replay_from_step"):
         job_id = job.id
         try:
+            if COOLDOWN_RESUME_KEY in job.payload_json and (reason := validate_cooldown_resume(db, job)):
+                raise NeedsUser("REPLAY_COOLDOWN_UNAVAILABLE", reason)
             _process_video_replay(db, job, settings, str(job.payload_json["replay_from_step"]))
         except JobCancelled:
             _observe_cancelled_job(db, job_id)
@@ -670,6 +674,12 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
             replay_job = db.get(Job, job_id)
             provider_blocked = isinstance(exc, AIProviderError)
             if replay_job:
+                try:
+                    if defer_localmux_cooldown(db, replay_job, exc, fence):
+                        return
+                except JobCancelled:
+                    _observe_cancelled_job(db, job_id)
+                    return
                 replay_step = db.scalar(
                     select(JobStep).where(
                         JobStep.job_id == replay_job.id,
@@ -1328,6 +1338,12 @@ def process_video_job(db: Session, job: Job, settings: Settings | None = None) -
         job = db.get(Job, job_id)
         if job is None:
             raise
+        try:
+            if defer_localmux_cooldown(db, job, exc, fence):
+                return
+        except JobCancelled:
+            _observe_cancelled_job(db, job_id)
+            return
         if isinstance(exc, (VideoResolveError, AIProviderError)):
             job.error_code = exc.code
         current_step = db.scalar(
@@ -1431,6 +1447,8 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
     }
     note = note_for_job(db, asset, job)
     transcript = db.get(Transcript, str(job.payload_json.get("transcript_id") or ""))
+    if transcript is None and COOLDOWN_RESUME_KEY in job.payload_json:
+        raise NeedsUser("REPLAY_ARTIFACT_MISSING", "冷却前使用的转写已不可用")
     if transcript is None and note and note.current_version_id:
         current_version = db.get(AINoteVersion, note.current_version_id)
         if current_version:
@@ -1466,7 +1484,7 @@ def _process_video_replay(db: Session, job: Job, settings: Settings, from_step: 
     if (transcript is None or not segments) and start > VIDEO_STEPS.index("DOWNLOAD_AUDIO"):
         raise NeedsUser("REPLAY_ARTIFACT_MISSING", "完整转写中间产物已不可用")
     job.status = JobStatus.RUNNING.value
-    job.started_at = utc_now()
+    job.started_at = job.started_at or utc_now()
     db.commit()
     store = build_secret_store(settings.secret_store, settings.data_dir)
     cookie = store.get(settings.video_cookie_secret_key) if asset.platform == "BILIBILI" else None

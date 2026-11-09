@@ -2,24 +2,36 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from zhijian.ai.job_config import (
     PENDING_EXECUTION_KEY,
     RECOVERY_KEY,
+    SNAPSHOT_KEY,
     build_execution_config,
     execution_config_summary,
     install_execution_config,
     secret_free_model_profile,
 )
 from zhijian.ai.model_registry import business_probe_status, profile_supports_capability
+from zhijian.ai.reliability import LocalMuxCooldown
+from zhijian.ai.token_usage import is_model_attempt
 from zhijian.core.config import get_settings
 from zhijian.core.storage import resolve_ref
 from zhijian.core.time import as_utc, utc_now
-from zhijian.db.models import GroundedMapArtifact, Job, JobStep, JobStepArtifact, Setting, SystemEvent
+from zhijian.db.models import (
+    ExternalCallAudit,
+    GroundedMapArtifact,
+    Job,
+    JobStep,
+    JobStepArtifact,
+    Setting,
+    SystemEvent,
+)
 from zhijian.domain.enums import JobStatus
 from zhijian.services.audit import record_event
+from zhijian.services.jobs import COOLDOWN_RESUME_KEY, JobCancelled, ensure_job_active, job_matches_fence
 from zhijian.services.video_support import prompt_supplement_hash
 
 VIDEO_STEP_ORDER = (
@@ -49,6 +61,7 @@ PROMPT_ROLE_BY_STEP = {
 }
 FULL_REPLAY_DEFERRED_KEY = "full_replay_after_cancel"
 FULL_REPLAY_CLEARED_PAYLOAD_KEYS = {
+    COOLDOWN_RESUME_KEY,
     "ai_soft_budget",
     "replay_from_step",
     "source_event_id",
@@ -248,7 +261,128 @@ def resume_deferred_full_replays(db: Session) -> int:
     return queued
 
 
-def replay_options(db: Session, job: Job) -> dict:
+def defer_localmux_cooldown(db: Session, job: Job, error: Exception, fence: dict[str, object]) -> bool:
+    if not isinstance(error, LocalMuxCooldown) or not fence.get("lease_owner"):
+        return False
+    if not job_matches_fence(job, fence):
+        raise JobCancelled("任务已取消或本次执行权已失效")
+    if (
+        job.current_step != "EXTRACT_TRAVEL_FACTS"
+        or not job.lease_owner
+        or not job.started_at
+        or COOLDOWN_RESUME_KEY in job.payload_json
+        or not job.payload_json.get(SNAPSHOT_KEY)
+    ):
+        return False
+
+    audits = db.scalars(
+        select(ExternalCallAudit).where(
+            ExternalCallAudit.job_id == job.id,
+            ExternalCallAudit.capability == "LLM",
+            ExternalCallAudit.request_meta_json["stage"].as_string() == "GROUND_MAP",
+        )
+    ).all()
+    rows = [row for row in audits if row.request_meta_json.get("run_fence") == fence]
+    request_id = error.request_id
+    rejected = next(
+        (
+            row
+            for row in rows
+            if row.request_meta_json.get("upstream_dispatched") is False
+            and row.request_meta_json.get("route") == "primary"
+            and (row.response_meta_json.get("provider_error") or {}).get("request_id") == request_id
+        ),
+        None,
+    )
+    metadata = rejected.request_meta_json if rejected else {}
+    if (
+        not metadata.get("input_hash")
+        or type(metadata.get("chunk_index")) is not int
+        or not metadata.get("split_path")
+    ):
+        return False
+    if any(is_model_attempt(row.request_meta_json) and row.status != "COMPLETED" for row in rows):
+        return False
+
+    step = db.scalar(select(JobStep).where(JobStep.job_id == job.id, JobStep.step_name == job.current_step))
+    if step is None or step.status != "RUNNING" or not step.started_at:
+        return False
+
+    now = utc_now()
+    resume_at = now + timedelta(seconds=error.delay_seconds)
+    payload = {
+        **job.payload_json,
+        "replay_from_step": job.current_step,
+        COOLDOWN_RESUME_KEY: {
+            "not_before": resume_at.timestamp(),
+            "prior_fence": fence,
+            "stage_started_at": as_utc(step.started_at).isoformat(),
+            "input_hash": metadata["input_hash"],
+            "chunk_index": metadata["chunk_index"],
+            "split_path": metadata["split_path"],
+            "provider": rejected.provider,
+            "profile_id": metadata.get("profile_id"),
+            "model": metadata.get("model"),
+            "request_id": request_id,
+        },
+    }
+    updated = db.execute(
+        update(Job)
+        .where(
+            Job.id == job.id,
+            Job.status == JobStatus.RUNNING.value,
+            Job.lease_owner == job.lease_owner,
+            Job.retry_count == job.retry_count,
+            Job.started_at == job.started_at,
+        )
+        .values(
+            status=JobStatus.QUEUED.value,
+            payload_json=payload,
+            heartbeat_at=None,
+            lease_owner=None,
+            lease_expire_at=None,
+            error_code=None,
+            error=None,
+        )
+    )
+    if not updated.rowcount:
+        raise JobCancelled("任务已取消或本次执行权已失效")
+    step.status = "PENDING"
+    step.error = None
+    step.finished_at = None
+    record_event(
+        db,
+        "job.localmux_cooldown.deferred",
+        "本机路由冷却，到期后自动续跑一次",
+        component="worker",
+        entity_type="job",
+        entity_id=job.id,
+        detail={"step": step.step_name, "resume_at": resume_at.isoformat(), "request_id": request_id},
+        commit=False,
+    )
+    db.commit()
+    return True
+
+
+def validate_cooldown_resume(db: Session, job: Job) -> str | None:
+    ensure_job_active(db, job)
+    options = replay_options(db, job, active_cooldown_resume=True)
+    if not options["step_replay_available"]:
+        return str(options["reason"])
+    if options["replay_from_step"] != "EXTRACT_TRAVEL_FACTS":
+        return "上游步骤或提示词已变化，需要人工确认续跑"
+    steps = {step.step_name: step for step in db.scalars(select(JobStep).where(JobStep.job_id == job.id))}
+    extract = steps["EXTRACT_TRAVEL_FACTS"]
+    if not job.payload_json.get("transcript_id") or (
+        extract.input_json.get("transcript") != job.payload_json["transcript_id"]
+    ):
+        return "待续跑任务的原转写身份不一致"
+    for name in options["reused_steps"]:
+        steps[name].status = "REUSED"
+    return None
+
+
+def replay_options(db: Session, job: Job, *, active_cooldown_resume: bool = False) -> dict:
     steps = {item.step_name: item for item in db.scalars(select(JobStep).where(JobStep.job_id == job.id))}
     failed = next(
         (steps[name] for name in VIDEO_STEP_ORDER if name in steps and steps[name].status == "FAILED"),
@@ -256,7 +390,7 @@ def replay_options(db: Session, job: Job) -> dict:
     )
     if (
         failed is None
-        and job.status in {JobStatus.FAILED.value, JobStatus.NEEDS_USER.value}
+        and (active_cooldown_resume or job.status in {JobStatus.FAILED.value, JobStatus.NEEDS_USER.value})
         and steps.get(job.current_step)
         and (
             steps[job.current_step].status in {"PENDING", "RUNNING"}
@@ -284,14 +418,14 @@ def replay_options(db: Session, job: Job) -> dict:
         failed = steps["GENERATE_AI_NOTE"]
     if failed is None or failed.step_name not in VIDEO_STEP_ORDER:
         return _unavailable(job, "REPLAY_STEP_MISMATCH", "没有可续跑的失败步骤")
-    if job.status not in {
+    if not active_cooldown_resume and job.status not in {
         JobStatus.FAILED.value,
         JobStatus.NEEDS_USER.value,
         JobStatus.PARTIAL_SUCCESS.value,
         JobStatus.CANCELLED.value,
     }:
         return _unavailable(job, "REPLAY_JOB_STATE", "当前任务状态不允许步骤续跑")
-    if job.lease_owner:
+    if job.lease_owner and not active_cooldown_resume:
         return _unavailable(job, "REPLAY_LEASE_ACTIVE", "当前执行 lease 尚未释放")
     if job.payload_json.get(FULL_REPLAY_DEFERRED_KEY):
         return _unavailable(job, "REPLAY_ALREADY_RUNNING", "完整重跑已等待取消结束")
@@ -467,7 +601,11 @@ def queue_step_replay(
         if artifact.step_name in VIDEO_STEP_ORDER[start:]:
             artifact.status = "INVALIDATED"
             artifact.invalidated_at = utc_now()
-    payload = {key: value for key, value in job.payload_json.items() if key != "ai_soft_budget"}
+    payload = {
+        key: value
+        for key, value in job.payload_json.items()
+        if key not in {"ai_soft_budget", COOLDOWN_RESUME_KEY}
+    }
     if note_recovery:
         payload[RECOVERY_KEY] = recovery
         payload["ai_recovery_overrides"] = overrides

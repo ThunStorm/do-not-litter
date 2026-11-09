@@ -178,3 +178,8 @@ Mux：本轮独立基线完整验证 Rust 87 passed / 2 ignored、前端 7 passe
 LOCAL_ROUTER 请求设置 `trust_env=False`，避免回环 Gateway 被环境代理接管。同步顶层 `httpx.post` 可接收该参数；Job 的可取消路径使用 `httpx.AsyncClient` 时必须把它传入客户端构造函数，不能传给 `.post()`。普通 DIRECT/Ollama 请求保持 httpx 的默认环境策略。取消检查和客户端等待回收不等于上游已停止生成；Ollama 清理缺口见 [模型释放边界](AI_RUNTIME_AND_PROVIDERS.md#41-ollama-响应后的释放契约与取消边界)。
 
 离线回归同时覆盖本地路由成功请求、环境代理禁用和 DIRECT/LOCAL_ROUTER 等待取消；真实 Job 的原 TypeError 修复后步骤续跑结果见交接，不在本规格复制生产状态。
+
+
+## LocalAiMux 首包诊断与 Worker 短冷却
+
+`LMX_PROCESS_TIMEOUT` 可携带固定的 `upstream_first_payload_timeout`、`upstream_first_payload` 和已验证时限。保留原超时重试边界。对视频 `GROUND_MAP`，受信回环接口只有同时返回 HTTP 503、`LMX_PROVIDER_COOLDOWN`、`upstream_dispatched=false`、`cooldown_reason=transient_failure`、可关联请求 ID 和 1–30 秒整数 `Retry-After`，才允许原 Job 释放租约并延迟续跑一次。该路径由 Worker 调度，已发出的请求和旧版无明确字段的 503 沿用原处置。预算与验证见[本期工作包](../planning/LOCALMUX_FIRST_PAYLOAD_AND_COOLDOWN_PLAN.md)。

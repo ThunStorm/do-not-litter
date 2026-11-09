@@ -33,3 +33,8 @@ def token_usage(metadata: dict, input_chars: int = 0) -> dict[str, int]:
             f"unknown_{side}_calls": int(reported is None and estimated is None),
         })
     return result
+
+
+def is_model_attempt(metadata: dict | None) -> bool:
+    metadata = metadata or {}
+    return not metadata.get("cache_hit") and metadata.get("upstream_dispatched") is not False

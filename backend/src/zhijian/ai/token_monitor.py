@@ -8,6 +8,7 @@ from dataclasses import asdict, dataclass
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from zhijian.ai.token_usage import is_model_attempt
 from zhijian.db.models import ExternalCallAudit, Job, SystemEvent
 from zhijian.services.audit import record_event
 
@@ -23,7 +24,7 @@ class TokenAnomaly:
 def detect_token_anomalies(
     rows: list[ExternalCallAudit], expected_prompt_tokens: int = 0
 ) -> list[TokenAnomaly]:
-    actual = [row for row in rows if not (row.request_meta_json or {}).get("cache_hit")]
+    actual = [row for row in rows if is_model_attempt(row.request_meta_json)]
     by_stage: dict[str, list[ExternalCallAudit]] = defaultdict(list)
     for row in actual:
         by_stage[str((row.request_meta_json or {}).get("stage") or row.operation)].append(row)

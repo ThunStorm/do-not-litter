@@ -18,7 +18,7 @@ from zhijian.ai.resource_manager import local_ai_resource_manager
 from zhijian.ai.runtime_hints import runtime_hint_scope
 from zhijian.ai.schemas import AIRequest, AIResult
 from zhijian.ai.structured_output import stage_json_schema, validate_structured_output
-from zhijian.ai.token_usage import estimate_tokens
+from zhijian.ai.token_usage import estimate_tokens, is_model_attempt
 from zhijian.db.models import ExternalCallAudit, Job
 from zhijian.providers.llm import (
     FallbackLLMProvider,
@@ -29,7 +29,7 @@ from zhijian.providers.llm import (
     ProviderRequestOptions,
     interface_signature,
 )
-from zhijian.services.jobs import ensure_job_active, job_run_fence
+from zhijian.services.jobs import COOLDOWN_RESUME_KEY, ensure_job_active, job_run_fence
 from zhijian.services.model_attempts import advance_model_attempt
 
 
@@ -58,6 +58,7 @@ class AIWorkloadGateway:
         domain_chars: int = 0,
         max_stage_attempts: int | None = None,
         max_input_tokens: int | None = None,
+        cooldown_boundary: dict[str, Any] | None = None,
     ) -> LLMResult:
         """Cache one route result while enforcing budget and local serialization per actual attempt."""
         local_schema = stage_json_schema(stage)
@@ -120,29 +121,51 @@ class AIWorkloadGateway:
                         ExternalCallAudit.job_id == job.id, ExternalCallAudit.capability == "LLM"
                     )
                 ).all()
+                fences = [job_run_fence(job)]
+                if stage == "GROUND_MAP" and (resume := job.payload_json.get(COOLDOWN_RESUME_KEY)):
+                    fences.append(resume["prior_fence"])
                 consumed = sum(
                     1
                     for row in rows
                     if (row.request_meta_json or {}).get("stage") == stage
-                    and (row.request_meta_json or {}).get("run_fence") == job_run_fence(job)
-                    and not (row.request_meta_json or {}).get("cache_hit")
+                    and (row.request_meta_json or {}).get("run_fence") in fences
+                    and is_model_attempt(row.request_meta_json)
                 )
                 if consumed >= max_stage_attempts:
                     raise AIProviderError(
                         "AI_PROVIDER_ATTEMPT_BUDGET", "本阶段实际调用已达到尝试上限", switch_model=False
                     )
 
+        input_hash = sha256(
+            json.dumps(messages, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        matches_boundary = cooldown_boundary is not None and all(
+            cooldown_boundary.get(key) == value
+            for key, value in {
+                "input_hash": input_hash,
+                "provider": provider_name,
+                "model": model,
+                "profile_id": getattr(getattr(provider, "primary", provider), "profile_id", None),
+                "chunk_index": (attempt_metadata or {}).get("chunk_index"),
+                "split_path": (attempt_metadata or {}).get("split_path"),
+            }.items()
+        )
+
         def call() -> LLMResult:
+            if cooldown_boundary and (not matches_boundary or fallback_only):
+                from zhijian.ai.reliability import AIProviderError
+
+                raise AIProviderError(
+                    "REPLAY_COOLDOWN_INPUT_CHANGED",
+                    "已完成分块缓存或待续跑请求已变化，需要人工确认",
+                    switch_model=False,
+                )
             if isinstance(provider, FallbackLLMProvider):
                 provider.attempt_metadata = {
                     "stage": stage,
                     "request_metrics": request_metrics(messages, domain_chars=domain_chars),
                     **(compiled_request.identity if compiled_request else {}),
-                    "input_hash": sha256(
-                        json.dumps(
-                            messages, ensure_ascii=False, sort_keys=True, separators=(",", ":")
-                        ).encode()
-                    ).hexdigest(),
+                    "input_hash": input_hash,
                     **{
                         key: value
                         for key, value in (attempt_metadata or {}).items()
@@ -233,7 +256,7 @@ class AIWorkloadGateway:
             semantic_options = {**semantic_options, "interface_contract": signature}
         if compiled_request:
             semantic_options = {**semantic_options, **compiled_request.identity}
-        return cached_json_result(
+        result = cached_json_result(
             db,
             job=job,
             stage=stage,
@@ -248,6 +271,9 @@ class AIWorkloadGateway:
             call=call,
             validate=validate_result,
         )
+        if matches_boundary:
+            result.metadata["cooldown_boundary_reached"] = True
+        return result
 
     @staticmethod
     def _execute_attempt(

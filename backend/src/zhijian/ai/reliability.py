@@ -108,6 +108,15 @@ class AIProviderError(RuntimeError):
         self.cause = cause
 
 
+class LocalMuxCooldown(AIProviderError):
+    """A trusted loopback gateway refused the request before invoking its adapter."""
+
+    def __init__(self, delay_seconds: int, request_id: str, cause: httpx.HTTPStatusError) -> None:
+        super().__init__("AI_PROVIDER_CIRCUIT_OPEN", "本机路由连接仍在冷却", cause=cause)
+        self.delay_seconds = delay_seconds
+        self.request_id = request_id
+
+
 def check_output_budget(content: str, metadata: dict, usage: dict | None = None) -> None:
     if str(metadata.get("finish_reason") or "").lower() not in {"length", "max_tokens"}:
         return

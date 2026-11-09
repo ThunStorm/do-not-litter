@@ -15,6 +15,7 @@ from zhijian.ai.interface_contract import InterfaceCapabilities, normalize_messa
 from zhijian.ai.json_recovery import json_error_details, targeted_json_retry
 from zhijian.ai.reliability import (
     AIProviderError,
+    LocalMuxCooldown,
     ModelReliabilityPolicy,
     ReliabilityGuards,
     check_output_budget,
@@ -121,6 +122,18 @@ def provider_error_details(exc: Exception) -> dict[str, Any]:
                     details[f"provider_{key}"] = _redact_provider_text(str(value))
             if details.get("provider_message"):
                 details["message"] = details["provider_message"]
+            if (
+                error.get("code") == "LMX_PROCESS_TIMEOUT"
+                and error.get("reason_code") == "upstream_first_payload_timeout"
+                and error.get("timeout_layer") == "upstream_first_payload"
+                and type(error.get("timeout_limit_ms")) is int
+                and 1 <= error["timeout_limit_ms"] <= 3_600_000
+            ):
+                for key in ("reason_code", "timeout_layer", "timeout_limit_ms"):
+                    details[key] = error[key]
+            if isinstance(exc, LocalMuxCooldown):
+                details["upstream_dispatched"] = False
+                details["cooldown_reason"] = "transient_failure"
         retry_after = headers.get("retry-after")
         if retry_after:
             details["retry_after"] = str(retry_after)[:32]
@@ -356,7 +369,32 @@ class OpenAICompatibleProvider:
             timeout=self.timeout,
             **({"trust_env": False} if self.connection_type == "LOCAL_ROUTER" else {}),
         )
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            if (
+                self.connection_type == "LOCAL_ROUTER"
+                and urlsplit(self.base_url).hostname in {"localhost", "127.0.0.1", "::1"}
+                and response.status_code == 503
+                and len(response.content) <= 4096
+                and re.fullmatch(r"[1-9][0-9]?", delay := response.headers.get("Retry-After", ""))
+                and int(delay) <= 30
+                and 1 <= len(request_id := response.headers.get("X-Request-ID", "")) <= 160
+            ):
+                try:
+                    body = response.json()
+                except ValueError:
+                    body = None
+                error = body.get("error") if isinstance(body, dict) else None
+                if (
+                    isinstance(error, dict)
+                    and error.get("type") == "localmux_error"
+                    and error.get("code") == "LMX_PROVIDER_COOLDOWN"
+                    and error.get("cooldown_reason") == "transient_failure"
+                    and error.get("upstream_dispatched") is False
+                ):
+                    raise LocalMuxCooldown(int(delay), request_id, exc) from exc
+            raise
         if self.connection_type == "LOCAL_ROUTER" and len(response.content) > 1_000_000:
             raise AIProviderError("AI_PROVIDER_OUTPUT_TOO_LARGE", "接口响应超过本机接收上限")
         try:
@@ -656,6 +694,12 @@ class FallbackLLMProvider:
                         )
                     raise
                 error = classify_provider_error(exc)
+                if (
+                    isinstance(error, LocalMuxCooldown)
+                    and self.attempt_metadata.get("stage") == "GROUND_MAP"
+                    and route == "primary"
+                ):
+                    error.switch_model = False
                 if error.code == "AI_BUDGET_EXCEEDED":
                     raise error from exc
                 is_json_error = error.code in {"AI_PROVIDER_INVALID_JSON", "AI_PROVIDER_SCHEMA_INVALID"}
