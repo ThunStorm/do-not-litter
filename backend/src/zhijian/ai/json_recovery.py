@@ -104,7 +104,8 @@ def targeted_json_retry(
     )
     if details.get("schema_error"):
         instruction += (
-            "本次结构错误见schema_error的字段路径及冲突路径；各集合内定义ID必须非空且唯一，"
+            "本次结构错误见schema_error的字段路径及冲突路径；列表字段必须是数组，空集合返回[]而非null；"
+            "各集合内定义ID必须非空且唯一，"
             "实体与单元引用必须对应本次输出的定义，不能凭编号猜测归属。"
         )
     prefix = 0

@@ -444,7 +444,7 @@ cache
 
 ## 偏好模式与已保存备用（2026-10-08）
 
-LOCAL_FIRST/REMOTE_FIRST 优先使用相反位置候选作为备用；没有相反位置候选时，保留全局 model-routing 已保存且符合当前阶段能力的 fallback_id。候选须启用、不同于主模型且能力 Probe 不为 FAIL；不自动扩大未声明的能力。LOCAL_ONLY/REMOTE_ONLY 和 Ground Map semantic escalation 不采用此回退。Job 使用提交时快照中的全局备用，修改当前 Settings 不改旧 Job 的备用。参数与验收见[订阅 CLI 稳定性](LOCAL_ROUTER_PROVIDER_COMPATIBILITY_SPEC.md#12-订阅-cli-稳定性实施与验收2026-10-08)。
+LOCAL_FIRST/REMOTE_FIRST 优先使用相反位置候选作为备用；没有相反位置候选时，保留全局 model-routing 已保存且符合当前阶段能力的 fallback_id。候选须启用、不同于主模型且能力 Probe 不为 FAIL；不自动扩大未声明的能力。REMOTE_ONLY 仅保留同为远程的合格通用备用，不跨位置；LOCAL_ONLY 和 Ground Map semantic escalation 不采用此回退。Job 使用提交时快照中的全局备用，修改当前 Settings 不改旧 Job 的备用。参数与验收见[订阅 CLI 稳定性](LOCAL_ROUTER_PROVIDER_COMPATIBILITY_SPEC.md#12-订阅-cli-稳定性实施与验收2026-10-08)。
 
 ## 阶段独立重试预算（2026-10-21 修订）
 
@@ -489,7 +489,7 @@ JSON格式或结构错误可在同模型上限内重答。保持原始系统指�
 
 ### 阶段模式与备用提示（2026-10-21）
 
-设置页五种模式显示中文与枚举；模式变化即时说明首选位置及备用关系。LOCAL_ONLY/REMOTE_ONLY 不做失败切换，即使通用备用同位置也不使用；LOCAL_FIRST/REMOTE_FIRST 优先相反位置备用，无该候选时才保留合格且不同于主模型的通用备用。AUTO 由阶段/质量/预算选路，不保证沿用全局主备顺序。两槽命名为本地/远程候选；留空仅从通用主备中按位置/能力筛选，不遍历全部模型。LocalMux 回环地址与模型实际运行位置分开说明；Ground Map 歧义升级仍单独使用远程且无通用回退。候选来源/能力/历史任务快照边界按需展开。本次只改说明，不改 resolver、保存字段、默认模式、模型参数或现存任务。
+设置页五种模式显示中文与枚举；模式变化即时说明首选位置及备用关系。REMOTE_ONLY 只限制执行位置，允许已配置、合格且不同于主模型的远程备用；LOCAL_ONLY 不做失败切换；LOCAL_FIRST/REMOTE_FIRST 优先相反位置备用，无该候选时才保留合格且不同于主模型的通用备用。AUTO 由阶段/质量/预算选路，不保证沿用全局主备顺序。两槽命名为本地/远程候选；留空仅从通用主备中按位置/能力筛选，不遍历全部模型。LocalMux 回环地址与模型实际运行位置分开说明；Ground Map 歧义升级仍单独使用远程且无通用回退。候选来源/能力/历史任务快照边界按需展开。2026-10-21当次仅修改说明；2026-11-12的REMOTE_ONLY同位置备用选路变更及验收见下节，保存字段、默认模式和模型参数不变。
 
 ## 分批与请求时限统一规则（2026-10-23）
 
@@ -516,3 +516,7 @@ JSON格式或结构错误可在同模型上限内重答。保持原始系统指�
 ## 封面文字Stage（2026-10-29）
 
 COVER_TEXT的Capability为SCREENSHOT_UNDERSTANDING，独立于VISION_FACT，显式图像Profile与接口能力门禁保持。默认温度0、关闭思考、单次尝试、输出2048、请求180秒/阶段240秒；仍受Job剩余预算、截止时间和取消约束。`video:cover-text`默认enabled=true、visual_fallback_enabled=false；单次提取任务allow_visual选择不修改全局开关。普通OCR无需模型，视觉仅在启用且识别困难时触发。LOCAL_ROUTER目前不能发送图片，不以目录image标签当已支持证据；真实成本/失败边界见封面验收报告。
+
+### 2026-11-12 远程备用与嵌套列表校验
+
+用户确认 REMOTE_ONLY 按模型位置限制，失败时允许同位置的已配置通用备用；沿用能力评估、身份去重、任务快照与原有尝试/时间/Token硬预算，不自动发现其他模型，歧义升级仍保持独立。GROUND_MAP 在ID解码及业务证据校验前检查顶层与嵌套列表，显式null或错误容器返回带安全字段路径的 AI_PROVIDER_SCHEMA_INVALID，进入现有有界JSON恢复/备用流程；不将空值默认为有效证据，不吞掉编程异常。

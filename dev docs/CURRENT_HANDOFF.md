@@ -13,7 +13,11 @@
 - 文件：benchmark/video-minimal-fix-20261028四报告/跟踪表；alembic/versions/0027_note_grounded_map_binding.py。
 - 边界：本轮允许0027；真实Provider/视频重跑、历史回填和POI确认仍需另行授权。
 
-## 生产快照（最新采样2026-11-09 10:04，北京时间）
+## 生产快照（最新采样2026-11-12 21:42，北京时间）
+
+- 2026-11-12 远程备用与空值校验发布：REMOTE_ONLY 允许同位置合格通用备用，嵌套列表错误准确进入结构恢复。隔离运行副本 `data/backups/remote-backup-null-20261112-155316/runtime`；仅4个后端文件和设置说明变化，未夹带工作树其他修复。保存点含源码tar/patch/哈希、已验逻辑DB、旧静态和原plist，可用其中release.py的rollback恢复代码（不回退业务库）。初轮混合工作树944、干净提交候选902后端，64前端及生产Python3.14目标45项通过；发布后API/Worker READY，0027未迁移、完整性ok/FK0；发布动作前后业务摘要不变，仅新增两条服务启动审计。后续授权真实续跑按下述结果生成新产物。生产1280/390px说明、无溢出/相关控制台错误及静态HTTP哈希通过。两项授权真实续跑全部步骤完成，PARTIAL_SUCCESS分别保留13/8地点待确认；9/20章节、9/12截图。job_5feeb5ab曾触发阶段时限，正式续跑复用6块缓存后完成；真实结构纠错通过，隔离故障注入+真实hy3备用干净复核约6.4秒成功（另一次约21.6秒成功但测试后台会话缺表，已修正）。最终2026-11-12 21:17 API/Worker/SQLite正常、执行器IDLE、active/lease/在途0、integrity=ok/FK0；原2754 Segment及32转写身份/正文/定位不变。真实验收报告见benchmark/REMOTE_BACKUP_NULL_ACCEPTANCE_20261112.md。提交前2026-11-12 21:42只读复核服务正常、无活跃任务、完整性ok/FK0；用户已授权本包14文件远程交付，候选源码与部署一致，不包含既有未发布修复。提交哈希与推送结果见保存点delivery-result.json及分支codex/mac-mini-implementation的Git记录。
+
+### 以下为原日期快照，本次未复核其历史结论
 
 - 2026-11-09 09:46 LocalAiMux M1 与至简 M2 已部署。Mux 二进制 SHA256 `5f0b5e0be563da10bf0f93434834b448588d6837b688f898ea2867265b92c321`，回环 API 健康。至简 API、Worker READY，PID 34178，SQLite 0027，完整性通过、外键错误 0。生产静态资源逐文件一致；业务数据一致，仅两项运行状态与本次两条服务启动审计产生预期变化。首轮因比对把启动审计当业务差异回退，明确核对后复发成功。备份、旧 plist、旧应用和精确至简运行快照位于 `data/backups/localmux-m1m2-20261109/`。真实重跑串行执行，两个任务均通过 ASR 和字幕校对。BV1EWnp6mEUN 在地点抽取第 1/7 块失败，BV1Hrxe6YEbQ 在第 3/6 块失败，均为通用 502，Qoder 会话日志记录首包超时。未触发本机冷却续跑。详见该保存点的 `rerun-results.json`。
 

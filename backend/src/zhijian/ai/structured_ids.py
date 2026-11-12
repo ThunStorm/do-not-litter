@@ -30,8 +30,17 @@ SAFE_FIELDS = {
     "mention_id",
     "place_mention_ids",
     "changes",
+    "section_facts",
+    "places",
+    "supporting_quotes",
+    "key_points",
+    "recommendation_evidence",
+    "statements",
+    "supersedes",
+    "temporal_applications",
 }
 ISSUE_MESSAGES = {
+    "INVALID_LIST": "字段必须为列表，空集合请返回 []",
     "MISSING_LOCAL_ID": "局部事实 ID 缺省",
     "DUPLICATE_LOCAL_ID": "局部事实 ID 重复",
     "INVALID_LOCAL_ID": "局部事实 ID 必须为非空字符串",

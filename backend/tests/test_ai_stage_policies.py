@@ -10,11 +10,17 @@ from zhijian.services.video_support import provider_for_role
 
 
 @pytest.mark.parametrize(
-    "mode,backup_enabled,expected",
-    [("REMOTE_FIRST", True, "backup"), ("REMOTE_ONLY", True, None), ("REMOTE_FIRST", False, None)],
+    "mode,backup_enabled,backup_location,expected",
+    [
+        ("REMOTE_FIRST", True, "REMOTE", "backup"),
+        ("REMOTE_ONLY", True, "REMOTE", "backup"),
+        ("REMOTE_FIRST", False, "REMOTE", None),
+        ("REMOTE_ONLY", False, "REMOTE", None),
+        ("REMOTE_ONLY", True, "LOCAL", None),
+    ],
 )
 def test_remote_first_keeps_eligible_global_backup(
-    app_and_session, monkeypatch, mode, backup_enabled, expected
+    app_and_session, monkeypatch, mode, backup_enabled, backup_location, expected
 ):
     _, factory = app_and_session
     with factory() as db:
@@ -27,7 +33,7 @@ def test_remote_first_keeps_eligible_global_backup(
         db.add(
             Setting(
                 key="model-profile:backup",
-                value_json={**_profile("备", "REMOTE", "backup"), "enabled": backup_enabled},
+                value_json={**_profile("备", backup_location, "backup"), "enabled": backup_enabled},
             )
         )
         db.add(Setting(key="model-routing", value_json={"primary_id": "primary", "fallback_id": "backup"}))

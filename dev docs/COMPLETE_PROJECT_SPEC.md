@@ -265,7 +265,7 @@
 | 部署与局域网 | 唯一后端为 Mac mini；4 位配对码显眼展示；Cookie 会话刷新不应重新要求配对；服务状态来自真实 API/Worker/SQLite | `operations/DEPLOYMENT_OPTIONS.md`、`jobs/MOBILE_SESSION_DIAGNOSTICS_AND_JOB_CONTROL_SPEC.md`、`services/auth.py` |
 | 捕获与本地处理 | URL、正文、DOCX、PDF、XLSX、图像 OCR、音视频均可进入 Job；Whisper.cpp、FFmpeg 与 OCR 状态必须是探测结果 | `product/PRODUCT_REQUIREMENTS.md`、`ai-gateway/AI_RUNTIME_AND_PROVIDERS.md` |
 | 模型设置 | 用户可维护任意 Provider/模型库；预设仅帮助填写；主/备用从已存模型选择；草稿可真实测试；已保存模型一键与单项共用Worker队列，同供应商/入口FIFO、独立最多三组并行，跨进程节流/429冷却/去重/取消及晚结果fence保留；默认超时 300 秒 | `ai-gateway/MODEL_AND_RETENTION_UI_SPEC.md`、`operations/RUNTIME_MONITOR_AND_MODEL_PRESETS_SPEC.md` |
-| AI Gateway 契约 | Model Profile 显式保存 location/modalities/capabilities；Stage 参数仅白名单；新 Job 按提交时快照固定路由、Profile、Stage Policy、Prompt/领域上下文与 AI 参数，普通/完整/步骤重跑入队时自动刷新原模型最新可调参数，其余沿用原快照；身份变更/删除/禁用重跑安全拒绝，模型/入口身份和提交路由保留，不借用其他模型参数；执行参数入队后不追随全局变化，各阶段能力门禁重新核对同身份模型最新已保存评估并审计，历史执行快照可追溯，累计预算不重置，Secret 不进 Job；笔记失败后的显式恢复操作仅覆盖本 Job 的笔记模型并审计，完整重跑清除该覆盖；没有快照的历史任务保持兼容路由，`AUTO/LOCAL_ONLY/LOCAL_FIRST/REMOTE_FIRST/REMOTE_ONLY` 语义不得回退 | `ai-gateway/05-job-policy.md`、`ai/policies.py` |
+| AI Gateway 契约 | Model Profile 显式保存 location/modalities/capabilities；Stage 参数仅白名单；新 Job 按提交时快照固定路由、Profile、Stage Policy、Prompt/领域上下文与 AI 参数，普通/完整/步骤重跑入队时自动刷新原模型最新可调参数，其余沿用原快照；身份变更/删除/禁用重跑安全拒绝，模型/入口身份和提交路由保留，不借用其他模型参数；执行参数入队后不追随全局变化，各阶段能力门禁重新核对同身份模型最新已保存评估并审计，历史执行快照可追溯，累计预算不重置，Secret 不进 Job；笔记失败后的显式恢复操作仅覆盖本 Job 的笔记模型并审计，完整重跑清除该覆盖；没有快照的历史任务保持兼容路由，`REMOTE_ONLY` 按位置限制，允许同位置合格通用备用且不跨本地；其余 `AUTO/LOCAL_ONLY/LOCAL_FIRST/REMOTE_FIRST` 语义不得回退 | `ai-gateway/05-job-policy.md`、`ai/policies.py` |
 | 阶段分批/请求时限 | v2显式Stage超时覆盖模型默认，阶段与Job剩余时间仍硬限制；旧快照无标记保留取小及旧分批规则，明确重跑生成新版执行快照，历史不回填；预算预览只读不调用模型，校对批次统一Stage入口且旧值逐项回退 | `ai-gateway/04-stage-policy.md`、`ai/stage_limits.py`、`tests/test_stage_limits.py` |
 | AI Gateway 质量与上下文 | 干净平台字幕不得无条件全文送模；长转写只传候选或 Facts，不能多阶段重复全文；Domain Context 仅低优先级增强，不能覆盖 Evidence、Schema 或安全契约；text-only Profile 不得绑定视觉 Stage | `ai-gateway/AI_WORKLOAD_GATEWAY_AND_MODEL_ROUTING_PLAN_v2.md`、`services/video_support.py` |
 | Qwen 逐字对齐与校对预算 | 高比例逐字对齐须在新 Transcript 物化前合并为语句 Segment，保留原始时间码；不得原地修改历史 Segment。批次经验按入口/账户/有效参数隔离，旧模型名经验不借用；单批尝试上限不误作整个阶段批次数，校对/地图/笔记按正常及拆分批次分配额度；校对预算按实际批次预估，实测剩余工作超墙钟上限时提前收口，请求 timeout 受剩余时长约束 | `scripts/qwen_asr_runner.py`、`services/video_support.py`、`ai/budget.py` |
@@ -386,7 +386,13 @@
 
 # 当前实施状态
 
-> 状态记录日期：2026-11-06。本文唯一记录当前源码能力与自动验证；生产状态只见带原采样日期的 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
+> 状态记录日期：2026-11-12。本文唯一记录当前源码能力与自动验证；生产状态只见带原采样日期的 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
+
+## 2026-11-12 远程备用与嵌套列表恢复
+
+REMOTE_ONLY 按用户确认改为限制执行位置：允许同为远程、符合能力且不同于主模型的已配置通用备用；原任务快照、既有执行时限、累计调用/Token预算与Replay规则及歧义升级边界保留。GROUND_MAP 提前校验嵌套列表类型，显式null/错误容器返回带安全字段路径的Schema错误，复用现有有界JSON纠错与备用，不吞掉证据或未知编程异常。设置说明同步。
+
+本包干净提交候选后端全量902项通过；初轮含既有未提交修复的工作树全量944项通过。前端64项、Ruff/类型/隔离构建及生产Python3.14目标45项通过。合成回归覆盖null/错误容器、字段定位、纠错0/1、远程备用、禁止本地备用、禁用备用、尝试预算及缓存。已完成隔离发布与生产PC/Mobile说明核对；两项视频真实续跑全部步骤完成，因13/8个地点待确认保留PARTIAL_SUCCESS；真实supersedes结构错误准确恢复，隔离故障注入后真实远程备用成功。job_5feeb5ab一次阶段时限暂停后复用6块缓存完成；不冒称内容金标通过。结果见[报告](benchmark/REMOTE_BACKUP_NULL_ACCEPTANCE_20261112.md)。
 
 ## LocalAiMux 首包诊断与视频抽取冷却续跑
 
@@ -8653,7 +8659,7 @@ cache
 
 ## 偏好模式与已保存备用（2026-10-08）
 
-LOCAL_FIRST/REMOTE_FIRST 优先使用相反位置候选作为备用；没有相反位置候选时，保留全局 model-routing 已保存且符合当前阶段能力的 fallback_id。候选须启用、不同于主模型且能力 Probe 不为 FAIL；不自动扩大未声明的能力。LOCAL_ONLY/REMOTE_ONLY 和 Ground Map semantic escalation 不采用此回退。Job 使用提交时快照中的全局备用，修改当前 Settings 不改旧 Job 的备用。参数与验收见[订阅 CLI 稳定性](ai-gateway/LOCAL_ROUTER_PROVIDER_COMPATIBILITY_SPEC.md#12-订阅-cli-稳定性实施与验收2026-10-08)。
+LOCAL_FIRST/REMOTE_FIRST 优先使用相反位置候选作为备用；没有相反位置候选时，保留全局 model-routing 已保存且符合当前阶段能力的 fallback_id。候选须启用、不同于主模型且能力 Probe 不为 FAIL；不自动扩大未声明的能力。REMOTE_ONLY 仅保留同为远程的合格通用备用，不跨位置；LOCAL_ONLY 和 Ground Map semantic escalation 不采用此回退。Job 使用提交时快照中的全局备用，修改当前 Settings 不改旧 Job 的备用。参数与验收见[订阅 CLI 稳定性](ai-gateway/LOCAL_ROUTER_PROVIDER_COMPATIBILITY_SPEC.md#12-订阅-cli-稳定性实施与验收2026-10-08)。
 
 ## 阶段独立重试预算（2026-10-21 修订）
 
@@ -8698,7 +8704,7 @@ JSON格式或结构错误可在同模型上限内重答。保持原始系统指�
 
 ### 阶段模式与备用提示（2026-10-21）
 
-设置页五种模式显示中文与枚举；模式变化即时说明首选位置及备用关系。LOCAL_ONLY/REMOTE_ONLY 不做失败切换，即使通用备用同位置也不使用；LOCAL_FIRST/REMOTE_FIRST 优先相反位置备用，无该候选时才保留合格且不同于主模型的通用备用。AUTO 由阶段/质量/预算选路，不保证沿用全局主备顺序。两槽命名为本地/远程候选；留空仅从通用主备中按位置/能力筛选，不遍历全部模型。LocalMux 回环地址与模型实际运行位置分开说明；Ground Map 歧义升级仍单独使用远程且无通用回退。候选来源/能力/历史任务快照边界按需展开。本次只改说明，不改 resolver、保存字段、默认模式、模型参数或现存任务。
+设置页五种模式显示中文与枚举；模式变化即时说明首选位置及备用关系。REMOTE_ONLY 只限制执行位置，允许已配置、合格且不同于主模型的远程备用；LOCAL_ONLY 不做失败切换；LOCAL_FIRST/REMOTE_FIRST 优先相反位置备用，无该候选时才保留合格且不同于主模型的通用备用。AUTO 由阶段/质量/预算选路，不保证沿用全局主备顺序。两槽命名为本地/远程候选；留空仅从通用主备中按位置/能力筛选，不遍历全部模型。LocalMux 回环地址与模型实际运行位置分开说明；Ground Map 歧义升级仍单独使用远程且无通用回退。候选来源/能力/历史任务快照边界按需展开。2026-10-21当次仅修改说明；2026-11-12的REMOTE_ONLY同位置备用选路变更及验收见下节，保存字段、默认模式和模型参数不变。
 
 ## 分批与请求时限统一规则（2026-10-23）
 
@@ -8725,6 +8731,10 @@ JSON格式或结构错误可在同模型上限内重答。保持原始系统指�
 ## 封面文字Stage（2026-10-29）
 
 COVER_TEXT的Capability为SCREENSHOT_UNDERSTANDING，独立于VISION_FACT，显式图像Profile与接口能力门禁保持。默认温度0、关闭思考、单次尝试、输出2048、请求180秒/阶段240秒；仍受Job剩余预算、截止时间和取消约束。`video:cover-text`默认enabled=true、visual_fallback_enabled=false；单次提取任务allow_visual选择不修改全局开关。普通OCR无需模型，视觉仅在启用且识别困难时触发。LOCAL_ROUTER目前不能发送图片，不以目录image标签当已支持证据；真实成本/失败边界见封面验收报告。
+
+### 2026-11-12 远程备用与嵌套列表校验
+
+用户确认 REMOTE_ONLY 按模型位置限制，失败时允许同位置的已配置通用备用；沿用能力评估、身份去重、任务快照与原有尝试/时间/Token硬预算，不自动发现其他模型，歧义升级仍保持独立。GROUND_MAP 在ID解码及业务证据校验前检查顶层与嵌套列表，显式null或错误容器返回带安全字段路径的 AI_PROVIDER_SCHEMA_INVALID，进入现有有界JSON恢复/备用流程；不将空值默认为有效证据，不吞掉编程异常。
 
 
 ---

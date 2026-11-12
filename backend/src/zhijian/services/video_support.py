@@ -880,11 +880,13 @@ def provider_for_role(
 
                 if business_probe_status(candidates[primary_id], resolved_policy.capability.value) != "PASS":
                     route_decision = replace(route_decision, reason_code="BUSINESS_NOT_VERIFIED")
-        if mode in {"LOCAL_FIRST", "REMOTE_FIRST"} and primary_id and not fallback_id:
+        if mode in {"LOCAL_FIRST", "REMOTE_FIRST", "REMOTE_ONLY"} and primary_id and not fallback_id:
             # Keep an eligible saved backup when there is no opposite-location candidate.
             configured_fallback = configured_profile_ids[1]
             if configured_fallback != primary_id and any(
-                item_id == configured_fallback for item_id, _config in candidates
+                item_id == configured_fallback
+                and (mode != "REMOTE_ONLY" or _profile_location(config) == "REMOTE")
+                for item_id, config in candidates
             ):
                 fallback_id = configured_fallback
         if role == "grounded_map_escalation":

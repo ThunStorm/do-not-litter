@@ -10,7 +10,7 @@ from zhijian.ai.reliability import AIProviderError
 
 
 def _check_incomplete_json(error: json.JSONDecodeError) -> None:
-    tail = error.doc[error.pos:]
+    tail = error.doc[error.pos :]
     partial_literal = tail in {"t", "tr", "tru", "f", "fa", "fal", "fals", "n", "nu", "nul"}
     if (
         not tail
@@ -18,8 +18,10 @@ def _check_incomplete_json(error: json.JSONDecodeError) -> None:
         or (error.msg == "Expecting value" and partial_literal)
     ):
         raise AIProviderError(
-            "AI_PROVIDER_OUTPUT_TRUNCATED", "模型返回的 JSON 被截断，响应末尾未闭合",
-            switch_model=False, cause=error,
+            "AI_PROVIDER_OUTPUT_TRUNCATED",
+            "模型返回的 JSON 被截断，响应末尾未闭合",
+            switch_model=False,
+            cause=error,
         ) from error
 
 
@@ -154,6 +156,44 @@ def stage_json_schema(stage: str) -> dict | None:
     }
 
 
+def _validate_ground_map_lists(value: dict[str, Any]) -> None:
+    """Reject explicit null/wrong containers before evidence decoding can iterate them."""
+    from zhijian.ai.structured_ids import schema_issue
+
+    def check_list(item: dict, field: str, path: str) -> list:
+        if field not in item:
+            return []  # Preserve the existing omitted-field compatibility contract.
+        if not isinstance(item[field], list):
+            raise schema_issue("INVALID_LIST", f"{path}.{field}")
+        return item[field]
+
+    fields = {
+        "section_facts": ("segment_ids", "supporting_quotes", "key_points"),
+        "places": ("segment_ids",),
+        "entities": ("segment_ids", "temporal_applications"),
+        "content_units": ("segment_ids", "anchor_entity_ids"),
+        "relations": ("segment_ids",),
+        "claims": ("segment_ids", "subject_entity_ids"),
+        "warnings": (),
+    }
+    for collection, nested_fields in fields.items():
+        for index, item in enumerate(check_list(value, collection, "$")):
+            path = f"$.{collection}[{index}]"
+            if collection == "warnings":
+                continue
+            if not isinstance(item, dict):
+                raise schema_issue("INVALID_LOCAL_ITEM", path)
+            for field in nested_fields:
+                check_list(item, field, path)
+            if collection == "entities" and isinstance(evidence := item.get("recommendation_evidence"), dict):
+                evidence_path = f"{path}.recommendation_evidence"
+                for number, statement in enumerate(check_list(evidence, "statements", evidence_path)):
+                    statement_path = f"{evidence_path}.statements[{number}]"
+                    if not isinstance(statement, dict):
+                        raise schema_issue("INVALID_LOCAL_ITEM", statement_path)
+                    check_list(statement, "supersedes", statement_path)
+
+
 def validate_structured_output(content: str, stage: str, metadata: dict[str, Any] | None = None) -> None:
     if str((metadata or {}).get("finish_reason") or "").lower() in {"length", "max_tokens"}:
         raise AIProviderError("AI_PROVIDER_OUTPUT_TRUNCATED", "模型输出达到长度上限")
@@ -162,6 +202,8 @@ def validate_structured_output(content: str, stage: str, metadata: dict[str, Any
         metadata.setdefault("parse_quality", quality)
         metadata.setdefault("repair_rules", rules)
         metadata["response_keys"] = sorted(value)
+    if stage == "GROUND_MAP":
+        _validate_ground_map_lists(value)
     if stage == "GROUND_MAP" and {"entities", "claims"} <= set(value):
         # Empty auxiliary collections may be omitted by compatible endpoints;
         # entity/claim evidence remains mandatory and is validated downstream.

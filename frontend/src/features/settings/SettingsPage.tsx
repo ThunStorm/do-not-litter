@@ -532,7 +532,7 @@ function ModelsPanel() {
         </div>
         <div className="provider-form__body">
           <p className="settings-note settings-note--inset">
-            可恢复错误按各自 HTTP / JSON 重试预算处理；仍失败时，仅在阶段允许且备用符合能力、预算要求时切换。仅本地 / 仅远程模式不使用备用，超时不重复请求同一模型。
+            可恢复错误按各自 HTTP / JSON 重试预算处理；仍失败时，仅在阶段允许且备用符合能力、预算要求时切换。仅远程模式可使用已配置的远程备用；仅本地模式不使用备用。超时不重复请求同一模型。
           </p>
           <div className="field-grid route-field-grid">
             <SelectField
@@ -1085,7 +1085,7 @@ const STAGE_MODE_LABELS: Record<string, string> = {
 const STAGE_MODE_HINTS: Record<string, string> = {
   AUTO: "自动选择：按阶段能力、质量偏好与预算，在通用主/备用和阶段候选中选择；通用主/备用的顺序不保证沿用。",
   LOCAL_ONLY: "仅本地：只使用本地候选，不配置备用；远程候选和通用备用不会用于失败切换。",
-  REMOTE_ONLY: "仅远程：只使用远程候选，不配置备用；即使通用备用也是远程模型，也不会用于失败切换。",
+  REMOTE_ONLY: "仅远程：只使用远程模型；通用备用也是远程、符合阶段能力且不同于主模型时，可在失败后切换。不会切换到本地模型。",
   LOCAL_FIRST: "本地优先：有本地候选时先用本地，远程候选作备用；没有本地候选时可直接用远程。没有相反位置备用时，才尝试保留符合条件且不同于主模型的通用备用。",
   REMOTE_FIRST: "远程优先：有远程候选时先用远程，本地候选作备用；没有远程候选时可直接用本地。没有相反位置备用时，才尝试保留符合条件且不同于主模型的通用备用。",
 };
