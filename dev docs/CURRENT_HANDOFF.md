@@ -15,6 +15,10 @@
 
 ## 生产快照（最新采样2026-11-12 21:42，北京时间）
 
+- 2026-11-13 K发布：保存点`data/backups/knowledge-k-20261113/`，在U生产包上仅改router/place_knowledge两个后端文件及本包前端；含源码/静态/plist/已验逻辑DB和漂移/空闲保护回退入口。0027未迁移，空闲Job/lease/在途门禁、备份完整性/FK通过；发布后API/Worker心跳正常，业务摘要一致，仅两条启动事件，HTTP三资源哈希匹配（http-health-hashes.json）。1440/970/390px生产真实空态及明确GET Fixture Browser无溢出/相关错误，写请求0；生产ACTIVE PlaceInsightItem=0，多来源真实质量未验。全量981后端/66前端及最终生产Python3.14目标15项通过；无真实调用/生产确认/重跑/历史改写、提交推送，未实际回退。原U快照及以下历史记录保留原采样日期。证据见benchmark/PLACE_KNOWLEDGE_K_20261113.md。
+
+- 2026-11-13 U发布：保存点`data/backups/review-u-20261113/`，5后端文件必要依赖隔离组装，未携带其他在途改动；原plist/静态/源码与已验逻辑DB可回退，release.py rollback带漂移与空闲保护，不恢复业务库。0027未迁移，维护锁内空闲/lease/在途门禁通过；重载后API及Worker心跳正常，integrity=ok/FK0，业务表摘要一致，仅两条启动事件。HTTP三静态哈希匹配（逐项见http-health-hashes.json）；实际人工待办30任务/321问题，POI DTO314条。隔离/生产1440/970/390px只读Browser无溢出/相关console错误，生产写请求0；无模型/高德/ASR/视频重跑/POI确认、历史切换、提交或推送。详细步数及验证见benchmark/REVIEW_EXPERIENCE_U_20261113.md。以下旧快照保留原日期，本次未复核其历史结论。
+
 - 2026-11-12 远程备用与空值校验发布：REMOTE_ONLY 允许同位置合格通用备用，嵌套列表错误准确进入结构恢复。隔离运行副本 `data/backups/remote-backup-null-20261112-155316/runtime`；仅4个后端文件和设置说明变化，未夹带工作树其他修复。保存点含源码tar/patch/哈希、已验逻辑DB、旧静态和原plist，可用其中release.py的rollback恢复代码（不回退业务库）。初轮混合工作树944、干净提交候选902后端，64前端及生产Python3.14目标45项通过；发布后API/Worker READY，0027未迁移、完整性ok/FK0；发布动作前后业务摘要不变，仅新增两条服务启动审计。后续授权真实续跑按下述结果生成新产物。生产1280/390px说明、无溢出/相关控制台错误及静态HTTP哈希通过。两项授权真实续跑全部步骤完成，PARTIAL_SUCCESS分别保留13/8地点待确认；9/20章节、9/12截图。job_5feeb5ab曾触发阶段时限，正式续跑复用6块缓存后完成；真实结构纠错通过，隔离故障注入+真实hy3备用干净复核约6.4秒成功（另一次约21.6秒成功但测试后台会话缺表，已修正）。最终2026-11-12 21:17 API/Worker/SQLite正常、执行器IDLE、active/lease/在途0、integrity=ok/FK0；原2754 Segment及32转写身份/正文/定位不变。真实验收报告见benchmark/REMOTE_BACKUP_NULL_ACCEPTANCE_20261112.md。提交前2026-11-12 21:42只读复核服务正常、无活跃任务、完整性ok/FK0；用户已授权本包14文件远程交付，候选源码与部署一致，不包含既有未发布修复。提交哈希与推送结果见保存点delivery-result.json及分支codex/mac-mini-implementation的Git记录。
 
 ### 以下为原日期快照，本次未复核其历史结论

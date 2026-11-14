@@ -1,0 +1,257 @@
+{
+  "date": "2026-11-14",
+  "sample": "BV1Wx4w67Ef4",
+  "acceptance": "PASS_FOR_LISTED_CONTENT_CONDITIONS",
+  "scope": "Reused trusted transcript and saved real responses; final 2 missing packs regenerated live, then offline revalidated/rendered; no fresh ASR E2E or independent human gold claim",
+  "note_id": "note_119c385b3ffd44f28c170a48901483c1",
+  "version_id": "ntv_56d8e318caeb4af9a381f37ba62b3e49",
+  "grounded_map_id": "gma_e9d516237ef34736b893fabd2de12297",
+  "job_status": "PARTIAL_SUCCESS",
+  "checks": {
+    "no_known_body_issue": true,
+    "candidate_reviews_retained": true,
+    "no_omitted_facts": true,
+    "five_unique_place_chapters": true,
+    "source_theme_visible": true,
+    "all_claim_quotes_reachable": true,
+    "whale_wind_and_reservation": true,
+    "jingmai_dates_and_local_driving": true,
+    "altitude_in_hailuogou": true,
+    "no_altitude_in_qianshan": true,
+    "wanfeng_uncertainty_and_original_word": true,
+    "no_false_semantic_metric": true,
+    "exact_version_bound": true,
+    "production_business_unchanged": true,
+    "zero_final_model_calls": true,
+    "browser_pass": true
+  },
+  "claims": 50,
+  "content_issue_count": 0,
+  "candidate_review_count": 4,
+  "semantic_metric_status": "UNKNOWN",
+  "summarized_fact_count": null,
+  "generation_mode": "HYBRID",
+  "omitted_fact_count": 0,
+  "closure_ledger": [
+    {
+      "old_name": "涠洲岛",
+      "old_reasons": [
+        "POLARITY_NEEDS_REVIEW",
+        "UNGROUNDED_CONTEXT"
+      ],
+      "new_name": "涠洲岛",
+      "role": "PRIMARY",
+      "policy": "RESOLVE",
+      "status": "RECOMMENDED",
+      "new_reasons": []
+    },
+    {
+      "old_name": "鳄鱼山景区",
+      "old_reasons": [
+        "MISSING_OVERALL_EVIDENCE"
+      ],
+      "new_name": "鳄鱼山景区",
+      "role": "SECONDARY",
+      "policy": "RESOLVE",
+      "status": "UNKNOWN",
+      "new_reasons": [
+        "MISSING_OVERALL_EVIDENCE"
+      ]
+    },
+    {
+      "old_name": "五彩滩",
+      "old_reasons": [
+        "MISSING_OVERALL_EVIDENCE"
+      ],
+      "new_name": "五彩滩",
+      "role": "SECONDARY",
+      "policy": "RESOLVE",
+      "status": "UNKNOWN",
+      "new_reasons": [
+        "MISSING_OVERALL_EVIDENCE"
+      ]
+    },
+    {
+      "old_name": "滴水丹屏",
+      "old_reasons": [
+        "MISSING_OVERALL_EVIDENCE"
+      ],
+      "new_name": "滴水丹屏",
+      "role": "SECONDARY",
+      "policy": "RESOLVE",
+      "status": "UNKNOWN",
+      "new_reasons": [
+        "MISSING_OVERALL_EVIDENCE"
+      ]
+    },
+    {
+      "old_name": "景迈山",
+      "old_reasons": [
+        "MULTI_OR_WRONG_SUBJECT_QUOTE",
+        "POLARITY_NEEDS_REVIEW"
+      ],
+      "new_name": "景迈山",
+      "role": "PRIMARY",
+      "policy": "RESOLVE",
+      "status": "RECOMMENDED",
+      "new_reasons": []
+    },
+    {
+      "old_name": "景迈山",
+      "old_reasons": [
+        "POLARITY_NEEDS_REVIEW",
+        "UNGROUNDED_CONTEXT"
+      ],
+      "new_name": "景迈山",
+      "role": "PRIMARY",
+      "policy": "RESOLVE",
+      "status": "RECOMMENDED",
+      "new_reasons": []
+    },
+    {
+      "old_name": "海螺沟",
+      "old_reasons": [
+        "POLARITY_NEEDS_REVIEW"
+      ],
+      "new_name": "海螺沟",
+      "role": "PRIMARY",
+      "policy": "RESOLVE",
+      "status": "RECOMMENDED",
+      "new_reasons": []
+    },
+    {
+      "old_name": "海螺沟",
+      "old_reasons": [
+        "POLARITY_NEEDS_REVIEW",
+        "UNGROUNDED_CONTEXT"
+      ],
+      "new_name": "海螺沟",
+      "role": "PRIMARY",
+      "policy": "RESOLVE",
+      "status": "RECOMMENDED",
+      "new_reasons": []
+    },
+    {
+      "old_name": "千山风景区",
+      "old_reasons": [
+        "MULTI_OR_WRONG_SUBJECT_QUOTE",
+        "POLARITY_NEEDS_REVIEW"
+      ],
+      "new_name": "千山风景区",
+      "role": "PRIMARY",
+      "policy": "RESOLVE",
+      "status": "RECOMMENDED",
+      "new_reasons": []
+    },
+    {
+      "old_name": "万峰林景区",
+      "old_reasons": [
+        "POLARITY_NEEDS_REVIEW"
+      ],
+      "new_name": "万峰林景区",
+      "role": "PRIMARY",
+      "policy": "RESOLVE",
+      "status": "RECOMMENDED",
+      "new_reasons": []
+    },
+    {
+      "old_name": "千山财神庙",
+      "old_reasons": [
+        "MISSING_OVERALL_EVIDENCE",
+        "UNGROUNDED_CONTEXT"
+      ],
+      "new_name": "千山财神庙",
+      "role": "SECONDARY",
+      "policy": "RESOLVE",
+      "status": "UNKNOWN",
+      "new_reasons": [
+        "MISSING_OVERALL_EVIDENCE"
+      ]
+    },
+    {
+      "old_name": "涠洲岛观鲸",
+      "old_reasons": [
+        "MISSING_OVERALL_EVIDENCE"
+      ],
+      "new_name": "涠洲岛观鲸",
+      "role": "SECONDARY",
+      "policy": "REFERENCE_ONLY",
+      "status": "UNKNOWN",
+      "new_reasons": [
+        "MISSING_OVERALL_EVIDENCE"
+      ]
+    },
+    {
+      "old_kind": "POSSIBLE_SOURCE_OMISSION",
+      "segment_ids": [
+        "seg_97703be8c6f84f3f832e5cd8eb56bc9c"
+      ],
+      "new_gap": false
+    },
+    {
+      "old_kind": "POSSIBLE_SOURCE_OMISSION",
+      "segment_ids": [
+        "seg_f69e172e501842cbb5d1c552f315c9ae",
+        "seg_b2f5e9ff6668441698f84f977a3dc147"
+      ],
+      "new_gap": false
+    }
+  ],
+  "screenshots": {
+    "READY": 5,
+    "REJECTED": 1
+  },
+  "poi": "NOT_RUN in content phase; candidates remain unconfirmed",
+  "total_physical_llm_attempts": 26,
+  "model_attempt_phases": {
+    "video-live-bv1wx4w67ef4-20261113": {
+      "outbound_attempts": 1,
+      "http_200": 0,
+      "transport_cancel_or_timeout": 1
+    },
+    "video-timeout-fix-bv1wx4w67ef4-20261113": {
+      "outbound_attempts": 1,
+      "http_200": 0,
+      "transport_cancel_or_timeout": 1
+    },
+    "video-timeout-fix-bv1wx4w67ef4-20261113-final": {
+      "outbound_attempts": 2,
+      "http_200": 0,
+      "transport_cancel_or_timeout": 2
+    },
+    "video-production-timeout-bv1wx4w67ef4-20261113": {
+      "outbound_attempts": 8,
+      "http_200": 7,
+      "transport_cancel_or_timeout": 1
+    },
+    "video-scope-guard-bv1wx4w67ef4-20261113-final": {
+      "outbound_attempts": 6,
+      "http_200": 6,
+      "transport_cancel_or_timeout": 0
+    },
+    "video-content-quality-bv1wx4w67ef4-20261114-real": {
+      "outbound_attempts": 6,
+      "http_200": 6,
+      "transport_cancel_or_timeout": 0
+    },
+    "video-content-quality-bv1wx4w67ef4-20261114-finish": {
+      "outbound_attempts": 2,
+      "http_200": 2,
+      "transport_cancel_or_timeout": 0
+    }
+  },
+  "provider_usage": "UNKNOWN",
+  "cost": "UNKNOWN",
+  "production_deployed": false,
+  "production_data_modified": false,
+  "hosted_ci": "NOT_YET_VERIFIED",
+  "browser_viewports": [
+    1440,
+    970,
+    390
+  ],
+  "browser_writes": 0,
+  "backend_tests": 991,
+  "frontend_tests": 66,
+  "quality_tests": 166
+}

@@ -383,17 +383,17 @@ def test_place_detail_returns_normalized_consensus_conflict_and_history(client, 
     response = client.get(f"/api/travel/places/{place_id}")
     assert response.status_code == 200
     prices = response.json()["knowledge"]["prices"]
-    assert {item["state"] for item in prices} == {"CONFLICT"}
-    assert any(item["source_count"] == 2 for item in prices)
-    assert sum(item["current"] for item in prices) == 1
-    assert response.json()["knowledge"]["consensus"]["PRICE"] == "CONFLICT"
+    assert {item["state"] for item in prices} == {"UNDETERMINED"}
+    assert len(prices) == 3  # Missing comparison scope cannot merge numeric records.
+    assert sum(item["current"] for item in prices) == 0
+    assert response.json()["knowledge"]["consensus"]["PRICE"] == "UNDETERMINED"
     first_observation = next(
         observation
         for item in prices
         for observation in item["observations"]
         if observation["source_title"] == "视频一"
     )
-    assert first_observation["evidence_url"] == f"/video-notes/{note.id}"
+    assert first_observation["evidence_url"] == f"/video-notes/{note.id}?version={version.id}"
 
 
 def test_manual_place_and_edits_preserve_separate_user_layers(client) -> None:
@@ -1016,7 +1016,7 @@ def test_lan_token_is_four_digits_and_rotates(client) -> None:
     assert rotated.json()["token"] != token
 
 
-def test_real_status_schema_and_runtime_checks(client) -> None:
+def test_real_status_schema_and_runtime_checks(client, offline_status_runtime) -> None:
     response = client.get("/api/status")
     assert response.status_code == 200
     payload = response.json()
@@ -1122,7 +1122,9 @@ def test_llm_steps_use_longer_stall_warning(client, app_and_session) -> None:
     assert client.get(f"/api/jobs/{jobs[2]}").json()["runtime_state"] == "STALLED"
 
 
-def test_naive_session_expiry_remains_valid_for_lan_refresh(client, app_and_session, tmp_path) -> None:
+def test_naive_session_expiry_remains_valid_for_lan_refresh(
+    client, app_and_session, tmp_path, offline_status_runtime
+) -> None:
     app, factory = app_and_session
     settings = Settings(
         _env_file=None,
@@ -1192,7 +1194,7 @@ def test_error_event_retry_requires_matching_terminal_job(client, app_and_sessio
     assert mismatch.status_code == 409
 
 
-def test_status_returns_persisted_runtime_snapshot(client, app_and_session) -> None:
+def test_status_returns_persisted_runtime_snapshot(client, app_and_session, offline_status_runtime) -> None:
     _, factory = app_and_session
     with factory() as db:
         db.add(

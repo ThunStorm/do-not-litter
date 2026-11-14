@@ -616,6 +616,7 @@ class FallbackLLMProvider:
             started = perf_counter()
             result: LLMResult | None = None
             attempt_id: str | None = None
+            attempt_started = False
             try:
                 if self._legacy_reliability and policy.request_interval_seconds:
                     self._sleep(policy.request_interval_seconds)
@@ -653,6 +654,7 @@ class FallbackLLMProvider:
                     )
                 self._attempt_context = {**self._attempt_context, "attempt_id": attempt_id}
                 self._remaining_attempts -= 1
+                attempt_started = True
                 options = self.fallback_request_options if route == "fallback" else self.request_options
                 queued_before_ms = round((perf_counter() - started) * 1000)
 
@@ -758,6 +760,8 @@ class FallbackLLMProvider:
                 self._attempt_context = error.reliability_metadata
                 if self.on_attempt:
                     metadata = self._attempt_metadata(provider, policy)
+                    if not attempt_started:
+                        metadata["upstream_dispatched"] = False
                     if attempt_id:
                         metadata["attempt_id"] = attempt_id
                     self.on_attempt(

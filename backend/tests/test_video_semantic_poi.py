@@ -251,3 +251,157 @@ def test_normalized_auto_confirm_and_note_quality_gate() -> None:
         ["十月中旬红叶最好"],
         2,
     )
+
+
+def test_shared_segment_transition_does_not_attach_previous_restriction_to_next_place():
+    from types import SimpleNamespace
+
+    text = "除了高反人群，其他人都非常适合。第四个，辽宁千山。老人孩子都可以过来。"
+    payload = {
+        "entities": [
+            {
+                "entity_id": "qianshan",
+                "raw_name": "辽宁千山",
+                "quote": "第四个，辽宁千山。",
+                "segment_ids": ["shared"],
+                "content_unit_id": "q",
+                "subject_role": "PRIMARY",
+                "visit_intent": "RECOMMENDED",
+                "poi_policy": "RESOLVE",
+                "recommendation_evidence": {
+                    "statements": [
+                        {
+                            "statement_id": "bad",
+                            "quote": "除了高反人群，其他人都非常适合",
+                            "segment_ids": ["shared"],
+                            "subject_entity_id": "qianshan",
+                            "intent": "NOT_RECOMMENDED",
+                            "scope": "LOCAL_DETAIL",
+                        },
+                        {
+                            "statement_id": "good",
+                            "quote": "老人孩子都可以过来",
+                            "segment_ids": ["shared"],
+                            "subject_entity_id": "qianshan",
+                            "intent": "RECOMMENDED",
+                            "scope": "PLACE_OVERALL",
+                        },
+                    ]
+                },
+            }
+        ],
+        "content_units": [
+            {
+                "content_unit_id": "q",
+                "unit_type": "PLACE_GUIDE",
+                "anchor_entity_ids": ["qianshan"],
+                "segment_ids": ["shared"],
+            }
+        ],
+        "claims": [
+            {
+                "claim_id": "bad",
+                "text": "高反人群不适合千山",
+                "content_unit_id": "q",
+                "subject_entity_ids": ["qianshan"],
+                "supporting_quote": "除了高反人群，其他人都非常适合",
+                "segment_ids": ["shared"],
+                "claim_type": "CAUTION",
+            },
+            {
+                "claim_id": "good",
+                "text": "千山适合老人孩子",
+                "content_unit_id": "q",
+                "subject_entity_ids": ["qianshan"],
+                "supporting_quote": "老人孩子都可以过来",
+                "segment_ids": ["shared"],
+                "claim_type": "AUDIENCE",
+            },
+        ],
+    }
+    segment = SimpleNamespace(id="shared", text=text, corrected_text=text)
+    _, _, warnings, units, entities, _, claims = _canonical_payload(payload, [segment])
+    bad, good = claims
+    assert bad["subject_entity_ids"] == []
+    assert bad["text"] == "除了高反人群，其他人都非常适合"
+    assert bad["supporting_quote"] == bad["text"] and bad["segment_ids"] == ["shared"]
+    assert (
+        next(u for u in units if u["content_unit_id"] == bad["content_unit_id"])["unit_type"]
+        == "SUPPLEMENTAL"
+    )
+    assert good["subject_entity_ids"] == ["qianshan"] and good["content_unit_id"] == "q"
+    assert [s["quote"] for s in entities[0]["recommendation_evidence"]["statements"]] == [
+        "老人孩子都可以过来"
+    ]
+    assert entities[0]["visit_intent"] == "RECOMMENDED"
+    assert any("归属待核" in w for w in warnings)
+
+
+def test_transition_guard_preserves_explicit_forward_reference_and_ambiguous_repeated_quote():
+    from types import SimpleNamespace
+
+    for text, quote in [
+        ("辽宁千山门票便宜。第四个，辽宁千山。", "辽宁千山门票便宜"),
+        ("老人孩子都适合。第四个，辽宁千山。老人孩子都适合。", "老人孩子都适合"),
+    ]:
+        payload = {
+            "entities": [
+                {
+                    "entity_id": "q",
+                    "raw_name": "辽宁千山",
+                    "quote": "第四个，辽宁千山。",
+                    "segment_ids": ["s"],
+                    "content_unit_id": "u",
+                    "subject_role": "PRIMARY",
+                }
+            ],
+            "claims": [
+                {
+                    "claim_id": "c",
+                    "content_unit_id": "u",
+                    "text": quote,
+                    "supporting_quote": quote,
+                    "subject_entity_ids": ["q"],
+                    "segment_ids": ["s"],
+                }
+            ],
+        }
+        result = _canonical_payload(payload, [SimpleNamespace(id="s", text=text, corrected_text=text)])
+        assert result[-1][0]["subject_entity_ids"] == ["q"]
+        assert not result[2]
+
+
+def test_transition_guard_keeps_unmatched_raw_statement_and_blocks_unproven_poi():
+    from types import SimpleNamespace
+
+    text = "这里不适合老人。第四个，辽宁千山。"
+    payload = {
+        "entities": [
+            {
+                "entity_id": "q",
+                "raw_name": "辽宁千山",
+                "quote": "第四个，辽宁千山。",
+                "segment_ids": ["s"],
+                "subject_role": "PRIMARY",
+                "visit_intent": "NOT_RECOMMENDED",
+                "recommendation_evidence": {
+                    "statements": [
+                        {
+                            "statement_id": "r",
+                            "subject_entity_id": "q",
+                            "segment_ids": ["s"],
+                            "quote": "这里不适合老人",
+                            "intent": "NOT_RECOMMENDED",
+                            "scope": "PLACE_OVERALL",
+                        }
+                    ]
+                },
+            }
+        ]
+    }
+    result = _canonical_payload(payload, [SimpleNamespace(id="s", text=text, corrected_text=text)])
+    entity = result[4][0]
+    assert entity["recommendation_evidence"]["statements"] == []
+    assert entity["visit_intent"] == "NEUTRAL" and entity["poi_policy"] == "SKIP"
+    assert result[-1][0]["text"] == "这里不适合老人"
+    assert result[-1][0]["subject_entity_ids"] == []

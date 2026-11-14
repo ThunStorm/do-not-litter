@@ -293,8 +293,9 @@ class AIWorkloadGateway:
         provider_name = str(getattr(provider, "name", "ollama"))
         original_timeout = getattr(provider, "timeout", None)
         queued_at = perf_counter()
+        attempt_deadline = deadline
         if (job or deadline != float("inf")) and getattr(provider, "timeout", None) is not None:
-            deadline = min(deadline, queued_at + float(provider.timeout))
+            attempt_deadline = min(deadline, queued_at + float(provider.timeout))
         location = "LOCAL" if provider_name == "ollama" else "REMOTE"
         if ensure_budget:
             ensure_ai_budget(
@@ -311,16 +312,9 @@ class AIWorkloadGateway:
                 provider.timeout = min(float(timeout), max(1.0, remaining_ai_wall_seconds(db, job)))
 
         def invoke() -> LLMResult:
-            if perf_counter() >= deadline:
-                from zhijian.ai.reliability import AIProviderError
-
-                raise AIProviderError(
-                    "AI_STAGE_WALL_TIME_EXCEEDED", "排队后模型执行时限已耗尽", switch_model=False
-                )
-            if job:
-                ensure_job_active(db, job)
+            check_active()
             if getattr(provider, "timeout", None) is not None:
-                provider.timeout = min(float(provider.timeout), deadline - perf_counter())
+                provider.timeout = min(float(provider.timeout), attempt_deadline - perf_counter())
             if isinstance(provider, (OllamaProvider, OpenAICompatibleProvider)):
                 provider.cancel_check = check_active if job or deadline != float("inf") else None
             if attempt_id:
@@ -329,7 +323,7 @@ class AIWorkloadGateway:
                 before_dispatch()
                 check_active()
                 if getattr(provider, "timeout", None) is not None:
-                    provider.timeout = min(float(provider.timeout), deadline - perf_counter())
+                    provider.timeout = min(float(provider.timeout), attempt_deadline - perf_counter())
             started = perf_counter()
             result = (
                 getattr(provider, method)(messages, model=model)
@@ -366,6 +360,11 @@ class AIWorkloadGateway:
                 raise AIProviderError(
                     "AI_STAGE_WALL_TIME_EXCEEDED", "等待已耗尽模型执行时限", switch_model=False
                 )
+            if perf_counter() >= attempt_deadline:
+                from zhijian.ai.reliability import AIProviderError
+
+                # Unknown upstream execution: allow the configured fallback, never retry this model.
+                raise AIProviderError("AI_PROVIDER_TIMEOUT", "单次模型请求已超时", retryable=False)
 
         try:
             if location == "LOCAL":

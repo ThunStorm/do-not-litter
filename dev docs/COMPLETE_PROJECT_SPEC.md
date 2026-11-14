@@ -53,6 +53,7 @@
 | testing/、benchmark/ | 测试策略与样本说明；机器可读验收样本 |
 | design/ | 前端视觉设计契约；设计资源仍在仓库 design/ui/ |
 | planning/ | 待办池、未来路线、[字幕一致性优化方案](planning/VIDEO_TRANSCRIPT_ALIGNMENT_OPTIMIZATION_PLAN.md)、[多平台链接 Adapter 调研计划](planning/SOCIAL_LINK_ADAPTER_FEASIBILITY_PLAN.md)；不自动授权实施 |
+| planning/video-workflow-20261112/ | [视频工作流增量计划总览](planning/video-workflow-20261112/README.md)：原七份 Plan 审校、八个执行包、依赖顺序与 Agent 验收契约；仅文档，不自动授权实施 |
 | history/ | 历史实施记录和已覆盖的旧计划；仅追溯时读取 |
 
 | 领域 | 文档与职责 |
@@ -78,7 +79,7 @@
 | 控制台 / 运维 | [CONTROL_CENTER](product/CONTROL_CENTER.md) 信息结构；[OPERATIONS_UI_SPEC](operations/OPERATIONS_UI_SPEC.md) 工作台交互；[LOGGING](operations/LOGGING.md) 日志契约与维护 |
 | 运行监控 / Provider | [监控与预设](operations/RUNTIME_MONITOR_AND_MODEL_PRESETS_SPEC.md)、[内存口径与预设切换](operations/RUNTIME_MONITOR_AND_PROVIDER_SWITCH_V06_SPEC.md) |
 | 部署 | [DEPLOYMENT_OPTIONS](operations/DEPLOYMENT_OPTIONS.md) 支持边界；[Mac mini 操作说明](../deploy/macos/README.md) 安装与维护 |
-| 验证 / 样本 | [TESTING_AND_ACCEPTANCE](testing/TESTING_AND_ACCEPTANCE.md) 验证策略；[GOLDEN_SAMPLES](testing/GOLDEN_SAMPLES.md) 样本/Fixture；[视频 Fixture Golden](benchmark/video-workflow-golden-v1.json) 、[云南时节与路线回归](benchmark/YUNNAN_REGRESSION_ACCEPTANCE_20261028.md) 与 benchmark/ 仅验收任务按需查看 |
+| 验证 / 样本 | [TESTING_AND_ACCEPTANCE](testing/TESTING_AND_ACCEPTANCE.md) 验证策略；[GOLDEN_SAMPLES](testing/GOLDEN_SAMPLES.md) 样本/Fixture；[单视频内容质量验收](benchmark/VIDEO_CONTENT_QUALITY_ACCEPTANCE_20261114.md)（正文条件通过、候选/金标边界保留）；[请求超时与共享片段归属修复验收](benchmark/VIDEO_TIMEOUT_AND_SCOPE_ACCEPTANCE_20261113.md)（限定修复通过、内容仍待核）；[G0 共享离线基线](benchmark/GOLDEN_QUALITY_BASELINE.md)（裁定/CI 未验边界）；[R 失败恢复与成本核对](benchmark/RELIABILITY_R_20261113.md)（零调用反例与成本未知口径）；[U 入口与复核](benchmark/REVIEW_EXPERIENCE_U_20261113.md)、[S 来源核对](benchmark/EXISTING_SOURCES_S_20261113.md)、[K 条件与时间](benchmark/PLACE_KNOWLEDGE_K_20261113.md)；[P POI 后端与 U 契约](benchmark/POI_CORRECTNESS_P_20261113.md)（合成验证与人工裁定缺口）；[Q 内容质量核对](benchmark/CONTENT_QUALITY_Q_20261113.md)（离线通过、裁定与首偏差链缺口）；[视频 Fixture Golden](benchmark/video-workflow-golden-v1.json) 、[云南时节与路线回归](benchmark/YUNNAN_REGRESSION_ACCEPTANCE_20261028.md) 与 benchmark/ 仅验收任务按需查看 |
 | 设计 / 授权 | [design/ui](../design/ui/README.md) → 目标版本/页面；[THIRD_PARTY_NOTICES](../THIRD_PARTY_NOTICES.md) 授权记录 |
 | 提示词 / 写交接 | [CODEX_TASK_TEMPLATES](CODEX_TASK_TEMPLATES.md) 三条短指令；交接固定更新 CURRENT_HANDOFF.md 的任务续接段，不另建文件 |
 | 历史 / 未来 | [历史实施记录](history/IMPLEMENTATION_HISTORY.md)、[归档实施计划](history/planning/README.md)、[早期工程计划](history/PROJECT_PLAN.md)、[FUTURE_ROADMAP](planning/FUTURE_ROADMAP.md)；均非默认阅读 |
@@ -386,7 +387,51 @@
 
 # 当前实施状态
 
+## 2026-11-14 单视频内容质量闭环
+
+BV1Wx4w67Ef4 的重复景区身份/章节、明确推荐误报、局部非逐字标注及引用字段空列表误判已修复；归纳逐包在缓存前校验完整引文与来源/主体，缺项仍按原有额度纠错/保留，不增加模型阶段。生成模式与欠归纳数按ntv快照保存；候选独立推荐缺口继续待核，不当正文错误。最终五目的地主章+主题原文，正文问题0、未归纳0、候选待核4；语义指标仍UNKNOWN/null，HYBRID不冒充纯模型完整摘要。真实外发全程26次（含失败/取消），前三包与最终排版显式零调用重放，费用UNKNOWN；生产数据未改、未部署本次修复。精确候选后端991、前端66、质量166及静态门禁和三断点真实隔离产物Browser通过。边界、旧14项闭环及交付证据见[内容质量验收](benchmark/VIDEO_CONTENT_QUALITY_ACCEPTANCE_20261114.md)。
+
+## 2026-11-13 请求超时与共享片段归属修复
+
+区分单请求与阶段/任务截止，单请求超时不重复同模型且允许既有备用；总时限/取消/预算继续阻断。真实复验另捕获同Segment转场前高反限制错归千山，新增唯一位置拒绝与原文待核保护，不猜改主体、不改Prompt或加模型阶段，新产物记录source_scope_version。精确候选后端951、前端66、质量151与静态检查通过，超时目标71/归属36通过；原时限真实抽取4包完成（1次JSON纠错），归属保护零新增抽取调用，真实归纳/物化与9张截图、三断点只读Browser通过。两项修复限定验收PASS；视频PARTIAL_SUCCESS，质量NEEDS_REVIEW14项、9条原文待归纳及重复章节仍在，generation_mode UNKNOWN，不签完整语义/金标通过。生产业务数据未改、未部署本次修复；详细调用、准备失败与边界见[验收记录](benchmark/VIDEO_TIMEOUT_AND_SCOPE_ACCEPTANCE_20261113.md)。
+
+## 2026-11-13 K 多来源条件与时间
+
+修复不同条件/缺条件直接判冲突、入库时间冒充观察时间及小数价格拒绝；保留观察、负向原句/Source计数与个人层，完整同条件数值才比较矛盾，两两相容聚簇。时间分观察于/收录于，来源链接带版本。旧源码新增8反例失败，后端全量981、前端66/静态检查通过；全量后补旧坏范围及宽区间桥接，最终生产Python3.14目标15项通过。隔离GET 1/25观察均34条SQL，无写入或N+1增长。两文件后端候选及前端完成隔离发布，三断点真实空态与明确Fixture生产资源Browser通过；生产无有效多来源观察，真实质量未验。无迁移/历史改写/真实调用/提交推送。[反例与发布证据](benchmark/PLACE_KNOWLEDGE_K_20261113.md)。用户指定X暂不启动。
+
+## 2026-11-13 S 现有来源核对
+
+S1/S2现有材料定点审计业务NO_CHANGE，44项链接/来源/字幕信任与取消规则离线检查通过，联网尝试0。没有新增已复现错源反例，不改P0自动字幕非权威/ASR门禁；真实五档样本各n=0、成功率N/A，Q缺失素材未补齐，平台稳定性LIVE_NOT_RUN。S3暂缓；无服务/历史/真实调用改变。[范围与矩阵缺口](benchmark/EXISTING_SOURCES_S_20261113.md)。按用户要求继续K，X明确暂不启动。
+
+## 2026-11-13 U 待处理与原位复核
+
+完成只读问题投影、任务/问题及人工/自动等待分计数、Tasks筛选与指定POI入口、原词原句/动作阻断原因、版本限定章节链接和失效提示、筛选返回与权威缓存刷新；不新增队列/轮询，不改PARTIAL_SUCCESS。历史完整阅读不新增，无法精确读取明确410。后端全量973、前端66及目标/静态检查通过，生产Python3.14目标16项通过；隔离/生产1440、970、390px Browser通过。5文件必要后端依赖隔离发布，无迁移/历史改写/真实调用/生产确认/提交推送；发布快照只见CURRENT_HANDOFF。[操作步数与证据](benchmark/REVIEW_EXPERIENCE_U_20261113.md)。
+
+## 2026-11-13 P POI 后端与 U 复核契约
+
+执行P1→P2→P3：G0 127条全未裁定、POI人工金标0，13+8原快照未取得；既有17例合成规则回放自动确认11/误确认0/REVIEW6，不外推真实质量。名称/地域/对象类别/详情与分页NO_CHANGE，保留全部现有阈值和R1–R13。修复自动搜索全失败后遗留旧候选可被人工确认的问题：失败清空失效候选并保持REVIEW，原词/证据/人工决定不变。新增只读poi-review-v1 DTO：权威身份/revision、原因分类、查询覆盖、证据与动作/阻断码；列表和人工搜索成功响应增量提供，11组合成Mock供U，UI未实施。契约与证据见[P报告](benchmark/POI_CORRECTNESS_P_20261113.md)。
+
+新增13项回归，目标49项及含在途修改的后端全量970项、前端64项、Ruff/ESLint/TypeScript/隔离构建、质量回放通过，业务联网尝试0。隔离resolver配对自动确认1/误确认0、详情冲突拒绝1，仅为合成验证；真实高德、生产确认、历史回写分别NOT_RUN。无Schema/依赖变更、历史改写、部署、重启、提交或推送；到P停止，U按契约接入，不自动写任务交接。
+
 > 状态记录日期：2026-11-12。本文唯一记录当前源码能力与自动验证；生产状态只见带原采样日期的 [CURRENT_HANDOFF.md](CURRENT_HANDOFF.md)。
+
+## 2026-11-13 R 失败恢复与成本核对
+
+复用既有JSON恢复、预算、缓存、远程备用及冷却续跑，修复一个新增零调用反例：顶层数组含对象时曾被截取为对象接受；现在拒绝错误容器，并沿用原有有界纠错/备用。未加重试、改路由/缓存身份或启用性能候选。五份历史响应哈希核对及九份按Request ID匹配的失败响应只读重放通过；历史38条审计中37条有上游记录，1条派发未知，上游Usage/费用/墙钟缺失均UNKNOWN。见[R账本与未验矩阵](benchmark/RELIABILITY_R_20261113.md)。
+
+新增8项反例回归，目标131项、含既有在途修改的工作树后端全量957项、质量回放151项、前端64项及Ruff/ESLint/类型/隔离构建通过，文档生成5项检查通过；业务联网守卫记录0。首次前端命中MiMo包装器未能启动，按基线Node 22.21.0/pnpm 11.19.0仅补跑失败的四项后通过，未换依赖。真实Provider/ASR/取消实验NOT_RUN；无Schema/依赖/历史改写、部署、重启、提交或推送。本包不扩展其他包，不自动写任务交接。
+
+## 2026-11-13 Q 内容质量核对（业务 NO_CHANGE）
+
+按Q1→Q2→Q3复核：G0冻结引用127/127可达、哈希通过，但127条全为unjudged，暂无已裁定漏项/错归属可关闭；厦门餐饮、贵州完整视频及独立快速口播保留集仍缺材料。灌水期、缺房和开渔日期仅定位到转写与保存产物之间，原请求/响应链不足，不能判定模型或解析首偏差。S接手缺口登记于[Q核对报告](benchmark/CONTENT_QUALITY_Q_20261113.md)，不据此宣称已证实错源。
+
+现有跨包身份、证据归组、待核原文兜底、主题章及旧锚点保护回归通过；质量回放151项、补充目标/非目标49项通过，联网守卫记录0。仅签OFFLINE_PASS，事实/地点召回、误报和归属正确率均N/A，未裁定100%。本轮业务/Prompt为NO_CHANGE，未增加阶段/真实调用，无历史改写、发布、重启、提交或推送；Q人工反例关闭及真实质量验收未完成，未自动继续其他包。
+
+## 2026-11-13 G0 共享离线基线与检查入口
+
+完成 G0.1→G0.2→G0.3：冻结云南、12月错峰及标题/封面时节的已有材料、哈希/逐句身份与人工裁定缺口；127条记录全部unjudged，无独立人工金标/保留集，厦门、贵州完整视频及快速口播保留集标BLOCKED_SOURCE。地点/事实/POI指标分列且为N/A，来源文件引用可达127/127，不代表语义完整。新增质量回放与本地全量入口、固定既有依赖的最小只读CI；3项状态API测试改用明确离线runtime fixture，不探测真实Provider就绪。详见[基线报告](benchmark/GOLDEN_QUALITY_BASELINE.md)。
+
+当前含既有在途修复的工作树后端949项、质量回放151项、前端64项与Ruff/ESLint/TypeScript/隔离构建通过；漏否定/跨来源/错POI检测器自检及Python/子进程/Node网络守卫自检通过，最终业务联网尝试0。托管CI为HOSTED_NOT_RUN，Linux安装/Runner/Actions上传和真实Keychain/Vision/LaunchAgent未验。无业务路由/Prompt/阈值或Schema改变，无历史改写、真实外部调用、部署、重启、提交、推送；本包到G0停止。
 
 ## 2026-11-12 远程备用与嵌套列表恢复
 
@@ -412,11 +457,18 @@ REMOTE_ONLY 按用户确认改为限制执行位置：允许同为远程、符�
 
 后端全量892、前端64及Ruff、ESLint、TypeScript与隔离构建通过，生产Python3.14的隔离提交范围目标回归通过。授权样本真实抽取和归纳共24次尝试，5次失败。接受候选包含五个目的地主章、拉萨一个候选及抚仙湖证据。人工核对24/24条关键事实，22条命中结构化原句，2条以待核原文保留。22个旧锚点和12张原截图均核对。完整成本、HYBRID限制及真实响应重放证据见[验收报告](benchmark/NOTE_QUALITY_ACCEPTANCE_20261105.md)。
 
+
 ## 2026-11-05 笔记完整请求预算与输入超限恢复
 
 NOTE_REDUCE初始分包与Gateway统一字符估算口径；完整编译请求在精确缓存查找后、真实尝试前接受输入门禁，输入超限自动二分，单条不可分时明确预算和估算值。保留全部Evidence/ID，不把父包拒绝计为实际尝试，不以输入超限污染模型输出经验；精确缓存、取消、阶段时限、输出截断/备用约束保持。Gateway数字诊断和video.note.failed保留AIProviderError.code，不记录请求全文。
 
 新增4项测试覆盖带领域上下文的拆分与证据完整性、单条零调用、Gateway数字诊断/零审计、降低预算后的精确缓存复用；后端全量871项、前端62项/ESLint/TypeScript/隔离构建、Ruff与diff检查通过，生产Python3.14目标20项通过。当前Qoder配置、4000输入预算的生产完整重跑完成：3次父包拒绝后拆为8次成功笔记调用，最大估算3982；22章/12截图。PARTIAL_SUCCESS与HYBRID保留13条待归纳原文及地点待核，不冒称完整语义覆盖。发布最终缓存保护版本后API/Worker READY、业务摘要不变。真实生产重跑与发布证据见[验收报告](benchmark/NOTE_INPUT_BUDGET_ACCEPTANCE_20261105.md)，生产现场仅见CURRENT_HANDOFF的采样记录。无Schema变更，未提交或推送。
+
+## 2026-10-30 近期复审五项缺陷修复
+
+封面/截图任务统一资源依赖与活跃/lease删除门禁，兼容旧payload；入队/删除写事务串行且锁后重读。OCR与视觉的高可信否定/日期冲突保留待核，完整封面缓存绑定asset/cover并校验命中归属；封面版本v6、Map时间解析v5隔离旧缓存。精确日期区间补齐跨月/跨年覆盖月份，保留日界限与假期不猜月。笔记所有版本及来源专属截图行/事实事务内删除，提交后检查共享引用再回收受管文件，回滚保留文件；文件回收失败记日志，未新增崩溃恢复回收队列。
+
+原14个反例转绿，新增42项回归覆盖旧任务、终态lease、双向入队/删除并发、识别冲突、错误缓存、月份筛选、共享图片与回滚；入口`test_recent_feature_review_regressions.py`、`test_video_resource_retention.py`。目标73项及后端全量867项通过（本机Python3.12），前端全量62项、Ruff（src/tests）、ESLint、TypeScript与隔离构建通过；仅既有Starlette弃用/大包体积提示。无前端源码或Schema变化，真实模型/视频/POI调用0；未改历史产物、清理历史残留、部署、重启、提交或推送。
 
 ## 2026-10-30 投递入口、内容分类与关联删除
 
@@ -3225,6 +3277,8 @@ POI 解析同时承担名称校正：保留转写原文 `raw_name`，高德候�
 
 复核补充：人工确认身份先保护再执行作者意见门禁，来源态度仍保留；运行任务期间禁止竞争的人工编辑，搜索/确认/拒绝使用原子版本校验。地域继承限同asset/submission/Note版本，背景引用不传播，无效来源切断继承。代表点持有来源、目标、引文/片段及意见绑定，读取和重用均校验；先检查全部来源冲突再过滤地图视野。行政父级缺失/冲突时显示区域待定位，自然区域不改成城市，同单元多区域不按最后一条归属。候选满页暂按不完整处理；景区层级豁免还需25km内空间一致，该值为保守规则而非真实景区边界。
 
+2026-11-13 后端复核增量契约：列表和人工搜索成功响应提供 `review_contract.version=poi-review-v1`，包含 mention/revision/NoteVersion/Job/Place/Destination 权威身份、原因分类/原始原因码、当前候选来源/查询覆盖、经校验的 Source/Snapshot/Segment/quote 引用及允许动作/阻断码。人工搜索结果与历史自动原因明确分开；候选确认仍由写接口原子复核 revision、运行任务/lease、删除墓碑和候选有效性。UNKNOWN 查询完整性不冒称全集；不改现有自动确认阈值、不新增分页或逐候选模型。全失败自动搜索清除失效候选，保留原词、证据与人工决定。U 对接字段和 Mock 见[本包契约](benchmark/POI_CORRECTNESS_P_20261113.md#p3u-接入契约)。
+
 高德请求使用本机 API/Worker 共用的文件锁，所有 Key 的 text/around/detail 查询统一至少间隔 1.1 秒；缓存和同查询合并按 Key 哈希隔离，命中不发新请求。HTTP 429 或 QPS 错误进入 5 秒冷却，不自动重试、不缓存失败，不将外部限流判为地点识别失败；HTTP 错误不保存带 Key 的 URL。此为保守本机限速，实际账号配额及其他应用流量仍需独立核对，不保证消除外部限流。原历史候选/错误与人工确认保持不变。
 
 ## 7.1 地点类型与简介
@@ -3569,6 +3623,26 @@ GET仅按AINoteVersion.grounded_map_artifact_id读取生成该版本时的既存
 ### 10.27 作者推荐主题与统一时间投影（2026-10-29）
 
 经确认新增THEME_CONTEXT，具体证据、成员与版本门禁见[标题时间与推荐主题](video/TITLE_TEMPORAL_EVIDENCE.md#作者推荐主题2026-10-29用户确认)。主题关联与正文SOURCE_FACT、标题TITLE_CONTEXT、共同景观SEMANTIC_CONTEXT分别保留。背景/历史统计仍不产生推荐月份；假期保留原词与HOLIDAY精度。地点/区域使用同一只读有效窗口，暑期/寒假/避暑语义筛选与精确月份筛选分离；局部条件、人工信息及来源冲突不覆盖。旧Note缺固定产物保持未知，代码发布不授权历史重算、POI确认或真实模型调用。
+
+### 10.28 原位复核投影与版本入口（2026-11-13）
+
+`/api/review-issues`的`review-projection-v1`仅从权威Job/Step/Mention/Note版本只读投影；Job+retry、Step+retry+version、Mention+Note版本去重，缺失身份标UNKNOWN。任务数与问题数分列，后台冷却/运行中地点等待与人工待办分开，PARTIAL_SUCCESS保持终态。Note质量提示仍在原阅读页，不凭警告强造人工待办。动作仅依据poi-review-v1/Replay Options，未知契约禁用，写接口仍重检。POI及来源证据链接须携Note版本；缺版本/章节提示无法定位，当前阅读器不能精确展示的历史版本返回410，不默认回落新版。确认/拒绝/搜索后复用原通知刷新对象和计数，保留URL筛选/目标与返回上下文；不建持久复核队列或新增轮询。
+
+### 10.29 多来源记录的可比较边界（2026-11-13）
+
+地点知识GET保留每条原句/Segment/来源及可达的Note版本，不回写历史。不同文字不直接等于矛盾；结构化`value_json.comparison_context`须明确subject/conditions/unit/period，缺失任一项标UNDETERMINED。明确不同条件分条展示；相同完整上下文的PRICE/QUEUE数值区间才能判断一致/矛盾，区间合并须各记录两两相容，宽区间不能桥接互相矛盾的记录。其他类型不由字符串差异自动断言冲突，关键少数负向记录保留。独立Source去重计数仍非独立现场验证（UNKNOWN），不由来源多数提升置信度。
+
+只有显式`metadata.observed_at`是观察时间；`created_at`只返回recorded_at并显示“收录于”，未知观察时间保持NULL，不宣称当前有效；未提供发布时间不猜造“视频发布于”。历史费用/营业/排队仅是来源记录。个人备注、偏好、共享地点及既有删除保护不变；不增加模型统一观点或来源监测。
+
+### 10.30 共享片段的转场归属保护（2026-11-13）
+
+同一Segment可同时包含前一地点结尾与下一地点介绍，不能仅凭Segment共用证明主体归属。对唯一可定位、位于目标地点明确序号转场之前且未直接点名该地点的引文，撤销该地点的事实/作者态度绑定；原句及Segment保留为独立SUPPLEMENTAL待核，不猜改为前一地点。明确前指、重复引文等不能唯一判定的情况不套用该拒绝规则。新产物以source_scope_version=shared-segment-transition-v1区分解析身份，GET不重算旧产物；原始模型响应保留审计。该规则不证明所有分句或语义归属均已覆盖。
+
+### 10.31 内容来源与候选复核的分离（2026-11-14）
+
+同景区跨包身份只在唯一共享具名转场、相容地域及逐字来源一致时合并，保留所有原始身份派生、Segment和引用；同名不能单独证明同地点。未归属原句只有同句同Segment的既有作者声明、前一Segment唯一具名主体和同Guide三重证明齐备时才可归回，缺证据仍待核，不按邻近时间猜。作者意见接受的原句与被拒绝模型标注分开保存；被拒绝诊断不进入新模型输入。明确推荐目标须有词边界，不能从推荐子点的名称前缀推导推荐父景区，角色和分组不能替代主体证据。
+
+NOTE_REDUCE在缓存前检查包内引用、所有事实完整逐字引文及主体覆盖，保持既有有界纠错/备用；未知主体不能借引用覆盖而绑定到地点。source_gaps同时读取真实呈现的引文，但SOURCE_REVIEW不能清除自身警告。secondary/context/reference仅缺独立整体推荐时保留candidate_review_issues，POI门禁原样，不伪造推荐；真正错主体或冲突仍为正文问题。生成模式和omitted_fact_count按精确ntv保存；原文兜底不能隐藏未完成归纳，semantic summarized_fact_count仍为未知，不把引用覆盖当语义召回。
 
 
 ---
@@ -6298,9 +6372,11 @@ CMS 可配置。
 - checkpoint 状态；
 - 外部调用审计引用。
 
-长 Transcript 使用 Provider 能力预算进行分块、局部总结和层级合并。所有 Pipeline AI 请求默认读取 `app:general` 调用策略：默认请求前等待 3 秒；Profile 若设置调用间隔则分别覆盖主/备用模型的等待值。429、408、409、425、超时、连接失败、可恢复 5xx 与空响应默认重试 1 次，每次至少等待 5 秒；429 优先采用 `Retry-After`。主模型耗尽重试后才切换不同故障域的备用模型。401/403、余额不足和模型不存在不做无效重试。
+长 Transcript 使用 Provider 能力预算进行分块、局部总结和层级合并。所有 Pipeline AI 请求默认读取 `app:general` 调用策略：默认请求前等待 3 秒；Profile 若设置调用间隔则分别覆盖主/备用模型的等待值。429、408、409、425、连接失败、可恢复 5xx 与空响应默认重试 1 次，每次至少等待 5 秒；429 优先采用 `Retry-After`。主模型耗尽重试后才切换不同故障域的备用模型。401/403、余额不足和模型不存在不做无效重试。
 
 `SCREENSHOT_PLANNING` 只根据视频元数据、Note Section、PlaceMention 和 Transcript 时间范围提出候选时间码；最终抽帧、清晰度、黑帧与感知重复检测由确定性代码完成。MVP 不要求把所有视频帧发送给多模态模型。
+
+2026-11-13 截止边界：单次请求等待上限与阶段/Job总截止分别计算；先检查取消及总截止，再检查单次请求截止。已发出且上游执行状态未知的模型请求超时返回AI_PROVIDER_TIMEOUT，不重发同一模型，可在既有总尝试/Token/时限、路由与能力门禁允许时进入已配置备用。真正阶段/Job截止返回AI_STAGE_WALL_TIME_EXCEEDED且禁止切换；排队与发送前后继续复核剩余时间，不重置预算。客户端取消/关闭连接不证明上游停止或不计费。 已证明在调用开始前被本地预算等准入门禁拒绝的后续记录，明确标upstream_dispatched=false且不计模型用量；实际调用后的超时保持UNKNOWN。历史缺标记记录不自动回填，也不依据审计行数声称实际费用。
 
 `TRANSCRIPT_CORRECTION` 在 Note 生成前按字符预算与 Segment 数双门槛分块。默认每批 12,000 字符、最多 128 Segment、单次超时 180 秒；设置页基础校验范围分别为 2,000–24,000、16–256、30–300 秒。转写专属主/备用模型优先于推理路由，任一选项留空时继承对应推理模型。模型只能返回原 Segment ID 对应的 corrected_text、置信度和原因；服务端验证覆盖率、顺序与时间码，不接受新增/缺失 ID。
 

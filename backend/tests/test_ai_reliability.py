@@ -22,15 +22,19 @@ def test_dispatch_spacing_rechecks_late_queue_and_cancellation(monkeypatch):
     assert ReliabilityGuards.before_dispatch(key, policy, lambda _: None) == 0
     clock[0] = 147.0
     waits = []
+
     def sleep(seconds):
         waits.append(seconds)
         clock[0] += seconds + 7  # cancellation/queue checks may make a wait run late
+
     assert ReliabilityGuards.before_dispatch(key, policy, sleep) == 43
     assert waits == [43]
     assert ReliabilityGuards._last_dispatched[key] == 197
     clock[0] = 200
+
     def cancel(_):
         raise RuntimeError("cancelled")
+
     with pytest.raises(RuntimeError, match="cancelled"):
         ReliabilityGuards.before_dispatch(key, policy, cancel)
     assert ReliabilityGuards._last_dispatched[key] == 197
@@ -43,10 +47,13 @@ def test_cancellation_checks_do_not_extend_the_requested_sleep(monkeypatch):
 
     clock = [0.0]
     monkeypatch.setattr("zhijian.providers.llm.perf_counter", lambda: clock[0])
+
     def check():
         clock[0] += 0.1
+
     def sleep(seconds):
         clock[0] += seconds
+
     FallbackLLMProvider._sleep(SimpleNamespace(cancel_check=check, sleeper=sleep), 2)
     assert clock[0] == pytest.approx(2.1)  # only the final cancellation check follows the deadline
 
@@ -453,3 +460,44 @@ def test_transcript_correction_requires_delta_changes_contract() -> None:
     with pytest.raises(AIProviderError) as legacy:
         validate_structured_output('{"segments":[]}', "TRANSCRIPT_CORRECTION")
     assert legacy.value.code == "AI_PROVIDER_SCHEMA_INVALID"
+
+
+@pytest.mark.parametrize("modern", [False, True])
+@pytest.mark.parametrize("reject_before_start", [False, True])
+def test_local_budget_refusal_is_not_model_usage_and_actual_timeout_stays_unknown(
+    modern, reject_before_start
+):
+    from zhijian.ai.token_usage import is_model_attempt
+
+    calls, records = [], []
+
+    class Provider:
+        name = "budget-marker-fixture"
+
+        def generate_json(self, *_args, **_kwargs):
+            calls.append("dispatched")
+            raise httpx.ReadTimeout("unknown remote execution")
+
+    def before(*_args):
+        if reject_before_start:
+            raise AIProviderError("AI_PROVIDER_ATTEMPT_BUDGET", "本地预算拒绝", switch_model=False)
+
+    policy = {"primary_reliability": ModelReliabilityPolicy("DIRECT")} if modern else {}
+    provider = FallbackLLMProvider(
+        Provider(),
+        "m",
+        None,
+        None,
+        retry_count=0,
+        request_interval_seconds=0,
+        before_attempt=before,
+        on_attempt=lambda *args: records.append(args[-1]),
+        **policy,
+    )
+    with pytest.raises(AIProviderError):
+        provider.generate_json([{"role": "user", "content": "fixture"}], model="m")
+    assert len(records) == 1
+    assert calls == ([] if reject_before_start else ["dispatched"])
+    assert is_model_attempt(records[0]) is (not reject_before_start)
+    if reject_before_start:
+        assert records[0]["upstream_dispatched"] is False

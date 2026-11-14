@@ -1,0 +1,3084 @@
+{
+  "schema_version": "g0-fixture-v1",
+  "frozen_files": {
+    "backend/tests/fixtures/travel_pipeline/yunnan_bv16yem6reyx/04_GOLDEN_SAMPLE_MANIFEST.json": "db87f22b0fc5f679475c1c02e0194104c97f35c6b324c1c3f7982e730e39e93b",
+    "backend/tests/fixtures/travel_pipeline/yunnan_bv16yem6reyx/YUNNAN_TRANSCRIPT_ZHIJIAN_SIMULATED_RESULT_20261028.json": "73d9f4f6ba5440794bf9b3c3759fb0900f1558e785bcac10a11062c1a43435cd",
+    "backend/tests/fixtures/travel_pipeline/yunnan_bv16yem6reyx/YUNNAN_TRANSCRIPT_ZHIJIAN_SIMULATED_RESULT_20261028.md": "1ff8d357ad1531c59d9e7f57f0cd6d917833e2c0281d75d83980c5c87d7a87c3",
+    "backend/tests/fixtures/travel_pipeline/yunnan_bv16yem6reyx/grounded_routes.json": "fbb0bf13f961e5601186cff218475ede8d65bd05ddfed2e556e94110445e42cc",
+    "backend/tests/fixtures/travel_pipeline/yunnan_bv16yem6reyx/provenance.json": "93810434972e0cf4cd3f8df0c41937324ef65087712077041dcbf7e89ecb29d7",
+    "backend/tests/fixtures/travel_pipeline/yunnan_bv16yem6reyx/real_response_20261028.json": "a460d771041f75e17b85a6a4c14727ceac9dedbed730436f2deb0f968521810a",
+    "backend/tests/fixtures/travel_pipeline/yunnan_bv16yem6reyx/zhijian-transcript-BV16Yem6REyX.txt": "715609e0e6507866deca0893a26adf25f22907aa4f8c44dddad41bd33de1c43b",
+    "backend/tests/fixtures/travel_pipeline/december_reverse_bv1hrxe6yebq/baseline.json": "94fe815eaeb9389ad9b1ebfe4a9e56578a85e46ddfba3f6bed32e687562eaf62",
+    "backend/tests/fixtures/travel_pipeline/december_reverse_bv1hrxe6yebq/golden_facts.json": "45e2f9e4594bbbb142ea52e530d19c2df7a9170b6d37b217535c0531c466fcfe",
+    "backend/tests/fixtures/travel_pipeline/december_reverse_bv1hrxe6yebq/golden_structure.json": "eddc1c641106f7c451fd6be4ae42156281adfd99ddee590422be16c016580435",
+    "backend/tests/fixtures/travel_pipeline/december_reverse_bv1hrxe6yebq/provenance.json": "344f89e9120c9dd6e8d4dcc1d0d1cdc29db50551e4fac9678a9e2dbd5dca5bbd",
+    "backend/tests/fixtures/video_temporal_context.json": "c84bfea55f3b48a98ae5fd2d42ff90dd3e07fce2ca67f7611b0200b2c99eac54"
+  },
+  "categories": [
+    {
+      "id": "yunnan",
+      "status": "AVAILABLE_UNJUDGED",
+      "split": "development",
+      "priority": "P0_CRITICAL",
+      "generation": "saved real gpt-6-luna response + simulation-v1 reference (separate artifacts)",
+      "reference_candidates": 71,
+      "records": [
+        {
+          "id": "yunnan:s0",
+          "quote": "云南省该怎么玩这期视频很长但一定有用最近云南的旅游真的是风口浪尖那云南到底有什么好玩的每个地方适",
+          "segment_ids": [
+            "s0"
+          ],
+          "start_ms": 0,
+          "end_ms": 8000,
+          "quote_sha256": "df77f27d752202950803551d60400c8af5affde3ebe05a61a63fd00145da2ace",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s1",
+          "quote": "合哪些人去呢作为一个想在云南安家的人我来给你做一个详细的介绍想去云南玩的看这一条视频就够了什么样",
+          "segment_ids": [
+            "s1"
+          ],
+          "start_ms": 8000,
+          "end_ms": 16000,
+          "quote_sha256": "19a3647d1133509282d42a20ec40a53792e569f19a6a94e1426165d3c55f342d",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s2",
+          "quote": "的人过来都有路线。首先简单介绍一下云南省，云南是全国九个边境省份之一，一共有十六个市州。同一个省同时可以看到",
+          "segment_ids": [
+            "s2"
+          ],
+          "start_ms": 16000,
+          "end_ms": 24000,
+          "quote_sha256": "10a05fde16817f03b34dd03b7fde8fc0e5f3157e4d55823d8d1fd0ba9fd3692c",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s3",
+          "quote": "雪山、高原、湖泊、热带雨林、喀斯特森林、梯田、峡谷等等景观，但是全省只有八家5A级景区。这八家里边还包括植物园这种含",
+          "segment_ids": [
+            "s3"
+          ],
+          "start_ms": 24000,
+          "end_ms": 34000,
+          "quote_sha256": "f25c0a7d32992551b4989e6b95b72418385967cca963340e154d3eb5582d4136",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s4",
+          "quote": "水量比较大的地方，所以云南真的在这方面比较吃亏。整个云南是以大理为中心，往西是藏传佛教盛行的横断山脉，包",
+          "segment_ids": [
+            "s4"
+          ],
+          "start_ms": 34000,
+          "end_ms": 42000,
+          "quote_sha256": "9a9dd4265a4c836ae66ab6711cdfda076ed370699c26835c0ab927f67371a714",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s5",
+          "quote": "括怒江州、丽江和迪庆这些地方，都能看到喇嘛庙。往南是南传佛教盛行的澜沧江流域，包括保山、德宏、临沧、普洱和西双",
+          "segment_ids": [
+            "s5"
+          ],
+          "start_ms": 42000,
+          "end_ms": 52000,
+          "quote_sha256": "daba1cb184252fee29fe06ffa6e8ebfcf0cd8229824f39a81cda8c265a912a2f",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s6",
+          "quote": "版纳，这里就都是金顶的小城佛教寺庙了。往东是中原文化的延伸，包括楚雄、玉溪、昆明、曲靖和红河，这部分也是最适合种",
+          "segment_ids": [
+            "s6"
+          ],
+          "start_ms": 52000,
+          "end_ms": 61000,
+          "quote_sha256": "32e60e0c4ceb0db67db0fe4e9fbb50ef40914495f885dd368439ddfed020b6fd",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s7",
+          "quote": "地的地方。还有历史上长期属于四川的昭通和长期属于广西的文山。大理作为云南历史上最重要的区域，向西扛住了",
+          "segment_ids": [
+            "s7"
+          ],
+          "start_ms": 61000,
+          "end_ms": 70000,
+          "quote_sha256": "60ce497fa5efbe6a541fd7921b9acc1968b23e0fe59cd708b810978cbb32a859",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s8",
+          "quote": "藏传佛教，向南扛住了南传佛教，是中原文化在云南的桥头堡，也是整个云南旅游的重心。饮食上也是每个区域风格明",
+          "segment_ids": [
+            "s8"
+          ],
+          "start_ms": 70000,
+          "end_ms": 78000,
+          "quote_sha256": "54b272afafd44a62c961e298575f477d741149390647e785f962b29ea0029375",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s9",
+          "quote": "显不同受藏文化影响的这个区域吃的就是以藏味为主澜沧江流域就是傣味为主中原文化影响的区域吃的就是偏",
+          "segment_ids": [
+            "s9"
+          ],
+          "start_ms": 78000,
+          "end_ms": 87000,
+          "quote_sha256": "e4b7a6b48358a00d0c18ab6cb7c8124403608ee8f75d2ce46863d63d48b8e16c",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s10",
+          "quote": "酸辣。云南只有昭通的腊肉是烟熏的，和四川的做法一样。文山虽然很能吃辣，但是最出名的汽锅鸡就完全不辣了。大",
+          "segment_ids": [
+            "s10"
+          ],
+          "start_ms": 87000,
+          "end_ms": 95000,
+          "quote_sha256": "a8c246566cd3260901e2c74199d7712506208471f1f6faf0f8ed36c66369d4d1",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s11",
+          "quote": "理的饮食就兼顾了以上所有的特点以上这个划分方式是我的原创你搞懂了这几片区域就知道云南该怎么玩了接",
+          "segment_ids": [
+            "s11"
+          ],
+          "start_ms": 95000,
+          "end_ms": 103000,
+          "quote_sha256": "e9b6fda8c49c57bc9b288eba4a1fd010f7719d81f4e98e97281cc832753e79e1",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s12",
+          "quote": "下来就详细的说一下各个区域的特点看一下这个地方适不适合你首先藏文化片区先从最简单的怒江州开始这块",
+          "segment_ids": [
+            "s12"
+          ],
+          "start_ms": 103000,
+          "end_ms": 111000,
+          "quote_sha256": "079d5258d53f97131125e76f50d9f16676e7a59080c88d56866d2f5cca3677d3",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s13",
+          "quote": "有云南最原始的秘境，来这儿就只推荐自驾，而且只有一条线可以选，就是G219怒江大峡谷，六库出发，途经贡山到",
+          "segment_ids": [
+            "s13"
+          ],
+          "start_ms": 111000,
+          "end_ms": 120000,
+          "quote_sha256": "f8ef58a0577229e3254c90325c9301dd58f404faa1972524c3d662b07a981d48",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s14",
+          "quote": "丙中洛主要的景区包括怒江大峡谷支子罗老母登教堂丙中洛独龙江等等地方其中怒江大峡谷号称世界三大峡谷",
+          "segment_ids": [
+            "s14"
+          ],
+          "start_ms": 120000,
+          "end_ms": 129000,
+          "quote_sha256": "9de597528a8c585c4be3a6733b1dc05b800ffe2ae9053593bee523e2237523b1",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s15",
+          "quote": "之一丙中洛号称人神共居的地方你是自驾党的话那就非常推荐这边了来这块非常不适合公共交通出行必须自驾",
+          "segment_ids": [
+            "s15"
+          ],
+          "start_ms": 129000,
+          "end_ms": 137000,
+          "quote_sha256": "df3e7709bb6fe5a03254f54a9b809279dab90ae34a14b55344795e194e3bfbd9",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s16",
+          "quote": "或者是包车，而且雨季落石的风险比较大，部分路段冬天还会封路，所以几乎没有普通的旅游团。这块适合自驾人群，",
+          "segment_ids": [
+            "s16"
+          ],
+          "start_ms": 137000,
+          "end_ms": 146000,
+          "quote_sha256": "791df6489e43f843e8877bc179bdfb4ce7424c793d232d87e06bbc48603e09aa",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s17",
+          "quote": "完全不适合休闲游接下来迪庆是云南海拔最高的地方可能很多人对他的印象只停留在普达措实际上这里是三江",
+          "segment_ids": [
+            "s17"
+          ],
+          "start_ms": 146000,
+          "end_ms": 154000,
+          "quote_sha256": "19eaa9312336e27b7e101d6c117c9b6fba3df5696c55b064dcf01d63ed5e3cdd",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s18",
+          "quote": "并流的核心，主要有两条路线：G214滇藏线自驾，以及香格里拉度假。G214就是一路从丽江北上，途经虎跳峡",
+          "segment_ids": [
+            "s18"
+          ],
+          "start_ms": 154000,
+          "end_ms": 163000,
+          "quote_sha256": "75dbb9174257985885f8ad598e135dfadadc25798cfa5444e84fd8e58d426986",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s19",
+          "quote": "小中甸、独克宗到梅里雪山。运气好的话能看到日照金山，这是无数人走这条线路的终极追求。如果不想折腾的话",
+          "segment_ids": [
+            "s19"
+          ],
+          "start_ms": 163000,
+          "end_ms": 172000,
+          "quote_sha256": "1c741602ee6abcd729da37c8a035bfee549beabc4b1532323a573a4c23512599",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s20",
+          "quote": "在香格里拉度假休闲的体验也非常好。周边的景区主要包括虎跳峡、独克宗古城、松赞林寺、普达措、梅里雪山、雨崩",
+          "segment_ids": [
+            "s20"
+          ],
+          "start_ms": 172000,
+          "end_ms": 181000,
+          "quote_sha256": "4c7b5b4b4c5acf7957cf008e0082c0b163b6cf8a596f209ba188c096c3449034",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s21",
+          "quote": "村等等地方。另外还有很多小众的藏式村落，每一个地方都是超级出片的地方。如果你喜欢出片的话，那这里",
+          "segment_ids": [
+            "s21"
+          ],
+          "start_ms": 181000,
+          "end_ms": 189000,
+          "quote_sha256": "6edd4d71c2cd8f5c6b11775cd6db4584554c934fdbb17097294136aa33332aa3",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s22",
+          "quote": "就可以避安来了这个也是整个藏文化区域最推荐的地方我觉得每个人都应该去一趟香格里拉但是这里海拔高容",
+          "segment_ids": [
+            "s22"
+          ],
+          "start_ms": 189000,
+          "end_ms": 197000,
+          "quote_sha256": "65fca09879796f36ff48f020e2ff8c9c7daaf615faebafe4dc70fbd9bd0e94d3",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s23",
+          "quote": "易高反，需要避免剧烈运动。五月到十月梅里经常被云遮挡，所以冬天看到日照金山的概率更高。这里更适合自驾",
+          "segment_ids": [
+            "s23"
+          ],
+          "start_ms": 197000,
+          "end_ms": 206000,
+          "quote_sha256": "30b8bff4623475290918fc70d6bbf46b0f8534e9ce58c78a387883eed9df34a9",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s24",
+          "quote": "党喜欢藏地人文和各种各样的摄影党尤其是喜欢出片儿的这里绝了如果是老人体弱的或者是有一些心肺功能障",
+          "segment_ids": [
+            "s24"
+          ],
+          "start_ms": 206000,
+          "end_ms": 214000,
+          "quote_sha256": "bf871dd1dbdd7d3b7666fbebdb95dc8c22d6e2c27d5e76aa988138a02a0c9d69",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s25",
+          "quote": "碍的那就是不要去了跟团或者是自由行也很方便丽江是一个旅游流量大户但是体验真的一般主要也是两条线古",
+          "segment_ids": [
+            "s25"
+          ],
+          "start_ms": 214000,
+          "end_ms": 223000,
+          "quote_sha256": "e2bb62b4bc1e9f378eabdce3759752026932d6b5a39b8f0ef739d85cc1a9508f",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s26",
+          "quote": "城游和雪山湖泊。古城片区就是丽江古城、束河古镇和沙溪古镇。丽江古城的商业化最重，束河最安静，民宿比较多，白沙",
+          "segment_ids": [
+            "s26"
+          ],
+          "start_ms": 223000,
+          "end_ms": 232000,
+          "quote_sha256": "ae2bb28f4e52d20e0123ca4a0bee6c6e950e01fa9b1d825f710761c363e402f0",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s27",
+          "quote": "古镇人最少，抬头就能直接看到玉龙雪山，非常舒服。自然风光呢主要就是玉龙雪山和蓝月谷。这里是北半球离赤道最",
+          "segment_ids": [
+            "s27"
+          ],
+          "start_ms": 232000,
+          "end_ms": 240000,
+          "quote_sha256": "842b303c8bacd8cd40e4cc6b31f39760fe1dcd1037b3b35b9c5ee510fd701d6a",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s28",
+          "quote": "近的雪山，但是夏天就只能看到石头。还有泸沽湖，泸沽湖的一部分属于丽江，这里可以体验摩梭人的母系文化，适合休",
+          "segment_ids": [
+            "s28"
+          ],
+          "start_ms": 240000,
+          "end_ms": 248000,
+          "quote_sha256": "eff36264506104dbe80d0212a1d818e5a170b5f5279e4c7d2a91e92f5d3e0fed",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s29",
+          "quote": "闲度假。秋天的时候能看到湖面上的水性杨花，水性杨花也可以吃。但路程比较远，从丽江过去车程也比较长。还有",
+          "segment_ids": [
+            "s29"
+          ],
+          "start_ms": 248000,
+          "end_ms": 256000,
+          "quote_sha256": "64be3e0563361c731e614ecb5b599a7159b391864dbe7a15230f4d206cfffd3f",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s30",
+          "quote": "拉市海。来这儿的话，普通游客就不建议骑马了，在湖边溜达溜达就行。丽江适合打卡党或者在民宿躺平，就是来这儿躺有",
+          "segment_ids": [
+            "s30"
+          ],
+          "start_ms": 256000,
+          "end_ms": 265000,
+          "quote_sha256": "4b6a43b6bbcf1ad8a05878bab537ea8d42ca13649bcac8411c7585afd672b29c",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s31",
+          "quote": "点贵。公共交通比较方便，泸沽湖更推荐自驾。以上就是藏文化片区，人气高的地方不好玩，好玩的地方交通不方便。对大",
+          "segment_ids": [
+            "s31"
+          ],
+          "start_ms": 265000,
+          "end_ms": 273000,
+          "quote_sha256": "89c8d4ab6cc1f1abfbb7a843e0223aa73042adc98f201f7bc884b7f9ac70b0e0",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s32",
+          "quote": "部分人来说，只推荐去香格里拉。如果喜欢硬核徒步的话，那这块就是你的天堂。来这片区域更推荐秋冬季节过来，其余",
+          "segment_ids": [
+            "s32"
+          ],
+          "start_ms": 273000,
+          "end_ms": 281000,
+          "quote_sha256": "440f4328367f1cbc88ff8fcf347993da46bdde0df574eb9692345019ec9922b8",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s33",
+          "quote": "的时间雨水都太多了。需要注意的是，香格里拉和丽江是低价团的重灾区，小景点的套路收费也比较多。接下来是澜沧江",
+          "segment_ids": [
+            "s33"
+          ],
+          "start_ms": 281000,
+          "end_ms": 289000,
+          "quote_sha256": "244e1cc61fc833157158bda6e5da13b7d28e6c785db30afe701027347858a66e",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s34",
+          "quote": "澜沧江流域的南传佛教区域，越往上走，味道越淡。版纳遍地金顶宝塔，保山的金顶寺庙就很少了。整个这片区域是最适合旅居的。",
+          "segment_ids": [
+            "s34"
+          ],
+          "start_ms": 289000,
+          "end_ms": 298000,
+          "quote_sha256": "0fd3950b3df277ddd818511330124405274aa9fc76be977372e438de0784594d",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s35",
+          "quote": "的区域，这里有云南一半以上的旅居人口。首先，保山是滇西康养的代表，有抗战历史、火山和温泉。古腾冲是核心。",
+          "segment_ids": [
+            "s35"
+          ],
+          "start_ms": 298000,
+          "end_ms": 308000,
+          "quote_sha256": "a87d0d5adf00dc2680f2d230c7fbdedc795ba9e53e322e2cd7a7caf19f7fc6df",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s36",
+          "quote": "腾冲的火山、温泉还有和顺古镇都非常值得一转。这边商业化程度适中，常住的话体验非常好。泡温泉是来腾冲的核心体验。",
+          "segment_ids": [
+            "s36"
+          ],
+          "start_ms": 308000,
+          "end_ms": 317000,
+          "quote_sha256": "df8fc03f35982622947f7b23bebb4f90e811d66d3c7ff53133a80045b871019c",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s37",
+          "quote": "验。还有松山遗址和滇西抗战等重要历史。保山的咖啡非常有特色，国产高端咖啡都在这里，但是保山市区相对",
+          "segment_ids": [
+            "s37"
+          ],
+          "start_ms": 317000,
+          "end_ms": 326000,
+          "quote_sha256": "9b85dd468369195addf686ad0cd6ea5e4766ead93f1387e4fcee27e6a331cab2",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s38",
+          "quote": "普通游客基本上直奔腾冲了如果是自驾的话腾冲到芒市德宏可以连成滇西环线每年有十万人来腾冲旅居平均的",
+          "segment_ids": [
+            "s38"
+          ],
+          "start_ms": 326000,
+          "end_ms": 335000,
+          "quote_sha256": "1f9fb225a02bf65a7477b423be933732f114d340c03e3133e8c404ed52c7b00e",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s39",
+          "quote": "居住时间是一百五十天，所以这块最适合旅居人口。如果你喜欢古村，来这儿也非常合适。这里的古村数量",
+          "segment_ids": [
+            "s39"
+          ],
+          "start_ms": 335000,
+          "end_ms": 343000,
+          "quote_sha256": "fa4142b7e80a4fc757532ea9c8ebd602680c33504be414870ea3539a925a9059",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s40",
+          "quote": "全国第三，几乎处处都是古村，不用特意设计路线。接下来，德宏是中缅边境一个东南亚氛围感十足的地方，主要",
+          "segment_ids": [
+            "s40"
+          ],
+          "start_ms": 343000,
+          "end_ms": 351000,
+          "quote_sha256": "5e6071e9ae6085ce2ae95d2190dc7937b6175b0d31cd6c61703b20ece7428d1b",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s41",
+          "quote": "有两个点是芒市和瑞丽首先芒市是一个我超级喜欢的一个地这里非常适合慢慢的待几天不用赶场子一样去景区",
+          "segment_ids": [
+            "s41"
+          ],
+          "start_ms": 351000,
+          "end_ms": 360000,
+          "quote_sha256": "484eb65e344c4e52833e5bbcf4c5f283097b90223c9cf41c073875a79e239248",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s42",
+          "quote": "这里其实也没啥景区，但是处处都是异域风情。主要打卡点就是大金塔，是国内南传佛教第一寺。瑞丽比较",
+          "segment_ids": [
+            "s42"
+          ],
+          "start_ms": 360000,
+          "end_ms": 368000,
+          "quote_sha256": "b0956c1a7b411a642da48a3cac0efc6a9bdb91fb9c01861baae9dca7d432ac04",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s43",
+          "quote": "较简单主要是一个一国两寨的边境风情德宏整个的景区不多但确实处处是惊喜最适合的时间是冬天如果时间合",
+          "segment_ids": [
+            "s43"
+          ],
+          "start_ms": 368000,
+          "end_ms": 376000,
+          "quote_sha256": "4a51fe20f779c6009e5074e5b2398e7ac0408151a4d68aaea8db892d16fbf223",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s44",
+          "quote": "适的话能赶上木脑纵歌节这个歌真的太洗脑了边境区域出行呢需要带身份证然后重点啊不要非法跨境这块最适",
+          "segment_ids": [
+            "s44"
+          ],
+          "start_ms": 376000,
+          "end_ms": 385000,
+          "quote_sha256": "1353b3cff9f0dbaaa449fff341da91f133522fc890a21e391deb7c95312cf92b",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s45",
+          "quote": "合爱吃的喜欢异域风情的打卡拍照的人群公共交通一般跟团或者是自驾体验会更好普洱市很多人可能只把这儿",
+          "segment_ids": [
+            "s45"
+          ],
+          "start_ms": 385000,
+          "end_ms": 394000,
+          "quote_sha256": "4449e2165efa8ba43345c6dcb17df59032c14527b417546e4bc0209b7baecbd2",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s46",
+          "quote": "当成一个中转站，但其实这块还不错。最大的王牌就是景迈山，是世界文化遗产。还有太阳河森林公园，可以近距离地",
+          "segment_ids": [
+            "s46"
+          ],
+          "start_ms": 394000,
+          "end_ms": 402000,
+          "quote_sha256": "c36be841b5340a537c6e4c44df9f1e737b97b6df453c78cbdfa3504f35a7ff12",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s47",
+          "quote": "和小猴子互动。无量山冬天的樱花非常出名。普洱可能给我们的第一印象是茶很多，但实际上中国有将近百分之五十的咖",
+          "segment_ids": [
+            "s47"
+          ],
+          "start_ms": 402000,
+          "end_ms": 410000,
+          "quote_sha256": "33815c3d3cdd9128987b5e72876eb1cb2b3b2a45ae5f6c530ca23ee8357ceb23",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s48",
+          "quote": "啡来自普洱你随便买两款国产咖啡一定有一个是来自普洱普洱的整体节奏很慢茶文化浓厚适合休闲放空不适合",
+          "segment_ids": [
+            "s48"
+          ],
+          "start_ms": 410000,
+          "end_ms": 419000,
+          "quote_sha256": "85b8a150651480aac5fd3f5c84dd78ce307b63cac72905cdafffd9931cc3ea82",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s49",
+          "quote": "赶时间的人。接下来是西双版纳，这块有云南唯一的热带雨林，是冬季避寒胜地。这里的路线比较紧凑，不折腾的话都在景",
+          "segment_ids": [
+            "s49"
+          ],
+          "start_ms": 419000,
+          "end_ms": 427000,
+          "quote_sha256": "7a1c7b9c4d299ad9958b19e63d25e6916b4382dc77816ad36b95c860e0b2b2d0",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s50",
+          "quote": "洪周边，像星光夜市、曼听公园、傣王宫遗址等地方。野象谷可以看亚洲象，原始森林公园还有孔雀放飞表演。中",
+          "segment_ids": [
+            "s50"
+          ],
+          "start_ms": 427000,
+          "end_ms": 435000,
+          "quote_sha256": "606b9f99946af308c19bca70491fee5c1f627d52d4308ce215b99baed701c5d5",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s51",
+          "quote": "科院热带植物园算是必去的地方，可以看热带雨林。西双版纳的旅居人口超过八十万，是本地人的一点七倍。反正",
+          "segment_ids": [
+            "s51"
+          ],
+          "start_ms": 435000,
+          "end_ms": 443000,
+          "quote_sha256": "8fa89cebb17d735154396ee8bf087b3bd1dbfe79628b2b9d668ef77d45bacc28",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s52",
+          "quote": "如果冬天去逛版纳的夜市，我就好像回到了东北一样，算是一点惊喜感都没有。这里夏天非常闷热，十一月到",
+          "segment_ids": [
+            "s52"
+          ],
+          "start_ms": 443000,
+          "end_ms": 452000,
+          "quote_sha256": "12b46a4a9e6324c0c54b1cbd69bba30a7f3904db49b25d4d2c5579084e329046",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s53",
+          "quote": "次年三月是最适合来的时候。适合亲子家庭、旅居避寒过冬的老人，以及喜欢热带风光的人。高铁、飞机都方便，旅游配套非",
+          "segment_ids": [
+            "s53"
+          ],
+          "start_ms": 452000,
+          "end_ms": 461000,
+          "quote_sha256": "5fc7eb878d506d22a43de70d5ce0b14d1b725824500cd0bce45db4e5f5dc355b",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s54",
+          "quote": "常成熟这块也是云南美食选择最多的地方非常适合吃货还有临沧这里就很少有人来了整体来看澜沧江流域异域",
+          "segment_ids": [
+            "s54"
+          ],
+          "start_ms": 461000,
+          "end_ms": 469000,
+          "quote_sha256": "e1dee911742dde4fc0463e7eda4596cd411b296026fc9f11e1871fc80d31e34a",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s55",
+          "quote": "风情非常的足旅居人口非常的多而且美食遍地整体节奏都非常的慢咖啡和茶都是世界顶级适合绝大多数人过去",
+          "segment_ids": [
+            "s55"
+          ],
+          "start_ms": 469000,
+          "end_ms": 478000,
+          "quote_sha256": "a4c80bb3fcda95305445f1669b55cb15e6dfabd728e2d1ce036d0924989b47c3",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s56",
+          "quote": "放松或者生活。接下来是非常像广西的文山。如果你喜欢喀斯特山水景观，文山几乎是唯一的选择。这里主",
+          "segment_ids": [
+            "s56"
+          ],
+          "start_ms": 478000,
+          "end_ms": 486000,
+          "quote_sha256": "4784e41d9f97644e774dea589cceb64b2975fce855f28f47d6949d4ed6b5d4a9",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s57",
+          "quote": "要就是两个地方：一个是普者黑，是文山唯一的5A级景区，包含天坑、地缝、溶洞、喀斯特湖、喀斯特森林等各种喀斯特景观。",
+          "segment_ids": [
+            "s57"
+          ],
+          "start_ms": 486000,
+          "end_ms": 494000,
+          "quote_sha256": "49bc02d2f0a12f5852dba014b8c153508b1de67137651dd9c4772ab436cca519",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s58",
+          "quote": "另一个就是坝美世外桃源，同样也是喀斯特景观，需要坐船穿越溶洞才能到村子。两个景区都离高铁站非常近，对",
+          "segment_ids": [
+            "s58"
+          ],
+          "start_ms": 494000,
+          "end_ms": 503000,
+          "quote_sha256": "9ca4fefa52e7c70bd4ab75187a3b7c798c09ed13abf6df69aac118926c603658",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s59",
+          "quote": "自由行非常友好。不过普者黑对攻略的要求比较高，景区不要门票，但里面处处收费。攻略没做好的话，真的是多花很多",
+          "segment_ids": [
+            "s59"
+          ],
+          "start_ms": 503000,
+          "end_ms": 511000,
+          "quote_sha256": "a86039874b5f521ca9c4a7e0281c79dbf2dd4aefb666a808995eba92c1e51d2c",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s60",
+          "quote": "冤枉钱这块适合喜欢喀斯特的自由行的人如果是攻略党那能有一个体验还不错的行程接下来有点像四川的昭通",
+          "segment_ids": [
+            "s60"
+          ],
+          "start_ms": 511000,
+          "end_ms": 520000,
+          "quote_sha256": "9cd45ab0db3b8649345b12e8336778eca2dda24dd6eb0fb559da710a5103c013",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s61",
+          "quote": "是一个避暑圣地也是旅居圣地每年有将近五十万人旅居昭通人均居住八十天左右所以最适合来这儿的就是旅居",
+          "segment_ids": [
+            "s61"
+          ],
+          "start_ms": 520000,
+          "end_ms": 528000,
+          "quote_sha256": "f2821571eaeed1b7fe1574496c20ea27596b41e8fb57188d700c55d6186d13cc",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s62",
+          "quote": "人群。目前旅居人群里四川和湖南的最多。接下来是以中原文化为主的这片区域。中原文化最大的特点是什么？就是最",
+          "segment_ids": [
+            "s62"
+          ],
+          "start_ms": 528000,
+          "end_ms": 536000,
+          "quote_sha256": "cf457e919179f170041e8e389a0a1667bb95d78cbe39c5f6be17f0c162e74299",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s63",
+          "quote": "擅长种地了所以云南最好看的地最适合种的地都在这个区域了包括东川红土地元阳梯田等等的都在这片首先曲",
+          "segment_ids": [
+            "s63"
+          ],
+          "start_ms": 536000,
+          "end_ms": 544000,
+          "quote_sha256": "d5bef53be4f7a218547e288326d7f1b6b89868cf991c48912b77abe865779046",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s64",
+          "quote": "靖。这是一个长期作为云南行政中心的地方，很多人路过却不停留。这块罗平的油菜花二到三月全国知名，还有会泽古",
+          "segment_ids": [
+            "s64"
+          ],
+          "start_ms": 544000,
+          "end_ms": 553000,
+          "quote_sha256": "d06ebad40e99b0e6d66effb53e78d14dd4ef5b3e3833810d69b5ded65757517e",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s65",
+          "quote": "城、大海草山草原、九龙瀑布等地方，适合特定季节打卡。比如罗平只适合春天，其余时间更适合路过。如果春天过",
+          "segment_ids": [
+            "s65"
+          ],
+          "start_ms": 553000,
+          "end_ms": 562000,
+          "quote_sha256": "bf758bf6e6c4ec38875ff56aa48e4fc0b111432fe1dbb70afe1d46539141fc26",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s66",
+          "quote": "了那非常适合喜欢油菜花的人去了夏天草原很好看但是夏天这边的雨有点多接下来楚雄是昆明去往大理和丽江",
+          "segment_ids": [
+            "s66"
+          ],
+          "start_ms": 562000,
+          "end_ms": 570000,
+          "quote_sha256": "5f7e72b2d62967f2511fb7a8d89365c766865746f1d9b6f2e81b8cc22671bb72",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s67",
+          "quote": "的必经之地，大部分游客都是高速路过。这块有元谋土林，适合打卡。除了火把节之外，不建议专程跑过来玩。楚雄的火把",
+          "segment_ids": [
+            "s67"
+          ],
+          "start_ms": 570000,
+          "end_ms": 579000,
+          "quote_sha256": "fa5f025be8a62ed1ce467a7b2b5831d96a5ff0eb8e6454d27b1c3d9c8378c20e",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s68",
+          "quote": "节是唯一的一个法定火把节举办地火把节期间适合追少数民族节日的人过来玉溪离昆明非常近是短途的首选这",
+          "segment_ids": [
+            "s68"
+          ],
+          "start_ms": 579000,
+          "end_ms": 588000,
+          "quote_sha256": "26e92f9426e14072d4723d576b9a2ca9156353faa4ba7b5624c2c7f2d9062b3e",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s69",
+          "quote": "块的旅游资源稍微丰富一些，有抚仙湖，是国内一类水质的深水湖，适合环湖自驾。还有星云湖、聂耳故居。这边的",
+          "segment_ids": [
+            "s69"
+          ],
+          "start_ms": 588000,
+          "end_ms": 597000,
+          "quote_sha256": "6dc4d8572f1035546974947088af64f0b7b61148901d2c9fe7bca80ac1a9fb66",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s70",
+          "quote": "哀牢山非常网红了，周边还有一些哈尼村寨，也可以去转一转。澄江化石地是亚洲唯一的化石主题世界遗产。",
+          "segment_ids": [
+            "s70"
+          ],
+          "start_ms": 597000,
+          "end_ms": 606000,
+          "quote_sha256": "1e5afb698c7386cc70a325cf54ed090d94300f59448a111afc4dc56cb425288a",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s71",
+          "quote": "这块非常适合带孩子过来了整体来看这块是一个非常适合短途休闲游的地方距离昆明近公共交通打车都可以搞",
+          "segment_ids": [
+            "s71"
+          ],
+          "start_ms": 606000,
+          "end_ms": 613000,
+          "quote_sha256": "8a1c65cfe632d8c52e62bdecb913284d1770aad34e2ad3b6a90c0f947c6557f1",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s72",
+          "quote": "接下来是红河州，这里是滇东南的核心，云南种地最好看的地方就在这儿了，各种梯田到处都是。云南除了文山以外，这",
+          "segment_ids": [
+            "s72"
+          ],
+          "start_ms": 613000,
+          "end_ms": 622000,
+          "quote_sha256": "5ee47027b91e36391b3e0c42d40673f1657f20f35d30d4cfc7d555883f69aa6d",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s73",
+          "quote": "块也有一些喀斯特景观，有喀斯特、枫林、梯田、古城，还有滇越铁路，算是人文和山水并重的一个地方，主要有两个",
+          "segment_ids": [
+            "s73"
+          ],
+          "start_ms": 622000,
+          "end_ms": 631000,
+          "quote_sha256": "26e5d0d2510b1b4a90d5ae634a7c34bb7dfcc2c909abeb83b816e85e0d935b2f",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s74",
+          "quote": "片区一个就是建水和蒙自周边首先建水古城是一个可以坐米轨小火车的地方可以从建水做到石屏两个古城都是",
+          "segment_ids": [
+            "s74"
+          ],
+          "start_ms": 631000,
+          "end_ms": 639000,
+          "quote_sha256": "1c4eed6edbde38a05c63eb43bdc15531351dd8c882f519f719619d79b31ddcd3",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s75",
+          "quote": "没什么人的景区，而且消费超级低。蒙自是过桥米线的发源地，同样也有米轨火车。另一个片区就是梯田区域了，这里面",
+          "segment_ids": [
+            "s75"
+          ],
+          "start_ms": 639000,
+          "end_ms": 648000,
+          "quote_sha256": "e39f7cdcf77d545cd6c917910ff3fdf4ebba687b3ad374a73a88692b5321fff8",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s76",
+          "quote": "最知名的就是元阳梯田，是世界文化遗产，在这能看到云海梯田。一到四月的灌水期是最好看的时候。除了这两个核心",
+          "segment_ids": [
+            "s76"
+          ],
+          "start_ms": 648000,
+          "end_ms": 656000,
+          "quote_sha256": "c76f3f4e912644cf95d57ce1f1d1bbe2f07da7812fb1608906596c3fb411cb0c",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s77",
+          "quote": "之外还可以去一个超级被低估的小城弥勒弥勒是云南的红酒之乡也是红砖艺术之乡常年游客比较少但是体验还",
+          "segment_ids": [
+            "s77"
+          ],
+          "start_ms": 656000,
+          "end_ms": 665000,
+          "quote_sha256": "ecb5d8358dd54cdd158770b73a9769f713f202737509fac8a628286869327937",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s78",
+          "quote": "是不错的非常值得一去整体上来说红河州就更适合人文爱好者这里的人文密度和质量都非常的高建水的公共交",
+          "segment_ids": [
+            "s78"
+          ],
+          "start_ms": 665000,
+          "end_ms": 672000,
+          "quote_sha256": "af480b2e2739bd9bed600d2dc75b64ff4ef591e0a68b8d10f04efb4a91b59447",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s79",
+          "quote": "通还不错如果去元阳的话就强烈建议自驾了最后这片区域的核心昆明每年有一百万人来昆明旅居人均居住一百",
+          "segment_ids": [
+            "s79"
+          ],
+          "start_ms": 672000,
+          "end_ms": 681000,
+          "quote_sha256": "23575b40f8e5720a6d6830d89d986767972e156c3034348ea3144f5a403b669a",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s80",
+          "quote": "二十。这里真的是旅居的天堂了。昆明各种小景点非常多，也都值得推荐，但是我总结的核心就是一湖一山一园。湖就",
+          "segment_ids": [
+            "s80"
+          ],
+          "start_ms": 681000,
+          "end_ms": 690000,
+          "quote_sha256": "0ea8e1566ee10c992fbc25af0858b2e3042ab521665526ff5c2b613a7b5f79d1",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s81",
+          "quote": "是滇池了，是昆明的地标，推荐冬天过来，主要是冬天可以喂红嘴鸥。周边还有海埂公园、捞鱼河湿地等等打卡点。山就",
+          "segment_ids": [
+            "s81"
+          ],
+          "start_ms": 690000,
+          "end_ms": 698000,
+          "quote_sha256": "009b3c00805081173187bada4374b6fc4b92ff5261b88d9e07fa09839c41e695",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s82",
+          "quote": "是石林景区了，是一个5A级景区，喀斯特地貌的精华，首批国家风景名胜区的含金量非常高了。园就是翠湖公园了。昆",
+          "segment_ids": [
+            "s82"
+          ],
+          "start_ms": 698000,
+          "end_ms": 708000,
+          "quote_sha256": "360d9eb0168a41b32b4fffea1c2da329ed18b386c1b7824e1d6aa8efe967489d",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s83",
+          "quote": "明的人文建筑最密集的区域就在这个周边包含陆军讲武堂西南联大等等地而且在这个周边的景区步行就能到达",
+          "segment_ids": [
+            "s83"
+          ],
+          "start_ms": 708000,
+          "end_ms": 716000,
+          "quote_sha256": "541e64185379f7ca6b2fa0167add98940c08aab7c421aac743f375e519547408",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s84",
+          "quote": "如果时间足够的话，推荐去一下斗南花市转转，这里的鲜花价格绝对能让你惊掉下巴。从适合的人群上来看，昆明",
+          "segment_ids": [
+            "s84"
+          ],
+          "start_ms": 716000,
+          "end_ms": 725000,
+          "quote_sha256": "1ff7962ac6e062f6bcb480f4e89c2fc7dab88388743234731a63300d5fec223e",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s85",
+          "quote": "适合所有的人过来以上就是云南最适合种地的地方也是传统人文最多的地方最后大理是我心中云南的天花板苍",
+          "segment_ids": [
+            "s85"
+          ],
+          "start_ms": 725000,
+          "end_ms": 733000,
+          "quote_sha256": "7efe98bc8603ab6176cc90c1c6cbafc45d2456a2721dc4427aa933577041fd1d",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s86",
+          "quote": "苍山洱海是核心，主要就是两条路线：一个苍山，一个洱海。洱海环湖分为东西两条路，其中海西生态廊道四十公里都是推",
+          "segment_ids": [
+            "s86"
+          ],
+          "start_ms": 733000,
+          "end_ms": 743000,
+          "quote_sha256": "c25fef9bddadc46859c22a35bbf1217e13c160fd30589b2d6b4eb374ff18b7d5",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s87",
+          "quote": "荐骑行，但没人能骑完这四十公里，所以我推荐走龙龛码头到喜洲古镇这一段就可以了。西线的核心和精华都在",
+          "segment_ids": [
+            "s87"
+          ],
+          "start_ms": 743000,
+          "end_ms": 751000,
+          "quote_sha256": "a06ea248f1d7adfb61c683702cd826c733bb07c77aeb11aad901527d061054dc",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s88",
+          "quote": "这边东线的话如果是骑行建议走双廊到洼色就够了西线不能自驾自驾可以走S二二幺谁走谁停停下来走几百米",
+          "segment_ids": [
+            "s88"
+          ],
+          "start_ms": 751000,
+          "end_ms": 760000,
+          "quote_sha256": "08f71773548762c6bf3b852d9133de96896a6235ec0d2c018fa38d87c3968cfa",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s89",
+          "quote": "就到洱海了。东线可以全程自驾。另一条路线就是苍山了，能俯瞰整个洱海。体力一般的可以选择索道上山。这块还有崇",
+          "segment_ids": [
+            "s89"
+          ],
+          "start_ms": 760000,
+          "end_ms": 768000,
+          "quote_sha256": "c819cdb61ffd2cbdaeedb14aadea5f3b2569ae1eb954049187bfd352649c0700",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s90",
+          "quote": "圣寺三塔，是一个出片无敌的5A级景区，大理的地标，也是必打卡的地方。如果时间足够多的话，还可以去沙溪古镇。这",
+          "segment_ids": [
+            "s90"
+          ],
+          "start_ms": 768000,
+          "end_ms": 776000,
+          "quote_sha256": "1ed108f5f5de0deb15e4c55c8d0019862e6c6db5313821e63d0eef4f05c0c0c8",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s91",
+          "quote": "里是茶马古道保存最好的古镇之一，不过过来需要专门绕路。优点就是这里的人真的很少，旺季人也少。大理非常",
+          "segment_ids": [
+            "s91"
+          ],
+          "start_ms": 776000,
+          "end_ms": 785000,
+          "quote_sha256": "76d366f230dedf5ddb27389298e1a23f564af7fee25705c9bb886923c5bb32dd",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s92",
+          "quote": "的好，唯一的缺点就是套路现在越来越多。最后说说不同的人群怎么选云南。首先，亲子游就优先去西双版纳，这里有热带",
+          "segment_ids": [
+            "s92"
+          ],
+          "start_ms": 785000,
+          "end_ms": 793000,
+          "quote_sha256": "736085b2ab98fa4c17ec3864eb9c7aee045e033dd9872f6c2f80a6ec935e6981",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s93",
+          "quote": "雨林，有大象。其次是大理，这里环湖怎么玩都轻松、舒服。然后是腾冲，这里有火山、有温泉。如果你是打卡拍照党，首",
+          "segment_ids": [
+            "s93"
+          ],
+          "start_ms": 793000,
+          "end_ms": 801000,
+          "quote_sha256": "12167769f3ee4bbaab68b22d6c74f71755eb2b0a5372c5c4a5ac446acac482da",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s94",
+          "quote": "选大理丽江芒市建水元阳和香格里拉如果是老人或者是休闲度假可以去腾冲泡进去全包括大理洱海周边都非常",
+          "segment_ids": [
+            "s94"
+          ],
+          "start_ms": 801000,
+          "end_ms": 810000,
+          "quote_sha256": "07513ed6e86fa4a11e986555073d70827e836e5718a27677089f81a53a8e93de",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s95",
+          "quote": "冬天的话推荐西双版纳。自驾党推荐三条路线：首先是滇西北的经典路线G214，昆明、大理、丽江、香格里",
+          "segment_ids": [
+            "s95"
+          ],
+          "start_ms": 810000,
+          "end_ms": 818000,
+          "quote_sha256": "7f891ee21299117d267235ebcbbd31e277502c309b0e39037a4c7ebe3c18daf0",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s96",
+          "quote": "拉到梅里雪山。然后是滇西的边境环线，主要是G219、怒江大峡谷，多走一走还可以串联保山、腾冲、芒市、瑞丽。这个体",
+          "segment_ids": [
+            "s96"
+          ],
+          "start_ms": 818000,
+          "end_ms": 828000,
+          "quote_sha256": "8af795c1f4a7a1cba56fe8416c5ea5def71e2dfe59c9992dd7f6a49261dda8fc",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s97",
+          "quote": "验非常好。最后一个就是滇东南环线：昆明、建水、元阳，铺装路路况非常友好，弯道比怒江少很多。然后是一个推荐吃",
+          "segment_ids": [
+            "s97"
+          ],
+          "start_ms": 828000,
+          "end_ms": 837000,
+          "quote_sha256": "4ff4fa0ecd4c47ffdf16d897148ee4f75162688b79b38ade3b6e5f4dfa441c98",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s98",
+          "quote": "货走的路线，主要是芒市、西双版纳、建水、蒙自，这几个地方美食密度非常高，而且怎么吃都好吃。如果你是一个硬核徒步",
+          "segment_ids": [
+            "s98"
+          ],
+          "start_ms": 837000,
+          "end_ms": 846000,
+          "quote_sha256": "762ef0a639e9eef08a3ea151322d4b2d5b2f0ae725294ac874d0edfd8f200521",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s99",
+          "quote": "玩家推荐去虎跳峡的中虎跳雨崩丙中洛周边和独龙江如果想被坑的话首选大理丽江香格里拉的低价团以上就是",
+          "segment_ids": [
+            "s99"
+          ],
+          "start_ms": 846000,
+          "end_ms": 854000,
+          "quote_sha256": "7c8f51b7c62ce2e60634f49fcc047d91f7f2fb578a711196c9b47841a9621fa1",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        },
+        {
+          "id": "yunnan:s100",
+          "quote": "本期内容了觉得有用的可以点赞收藏",
+          "segment_ids": [
+            "s100"
+          ],
+          "start_ms": 854000,
+          "end_ms": 857000,
+          "quote_sha256": "0e0910f8e9a80f030cfd40b7e4af84e16214568e8dae05aa94792a156b15d845",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "source",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": null
+          },
+          "identity_note": "sN is normalized fixture index; original DB identity unknown"
+        }
+      ]
+    },
+    {
+      "id": "december",
+      "status": "AVAILABLE_UNJUDGED",
+      "split": "development",
+      "generation": "saved semantic map; selected original clauses, reviewer identity/date absent",
+      "records": [
+        {
+          "id": "december:gold-01",
+          "quote": "水量会下降不少",
+          "segment_ids": [
+            "seg_5279e7b7219743779420ce30dd41c889",
+            "seg_7eba5b629fbd4fbd92f9cf97c807d4f6",
+            "seg_7c7060fa552b48abb4883db4794e62da",
+            "seg_3f1c8ddc1081434cb5c7ef7a22976a62"
+          ],
+          "start_ms": 53518,
+          "end_ms": 90451,
+          "quote_sha256": "cf78c6a30cc7809e2b9cba51e1e187904fb0babbc396d819b7160f4d2455e12b",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "fact",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": "ntv_4d380c29c19e4b0faf0754f1eb30bb09"
+          },
+          "owner": "河池",
+          "draft_kind": "枯水"
+        },
+        {
+          "id": "december:gold-02",
+          "quote": "景区有点太分散了",
+          "segment_ids": [
+            "seg_7eba5b629fbd4fbd92f9cf97c807d4f6",
+            "seg_7c7060fa552b48abb4883db4794e62da",
+            "seg_3f1c8ddc1081434cb5c7ef7a22976a62",
+            "seg_1ee25fcbc7984f6b8b25c2cf51d51572"
+          ],
+          "start_ms": 63445,
+          "end_ms": 99251,
+          "quote_sha256": "8a7d1c12d008ae2d4172a7104bbd8560519525533f501573a84ddfb8332ed2d6",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "fact",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": "ntv_4d380c29c19e4b0faf0754f1eb30bb09"
+          },
+          "owner": "河池",
+          "draft_kind": "交通"
+        },
+        {
+          "id": "december:gold-03",
+          "quote": "元旦前后人流量会逐渐的增加",
+          "segment_ids": [
+            "seg_29b89cfc1edb4402a8220ee26ed5e154",
+            "seg_5279e7b7219743779420ce30dd41c889",
+            "seg_7eba5b629fbd4fbd92f9cf97c807d4f6",
+            "seg_7c7060fa552b48abb4883db4794e62da"
+          ],
+          "start_ms": 44478,
+          "end_ms": 82076,
+          "quote_sha256": "63740adc453805b9b194229b62ca81808122e3be56c10ff5f1fb834f6623c5b0",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "fact",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": "ntv_4d380c29c19e4b0faf0754f1eb30bb09"
+          },
+          "owner": "河池",
+          "draft_kind": "客流"
+        },
+        {
+          "id": "december:gold-04",
+          "quote": "经济型酒店就一百多",
+          "segment_ids": [
+            "seg_7c7060fa552b48abb4883db4794e62da",
+            "seg_3f1c8ddc1081434cb5c7ef7a22976a62",
+            "seg_1ee25fcbc7984f6b8b25c2cf51d51572",
+            "seg_1ae77f82ba724a039dc25d33097bb2a4"
+          ],
+          "start_ms": 72796,
+          "end_ms": 108418,
+          "quote_sha256": "6e7a61df8f388d05a8fe801691edad392b58dcda02260c7f5da103bdaeef55d0",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "fact",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": "ntv_4d380c29c19e4b0faf0754f1eb30bb09"
+          },
+          "owner": "河池",
+          "draft_kind": "费用"
+        },
+        {
+          "id": "december:gold-05",
+          "quote": "如果你不是自驾来的话可能会稍微折腾一点",
+          "segment_ids": [
+            "seg_43a0715ad1804db897a1bf31fb83460c",
+            "seg_03a51613306a4e0a99874eac3ea4e9b0",
+            "seg_6613dcd01c404f379082b2055773ec55",
+            "seg_0cb5473dc0f54e78b915b13d9424f424"
+          ],
+          "start_ms": 170730,
+          "end_ms": 204831,
+          "quote_sha256": "a7dd2a0ef9466febf66dd6c522c786f5585c587ad113ac1bf2105e76540b02b8",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "fact",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": "ntv_4d380c29c19e4b0faf0754f1eb30bb09"
+          },
+          "owner": "丙中洛",
+          "draft_kind": "交通"
+        },
+        {
+          "id": "december:gold-06",
+          "quote": "普通的家用轿车那就不建议走这条路",
+          "segment_ids": [
+            "seg_03a51613306a4e0a99874eac3ea4e9b0",
+            "seg_6613dcd01c404f379082b2055773ec55",
+            "seg_0cb5473dc0f54e78b915b13d9424f424",
+            "seg_65fd08dac0c74f81814e787b19ff93ac"
+          ],
+          "start_ms": 179530,
+          "end_ms": 213809,
+          "quote_sha256": "3066c6dcb9377259e9ace798492e6ea2985914a62432536a64e31073812cc07b",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "fact",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": "ntv_4d380c29c19e4b0faf0754f1eb30bb09"
+          },
+          "owner": "丙中洛",
+          "draft_kind": "限制"
+        },
+        {
+          "id": "december:gold-07",
+          "quote": "国庆期间的百分之六十左右",
+          "segment_ids": [
+            "seg_6613dcd01c404f379082b2055773ec55",
+            "seg_0cb5473dc0f54e78b915b13d9424f424",
+            "seg_65fd08dac0c74f81814e787b19ff93ac",
+            "seg_8432b11b61704931805c0c6b170f9a93"
+          ],
+          "start_ms": 188490,
+          "end_ms": 221809,
+          "quote_sha256": "196ec2855fd847cd726a7c09d340dd2d427a9900c4a7c8693a39aa74fc016742",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "fact",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": "ntv_4d380c29c19e4b0faf0754f1eb30bb09"
+          },
+          "owner": "丙中洛",
+          "draft_kind": "费用"
+        },
+        {
+          "id": "december:gold-08",
+          "quote": "元旦的时候人才会多一点",
+          "segment_ids": [
+            "seg_af79b78fa7a545a7b20bfee42037b21f",
+            "seg_e13a81aadc5e4a1cb26c914972730ae6",
+            "seg_43a0715ad1804db897a1bf31fb83460c",
+            "seg_03a51613306a4e0a99874eac3ea4e9b0"
+          ],
+          "start_ms": 152972,
+          "end_ms": 188490,
+          "quote_sha256": "0d1d09843cd624c45552901bd9bfb01854129c57ab1b4e40cc96690473a94165",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "fact",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": "ntv_4d380c29c19e4b0faf0754f1eb30bb09"
+          },
+          "owner": "丙中洛",
+          "draft_kind": "客流"
+        },
+        {
+          "id": "december:gold-09",
+          "quote": "十二月份开始是梯田的灌水期",
+          "segment_ids": [
+            "seg_69fe5e474361468db3ff0d12426c59dd",
+            "seg_7ca03e83da494e8393946fdb5e0ee3f7",
+            "seg_dd13d86fc43b498ab267a40f68ae7d1e",
+            "seg_3a3616f61a284a87af6d5c693b77ea94"
+          ],
+          "start_ms": 274292,
+          "end_ms": 309551,
+          "quote_sha256": "14683d4ec2bcaf44431ea292d3341290f67dbbce63df51ea8e836ec1f45ec50f",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "fact",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": "ntv_4d380c29c19e4b0faf0754f1eb30bb09"
+          },
+          "owner": "从江",
+          "draft_kind": "景观"
+        },
+        {
+          "id": "december:gold-10",
+          "quote": "节庆期间这个村寨的人流会有一些上涨",
+          "segment_ids": [
+            "seg_4e3a256128f5411189d8392d6c2b58f2",
+            "seg_c557215a2ed043ef9ed1942eab13b038",
+            "seg_2082c7bdbb6743de895e9f8089d91d5c",
+            "seg_69fe5e474361468db3ff0d12426c59dd"
+          ],
+          "start_ms": 248674,
+          "end_ms": 283332,
+          "quote_sha256": "f64d70cc5edd84d3f6ac433164f728deee9f054e4517dc8ee9eba93035664399",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "fact",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": "ntv_4d380c29c19e4b0faf0754f1eb30bb09"
+          },
+          "owner": "从江",
+          "draft_kind": "客流"
+        },
+        {
+          "id": "december:gold-11",
+          "quote": "人均一两百就能玩一天",
+          "segment_ids": [
+            "seg_69fe5e474361468db3ff0d12426c59dd",
+            "seg_7ca03e83da494e8393946fdb5e0ee3f7",
+            "seg_dd13d86fc43b498ab267a40f68ae7d1e",
+            "seg_3a3616f61a284a87af6d5c693b77ea94"
+          ],
+          "start_ms": 274292,
+          "end_ms": 309551,
+          "quote_sha256": "1ffd0b10f38305b1331c1e9308b20c2fb6347d3011bcf0b88c1b29851b109510",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "fact",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": "ntv_4d380c29c19e4b0faf0754f1eb30bb09"
+          },
+          "owner": "从江",
+          "draft_kind": "费用"
+        },
+        {
+          "id": "december:gold-12",
+          "quote": "从江有高铁",
+          "segment_ids": [
+            "seg_c557215a2ed043ef9ed1942eab13b038",
+            "seg_2082c7bdbb6743de895e9f8089d91d5c",
+            "seg_69fe5e474361468db3ff0d12426c59dd",
+            "seg_7ca03e83da494e8393946fdb5e0ee3f7"
+          ],
+          "start_ms": 257474,
+          "end_ms": 291892,
+          "quote_sha256": "36a3e9be7d5f2c622ac6e75f4b0112b19dfdcb9f1c192dcb55c005c28a57741a",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "fact",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": "ntv_4d380c29c19e4b0faf0754f1eb30bb09"
+          },
+          "owner": "从江",
+          "draft_kind": "交通"
+        },
+        {
+          "id": "december:gold-13",
+          "quote": "冬天去拉萨就不是特别推荐自驾了",
+          "segment_ids": [
+            "seg_42292e116ed04c629c9db4b60f391cd6",
+            "seg_a5259cb16d794d8cad4b32d20e623ba8",
+            "seg_5b341ade776040b2b4bf9d9b977b337b",
+            "seg_71b89858f6934cf591d2fbf2de3c3cbc"
+          ],
+          "start_ms": 361860,
+          "end_ms": 395220,
+          "quote_sha256": "6995ec04ce099d2c379df0a26a2c2ff56883809109903a04502a66c5a7c4c979",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "fact",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": "ntv_4d380c29c19e4b0faf0754f1eb30bb09"
+          },
+          "owner": "拉萨",
+          "draft_kind": "限制"
+        },
+        {
+          "id": "december:gold-14",
+          "quote": "飞机和火车是首选",
+          "segment_ids": [
+            "seg_42292e116ed04c629c9db4b60f391cd6",
+            "seg_a5259cb16d794d8cad4b32d20e623ba8",
+            "seg_5b341ade776040b2b4bf9d9b977b337b",
+            "seg_71b89858f6934cf591d2fbf2de3c3cbc"
+          ],
+          "start_ms": 361860,
+          "end_ms": 395220,
+          "quote_sha256": "1b4539446da41988cb22b283503c88356fbdaf345555662b38b9b037521ac28d",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "fact",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": "ntv_4d380c29c19e4b0faf0754f1eb30bb09"
+          },
+          "owner": "拉萨",
+          "draft_kind": "交通"
+        },
+        {
+          "id": "december:gold-15",
+          "quote": "冬天几乎所有的景区都不要门票",
+          "segment_ids": [
+            "seg_97b452bedc7045a49b46cc4931d9a865",
+            "seg_42292e116ed04c629c9db4b60f391cd6",
+            "seg_a5259cb16d794d8cad4b32d20e623ba8",
+            "seg_5b341ade776040b2b4bf9d9b977b337b"
+          ],
+          "start_ms": 353460,
+          "end_ms": 386900,
+          "quote_sha256": "eee2330c1324ad7ada1aa2f9da1184944ff72827ce0b4748e15361edef90f507",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "fact",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": "ntv_4d380c29c19e4b0faf0754f1eb30bb09"
+          },
+          "owner": "拉萨",
+          "draft_kind": "费用"
+        },
+        {
+          "id": "december:gold-16",
+          "quote": "仙女节燃灯节",
+          "segment_ids": [
+            "seg_12345eec70304674a7dfde699e396ad1",
+            "seg_5967873f9f1a4c1c885c3803bf15fdde",
+            "seg_85fa413be22a42dd9f1ec851cd0fdaea",
+            "seg_d47798cab3ff4124a1cd1747db666463"
+          ],
+          "start_ms": 318351,
+          "end_ms": 353460,
+          "quote_sha256": "7e7081f97df41315d0239ebcb5924b9303b818291db61c65f5eb51e6775c8e0a",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "fact",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": "ntv_4d380c29c19e4b0faf0754f1eb30bb09"
+          },
+          "owner": "拉萨",
+          "draft_kind": "活动"
+        },
+        {
+          "id": "december:gold-17",
+          "quote": "成片的酥油灯非常的壮观",
+          "segment_ids": [
+            "seg_71b89858f6934cf591d2fbf2de3c3cbc",
+            "seg_aecb55699aa946c9934c1c70fe2a4846",
+            "seg_3d58988bc6604cc0a2021b2e2ac279fa",
+            "seg_d9b5b6a106e94e6081e8cdaaf5bb11a8"
+          ],
+          "start_ms": 386980,
+          "end_ms": 419314,
+          "quote_sha256": "80ea6497a3ef69eea4841c1596810905434b1f28b756b083873b024368f98926",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "fact",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": "ntv_4d380c29c19e4b0faf0754f1eb30bb09"
+          },
+          "owner": "拉萨",
+          "draft_kind": "看点"
+        },
+        {
+          "id": "december:gold-18",
+          "quote": "开渔节是二十五号前后",
+          "segment_ids": [
+            "seg_ca4ceba7383a4882b45d02c0f9925ea6",
+            "seg_84bc6e4f0e1149d78fa050d5d6247870",
+            "seg_33e9e1c5ef5c4bf19c4f1146c719e069",
+            "seg_169d1eb1d36f4d05b36c36c10e225ab9"
+          ],
+          "start_ms": 427838,
+          "end_ms": 461414,
+          "quote_sha256": "a50f576e3bac4c25206c134f406520a7d57f27cb11d73146e0b445e103470ce3",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "fact",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": "ntv_4d380c29c19e4b0faf0754f1eb30bb09"
+          },
+          "owner": "玉溪",
+          "draft_kind": "时间"
+        },
+        {
+          "id": "december:gold-19",
+          "quote": "可能会遇到没有房的情况",
+          "segment_ids": [
+            "seg_84bc6e4f0e1149d78fa050d5d6247870",
+            "seg_33e9e1c5ef5c4bf19c4f1146c719e069",
+            "seg_169d1eb1d36f4d05b36c36c10e225ab9",
+            "seg_9bfa63059f2b49ebb041077144767504"
+          ],
+          "start_ms": 435918,
+          "end_ms": 470527,
+          "quote_sha256": "c39d0434521a7eb93eabd69181c8fbf67222dd64f9577d971364bccb175cc406",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "fact",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": "ntv_4d380c29c19e4b0faf0754f1eb30bb09"
+          },
+          "owner": "玉溪",
+          "draft_kind": "住宿"
+        },
+        {
+          "id": "december:gold-20",
+          "quote": "开渔节期间人多价格高",
+          "segment_ids": [
+            "seg_84bc6e4f0e1149d78fa050d5d6247870",
+            "seg_33e9e1c5ef5c4bf19c4f1146c719e069",
+            "seg_169d1eb1d36f4d05b36c36c10e225ab9",
+            "seg_9bfa63059f2b49ebb041077144767504"
+          ],
+          "start_ms": 435918,
+          "end_ms": 470527,
+          "quote_sha256": "8c85261ef1e023e528db278ad23ebf29a8d751c735962bbe720e232b02dcf767",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "fact",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": "ntv_4d380c29c19e4b0faf0754f1eb30bb09"
+          },
+          "owner": "玉溪",
+          "draft_kind": "费用"
+        },
+        {
+          "id": "december:gold-21",
+          "quote": "之后是元旦假期人也越来越多了",
+          "segment_ids": [
+            "seg_33e9e1c5ef5c4bf19c4f1146c719e069",
+            "seg_169d1eb1d36f4d05b36c36c10e225ab9",
+            "seg_9bfa63059f2b49ebb041077144767504",
+            "seg_2f0d21f37bc94b88910d7858d801ed88"
+          ],
+          "start_ms": 444214,
+          "end_ms": 479341,
+          "quote_sha256": "40002eaa5d32a91b46932fd0212a970de291bc552b0342eeb5c267665050ec7e",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "fact",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": "ntv_4d380c29c19e4b0faf0754f1eb30bb09"
+          },
+          "owner": "玉溪",
+          "draft_kind": "客流"
+        },
+        {
+          "id": "december:gold-22",
+          "quote": "十二月份中旬上旬非常适合过来转一下",
+          "segment_ids": [
+            "seg_33e9e1c5ef5c4bf19c4f1146c719e069",
+            "seg_169d1eb1d36f4d05b36c36c10e225ab9",
+            "seg_9bfa63059f2b49ebb041077144767504",
+            "seg_2f0d21f37bc94b88910d7858d801ed88"
+          ],
+          "start_ms": 444214,
+          "end_ms": 479341,
+          "quote_sha256": "9983abf2f4867f105d9cc30cfe502d1ecb114bb948adcbf3f0a8b6c338cff063",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "fact",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": "ntv_4d380c29c19e4b0faf0754f1eb30bb09"
+          },
+          "owner": "玉溪",
+          "draft_kind": "时间"
+        },
+        {
+          "id": "december:gold-23",
+          "quote": "抚仙湖的红嘴鸥飞过来了",
+          "segment_ids": [
+            "seg_aecb55699aa946c9934c1c70fe2a4846",
+            "seg_3d58988bc6604cc0a2021b2e2ac279fa",
+            "seg_d9b5b6a106e94e6081e8cdaaf5bb11a8",
+            "seg_7278f93286044eeeab4b6bd7666d3c77"
+          ],
+          "start_ms": 395220,
+          "end_ms": 427838,
+          "quote_sha256": "0ecdecd378d311ff91ae8b346652bcc020db7eedb0503147ef6bb96a6267b607",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "fact",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": "ntv_4d380c29c19e4b0faf0754f1eb30bb09"
+          },
+          "owner": "玉溪",
+          "draft_kind": "看点"
+        },
+        {
+          "id": "december:gold-24",
+          "quote": "温差比较大",
+          "segment_ids": [
+            "seg_d9b5b6a106e94e6081e8cdaaf5bb11a8",
+            "seg_7278f93286044eeeab4b6bd7666d3c77",
+            "seg_ca4ceba7383a4882b45d02c0f9925ea6",
+            "seg_84bc6e4f0e1149d78fa050d5d6247870"
+          ],
+          "start_ms": 411123,
+          "end_ms": 444214,
+          "quote_sha256": "2415d9d259faea6fbfb6fd4eb7590d984d0b9ff5ce63c6fc27d75943ddbd0676",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "fact",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": null,
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": "ntv_4d380c29c19e4b0faf0754f1eb30bb09"
+          },
+          "owner": "玉溪",
+          "draft_kind": "天气"
+        }
+      ]
+    },
+    {
+      "id": "title_cover_temporal",
+      "status": "AVAILABLE_UNJUDGED",
+      "split": "development",
+      "generation": "saved transcript; cover synthetic tests separate from real cover; no cover image in this manifest",
+      "records": [
+        {
+          "id": "temporal:0",
+          "quote": "的丹吉大瀑布和侏罗纪时代的桫椤树。隔壁呢是古龙山大峡谷，同样是一个有瀑布、有溶洞的地方。古龙山最值得体验",
+          "segment_ids": [
+            "seg_3e0331849ff2407b833a0fed1d288387"
+          ],
+          "start_ms": 163602,
+          "end_ms": 172002,
+          "quote_sha256": "07ea901274e909abe71fcef33908649787e0b27611d12393afbca3101287c0b8",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "fact",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": "snap_9da06b74450a4aa3a51e8d0b2d4d99ee",
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": "ntv_39e83862aecc41e4bf0a5ba9ddba5fa3"
+          }
+        },
+        {
+          "id": "temporal:1",
+          "quote": "的是一个可以穿越好几个溶洞的地心漂流号称是一漂穿三洞夏天去肯定是一个比较好的体验了同时静溪呢因为",
+          "segment_ids": [
+            "seg_5a6c14aa34fb45ee86e5561e90181191"
+          ],
+          "start_ms": 172002,
+          "end_ms": 181154,
+          "quote_sha256": "b2902953304050f292a70a9973e777748b0d8e38e02d2371e35073f6f32007bb",
+          "judgment": "unjudged",
+          "adjudicator": null,
+          "adjudicated_at": null,
+          "dimension": "fact",
+          "role": "UNJUDGED",
+          "identity": {
+            "source_id": null,
+            "snapshot_id": "snap_9da06b74450a4aa3a51e8d0b2d4d99ee",
+            "transcript_id": null,
+            "transcript_version": null,
+            "note_version_id": "ntv_39e83862aecc41e4bf0a5ba9ddba5fa3"
+          }
+        }
+      ]
+    },
+    {
+      "id": "xiamen_food",
+      "status": "BLOCKED_SOURCE",
+      "split": "holdout",
+      "records": [],
+      "reason": "No complete frozen versioned sample in repository; no download attempted. Guizhou mentions in December sample are not a full Guizhou sample."
+    },
+    {
+      "id": "guizhou_full_video",
+      "status": "BLOCKED_SOURCE",
+      "split": "holdout",
+      "records": [],
+      "reason": "No complete frozen versioned sample in repository; no download attempted. Guizhou mentions in December sample are not a full Guizhou sample."
+    },
+    {
+      "id": "rapid_multiregion_holdout",
+      "status": "BLOCKED_SOURCE",
+      "split": "holdout",
+      "records": [],
+      "reason": "No complete frozen versioned sample in repository; no download attempted. Guizhou mentions in December sample are not a full Guizhou sample."
+    }
+  ],
+  "holdout_status": "BLOCKED_SOURCE: no independently reserved holdout; do not tune or claim generalization",
+  "judgment_policy": "No named, dated independent adjudication available. File names and historical manual-check summaries are not adjudication.",
+  "unknown_identity_policy": "null means unknown, never reconstructed from a different source"
+}

@@ -119,3 +119,57 @@ def test_null_recovery_uses_original_evidence_and_bounded_backup(
             assert db.query(AICacheEntry).count() == 0
     assert calls == expected
     assert attempts[0][6].code == "AI_PROVIDER_SCHEMA_INVALID"
+
+
+@pytest.mark.parametrize(
+    "retries,has_backup,max_attempts,expected",
+    [
+        (1, False, None, ["primary", "primary"]),
+        (0, True, None, ["primary", "fallback"]),
+        (1, True, 1, ["primary"]),
+        (0, False, None, ["primary"]),
+    ],
+)
+def test_root_array_reuses_recovery_budget_and_does_not_poison_cache(
+    app_and_session, retries, has_backup, max_attempts, expected
+):
+    calls = []
+    original = [{"role": "user", "content": "原始逐字证据，不猜ID"}]
+
+    class Provider:
+        def __init__(self, name):
+            self.name = name
+
+        def generate_json(self, messages, **kwargs):
+            calls.append(self.name)
+            assert messages[-1]["content"].endswith(original[-1]["content"])
+            if self.name == "fallback":
+                assert messages == original
+            valid = self.name == "fallback" or len(calls) > 1
+            return LLMResult('{"sections":[]}' if valid else '[{"sections":[]}]',
+                             self.name, self.name, {})
+
+    provider = FallbackLLMProvider(
+        Provider("primary"), "primary",
+        Provider("fallback") if has_backup else None, "fallback" if has_backup else None,
+        primary_reliability=ModelReliabilityPolicy("DIRECT", json_retry_count=retries),
+        fallback_reliability=ModelReliabilityPolicy("DIRECT"),
+        sleeper=lambda _: None, max_attempts=max_attempts,
+    )
+    with app_and_session[1]() as db:
+        kwargs = dict(
+            job=None, stage="NOTE_REDUCE", capability="LLM", provider=provider,
+            provider_name="primary", model="primary", messages=copy.deepcopy(original),
+            semantic_options={}, cache_enabled=True, force_regenerate=False,
+        )
+        gateway = AIWorkloadGateway()
+        if len(expected) > 1:
+            result = gateway.execute_cached_json(db, **kwargs)
+            assert json.loads(result.content) == {"sections": []}
+            assert db.query(AICacheEntry).count() == 1
+            gateway.execute_cached_json(db, **kwargs)
+        else:
+            with pytest.raises(AIProviderError):
+                gateway.execute_cached_json(db, **kwargs)
+            assert db.query(AICacheEntry).count() == 0
+    assert calls == expected

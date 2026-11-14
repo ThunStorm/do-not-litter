@@ -9,6 +9,32 @@ PLACE_KINDS = {"PLACE", "PLACE_GUIDE", "AREA_GUIDE"}
 COMPARISON_KINDS = {"CATEGORY_COMPARE", "MULTI_PLACE_LIST", "ROUTE", "MIXED"}
 
 
+def _clean_source_subheadings(body):
+    """Remove empty/duplicate generated labels, retaining source words and ordinary headings."""
+    lines, result, seen = body.splitlines(), [], set()
+    labels = {"作者原文（保留意见、条件与局部限制）：", "来源描述（不作为独立推荐态度）："}
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        if re.fullmatch(r"### .+ · (?:来源描述|作者意见与限制)", line):
+            end = index + 1
+            while end < len(lines) and not lines[end].startswith("### "):
+                end += 1
+            content = lines[index + 1 : end]
+            if not any(value.strip() and value.strip() not in labels for value in content):
+                index = end
+                continue
+            if line not in seen:
+                result.append(line)
+                seen.add(line)
+            result.extend(content)
+            index = end
+            continue
+        result.append(line)
+        index += 1
+    return "\n".join(result).strip()
+
+
 def _unique(values: list) -> list:
     result = []
     for value in values:
@@ -95,8 +121,15 @@ def organize_sections(
     for unit in content_units or []:
         anchors = [entity_mentions[e] for e in unit.get("anchor_entity_ids", []) if e in entity_mentions]
         if (
-            unit.get("unit_type") not in PLACE_KINDS
-            or len(unit.get("anchor_entity_ids", [])) != 1 or len(anchors) != 1
+            (
+                unit.get("unit_type") not in PLACE_KINDS
+                and not (
+                    unit.get("unit_type") == "MULTI_PLACE_LIST"
+                    and unit.get("reading_derivation") == "shared-scenic-introduction"
+                )
+            )
+            or len(unit.get("anchor_entity_ids", [])) != 1
+            or len(anchors) != 1
         ):
             continue
         uid = unit["content_unit_id"]
@@ -125,17 +158,20 @@ def organize_sections(
             ids = legacy_scopes[index]
             item["organization_basis"] = "具名标题、相邻已绑定地点章节与逐字来源区间一致；仅阅读归组"
         identities = {_identity(known[mid]) for mid in ids}
-        roots = {
-            unit_roots.get(getattr(known[mid], "content_unit_id", ""), mid) for mid in ids
-        }
+        roots = {unit_roots.get(getattr(known[mid], "content_unit_id", ""), mid) for mid in ids}
         rooted = [
-            root for uid, root in unit_roots.items()
+            root
+            for uid, root in unit_roots.items()
             if evidence and evidence <= unit_segments[uid] and (not roots or roots == {root})
         ]
         within_destination = bool(ids) and roots == set(rooted)
-        if len(set(rooted)) == 1 and (
-            kind not in COMPARISON_KINDS
-            or (within_destination and kind in {"CATEGORY_COMPARE", "MULTI_PLACE_LIST"})
+        if (
+            kind != "SOURCE_REVIEW"
+            and len(set(rooted)) == 1
+            and (
+                kind not in COMPARISON_KINDS
+                or (within_destination and kind in {"CATEGORY_COMPARE", "MULTI_PLACE_LIST"})
+            )
         ):
             root = rooted[0]
             key = ("PLACE", _identity(known[root]))
@@ -157,16 +193,21 @@ def organize_sections(
             merged["section_kind"] = "PLACE_GUIDE"
         bodies = []
         all_quotes = [
-            line[2:].strip() for item in members
-            for line in str(item.get("body_markdown", "")).splitlines() if line.startswith("> ")
+            line[2:].strip()
+            for item in members
+            for line in str(item.get("body_markdown", "")).splitlines()
+            if line.startswith("> ")
         ]
         seen_quotes = set()
         seen_bullets = set()
         seen_labels = set()
         review_labels = {
-            "作者意见或归纳待核对，以原文为准：", "以下原文尚未形成完整归纳：",
-            "作者意见与条件原文：", "作者原文（保留意见、条件与局部限制）：",
+            "作者意见或归纳待核对，以原文为准：",
+            "以下原文尚未形成完整归纳：",
+            "作者意见与条件原文：",
+            "作者原文（保留意见、条件与局部限制）：",
             "以下来源片段可能含尚未归纳的限制：",
+            "来源描述（不作为独立推荐态度）：",
         }
         for item in members:
             body = str(item.get("body_markdown") or item.get("summary") or "").strip()
@@ -189,7 +230,7 @@ def organize_sections(
             cleaned = []
             for index, line in enumerate(lines):
                 if line in review_labels:
-                    following = next((v for v in lines[index + 1:] if v.strip()), "")
+                    following = next((v for v in lines[index + 1 :] if v.strip()), "")
                     if line in seen_labels or not following.startswith("> "):
                         continue
                     seen_labels.add(line)
@@ -212,6 +253,7 @@ def organize_sections(
         merged["body_markdown"] = "\n\n".join(
             (f"### {heading}\n\n" if len(bodies) > 1 and heading else "") + body for heading, body in bodies
         )
+        merged["body_markdown"] = _clean_source_subheadings(merged["body_markdown"])
         for field in ["segment_ids", "place_mention_ids", "supporting_quotes", "evidence_quotes", "bullets"]:
             merged[field] = _unique([value for item in members for value in item.get(field, [])])
         merged["source_section_ids"] = _unique(
@@ -235,9 +277,10 @@ def organize_sections(
             merged["end_ms"] = max(ends)
         result.append(merged)
     # Destination chapters first; independent comparisons/topics follow, stable within each set.
-    return sorted(result, key=lambda item: (
-        0 if item.get("section_kind") in PLACE_KINDS else 1, item.get("start_ms") or 0
-    ))
+    return sorted(
+        result,
+        key=lambda item: (0 if item.get("section_kind") in PLACE_KINDS else 1, item.get("start_ms") or 0),
+    )
 
 
 def structured_overview(sections: list[dict], fallback: str, limit: int = 300) -> str:
@@ -274,3 +317,68 @@ def destination_overview(sections):
     if names:
         return "视频介绍了" + "、".join(names) + "的看点与出行条件。正文按目的地整理，附有原文与待核对事项。"
     return "视频要点和相关来源见下文。"
+
+
+def source_context_sections(mentions, units, segments):
+    """Keep source themes and descriptions without promoting them to author recommendations."""
+    from zhijian.services.recommendation_intent import mention_opinion
+
+    texts = {s.id: str(s.corrected_text or s.text) for s in segments}
+    order = {s.id: i for i, s in enumerate(segments)}
+    first_guide = min(
+        (
+            order[sid]
+            for u in units
+            if u.get("anchor_entity_ids")
+            for sid in u.get("segment_ids", [])
+            if sid in order
+        ),
+        default=0,
+    )
+    result, seen = [], set()
+    for unit in units:
+        ids = unit.get("segment_ids", [])
+        intro_list = (
+            unit.get("unit_type") == "MULTI_PLACE_LIST"
+            and ids
+            and all(sid in order and order[sid] < first_guide for sid in ids)
+        )
+        if (unit.get("unit_type") != "THEME" and not intro_list) or unit.get("anchor_entity_ids") or not ids:
+            continue
+        if not set(ids) <= texts.keys():
+            continue
+        quote = "".join(texts[sid] for sid in ids)
+        result.append(
+            {
+                "heading": "视频主题与范围",
+                "section_kind": "THEME",
+                "segment_ids": ids,
+                "place_mention_ids": [],
+                "supporting_quotes": [quote],
+                "body_markdown": "视频主题原文：\n\n> " + quote,
+            }
+        )
+    for mention in mentions:
+        for item in mention_opinion(mention).get("rejected_statements", []):
+            ids, quote = item.get("segment_ids", []), str(item.get("quote") or "")
+            key = (mention.id, tuple(ids), quote)
+            if (
+                item.get("reason") != "NO_EXPLICIT_OVERALL_OPINION"
+                or key in seen
+                or not quote
+                or not set(ids) <= texts.keys()
+                or re.sub(r"\s+", "", quote) not in re.sub(r"\s+", "", "".join(texts[sid] for sid in ids))
+            ):
+                continue
+            seen.add(key)
+            result.append(
+                {
+                    "heading": mention.name + " · 来源描述",
+                    "section_kind": "PLACE_GUIDE",
+                    "segment_ids": ids,
+                    "place_mention_ids": [mention.id],
+                    "supporting_quotes": [quote],
+                    "body_markdown": "来源描述（不作为独立推荐态度）：\n\n> " + quote,
+                }
+            )
+    return result

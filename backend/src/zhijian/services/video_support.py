@@ -1681,6 +1681,10 @@ def _ground_section(
             related = [mention for mention in related if mention.content_unit_id == item["content_unit_id"]]
         if len(related) != 1:
             related = []
+    if item.get("attribution_status") == "NEEDS_REVIEW":
+        if requested_ids:
+            return None
+        related = []
     kind = str(item.get("unit_type") or item.get("section_kind") or "").upper()
     if kind not in NOTE_SECTION_KINDS:
         kind = "PLACE" if related else "SUPPLEMENTAL"
@@ -1714,6 +1718,11 @@ def _ground_section(
             default=item.get("start_ms"),
         ),
     }
+
+
+
+
+
 
 
 def _high_information_bullets(values: list[object]) -> tuple[list[str], int]:
@@ -1799,6 +1808,7 @@ def _compact_note_facts(facts: list[dict[str, object]]) -> list[dict[str, object
         value = {
             "content_unit_id": str(fact.get("content_unit_id") or ""),
             "claim_ids": list(fact.get("claim_ids") or []),
+            "attribution_status": fact.get("attribution_status"),
             "subject_entity_ids": list(fact.get("subject_entity_ids") or []),
             "summary": str(fact.get("summary") or "")[:800],
             "key_points": list(dict.fromkeys(str(item)[:300] for item in fact.get("key_points", []) if item))[
@@ -1820,6 +1830,11 @@ def _compact_note_facts(facts: list[dict[str, object]]) -> list[dict[str, object
             compact.append(value)
             seen.add(key)
     return compact
+
+
+
+
+
 
 
 def _note_evidence_packs(
@@ -2510,7 +2525,11 @@ def generate_note(
             if "title_temporal_context" in entry
         )
     )
-    from zhijian.ai.note_evidence import project_note_evidence, validate_source_attribution
+    from zhijian.ai.note_evidence import (
+        project_note_evidence,
+        validate_pack_coverage,
+        validate_source_attribution,
+    )
 
     place_evidence_json = json.dumps(project_note_evidence(place_evidence), ensure_ascii=False)
     raw_sections: list[dict[str, object]] = []
@@ -2524,6 +2543,7 @@ def generate_note(
             "content_unit_id": item.get("content_unit_id", ""),
             "claim_ids": [item.get("claim_id", "")],
             "subject_entity_ids": item.get("subject_entity_ids", []),
+            "attribution_status": item.get("attribution_status"),
         }
         for item in semantic_claims
         if isinstance(item, dict)
@@ -2663,7 +2683,7 @@ def generate_note(
                     "AI_PROVIDER_ATTEMPT_BUDGET", "笔记归纳已达到尝试上限", switch_model=False
                 )
             pack_evidence_json = json.dumps(
-                project_note_evidence(_pack_place_evidence(place_evidence, pack)),
+                project_note_evidence(_pack_place_evidence(place_evidence, pack), pack=pack),
                 ensure_ascii=False,
             )
             messages = [
@@ -2688,10 +2708,15 @@ def generate_note(
                     job=job,
                     stage="NOTE_REDUCE",
                     capability="GLOBAL_SYNTHESIS",
-                    result_validator=lambda result: validate_source_attribution(
-                        parse_model_json(result.content),
-                        _pack_place_evidence(place_evidence, pack),
-                        asset.title,
+                    result_validator=lambda result: (
+                        validate_source_attribution(
+                            parse_model_json(result.content),
+                            _pack_place_evidence(place_evidence, pack), asset.title
+                        ),
+                        validate_pack_coverage(
+                            parse_model_json(result.content), pack,
+                            source_texts={s.id: str(s.corrected_text or s.text) for s in segments},
+                        ),
                     ),
                     provider=provider,
                     provider_name=provider_name,
@@ -2811,6 +2836,11 @@ def generate_note(
             for item in sections if isinstance(sections, list) else []:
                 if not isinstance(item, dict) or not item.get("supporting_quotes"):
                     continue
+                if any(f.get("attribution_status") == "NEEDS_REVIEW" and
+                       any(_normalized_text(q) in _normalized_text(value)
+                           for q in f.get("supporting_quotes", [])
+                           for value in item["supporting_quotes"]) for f in pack):
+                    item = {**item, "attribution_status": "NEEDS_REVIEW", "unit_type": "SOURCE_REVIEW"}
                 ids = set(item.get("segment_ids", []))
                 mids = set(item.get("place_mention_ids", []))
                 if not ids or not ids <= pack_ids or not mids <= set(scopes):
@@ -3029,8 +3059,14 @@ def generate_note(
         overview += "\n\n作者意见与条件：\n" + "\n".join(attitude_lines)
     if grounded_map is not None:
         from zhijian.services.note_quality import source_gaps
+        from zhijian.services.note_structure import source_context_sections
 
-        gaps = source_gaps(segments, semantic_claims, grounded_map.content_units_json or [])
+        for item in source_context_sections(mentions, grounded_map.content_units_json or [], segments):
+            if (value := _ground_section(item, segments, mentions, place_scopes)) is not None:
+                grounded_sections.append(value)
+        gaps = source_gaps(
+            segments, semantic_claims, grounded_map.content_units_json or [], sections=grounded_sections
+        )
         for gap in gaps:
             item = {
                 "heading": "待核对的原文限制", "section_kind": "SOURCE_REVIEW",
@@ -3076,7 +3112,9 @@ def generate_note(
         map_facts_json=map_facts,
         model_provider=response.provider,
         model_name=response.model,
-        prompt_version=f"video-note-v5-quality+{prompt_supplement_hash(db, 'video_note_summary', job)[:8]}",
+        prompt_version=(
+            f"video-note-v5-quality-citations-v2+{prompt_supplement_hash(db, 'video_note_summary', job)[:8]}"
+        ),
         render_profile_id=profile_id,
         render_profile_version=str(render_profile["version"]),
         transcript_version=transcript.version,
@@ -3183,10 +3221,33 @@ def generate_note(
         job.payload_json = {
             **job.payload_json,
             "note_generation_mode": note_generation_mode,
+            "note_generation_results": {
+                **job.payload_json.get("note_generation_results", {}),
+                version.id: {"note_version_id": version.id, "generation_mode": note_generation_mode,
+                             "omitted_fact_count": len(missing)},
+            },
         }
     sync_video_note_search_index(db, note, version, asset)
     db.commit()
     return version
+
+
+
+
+
+
+
+def _recommendation_peer_names(item, candidates, _content_units):
+    # Roles and grouping alone cannot prove that a peer's recommendation belongs to this place.
+    return [
+        str(other.get("raw_name") or other.get("name") or "") for other in candidates
+        if other.get("entity_id") != item.get("entity_id")
+    ]
+
+
+
+
+
 
 
 def extract_place_mentions(
@@ -3329,11 +3390,7 @@ def extract_place_mentions(
             visit_intent = "NOT_APPLICABLE"
         if visit_intent == "NOT_RECOMMENDED":
             poi_policy = "RESOLVE"  # Review queue eligibility; resolver gates out actual lookup.
-        item["_peer_names"] = [
-            str(other.get("raw_name") or other.get("name") or "")
-            for other in candidates
-            if other.get("entity_id") != item.get("entity_id")
-        ]
+        item["_peer_names"] = _recommendation_peer_names(item, candidates, content_units)
         identity = classify_entity(item)
         if identity["identity"] in {"UNRESOLVED_NAME", "GENERIC", "LINEAR", "WAYPOINT"}:
             poi_policy = "REFERENCE_ONLY"
@@ -3501,6 +3558,11 @@ def extract_place_mentions(
         created.append(mention)
     db.commit()
     return created
+
+
+
+
+
 
 
 def _normalized_insight_key(value: object) -> str:
@@ -3914,7 +3976,17 @@ def resolve_mentions_with_amap(
         candidates = candidate_results.get(mention.id, [])
         if isinstance(candidates, Exception):
             exc = candidates
-            mention.metadata_json = {**mention.metadata_json, "poi_error": str(exc)[:240]}
+            mention.resolution_status = ResolutionStatus.REVIEW.value
+            mention.metadata_json = {
+                **mention.metadata_json,
+                "poi_error": str(exc)[:240],
+                "poi_candidates": [],
+                "poi_candidates_source": "AUTO",
+                "poi_decision": "REVIEW",
+                "poi_search_trace": {"version": "poi-search-v1", "mode": "AUTO", "status": "FAILED"},
+                "reason_codes": ["POI_SEARCH_FAILED"],
+                "reason": "地点搜索失败，等待重试",
+            }
             continue
         if isinstance(candidates, POISearchResults):
             mention.metadata_json = {**mention.metadata_json, "poi_search_trace": candidates.trace}
@@ -3922,6 +3994,9 @@ def resolve_mentions_with_amap(
                 mention.resolution_status = ResolutionStatus.REVIEW.value
                 mention.metadata_json = {
                     **mention.metadata_json,
+                    "poi_candidates": [],
+                    "poi_candidates_source": "AUTO",
+                    "poi_decision": "REVIEW",
                     "reason_codes": ["POI_SEARCH_FAILED"],
                     "reason": "地点搜索失败，等待重试",
                 }

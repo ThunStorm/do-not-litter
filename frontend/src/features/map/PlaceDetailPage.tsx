@@ -37,8 +37,8 @@ type Detail = {
   visual_facts?: Array<{ id: string; fact_type: string; value: string; evidence_url: string }>
 } & Record<string, unknown>
 
-type KnowledgeObservation = { source_title: string; source_quote: string; segment_ids: string[]; evidence_url?: string }
-type KnowledgeItem = { insight_type: string; value_text: string; state: string; source_count: number; current: boolean; observations: KnowledgeObservation[] }
+type KnowledgeObservation = { observed_at?: string | null; recorded_at?: string; time_basis?: string; source_title: string; source_quote: string; segment_ids: string[]; evidence_url?: string }
+type KnowledgeItem = { comparison_context?: { subject: string; conditions: string; unit: string; period: string }; insight_type: string; value_text: string; state: string; source_count: number; current: boolean; observations: KnowledgeObservation[] }
 type Knowledge = Record<string, KnowledgeItem[]> & { consensus?: Record<string, string>; sources?: { source_id: string; title: string }[] }
 
 type WindowDraft = {
@@ -71,12 +71,12 @@ function PlaceKnowledge({ knowledge, brief }: { knowledge?: Knowledge; brief?: T
     return items.length ? [[key, label, items] as const] : []
   })
   if (!sections.length) return null
-  return <section className="detail-section place-business"><h2>更多地点信息</h2><div className="place-business__grid">{sections.map(([key, label, items]) => <section key={key}><h3>{label}</h3><ul>{items.map((item, i) => <li key={`${key}-${i}`}><p>{placeText(item.value_text)}</p>{item.state === 'CONFLICT' && <small className="place-data-conflict">资料存在差异，可在下方原句与来源中核对依据。</small>}{!item.current && <small>较早记录</small>}</li>)}</ul></section>)}</div></section>
+  return <section className="detail-section place-business"><h2>更多地点信息</h2><div className="place-business__grid">{sections.map(([key, label, items]) => <section key={key}><h3>{label}</h3><ul>{items.map((item, i) => <li key={`${key}-${i}`}><p>{placeText(item.value_text)}</p>{item.comparison_context && <small>{Object.values(item.comparison_context).join(' · ')}</small>}{item.state === 'CONFLICT' && <small className="place-data-conflict">资料存在差异，可在下方原句与来源中核对依据。</small>}{item.state === 'UNDETERMINED' && <small>条件或时间依据不足，无法判断是否一致；请逐条核对。</small>}</li>)}</ul></section>)}</div></section>
 }
 function KnowledgeSources({ knowledge }: { knowledge?: Knowledge }) {
   const items = Object.entries(knowledgeLabels).flatMap(([key, label]) => (knowledge?.[key] ?? []).map((item) => ({ ...item, label })))
   if (!items.length) return null
-  return <section className="detail-section place-source-records"><h2>原句与来源</h2>{items.map((item, i) => <article key={i}><strong>{item.label} · {item.value_text}</strong>{item.observations.map((o, j) => <blockquote key={j}><small>{o.source_title}</small><p>{o.source_quote || '未保存引文'}</p>{o.evidence_url && <Link to={o.evidence_url}>查看原笔记</Link>}</blockquote>)}</article>)}</section>
+  return <section className="detail-section place-source-records"><h2>原句与来源</h2><p>来源数仅表示收录来源数量，不代表独立现场验证；费用、营业和排队记录不保证当前有效。</p>{items.map((item, i) => <article key={i}><strong>{item.label} · {item.value_text}</strong>{item.observations.map((o, j) => <blockquote key={j}><small>{o.source_title}{o.observed_at ? ` · 观察于 ${o.observed_at.slice(0, 10)}` : o.recorded_at ? ` · 收录于 ${o.recorded_at.slice(0, 10)}（观察时间未知）` : ' · 时间未记录'}</small><p>{o.source_quote || '未保存引文'}</p>{o.evidence_url && <Link to={o.evidence_url}>查看原笔记</Link>}</blockquote>)}</article>)}</section>
 }
 
 export function PlaceDetailPage() {

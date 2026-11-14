@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Ban, Check, Circle, Clock3, Copy, ExternalLink, LoaderCircle, RotateCcw, Wifi, WifiOff } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useLocation } from 'react-router-dom'
 
 import { api } from '../../lib/api'
 import { formatBeijingDateTime } from '../../lib/time'
@@ -13,6 +13,8 @@ import { formatStepDuration, formatTokenUsage, isTimelineCurrent, stepLabel } fr
 export function TaskDetailPage() {
   const { jobId = '' } = useParams()
   const navigate = useNavigate()
+  const routerLocation = useLocation()
+  const returnTo = routerLocation.state?.returnTo?.startsWith('/tasks') ? routerLocation.state.returnTo : '/tasks'
   const queryClient = useQueryClient()
   const [streamState, setStreamState] = useState<'live' | 'fallback' | 'closed'>('fallback')
   const [sourceCopied, setSourceCopied] = useState(false)
@@ -21,15 +23,15 @@ export function TaskDetailPage() {
   const aiUsage = useQuery({ queryKey: ['job-ai-usage', jobId], queryFn: () => api.jobAiUsage(jobId), enabled: Boolean(jobId), refetchInterval: job.data?.status === 'RUNNING' ? 3000 : false })
   const replay = useQuery({ queryKey: ['job-replay-options', jobId], queryFn: () => api.replayOptions(jobId), enabled: Boolean(job.data), refetchInterval: (query) => job.data?.status === 'CANCELLED' && !query.state.data?.full_replay_available ? 3000 : false })
   const bilibili = useQuery({ queryKey: ['bilibili-settings'], queryFn: api.bilibiliSettings, enabled: job.data?.error_code === 'VIDEO_LOGIN_REQUIRED' })
-  const stepRetry = useMutation({ mutationFn: (profileId: string | null) => api.retryJobFromStep(jobId, replay.data!.replay_from_step!, Boolean(profileId), profileId ?? undefined), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['job', jobId] }); void queryClient.invalidateQueries({ queryKey: ['job-replay-options', jobId] }); void queryClient.invalidateQueries({ queryKey: ['jobs'] }) } })
-  const skipLogin = useMutation({ mutationFn: () => api.skipJobLoginStep(jobId), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['job', jobId] }); void queryClient.invalidateQueries({ queryKey: ['job-replay-options', jobId] }); void queryClient.invalidateQueries({ queryKey: ['jobs'] }) } })
-  const fullRetry = useMutation({ mutationFn: () => api.retryJobFull(jobId), onSuccess: (result) => { void queryClient.invalidateQueries({ queryKey: ['jobs'] }); navigate(`/tasks/${result.job_id}`) } })
-  const cancel = useMutation({ mutationFn: () => api.cancelJob(jobId), onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['job', jobId] }) })
+  const stepRetry = useMutation({ mutationFn: (profileId: string | null) => api.retryJobFromStep(jobId, replay.data!.replay_from_step!, Boolean(profileId), profileId ?? undefined), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['job', jobId] }); void queryClient.invalidateQueries({ queryKey: ['job-replay-options', jobId] }); void queryClient.invalidateQueries({ queryKey: ['jobs'] }); void queryClient.invalidateQueries({ queryKey: ['review-issues'] }) } })
+  const skipLogin = useMutation({ mutationFn: () => api.skipJobLoginStep(jobId), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['job', jobId] }); void queryClient.invalidateQueries({ queryKey: ['job-replay-options', jobId] }); void queryClient.invalidateQueries({ queryKey: ['jobs'] }); void queryClient.invalidateQueries({ queryKey: ['review-issues'] }) } })
+  const fullRetry = useMutation({ mutationFn: () => api.retryJobFull(jobId), onSuccess: (result) => { void queryClient.invalidateQueries({ queryKey: ['jobs'] }); void queryClient.invalidateQueries({ queryKey: ['review-issues'] }); navigate(`/tasks/${result.job_id}`) } })
+  const cancel = useMutation({ mutationFn: () => api.cancelJob(jobId), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['job', jobId] }); void queryClient.invalidateQueries({ queryKey: ['review-issues'] }) } })
   useEffect(() => {
     if (!jobId || job.data?.status !== 'RUNNING') return
     const socket = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/jobs/${jobId}/stream`)
     socket.onopen = () => setStreamState('live')
-    socket.onmessage = () => { void queryClient.invalidateQueries({ queryKey: ['job', jobId] }); void queryClient.invalidateQueries({ queryKey: ['jobs'] }) }
+    socket.onmessage = () => { void queryClient.invalidateQueries({ queryKey: ['job', jobId] }); void queryClient.invalidateQueries({ queryKey: ['jobs'] }); void queryClient.invalidateQueries({ queryKey: ['review-issues'] }) }
     socket.onerror = () => setStreamState('fallback')
     socket.onclose = () => setStreamState((current) => current === 'live' ? 'closed' : current)
     return () => socket.close()
@@ -61,7 +63,7 @@ export function TaskDetailPage() {
     window.setTimeout(() => setSourceCopied(false), 1400)
   }
   const actionError = stepRetry.error || skipLogin.error || fullRetry.error
-  return <div className="task-detail page-frame"><header className="detail-topbar"><Link to="/tasks"><ArrowLeft />返回任务</Link><span>运行详情</span><div><button onClick={() => cancel.mutate()} disabled={!['RUNNING', 'QUEUED'].includes(job.data.status)}><Ban />取消</button><button onClick={requestFullReplay} disabled={fullRetry.isPending}><RotateCcw />以原模型重跑</button></div></header>{actionError && <p className="form-error task-action-error" role="alert">{actionError instanceof Error ? actionError.message : '重新运行失败'}</p>}<section className={`task-hero ${partial ? 'task-hero--partial' : ''}`}><div className="task-hero__heading"><h1>{job.data.title}</h1>{job.data.source_url && <button className="button button--outline task-hero__copy" onClick={() => void copySourceUrl()} aria-label="复制来源地址"><Copy />{sourceCopied ? '已复制' : '复制地址'}</button>}</div><p><span className="status-dot" />{partial ? '部分成功，仍需确认' : `${statusLabel(job.data.status)} · ${job.data.progress}%`}</p>{partial && <small>{job.data.completion_summary || '所有处理步骤已完成；部分补充信息待处理'}</small>}<div className="progress-track"><span style={{ width: `${job.data.progress}%` }} /></div></section>{job.data.error && <section className="task-error-card"><strong>{noteRouteBlocked ? '笔记模型不可用' : job.data.error_code || 'TASK_ERROR'}</strong><span>{job.data.error}<small>{noteRouteBlocked ? '此任务保留了提交时的模型设置；可在下方选择当前笔记模型继续。' : interventionHint(job.data.error_code)}</small></span><Link to={`/logs?job_id=${encodeURIComponent(jobId)}`}>查看关联日志 <ExternalLink /></Link></section>}
+  return <div className="task-detail page-frame"><header className="detail-topbar"><Link to={returnTo}><ArrowLeft />返回任务</Link><span>运行详情</span><div><button onClick={() => cancel.mutate()} disabled={!['RUNNING', 'QUEUED'].includes(job.data.status)}><Ban />取消</button><button onClick={requestFullReplay} disabled={fullRetry.isPending}><RotateCcw />以原模型重跑</button></div></header>{actionError && <p className="form-error task-action-error" role="alert">{actionError instanceof Error ? actionError.message : '重新运行失败'}</p>}<section className={`task-hero ${partial ? 'task-hero--partial' : ''}`}><div className="task-hero__heading"><h1>{job.data.title}</h1>{job.data.source_url && <button className="button button--outline task-hero__copy" onClick={() => void copySourceUrl()} aria-label="复制来源地址"><Copy />{sourceCopied ? '已复制' : '复制地址'}</button>}</div><p><span className="status-dot" />{partial ? '部分成功，仍需确认' : `${statusLabel(job.data.status)} · ${job.data.progress}%`}</p>{partial && <small>{job.data.completion_summary || '所有处理步骤已完成；部分补充信息待处理'}</small>}<div className="progress-track"><span style={{ width: `${job.data.progress}%` }} /></div></section>{job.data.error && <section className="task-error-card"><strong>{noteRouteBlocked ? '笔记模型不可用' : job.data.error_code || 'TASK_ERROR'}</strong><span>{job.data.error}<small>{noteRouteBlocked ? '此任务保留了提交时的模型设置；可在下方选择当前笔记模型继续。' : interventionHint(job.data.error_code)}</small></span><Link to={`/logs?job_id=${encodeURIComponent(jobId)}`}>查看关联日志 <ExternalLink /></Link></section>}
     {loginRequired && replay.data ? (
       <section className="task-login-recovery">
         <div className="task-login-recovery__intro"><strong>登录状态失效，任务已安全暂停</strong><span>后续步骤尚未执行。扫码更新登录凭证后可从“{stepLabel(replay.data.replay_from_step ?? job.data.current_step)}”继续；非核心截图步骤也可以直接跳过。</span></div>

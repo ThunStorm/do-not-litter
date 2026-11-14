@@ -1,9 +1,11 @@
 """Deterministic normalization and evidence-preserving Place knowledge views."""
+
 from __future__ import annotations
 
 import re
 from collections import defaultdict
-from datetime import datetime
+from datetime import UTC, datetime
+from math import isfinite
 from typing import Any
 
 VOLATILE_TYPES = {"PRICE", "QUEUE", "OPENING_HOURS", "MENU", "TICKET"}
@@ -61,15 +63,19 @@ def aggregate_place_knowledge(
     for insight_type, items in by_type.items():
         clusters: list[list[Any]] = []
         for item in items:
-            target = next((cluster for cluster in clusters if _equivalent(cluster[0], item)), None)
+            target = next(
+                (cluster for cluster in clusters if all(_equivalent(member, item) for member in cluster)),
+                None,
+            )
             if target is None:
                 clusters.append([item])
             else:
                 target.append(item)
         states: list[str] = []
-        latest = max(items, key=_observed_at) if insight_type in VOLATILE_TYPES else None
+        dated = [item for item in items if _explicit_observed_at(item) is not None]
+        latest = max(dated, key=_observed_at) if dated and insight_type in VOLATILE_TYPES else None
         for cluster in clusters:
-            state = _state(cluster, len(clusters))
+            state = _state(cluster, clusters)
             states.append(state)
             observations = [
                 _observation(item, source_titles) for item in sorted(cluster, key=_observed_at, reverse=True)
@@ -83,12 +89,21 @@ def aggregate_place_knowledge(
                     "source_count": len({item.source_id for item in cluster if item.source_id}),
                     "evidence_complete": all(_evidence_complete(item) for item in cluster),
                     "provenance": _provenance(cluster),
-                    "current": latest in cluster if latest is not None else True,
+                    "current": latest in cluster if latest is not None else False,
+                    "time_basis": "OBSERVED" if latest is not None else "RECORDED",
+                    "independent_verification": "UNKNOWN",
+                    "comparison_context": (cluster[0].value_json or {}).get("comparison_context"),
                     "observations": observations,
                 }
             )
         consensus[insight_type] = (
-            "CONFLICT" if "CONFLICT" in states else "CONSENSUS" if "CONSENSUS" in states else "SINGLE_SOURCE"
+            "CONFLICT"
+            if "CONFLICT" in states
+            else "UNDETERMINED"
+            if "UNDETERMINED" in states
+            else "CONSENSUS"
+            if "CONSENSUS" in states
+            else "SINGLE_SOURCE"
         )
     return {
         "highlights": knowledge["highlights"],
@@ -111,7 +126,7 @@ def _numeric_range(text: str, insight_type: str) -> dict[str, int | str] | None:
     for phrase, bounds in CHINESE_RANGES.items():
         if phrase in text:
             return {"min": bounds[0], "max": bounds[1], "unit": "CNY" if insight_type == "PRICE" else "MIN"}
-    numbers = [int(value) for value in re.findall(r"\d+(?:\.\d+)?", text)]
+    numbers = [float(value) if "." in value else int(value) for value in re.findall(r"\d+(?:\.\d+)?", text)]
     if not numbers:
         phrases = re.findall(r"[一二三四五六七八九十两百]+", text)
         numbers = [_chinese_number(value) for value in phrases if _chinese_number(value) is not None]
@@ -145,27 +160,66 @@ def _text_key(value: str) -> str:
 def _equivalent(left: Any, right: Any) -> bool:
     left_data = dict(left.value_json or {}).get("normalized", {})
     right_data = dict(right.value_json or {}).get("normalized", {})
-    if (
-        isinstance(left_data, dict)
-        and isinstance(right_data, dict)
-        and {"min", "max"} <= set(left_data)
-        and {"min", "max"} <= set(right_data)
-    ):
-        return int(left_data["min"]) <= int(right_data["max"]) and int(right_data["min"]) <= int(
-            left_data["max"]
+    if _comparison_context(left) != _comparison_context(right):
+        return False
+    left_bounds, right_bounds = _numeric_bounds(left_data), _numeric_bounds(right_data)
+    if _comparison_context(left) is not None and left_bounds and right_bounds:
+        return (
+            left_bounds[2] == right_bounds[2]
+            and left_bounds[0] <= right_bounds[1]
+            and right_bounds[0] <= left_bounds[1]
         )
     return str(left.value_key or _text_key(left.value_text)) == str(
         right.value_key or _text_key(right.value_text)
     )
 
 
-def _state(cluster: list[Any], cluster_count: int) -> str:
-    if cluster_count > 1:
-        return "CONFLICT"
+def _numeric_bounds(value: Any) -> tuple[float, float, str] | None:
+    if not isinstance(value, dict) or not value.get("unit"):
+        return None
+    try:
+        lower, upper = float(value["min"]), float(value["max"])
+    except (KeyError, ValueError, TypeError):
+        return None
+    return (
+        (lower, upper, str(value["unit"])) if isfinite(lower) and isfinite(upper) and lower <= upper else None
+    )
+
+
+def _comparison_context(item: Any) -> tuple[str, ...] | None:
+    context = (item.value_json or {}).get("comparison_context")
+    if not isinstance(context, dict):
+        return None
+    keys = ("subject", "conditions", "unit", "period")
+    if not all(isinstance(context.get(key), str) and context[key].strip() for key in keys):
+        return None
+    return tuple(context[key].strip() for key in keys)
+
+
+def _state(cluster: list[Any], clusters: list[list[Any]]) -> str:
+    context = _comparison_context(cluster[0])
+    if len(clusters) > 1:
+        # Different wording alone proves neither contradiction nor compatibility.
+        for other in clusters:
+            if other is cluster or context is None or _comparison_context(other[0]) != context:
+                continue
+            for left_item in cluster:
+                for right_item in other:
+                    left_bounds = _numeric_bounds((left_item.value_json or {}).get("normalized"))
+                    right_bounds = _numeric_bounds((right_item.value_json or {}).get("normalized"))
+                    if (
+                        left_item.insight_type in {"PRICE", "QUEUE"}
+                        and left_bounds
+                        and right_bounds
+                        and left_bounds[2] == right_bounds[2]
+                        and (left_bounds[1] < right_bounds[0] or right_bounds[1] < left_bounds[0])
+                    ):
+                        return "CONFLICT"
+        return "UNDETERMINED"
     if len({item.source_id for item in cluster if item.source_id}) >= 2 and all(
         _evidence_complete(item) for item in cluster
     ):
-        return "CONSENSUS"
+        return "CONSENSUS" if context is not None else "UNDETERMINED"
     return "SINGLE_SOURCE"
 
 
@@ -173,18 +227,25 @@ def _evidence_complete(item: Any) -> bool:
     return bool(item.source_id and item.source_quote and item.segment_ids_json)
 
 
-def _observed_at(item: Any) -> datetime:
+def _explicit_observed_at(item: Any) -> datetime | None:
     metadata = item.metadata_json if isinstance(item.metadata_json, dict) else {}
     value = metadata.get("observed_at")
     if isinstance(value, str):
         try:
-            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            return parsed.replace(tzinfo=UTC) if parsed.tzinfo is None else parsed.astimezone(UTC)
         except ValueError:
             pass
-    return item.created_at
+    return None
+
+
+def _observed_at(item: Any) -> datetime:
+    value = _explicit_observed_at(item) or item.created_at
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
 
 
 def _observation(item: Any, source_titles: dict[str, str]) -> dict[str, Any]:
+    observed = _explicit_observed_at(item)
     return {
         "insight_id": item.id,
         "place_mention_id": item.place_mention_id,
@@ -192,7 +253,10 @@ def _observation(item: Any, source_titles: dict[str, str]) -> dict[str, Any]:
         "source_title": source_titles.get(item.source_id or "", "来源未命名"),
         "source_quote": item.source_quote,
         "segment_ids": item.segment_ids_json,
-        "observed_at": _observed_at(item).isoformat(),
+        "observed_at": observed.isoformat() if observed else None,
+        "recorded_at": item.created_at.isoformat(),
+        "time_basis": "OBSERVED" if observed else "RECORDED",
+        "comparison_context": (item.value_json or {}).get("comparison_context"),
     }
 
 

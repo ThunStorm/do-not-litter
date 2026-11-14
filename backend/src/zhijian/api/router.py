@@ -674,6 +674,16 @@ def list_jobs(_: Protected, db: Session = Depends(get_db)) -> list[JobView]:
     ]
 
 
+@router.get("/api/review-issues")
+def review_issues(_: Protected, mode: str = "ALL", db: Session = Depends(get_db)) -> dict:
+    from zhijian.services.review_projection import review_projection
+
+    if mode not in {"ALL", "MANUAL", "WAIT"}:
+        raise HTTPException(422, "未知问题筛选")
+    return review_projection(db, mode)
+
+
+
 @router.get("/api/jobs/{job_id}")
 def get_job(job_id: str, _: Protected, db: Session = Depends(get_db)) -> dict:
     job = db.get(Job, job_id)
@@ -2737,7 +2747,9 @@ def place_detail(place_id: str, _: Protected, db: Session = Depends(get_db)) -> 
             for observation in item["observations"]:
                 note_id = note_ids.get(mention_versions.get(observation["place_mention_id"]))
                 if note_id:
-                    observation["evidence_url"] = f"/video-notes/{note_id}"
+                    version_id = mention_versions.get(observation["place_mention_id"])
+                    observation["ai_note_version_id"] = version_id
+                    observation["evidence_url"] = f"/video-notes/{note_id}?version={version_id}"
     preference_events = db.scalars(select(PreferenceEvent).where(PreferenceEvent.place_id == place.id)).all()
     recommendation = recommendation_for_place(
         place,
@@ -3471,6 +3483,8 @@ def place_history(place_id: str, _: Protected, db: Session = Depends(get_db)) ->
 
 
 def _place_review_view(db: Session, mention: PlaceMention) -> dict:
+    from zhijian.services.poi_review import poi_review_contract
+
     metadata = mention.metadata_json or {}
     resolver_context = metadata.get("resolver_context", {})
     resolver_context = resolver_context if isinstance(resolver_context, dict) else {}
@@ -3488,7 +3502,10 @@ def _place_review_view(db: Session, mention: PlaceMention) -> dict:
     )
     transcript = db.scalar(
         select(Transcript)
-        .where(Transcript.video_asset_id == mention.video_asset_id)
+        .where(
+            Transcript.video_asset_id == mention.video_asset_id,
+            Transcript.version == (version.transcript_version if version else -1),
+        )
         .order_by(Transcript.version.desc())
     )
     rows = (
@@ -3505,7 +3522,8 @@ def _place_review_view(db: Session, mention: PlaceMention) -> dict:
         [
             {
                 "id": item.id,
-                "text": item.corrected_text or item.text,
+                "text": item.text,
+                "corrected_text": item.corrected_text,
                 "start_ms": item.locator_json.get("start_ms"),
                 "end_ms": item.locator_json.get("end_ms"),
                 "is_evidence": item.id in mention.segment_ids_json,
@@ -3521,6 +3539,7 @@ def _place_review_view(db: Session, mention: PlaceMention) -> dict:
         .order_by(VideoScreenshot.created_at.desc())
     )
     return {
+        "review_contract": poi_review_contract(db, mention),
         "mention_id": mention.id,
         "recommendation_summary": intent_summary([mention]),
         "name": mention.name,
@@ -3546,6 +3565,7 @@ def _place_review_view(db: Session, mention: PlaceMention) -> dict:
         },
         "source_context": {
             "video_note_id": note.id if note else None,
+            "ai_note_version_id": version.id if version else None,
             "video_title": asset.title if asset else "",
             "canonical_url": asset.canonical_url if asset else "",
             "quote": mention.quote,
@@ -3765,7 +3785,10 @@ def search_place_review(
         commit=False,
     )
     db.commit()
+    from zhijian.services.poi_review import poi_review_contract
+
     return {
+        "review_contract": poi_review_contract(db, mention),
         "mention_id": mention.id,
         "revision": mention.revision,
         "candidates": mention.metadata_json["poi_candidates"],

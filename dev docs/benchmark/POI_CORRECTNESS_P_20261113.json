@@ -1,0 +1,897 @@
+{
+  "cases": 17,
+  "candidate_recall_at_1": 1.0,
+  "candidate_recall_at_3": 1.0,
+  "auto_confirm_precision": 1.0,
+  "auto_confirm_rate": 0.6471,
+  "review_rate": 0.3529,
+  "unresolved_rate": 0.0,
+  "wrong_confirm_count": 0,
+  "statuses": [
+    {
+      "sample_id": "unique-name",
+      "status": "CONFIRMED"
+    },
+    {
+      "sample_id": "chain-store",
+      "status": "REVIEW"
+    },
+    {
+      "sample_id": "same-name-scenic-city",
+      "status": "CONFIRMED"
+    },
+    {
+      "sample_id": "same-city-same-store",
+      "status": "REVIEW"
+    },
+    {
+      "sample_id": "transcript-homophone",
+      "status": "CONFIRMED"
+    },
+    {
+      "sample_id": "alias",
+      "status": "CONFIRMED"
+    },
+    {
+      "sample_id": "explicit-city",
+      "status": "CONFIRMED"
+    },
+    {
+      "sample_id": "missing-city",
+      "status": "REVIEW"
+    },
+    {
+      "sample_id": "nearby-landmark",
+      "status": "REVIEW"
+    },
+    {
+      "sample_id": "cross-place-context",
+      "status": "REVIEW"
+    },
+    {
+      "sample_id": "neighborhood",
+      "status": "CONFIRMED"
+    },
+    {
+      "sample_id": "pedestrian-street",
+      "status": "CONFIRMED"
+    },
+    {
+      "sample_id": "village",
+      "status": "CONFIRMED"
+    },
+    {
+      "sample_id": "town",
+      "status": "CONFIRMED"
+    },
+    {
+      "sample_id": "landmark",
+      "status": "CONFIRMED"
+    },
+    {
+      "sample_id": "other-never-strong",
+      "status": "REVIEW"
+    },
+    {
+      "sample_id": "hotel-vs-landmark",
+      "status": "CONFIRMED"
+    }
+  ],
+  "auto_confirm_count": 11,
+  "unjudged_count": 0,
+  "evidence_level": "EXISTING_SYNTHETIC_GOLDEN_RULE_EXPECTATIONS_NOT_HUMAN_GOLD",
+  "g0": {
+    "records": 127,
+    "unjudged": 127,
+    "poi_judged": 0,
+    "auto_confirm_count": 0,
+    "wrong_confirm_count": null
+  },
+  "historical_13_plus_8": "SNAPSHOT_UNAVAILABLE_NOT_RECONSTRUCTED",
+  "analysis": [
+    {
+      "sample_id": "unique-name",
+      "raw_name": "陶陶居",
+      "city_hint": "广州市",
+      "province_hint": "",
+      "review_reasons": [],
+      "reason_codes": [],
+      "decision": {
+        "version": "poi-v3",
+        "decision": "AUTO_EXACT",
+        "selected_provider_id": "ttj-guangzhou",
+        "features": {
+          "name_match": 1.0,
+          "city_match": true,
+          "province_match": false,
+          "district_match": true,
+          "category_match": "STRONG",
+          "nearby_landmark_match": false,
+          "query_consensus_count": 1,
+          "candidate_gap": 100,
+          "coordinate_valid": true,
+          "cross_city_conflict": false,
+          "chain_risk": false,
+          "distance_to_cluster_m": null,
+          "prior_confirmation_match": false,
+          "normalized_token_overlap": 0.0,
+          "unit_city_match": false
+        }
+      },
+      "candidate_categories": [
+        "STRONG"
+      ],
+      "score_gap": null,
+      "query_completeness": "NOT_RUN_SAVED_CANDIDATES",
+      "detail": "NOT_RUN"
+    },
+    {
+      "sample_id": "chain-store",
+      "raw_name": "喜茶",
+      "city_hint": "北京市",
+      "province_hint": "",
+      "review_reasons": [
+        "第一、二候选差距过小"
+      ],
+      "reason_codes": [
+        "CANDIDATE_GAP_SMALL"
+      ],
+      "decision": {
+        "version": "poi-v3",
+        "decision": "REVIEW",
+        "features": {
+          "name_match": 1.0,
+          "city_match": true,
+          "province_match": false,
+          "district_match": false,
+          "category_match": "STRONG",
+          "nearby_landmark_match": false,
+          "query_consensus_count": 1,
+          "candidate_gap": 0,
+          "coordinate_valid": true,
+          "cross_city_conflict": false,
+          "chain_risk": true,
+          "distance_to_cluster_m": null,
+          "prior_confirmation_match": false
+        }
+      },
+      "candidate_categories": [
+        "STRONG",
+        "STRONG"
+      ],
+      "score_gap": 0,
+      "query_completeness": "NOT_RUN_SAVED_CANDIDATES",
+      "detail": "NOT_RUN"
+    },
+    {
+      "sample_id": "same-name-scenic-city",
+      "raw_name": "凤凰山",
+      "city_hint": "丹东市",
+      "province_hint": "",
+      "review_reasons": [],
+      "reason_codes": [],
+      "decision": {
+        "version": "poi-v3",
+        "decision": "AUTO_EXACT",
+        "selected_provider_id": "fenghuang-dandong",
+        "features": {
+          "name_match": 1.0,
+          "city_match": true,
+          "province_match": false,
+          "district_match": false,
+          "category_match": "STRONG",
+          "nearby_landmark_match": false,
+          "query_consensus_count": 1,
+          "candidate_gap": 20,
+          "coordinate_valid": true,
+          "cross_city_conflict": false,
+          "chain_risk": false,
+          "distance_to_cluster_m": null,
+          "prior_confirmation_match": false,
+          "normalized_token_overlap": 0.0,
+          "unit_city_match": false
+        }
+      },
+      "candidate_categories": [
+        "STRONG",
+        "STRONG"
+      ],
+      "score_gap": 20,
+      "query_completeness": "NOT_RUN_SAVED_CANDIDATES",
+      "detail": "NOT_RUN"
+    },
+    {
+      "sample_id": "same-city-same-store",
+      "raw_name": "四季民福烤鸭店",
+      "city_hint": "北京市",
+      "province_hint": "",
+      "review_reasons": [
+        "第一、二候选差距过小"
+      ],
+      "reason_codes": [
+        "CANDIDATE_GAP_SMALL"
+      ],
+      "decision": {
+        "version": "poi-v3",
+        "decision": "REVIEW",
+        "features": {
+          "name_match": 1.0,
+          "city_match": true,
+          "province_match": false,
+          "district_match": true,
+          "category_match": "STRONG",
+          "nearby_landmark_match": false,
+          "query_consensus_count": 1,
+          "candidate_gap": 0,
+          "coordinate_valid": true,
+          "cross_city_conflict": false,
+          "chain_risk": true,
+          "distance_to_cluster_m": null,
+          "prior_confirmation_match": false
+        }
+      },
+      "candidate_categories": [
+        "STRONG",
+        "STRONG"
+      ],
+      "score_gap": 0,
+      "query_completeness": "NOT_RUN_SAVED_CANDIDATES",
+      "detail": "NOT_RUN"
+    },
+    {
+      "sample_id": "transcript-homophone",
+      "raw_name": "水路案",
+      "city_hint": "西安市",
+      "province_hint": "",
+      "review_reasons": [],
+      "reason_codes": [],
+      "decision": {
+        "version": "poi-v3",
+        "decision": "AUTO_EXACT",
+        "selected_provider_id": "shuilu-an",
+        "features": {
+          "name_match": 1.0,
+          "city_match": true,
+          "province_match": false,
+          "district_match": false,
+          "category_match": "STRONG",
+          "nearby_landmark_match": false,
+          "query_consensus_count": 1,
+          "candidate_gap": 100,
+          "coordinate_valid": true,
+          "cross_city_conflict": false,
+          "chain_risk": false,
+          "distance_to_cluster_m": null,
+          "prior_confirmation_match": false,
+          "normalized_token_overlap": 0.0,
+          "unit_city_match": false
+        }
+      },
+      "candidate_categories": [
+        "STRONG"
+      ],
+      "score_gap": null,
+      "query_completeness": "NOT_RUN_SAVED_CANDIDATES",
+      "detail": "NOT_RUN"
+    },
+    {
+      "sample_id": "alias",
+      "raw_name": "国博",
+      "city_hint": "北京市",
+      "province_hint": "",
+      "review_reasons": [],
+      "reason_codes": [],
+      "decision": {
+        "version": "poi-v3",
+        "decision": "AUTO_NORMALIZED",
+        "selected_provider_id": "national-museum",
+        "features": {
+          "name_match": 1.0,
+          "city_match": true,
+          "province_match": false,
+          "district_match": false,
+          "category_match": "STRONG",
+          "nearby_landmark_match": false,
+          "query_consensus_count": 1,
+          "candidate_gap": 100,
+          "coordinate_valid": true,
+          "cross_city_conflict": false,
+          "chain_risk": false,
+          "distance_to_cluster_m": null,
+          "prior_confirmation_match": false,
+          "normalized_token_overlap": 0.0,
+          "unit_city_match": false
+        }
+      },
+      "candidate_categories": [
+        "STRONG"
+      ],
+      "score_gap": null,
+      "query_completeness": "NOT_RUN_SAVED_CANDIDATES",
+      "detail": "NOT_RUN"
+    },
+    {
+      "sample_id": "explicit-city",
+      "raw_name": "洞天乳酸菌",
+      "city_hint": "成都市",
+      "province_hint": "",
+      "review_reasons": [],
+      "reason_codes": [],
+      "decision": {
+        "version": "poi-v3",
+        "decision": "AUTO_EXACT",
+        "selected_provider_id": "dongtian-chengdu",
+        "features": {
+          "name_match": 1.0,
+          "city_match": true,
+          "province_match": false,
+          "district_match": false,
+          "category_match": "STRONG",
+          "nearby_landmark_match": false,
+          "query_consensus_count": 1,
+          "candidate_gap": 100,
+          "coordinate_valid": true,
+          "cross_city_conflict": false,
+          "chain_risk": false,
+          "distance_to_cluster_m": null,
+          "prior_confirmation_match": false,
+          "normalized_token_overlap": 0.0,
+          "unit_city_match": false
+        }
+      },
+      "candidate_categories": [
+        "STRONG"
+      ],
+      "score_gap": null,
+      "query_completeness": "NOT_RUN_SAVED_CANDIDATES",
+      "detail": "NOT_RUN"
+    },
+    {
+      "sample_id": "missing-city",
+      "raw_name": "老街",
+      "city_hint": "",
+      "province_hint": "",
+      "review_reasons": [
+        "候选综合分不足",
+        "地域上下文不足",
+        "地点类型与候选冲突",
+        "第一、二候选差距过小"
+      ],
+      "reason_codes": [
+        "SCORE_BELOW_THRESHOLD",
+        "GEO_CONTEXT_MISSING",
+        "CATEGORY_CONFLICT",
+        "CANDIDATE_GAP_SMALL"
+      ],
+      "decision": {
+        "version": "poi-v3",
+        "decision": "REVIEW",
+        "features": {
+          "name_match": 1.0,
+          "city_match": false,
+          "province_match": false,
+          "district_match": false,
+          "category_match": "INCOMPATIBLE",
+          "nearby_landmark_match": false,
+          "query_consensus_count": 1,
+          "candidate_gap": 0,
+          "coordinate_valid": true,
+          "cross_city_conflict": false,
+          "chain_risk": false,
+          "distance_to_cluster_m": null,
+          "prior_confirmation_match": false
+        }
+      },
+      "candidate_categories": [
+        "INCOMPATIBLE",
+        "INCOMPATIBLE"
+      ],
+      "score_gap": 0,
+      "query_completeness": "NOT_RUN_SAVED_CANDIDATES",
+      "detail": "NOT_RUN"
+    },
+    {
+      "sample_id": "nearby-landmark",
+      "raw_name": "角楼咖啡",
+      "city_hint": "北京市",
+      "province_hint": "",
+      "review_reasons": [],
+      "reason_codes": [],
+      "decision": {
+        "version": "poi-v3",
+        "decision": "REVIEW",
+        "features": {
+          "name_match": 1.0,
+          "city_match": true,
+          "province_match": false,
+          "district_match": false,
+          "category_match": "STRONG",
+          "nearby_landmark_match": true,
+          "query_consensus_count": 1,
+          "candidate_gap": 100,
+          "coordinate_valid": true,
+          "cross_city_conflict": false,
+          "chain_risk": true,
+          "distance_to_cluster_m": null,
+          "prior_confirmation_match": false
+        }
+      },
+      "candidate_categories": [
+        "STRONG"
+      ],
+      "score_gap": null,
+      "query_completeness": "NOT_RUN_SAVED_CANDIDATES",
+      "detail": "NOT_RUN"
+    },
+    {
+      "sample_id": "cross-place-context",
+      "raw_name": "景山公园",
+      "city_hint": "",
+      "province_hint": "",
+      "review_reasons": [
+        "候选综合分不足",
+        "地域上下文不足",
+        "第一、二候选差距过小"
+      ],
+      "reason_codes": [
+        "SCORE_BELOW_THRESHOLD",
+        "GEO_CONTEXT_MISSING",
+        "CANDIDATE_GAP_SMALL"
+      ],
+      "decision": {
+        "version": "poi-v3",
+        "decision": "REVIEW",
+        "features": {
+          "name_match": 1.0,
+          "city_match": false,
+          "province_match": false,
+          "district_match": false,
+          "category_match": "STRONG",
+          "nearby_landmark_match": false,
+          "query_consensus_count": 1,
+          "candidate_gap": 0,
+          "coordinate_valid": true,
+          "cross_city_conflict": false,
+          "chain_risk": false,
+          "distance_to_cluster_m": null,
+          "prior_confirmation_match": false
+        }
+      },
+      "candidate_categories": [
+        "STRONG",
+        "STRONG"
+      ],
+      "score_gap": 0,
+      "query_completeness": "NOT_RUN_SAVED_CANDIDATES",
+      "detail": "NOT_RUN"
+    },
+    {
+      "sample_id": "neighborhood",
+      "raw_name": "五道营胡同",
+      "city_hint": "北京市",
+      "province_hint": "",
+      "review_reasons": [],
+      "reason_codes": [],
+      "decision": {
+        "version": "poi-v3",
+        "decision": "AUTO_EXACT",
+        "selected_provider_id": "wudaoying",
+        "features": {
+          "name_match": 1.0,
+          "city_match": true,
+          "province_match": false,
+          "district_match": false,
+          "category_match": "STRONG",
+          "nearby_landmark_match": false,
+          "query_consensus_count": 1,
+          "candidate_gap": 100,
+          "coordinate_valid": true,
+          "cross_city_conflict": false,
+          "chain_risk": false,
+          "distance_to_cluster_m": null,
+          "prior_confirmation_match": false,
+          "normalized_token_overlap": 0.0,
+          "unit_city_match": false
+        }
+      },
+      "candidate_categories": [
+        "STRONG"
+      ],
+      "score_gap": null,
+      "query_completeness": "NOT_RUN_SAVED_CANDIDATES",
+      "detail": "NOT_RUN"
+    },
+    {
+      "sample_id": "pedestrian-street",
+      "raw_name": "中央大街",
+      "city_hint": "哈尔滨市",
+      "province_hint": "",
+      "review_reasons": [],
+      "reason_codes": [],
+      "decision": {
+        "version": "poi-v3",
+        "decision": "AUTO_EXACT",
+        "selected_provider_id": "central-street",
+        "features": {
+          "name_match": 1.0,
+          "city_match": true,
+          "province_match": false,
+          "district_match": false,
+          "category_match": "STRONG",
+          "nearby_landmark_match": false,
+          "query_consensus_count": 1,
+          "candidate_gap": 100,
+          "coordinate_valid": true,
+          "cross_city_conflict": false,
+          "chain_risk": false,
+          "distance_to_cluster_m": null,
+          "prior_confirmation_match": false,
+          "normalized_token_overlap": 0.0,
+          "unit_city_match": false
+        }
+      },
+      "candidate_categories": [
+        "STRONG"
+      ],
+      "score_gap": null,
+      "query_completeness": "NOT_RUN_SAVED_CANDIDATES",
+      "detail": "NOT_RUN"
+    },
+    {
+      "sample_id": "village",
+      "raw_name": "宏村",
+      "city_hint": "黄山市",
+      "province_hint": "",
+      "review_reasons": [],
+      "reason_codes": [],
+      "decision": {
+        "version": "poi-v3",
+        "decision": "AUTO_EXACT",
+        "selected_provider_id": "hongcun",
+        "features": {
+          "name_match": 1.0,
+          "city_match": true,
+          "province_match": false,
+          "district_match": false,
+          "category_match": "STRONG",
+          "nearby_landmark_match": false,
+          "query_consensus_count": 1,
+          "candidate_gap": 100,
+          "coordinate_valid": true,
+          "cross_city_conflict": false,
+          "chain_risk": false,
+          "distance_to_cluster_m": null,
+          "prior_confirmation_match": false,
+          "normalized_token_overlap": 0.0,
+          "unit_city_match": false
+        }
+      },
+      "candidate_categories": [
+        "STRONG"
+      ],
+      "score_gap": null,
+      "query_completeness": "NOT_RUN_SAVED_CANDIDATES",
+      "detail": "NOT_RUN"
+    },
+    {
+      "sample_id": "town",
+      "raw_name": "沙溪古镇",
+      "city_hint": "大理白族自治州",
+      "province_hint": "",
+      "review_reasons": [],
+      "reason_codes": [],
+      "decision": {
+        "version": "poi-v3",
+        "decision": "AUTO_EXACT",
+        "selected_provider_id": "shaxi",
+        "features": {
+          "name_match": 1.0,
+          "city_match": true,
+          "province_match": false,
+          "district_match": false,
+          "category_match": "STRONG",
+          "nearby_landmark_match": false,
+          "query_consensus_count": 1,
+          "candidate_gap": 100,
+          "coordinate_valid": true,
+          "cross_city_conflict": false,
+          "chain_risk": false,
+          "distance_to_cluster_m": null,
+          "prior_confirmation_match": false,
+          "normalized_token_overlap": 0.0,
+          "unit_city_match": false
+        }
+      },
+      "candidate_categories": [
+        "STRONG"
+      ],
+      "score_gap": null,
+      "query_completeness": "NOT_RUN_SAVED_CANDIDATES",
+      "detail": "NOT_RUN"
+    },
+    {
+      "sample_id": "landmark",
+      "raw_name": "东方明珠",
+      "city_hint": "上海市",
+      "province_hint": "",
+      "review_reasons": [],
+      "reason_codes": [],
+      "decision": {
+        "version": "poi-v3",
+        "decision": "AUTO_NORMALIZED",
+        "selected_provider_id": "oriental-pearl",
+        "features": {
+          "name_match": 1.0,
+          "city_match": true,
+          "province_match": false,
+          "district_match": false,
+          "category_match": "STRONG",
+          "nearby_landmark_match": false,
+          "query_consensus_count": 1,
+          "candidate_gap": 100,
+          "coordinate_valid": true,
+          "cross_city_conflict": false,
+          "chain_risk": false,
+          "distance_to_cluster_m": null,
+          "prior_confirmation_match": false,
+          "normalized_token_overlap": 0.0,
+          "unit_city_match": false
+        }
+      },
+      "candidate_categories": [
+        "STRONG"
+      ],
+      "score_gap": null,
+      "query_completeness": "NOT_RUN_SAVED_CANDIDATES",
+      "detail": "NOT_RUN"
+    },
+    {
+      "sample_id": "other-never-strong",
+      "raw_name": "春熙路",
+      "city_hint": "成都市",
+      "province_hint": "",
+      "review_reasons": [
+        "候选综合分不足",
+        "地点类型尚无可靠分类映射"
+      ],
+      "reason_codes": [
+        "SCORE_BELOW_THRESHOLD",
+        "CATEGORY_UNMAPPED"
+      ],
+      "decision": {
+        "version": "poi-v3",
+        "decision": "REVIEW",
+        "features": {
+          "name_match": 1.0,
+          "city_match": true,
+          "province_match": false,
+          "district_match": false,
+          "category_match": "UNMAPPED",
+          "nearby_landmark_match": false,
+          "query_consensus_count": 1,
+          "candidate_gap": 100,
+          "coordinate_valid": true,
+          "cross_city_conflict": false,
+          "chain_risk": false,
+          "distance_to_cluster_m": null,
+          "prior_confirmation_match": false
+        }
+      },
+      "candidate_categories": [
+        "UNMAPPED"
+      ],
+      "score_gap": null,
+      "query_completeness": "NOT_RUN_SAVED_CANDIDATES",
+      "detail": "NOT_RUN"
+    },
+    {
+      "sample_id": "hotel-vs-landmark",
+      "raw_name": "天鹅堡",
+      "city_hint": "贵阳市",
+      "province_hint": "",
+      "review_reasons": [],
+      "reason_codes": [],
+      "decision": {
+        "version": "poi-v3",
+        "decision": "AUTO_NORMALIZED",
+        "selected_provider_id": "swan-landmark",
+        "features": {
+          "name_match": 1.0,
+          "city_match": true,
+          "province_match": false,
+          "district_match": false,
+          "category_match": "STRONG",
+          "nearby_landmark_match": false,
+          "query_consensus_count": 1,
+          "candidate_gap": 30,
+          "coordinate_valid": true,
+          "cross_city_conflict": false,
+          "chain_risk": false,
+          "distance_to_cluster_m": null,
+          "prior_confirmation_match": false,
+          "normalized_token_overlap": 0.0,
+          "unit_city_match": false
+        }
+      },
+      "candidate_categories": [
+        "STRONG",
+        "INCOMPATIBLE"
+      ],
+      "score_gap": 30,
+      "query_completeness": "NOT_RUN_SAVED_CANDIDATES",
+      "detail": "NOT_RUN"
+    }
+  ],
+  "baseline_comparison": {
+    "scope": "SCORING_RULES_UNCHANGED",
+    "baseline_auto_confirm_count": 11,
+    "candidate_auto_confirm_count": 11,
+    "baseline_wrong_confirm_count": 0,
+    "candidate_wrong_confirm_count": 0,
+    "human_judged_poi_count": 0
+  },
+  "validation": {
+    "checks": {
+      "steps": [
+        {
+          "name": "ruff",
+          "command": [
+            "/Volumes/D/Projects/Codework/Git/do-not-litter/.venv/bin/python",
+            "-m",
+            "ruff",
+            "check",
+            "backend/src",
+            "backend/tests"
+          ],
+          "exit_code": 0,
+          "network_blocked_attempts": 0,
+          "seconds": 0.074
+        },
+        {
+          "name": "ruff-g0",
+          "command": [
+            "/Volumes/D/Projects/Codework/Git/do-not-litter/.venv/bin/python",
+            "-m",
+            "ruff",
+            "check",
+            "--config",
+            "backend/pyproject.toml",
+            "scripts/check_g0.py",
+            "scripts/check_quality_baseline.py",
+            "scripts/offline_guard/sitecustomize.py"
+          ],
+          "exit_code": 0,
+          "network_blocked_attempts": 0,
+          "seconds": 0.029
+        },
+        {
+          "name": "backend",
+          "command": [
+            "/Volumes/D/Projects/Codework/Git/do-not-litter/.venv/bin/python",
+            "-m",
+            "pytest",
+            "backend/tests",
+            "-q",
+            "--tb=short",
+            "--junitxml=/private/tmp/poi-p-20261113/full/backend.junit.xml"
+          ],
+          "exit_code": 0,
+          "network_blocked_attempts": 0,
+          "seconds": 189.148
+        },
+        {
+          "name": "frontend-lint",
+          "command": [
+            "pnpm",
+            "--dir",
+            "frontend",
+            "lint"
+          ],
+          "exit_code": 0,
+          "network_blocked_attempts": 0,
+          "seconds": 1.598
+        },
+        {
+          "name": "frontend-test",
+          "command": [
+            "pnpm",
+            "--dir",
+            "frontend",
+            "test"
+          ],
+          "exit_code": 0,
+          "network_blocked_attempts": 0,
+          "seconds": 4.909
+        },
+        {
+          "name": "frontend-types",
+          "command": [
+            "pnpm",
+            "--dir",
+            "frontend",
+            "exec",
+            "tsc",
+            "-b"
+          ],
+          "exit_code": 0,
+          "network_blocked_attempts": 0,
+          "seconds": 2.625
+        },
+        {
+          "name": "frontend-build",
+          "command": [
+            "pnpm",
+            "--dir",
+            "frontend",
+            "exec",
+            "vite",
+            "build",
+            "--outDir",
+            "/var/folders/k2/yx7m7z457ydcjnyk4dgj2fjr0000gn/T/g0-check-3moot237/dist"
+          ],
+          "exit_code": 0,
+          "network_blocked_attempts": 0,
+          "seconds": 1.459
+        },
+        {
+          "name": "quality",
+          "command": [
+            "/Volumes/D/Projects/Codework/Git/do-not-litter/.venv/bin/python",
+            "scripts/check_quality_baseline.py",
+            "--output",
+            "/private/tmp/poi-p-20261113/full/quality.json"
+          ],
+          "exit_code": 0,
+          "network_blocked_attempts": 0,
+          "seconds": 2.233
+        }
+      ],
+      "guard_selftests": {
+        "python_caught": true,
+        "python_child": true,
+        "node_caught": true
+      },
+      "network_blocked_attempts": 0,
+      "hosted_ci": "HOSTED_NOT_RUN",
+      "platform": "darwin",
+      "platform_gaps": [
+        "Real macOS Keychain",
+        "Real Vision/OCR",
+        "LaunchAgent lifecycle",
+        "Real Provider/AMap/media",
+        "Independent human gold/holdout"
+      ],
+      "python": "3.12.14 (main, Aug 25 2026, 13:50:33) [Clang 22.1.3 ]",
+      "versions": {
+        "node": "v22.21.0",
+        "pnpm": "11.19.0"
+      }
+    },
+    "backend_tests": 970,
+    "frontend_tests": 64,
+    "target_tests": 49,
+    "quality_pytest_exit_code": 0,
+    "source_reachability": {
+      "reachable": 127,
+      "total": 127,
+      "rate": 1.0,
+      "scope": "Frozen file references only; unknown DB identities remain null"
+    },
+    "logs_directory": "/tmp/poi-p-20261113/full",
+    "real_amap": "NOT_RUN",
+    "production_confirmation": "NOT_RUN",
+    "historical_writeback": "NOT_RUN"
+  },
+  "provenance": {
+    "head": "e9c509913208480604295f3db6acf4053f73a221",
+    "dirty_worktree": true,
+    "sha256": {
+      "backend/src/zhijian/services/video_support.py": "0f2c75cc6ca7b459ace9b288ff2e669a44fbf96f17212953a78e255e0cdffaf4",
+      "backend/src/zhijian/services/poi_review.py": "e672346b9d388ae305e39bd355c405bdf5999bd732e26689ef38796ab9085cb9",
+      "backend/src/zhijian/api/router.py": "f8c7bb08adf433e284659d1291f34a448a9870f1f286e648e26a7d7d2c888796",
+      "backend/tests/test_poi_review_contract.py": "01bed669b78f2d616c186c4f2ef2afb8c82a24d0b74cbcb744b524198a65353e",
+      "backend/tests/fixtures/poi_review_v1.json": "c1234c142412e063f21871b66be59fc9cba8cb7240cdb771fd06fa1a4d1a4a21",
+      "dev docs/benchmark/poi-resolution-golden-v2.json": "bbf1410098827164d86d2a70c667afc791f46f421017eba8b7dfbb456b99d777"
+    }
+  }
+}

@@ -43,6 +43,7 @@
 | testing/、benchmark/ | 测试策略与样本说明；机器可读验收样本 |
 | design/ | 前端视觉设计契约；设计资源仍在仓库 design/ui/ |
 | planning/ | 待办池、未来路线、[字幕一致性优化方案](planning/VIDEO_TRANSCRIPT_ALIGNMENT_OPTIMIZATION_PLAN.md)、[多平台链接 Adapter 调研计划](planning/SOCIAL_LINK_ADAPTER_FEASIBILITY_PLAN.md)；不自动授权实施 |
+| planning/video-workflow-20261112/ | [视频工作流增量计划总览](planning/video-workflow-20261112/README.md)：原七份 Plan 审校、八个执行包、依赖顺序与 Agent 验收契约；仅文档，不自动授权实施 |
 | history/ | 历史实施记录和已覆盖的旧计划；仅追溯时读取 |
 
 | 领域 | 文档与职责 |
@@ -68,7 +69,7 @@
 | 控制台 / 运维 | [CONTROL_CENTER](product/CONTROL_CENTER.md) 信息结构；[OPERATIONS_UI_SPEC](operations/OPERATIONS_UI_SPEC.md) 工作台交互；[LOGGING](operations/LOGGING.md) 日志契约与维护 |
 | 运行监控 / Provider | [监控与预设](operations/RUNTIME_MONITOR_AND_MODEL_PRESETS_SPEC.md)、[内存口径与预设切换](operations/RUNTIME_MONITOR_AND_PROVIDER_SWITCH_V06_SPEC.md) |
 | 部署 | [DEPLOYMENT_OPTIONS](operations/DEPLOYMENT_OPTIONS.md) 支持边界；[Mac mini 操作说明](../deploy/macos/README.md) 安装与维护 |
-| 验证 / 样本 | [TESTING_AND_ACCEPTANCE](testing/TESTING_AND_ACCEPTANCE.md) 验证策略；[GOLDEN_SAMPLES](testing/GOLDEN_SAMPLES.md) 样本/Fixture；[视频 Fixture Golden](benchmark/video-workflow-golden-v1.json) 、[云南时节与路线回归](benchmark/YUNNAN_REGRESSION_ACCEPTANCE_20261028.md) 与 benchmark/ 仅验收任务按需查看 |
+| 验证 / 样本 | [TESTING_AND_ACCEPTANCE](testing/TESTING_AND_ACCEPTANCE.md) 验证策略；[GOLDEN_SAMPLES](testing/GOLDEN_SAMPLES.md) 样本/Fixture；[单视频内容质量验收](benchmark/VIDEO_CONTENT_QUALITY_ACCEPTANCE_20261114.md)（正文条件通过、候选/金标边界保留）；[请求超时与共享片段归属修复验收](benchmark/VIDEO_TIMEOUT_AND_SCOPE_ACCEPTANCE_20261113.md)（限定修复通过、内容仍待核）；[G0 共享离线基线](benchmark/GOLDEN_QUALITY_BASELINE.md)（裁定/CI 未验边界）；[R 失败恢复与成本核对](benchmark/RELIABILITY_R_20261113.md)（零调用反例与成本未知口径）；[U 入口与复核](benchmark/REVIEW_EXPERIENCE_U_20261113.md)、[S 来源核对](benchmark/EXISTING_SOURCES_S_20261113.md)、[K 条件与时间](benchmark/PLACE_KNOWLEDGE_K_20261113.md)；[P POI 后端与 U 契约](benchmark/POI_CORRECTNESS_P_20261113.md)（合成验证与人工裁定缺口）；[Q 内容质量核对](benchmark/CONTENT_QUALITY_Q_20261113.md)（离线通过、裁定与首偏差链缺口）；[视频 Fixture Golden](benchmark/video-workflow-golden-v1.json) 、[云南时节与路线回归](benchmark/YUNNAN_REGRESSION_ACCEPTANCE_20261028.md) 与 benchmark/ 仅验收任务按需查看 |
 | 设计 / 授权 | [design/ui](../design/ui/README.md) → 目标版本/页面；[THIRD_PARTY_NOTICES](../THIRD_PARTY_NOTICES.md) 授权记录 |
 | 提示词 / 写交接 | [CODEX_TASK_TEMPLATES](CODEX_TASK_TEMPLATES.md) 三条短指令；交接固定更新 CURRENT_HANDOFF.md 的任务续接段，不另建文件 |
 | 历史 / 未来 | [历史实施记录](history/IMPLEMENTATION_HISTORY.md)、[归档实施计划](history/planning/README.md)、[早期工程计划](history/PROJECT_PLAN.md)、[FUTURE_ROADMAP](planning/FUTURE_ROADMAP.md)；均非默认阅读 |

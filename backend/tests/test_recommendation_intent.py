@@ -253,3 +253,119 @@ def test_explicit_different_conditions_do_not_become_universal_recommendation_or
     negative = statement("雨天A不值得去", "NOT_RECOMMENDED", condition="雨天")
     result = assess(candidate([positive, negative]), {"s": "晴天A值得去，雨天A不值得去"})
     assert result["status"] == "UNKNOWN" and result["assessment_status"] == "VERIFIED"
+
+
+@pytest.mark.parametrize(
+    "quote",
+    [
+        "A非常适合去跨年",
+        "A都非常适合这边",
+        "A适合几乎所有人",
+        "这个A就太合适了",
+        "非常推荐A了",
+    ],
+)
+def test_explicit_cross_year_and_named_recommendation_words_remain_grounded(quote):
+    value = candidate([statement(quote)])
+    assert assess(value, {"s": quote})["status"] == "RECOMMENDED"
+    assert assess(value, {"s": "别处的文字"})["status"] == "UNKNOWN"
+
+
+def test_parent_region_name_inside_own_name_is_not_another_subject():
+    quote = "云南景迈山非常适合去跨年"
+    value = candidate([statement(quote)])
+    value.update(name="景迈山", raw_name="云南景迈山", _peer_names=["云南", "海螺沟"])
+    assert "MULTI_OR_WRONG_SUBJECT_QUOTE" not in assess(value, {"s": quote})["reason_codes"]
+    region_only = {**value, "recommendation_evidence": {"statements": [statement("云南值得去")]}}
+    assert assess(region_only, {"s": "云南值得去"})["status"] == "UNKNOWN"
+    other = {**statement(quote), "quote": quote + "，也推荐海螺沟"}
+    value["recommendation_evidence"]["statements"] = [other]
+    assert "MULTI_OR_WRONG_SUBJECT_QUOTE" in assess(value, {"s": other["quote"]})["reason_codes"]
+
+
+@pytest.mark.parametrize("quote", ["A并不太合适", "A不是不适合去跨年", "A风景很好"])
+def test_extended_positive_words_do_not_promote_negative_or_neutral_quotes(quote):
+    assert assess(candidate([statement(quote)]), {"s": quote})["status"] == "UNKNOWN"
+
+
+@pytest.mark.parametrize("quote", ["别推荐A", "有人推荐A", "未推荐A", "没说推荐A"])
+def test_named_recommendation_does_not_match_reported_or_negated_reference(quote):
+    assert assess(candidate([statement(quote)]), {"s": quote})["status"] == "UNKNOWN"
+
+
+def test_scenic_display_suffix_does_not_hide_an_explicit_source_name():
+    quote = "那就非常推荐千山了"
+    value = candidate([statement(quote)])
+    value.update(name="千山风景区", raw_name="辽宁千山")
+    assert assess(value, {"s": quote})["status"] == "RECOMMENDED"
+    value["raw_name"] = "另一个地点"
+    assert assess(value, {"s": quote})["status"] == "UNKNOWN"
+
+
+def test_child_role_cannot_hide_a_wrong_subject_but_explicit_parent_recommendation_is_valid():
+    from zhijian.services.video_support import _recommendation_peer_names
+
+    main = {"entity_id": "a", "name": "千山", "raw_name": "千山", "content_unit_id": "u"}
+    child = {"entity_id": "b", "raw_name": "财神庙", "content_unit_id": "u", "subject_role": "SECONDARY"}
+    units = [{"content_unit_id": "u", "unit_type": "PLACE_GUIDE", "anchor_entity_ids": ["a"]}]
+    main["_peer_names"] = _recommendation_peer_names(main, [main, child], units)
+    assert main["_peer_names"] == ["财神庙"]
+    for quote, expected in [
+        ("想拜财神庙，那就非常推荐千山了", "RECOMMENDED"),
+        ("非常推荐财神庙了", "UNKNOWN"),
+    ]:
+        value = {**candidate([statement(quote)]), **main}
+        assert assess(value, {"s": quote})["status"] == expected
+
+
+def test_named_parent_prefix_cannot_turn_a_child_recommendation_into_a_parent_opinion():
+    value = candidate([statement("非常推荐千山财神庙了")])
+    value.update(name="千山", raw_name="千山", _peer_names=["千山财神庙"])
+    assert assess(value, {"s": "非常推荐千山财神庙了"})["status"] == "UNKNOWN"
+
+
+def test_grounded_rhetorical_cross_year_recommendation_is_not_plain_negation():
+    quote = "这样的组合是不是非常适合去跨年了"
+    assert assess(candidate([statement(quote)]), {"s": quote})["status"] == "RECOMMENDED"
+    for text in ["这里不是非常适合去跨年", "这里是不是不适合去跨年", "这里是不是非常适合去跨年？"]:
+        assert assess(candidate([statement(text)]), {"s": text})["status"] == "UNKNOWN"
+
+
+def test_feature_mislabel_does_not_poison_independent_explicit_recommendation():
+    direct = statement("A值得去")
+    feature = statement("A风景很好")
+    result = assess(candidate([direct, feature]), {"s": "A值得去。A风景很好"})
+    assert result["status"] == "RECOMMENDED"
+    assert [s["quote"] for s in result["statements"]] == ["A值得去"]
+    assert result["rejected_statements"][0]["quote"] == "A风景很好"
+    assert assess(candidate([feature]), {"s": "A风景很好"})["status"] == "UNKNOWN"
+    bad_negative = statement("A不值得去")  # model's positive label contradicts the actual negative words
+    assert assess(candidate([direct, bad_negative]), {"s": "A值得去。A不值得去"})["status"] == "UNKNOWN"
+
+
+def test_unverbatim_local_annotation_is_disclosed_without_losing_local_source_words():
+    local = statement("下雨别来", "NOT_RECOMMENDED", "LOCAL_DETAIL", condition="雨天出行")
+    result = assess(candidate([statement("A值得去"), local]), {"s": "A值得去，下雨别来"})
+    assert result["status"] == "RECOMMENDED"
+    kept = next(s for s in result["statements"] if s["scope"] == "LOCAL_DETAIL")
+    assert kept["quote"] == "下雨别来" and kept["condition"] == ""
+    assert result["rejected_context_annotations"][0]["condition"] == "雨天出行"
+    # Whole-place conditions remain fail-closed; they cannot be erased to create a universal opinion.
+    direct = statement("A值得去", condition="雨天出行")
+    assert assess(candidate([direct]), {"s": "A值得去"})["status"] == "UNKNOWN"
+
+
+def test_unverbatim_feature_annotation_cannot_override_verified_overall_opinion():
+    feature = statement("A冬天能看到花海", condition="某个未注明的月份")
+    result = assess(candidate([statement("A值得去"), feature]), {"s": "A值得去，A冬天能看到花海"})
+    assert result["status"] == "RECOMMENDED"
+    assert result["rejected_statements"][0]["condition"] == "某个未注明的月份"
+    assert assess(candidate([feature]), {"s": feature["quote"]})["status"] == "UNKNOWN"
+
+
+def test_clearing_bad_local_metadata_cannot_hide_an_explicit_whole_place_rejection():
+    for condition in ["", "未经证实的条件"]:
+        bad = statement("A不值得去", "NOT_RECOMMENDED", "LOCAL_DETAIL", condition=condition)
+        result = assess(candidate([statement("A值得去"), bad]), {"s": "A值得去。A不值得去"})
+        assert result["status"] == "UNKNOWN"
+        assert "WHOLE_OPINION_MISSCOPED" in result["reason_codes"]

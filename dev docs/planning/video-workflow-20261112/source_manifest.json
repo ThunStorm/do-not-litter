@@ -1,0 +1,53 @@
+{
+  "review_date": "2026-11-12",
+  "source_directory": "/Volumes/D/UserData/williamli/Downloads",
+  "basis_commit": "e9c509913208480604295f3db6acf4053f73a221",
+  "basis": "local working tree contains pre-existing uncommitted changes; no production verification",
+  "files": [
+    {
+      "filename": "00_总览与执行顺序.md",
+      "bytes": 6058,
+      "sha256": "e39e36ce287404cb7989e01d8afac7ffcb2cc829addad0c8b29718a34acde937"
+    },
+    {
+      "filename": "PLAN_01_VIDEO_QUALITY_AND_GOLDEN.md",
+      "bytes": 7905,
+      "sha256": "0cc69266173e867f0166be676d0baacc4b30d710b6b435eb40a200376ba3893e"
+    },
+    {
+      "filename": "PLAN_02_POI_RESOLUTION_AND_AUTOCONFIRM.md",
+      "bytes": 7523,
+      "sha256": "5ecfe960c313fa208e86dd0e0fe17f69d0a3abe54793e909078dc339e442224e"
+    },
+    {
+      "filename": "PLAN_03_AI_RELIABILITY_AND_TOKEN.md",
+      "bytes": 8001,
+      "sha256": "02867efdb6030b0835f3d887ce3eca9414b621e3414c2992f4194a3f64560b0b"
+    },
+    {
+      "filename": "PLAN_04_EXCEPTION_REVIEW_UX.md",
+      "bytes": 6184,
+      "sha256": "a269cf7ff0b3a7eb0a01d8d2177ef6d2206e8f964a4ea0061535cb2a3ab3e387"
+    },
+    {
+      "filename": "PLAN_05_MULTI_SOURCE_PLACE_KNOWLEDGE.md",
+      "bytes": 6523,
+      "sha256": "c1f50db5aa61e9a22fff2b7bb0931a3e9c1e9eeb3f117b8af312bb084431e11a"
+    },
+    {
+      "filename": "PLAN_06_VIDEO_SOURCE_COMPATIBILITY.md",
+      "bytes": 6691,
+      "sha256": "28f37a323511623e4bb7a4c63991b612913b8cec6869ecc9f597d1243075cc58"
+    },
+    {
+      "filename": "PLAN_07_MAINTAINABILITY_AND_CI.md",
+      "bytes": 6705,
+      "sha256": "dd23f43cee099411a2a608816e3a54522180a594a6078436d5be8c6f6297ab0f"
+    },
+    {
+      "filename": "99_AGENT_派发提示词.md",
+      "bytes": 2712,
+      "sha256": "4e2cdbc2b0043c692e2bb8bad61cd907125b744c2216dbfca4ce2fbbd5bf8187"
+    }
+  ]
+}

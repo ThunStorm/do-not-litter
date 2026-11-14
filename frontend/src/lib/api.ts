@@ -39,12 +39,23 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as { detail?: string | { message?: string } } | null
     const detail = typeof payload?.detail === 'string' ? payload.detail : payload?.detail?.message
-    throw new Error(detail ?? `请求失败：${response.status}`)
+    throw new Error(detail ? `${detail}（${response.status}）` : `请求失败：${response.status}`)
   }
   return response.json() as Promise<T>
 }
 
+export type ReviewContract = {
+  version: string
+  authority: { mention_id: string; revision: number; ai_note_version_id: string | null }
+  classification: string
+  allowed_actions: string[]
+  blocked_by: string[]
+  candidate_actions: Array<{ provider_id: string; allowed_actions: string[]; blocked_by: string[] }>
+}
+export type ReviewIssue = { key: string; job_id: string | null; kind: 'MANUAL' | 'WAIT'; reason: string; label: string; href: string; version_id?: string | null }
+export type ReviewProjection = { issues: ReviewIssue[]; issue_count: number; task_count: number; manual_issue_count: number; manual_task_count: number; waiting_issue_count: number; unknown_task_count: number }
 export type PlaceReview = {
+  review_contract?: ReviewContract
   recommendation_summary?: Recommendation
   visit_intent?: string
   mention_id: string
@@ -61,7 +72,7 @@ export type PlaceReview = {
   revision: number
   candidates: Array<{ provider_id: string; name: string; address: string; city: string; district: string; typecode: string; score: number; match_reasons: string[]; match_explanation?: { nearby_context?: string[]; cross_place_context?: string[] } }>
   review_context: { geo_session_id: string; geo_city: string; anchor_count: number }
-  source_context: { video_note_id: string | null; video_title: string; canonical_url: string; quote: string; segment_ids: string[]; start_ms: number | null; end_ms: number | null; section: { id: string; heading: string; summary: string } | null; transcript_context: Array<{ id: string; text: string; start_ms: number | null; end_ms: number | null; is_evidence: boolean }>; transcript_expired: boolean; screenshot: { id: string; caption: string; image_url: string } | null }
+  source_context: { video_note_id: string | null; ai_note_version_id?: string | null; video_title: string; canonical_url: string; quote: string; segment_ids: string[]; start_ms: number | null; end_ms: number | null; section: { id: string; heading: string; summary: string } | null; transcript_context: Array<{ id: string; text: string; start_ms: number | null; end_ms: number | null; is_evidence: boolean }>; transcript_expired: boolean; screenshot: { id: string; caption: string; image_url: string } | null }
 }
 
 export type VideoPlace = {
@@ -99,6 +110,7 @@ export const api = {
   saveAsrSettings: (defaultProvider: ASRProvider) => request<ASRSettingsView>('/api/settings/asr', { method: 'PUT', headers: jsonHeaders, body: JSON.stringify({ default_provider: defaultProvider }) }),
   lanToken: () => request<{ token: string; display: string; digits: number }>('/api/admin/lan-token'),
   rotateLanToken: () => request<{ token: string; sessions_revoked: boolean }>('/api/admin/lan-token/rotate', { method: 'POST' }),
+  reviewIssues: (mode = 'ALL') => request<ReviewProjection>(`/api/review-issues?mode=${mode}`),
   jobs: () => request<JobView[]>('/api/jobs'),
   job: (id: string) => request<JobView & { steps: Array<{ name: string; status: string; progress: number; error: string | null; started_at: string | null; finished_at: string | null; input: Record<string, unknown>; output: Record<string, unknown> }>; events: LogEventView[] }>(`/api/jobs/${id}`),
   jobAiUsage: (id: string) => request<AIUsageView>(`/api/jobs/${id}/ai-usage`),
@@ -165,7 +177,7 @@ export const api = {
   placeReviewCount: () => request<{ count: number }>('/api/travel/place-reviews/count'),
   confirmPlaceReview: (mentionId: string, poiId: string, expectedRevision: number) => request<{ place_id: string; mention_id: string; resolution_status: string }>(`/api/travel/place-mentions/${mentionId}/confirm`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ provider: 'AMAP', poi_id: poiId, expected_revision: expectedRevision }) }),
   updatePlaceMention: (mentionId: string, action: 'reject' | 'restore') => request(`/api/travel/place-mentions/${mentionId}/${action}`, { method: 'POST' }),
-  searchPlaceReview: (mentionId: string, query: string, expectedRevision: number) => request<{ revision: number; candidates: PlaceReview['candidates']; search_status?: string }>(`/api/travel/place-mentions/${mentionId}/poi-search`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ query, expected_revision: expectedRevision }) }),
+  searchPlaceReview: (mentionId: string, query: string, expectedRevision: number) => request<{ revision: number; candidates: PlaceReview['candidates']; search_status?: string; review_contract?: ReviewContract }>(`/api/travel/place-mentions/${mentionId}/poi-search`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ query, expected_revision: expectedRevision }) }),
   nearbyPois: (longitude: number, latitude: number) => request<Array<{ provider_id: string; name: string; address: string; longitude: number; latitude: number }>>('/api/travel/map/nearby-pois', { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ longitude, latitude }) }),
   searchMapPois: (query: string) => request<Array<{ provider_id: string; name: string; address: string; city?: string; longitude: number; latitude: number }>>('/api/travel/map/place-search', { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ query, expected_revision: 0 }) }),
   createManualPlace: (payload: { mode: 'CUSTOM' | 'AMAP_POI'; name?: string; place_type: string; longitude: number; latitude: number; note?: string; poi_id?: string }) => request<{ place_id: string }>('/api/travel/places', { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) }),
@@ -277,7 +289,7 @@ export const api = {
   videoNotes: (query?: string) => request<VideoNoteView[]>(`/api/video-notes${query ? `?query=${encodeURIComponent(query)}` : ''}`),
   videoCoverText: (id: string) => request<import('./types').CoverTextView>(`/api/video-notes/${id}/cover-text`),
   queueCoverText: (id: string, allowVisual: boolean) => request<{ job_id: string }>(`/api/video-notes/${id}/cover-text?allow_visual=${allowVisual}`, { method: 'POST' }),
-  videoNote: (id: string) => request<VideoNoteDetail>(`/api/video-notes/${id}`),
+  videoNote: (id: string, versionId?: string | null) => request<VideoNoteDetail>(`/api/video-notes/${id}${versionId ? `?version_id=${encodeURIComponent(versionId)}` : ''}`),
   videoTranscript: (id: string) => request<{ text: string; correction_status: string; correction_coverage: number; segments: Array<{ id: string; text: string; raw_text: string; corrected_text: string; correction_status: string; start_ms: number; end_ms: number }> }>(`/api/video-notes/${id}/transcript`),
   videoTranscriptExportUrl: (id: string, version: 'raw' | 'corrected' = 'corrected') => `/api/video-notes/${id}/transcript/export?version=${version}`,
   videoScreenshots: (id: string) => request<VideoScreenshotView[]>(`/api/video-notes/${id}/screenshots`),

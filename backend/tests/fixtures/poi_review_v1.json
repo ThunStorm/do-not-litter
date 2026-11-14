@@ -1,0 +1,841 @@
+{
+  "evidence_level": "SYNTHETIC_MOCK_ONLY",
+  "examples": [
+    {
+      "id": "name_match_weak",
+      "raw_name": "翠湖公园",
+      "candidates": [
+        {
+          "provider_id": "mock-park",
+          "name": "翠湖公园",
+          "province": "云南省",
+          "city": "昆明市",
+          "typecode": "110000",
+          "longitude": 102.7,
+          "latitude": 25.03,
+          "score": 90,
+          "match_explanation": {
+            "category_compatibility": "STRONG",
+            "name_match": 1.0,
+            "city_match": true,
+            "raw_score": 90
+          }
+        }
+      ],
+      "review_contract": {
+        "version": "poi-review-v1",
+        "authority": {
+          "mention_id": "pm_6c7ea93cffe24a69babdee29c9effbaf",
+          "revision": 0,
+          "video_asset_id": "vid_ff2871e5f09740659628615c2395edf9",
+          "submission_job_id": null,
+          "ai_note_version_id": null,
+          "place_id": null,
+          "destination_id": null
+        },
+        "classification": "NAME_UNCERTAIN",
+        "automatic_classification": "NAME_UNCERTAIN",
+        "reason_codes": [
+          "NAME_MATCH_WEAK"
+        ],
+        "resolver_version": "poi-v3",
+        "candidate_source": "AUTO",
+        "search": {
+          "status": "RESULTS",
+          "completeness": "UNKNOWN"
+        },
+        "effective_context": {
+          "city": "昆明市",
+          "province": null,
+          "content_unit_id": ""
+        },
+        "evidence": {
+          "valid": true,
+          "snapshot_id": "snap_98472837b76e4228b182c0398a8e79af",
+          "segment_ids": [
+            "seg_89390195817949a1a71365538e4e1ef7"
+          ],
+          "quote": "推荐翠湖公园",
+          "version": "evidence-trace-v2",
+          "start_ms": 0,
+          "end_ms": 0,
+          "source_id": "src_777c97b54a734128a2b8a3a96f73d3a7"
+        },
+        "allowed_actions": [
+          "SEARCH",
+          "REJECT"
+        ],
+        "blocked_by": [],
+        "candidate_actions": [
+          {
+            "provider_id": "mock-park",
+            "allowed_actions": [
+              "CONFIRM"
+            ],
+            "blocked_by": []
+          }
+        ],
+        "detail_verification": {
+          "status": "NOT_RECORDED",
+          "contextual_candidate": null
+        },
+        "manual_decision": null
+      }
+    },
+    {
+      "id": "candidate_gap_small",
+      "raw_name": "翠湖公园",
+      "candidates": [
+        {
+          "provider_id": "mock-park",
+          "name": "翠湖公园",
+          "province": "云南省",
+          "city": "昆明市",
+          "typecode": "110000",
+          "longitude": 102.7,
+          "latitude": 25.03,
+          "score": 90,
+          "match_explanation": {
+            "category_compatibility": "STRONG",
+            "name_match": 1.0,
+            "city_match": true,
+            "raw_score": 90
+          }
+        }
+      ],
+      "review_contract": {
+        "version": "poi-review-v1",
+        "authority": {
+          "mention_id": "pm_6c7ea93cffe24a69babdee29c9effbaf",
+          "revision": 0,
+          "video_asset_id": "vid_ff2871e5f09740659628615c2395edf9",
+          "submission_job_id": null,
+          "ai_note_version_id": null,
+          "place_id": null,
+          "destination_id": null
+        },
+        "classification": "AMBIGUOUS",
+        "automatic_classification": "AMBIGUOUS",
+        "reason_codes": [
+          "CANDIDATE_GAP_SMALL"
+        ],
+        "resolver_version": "poi-v3",
+        "candidate_source": "AUTO",
+        "search": {
+          "status": "RESULTS",
+          "completeness": "UNKNOWN"
+        },
+        "effective_context": {
+          "city": "昆明市",
+          "province": null,
+          "content_unit_id": ""
+        },
+        "evidence": {
+          "valid": true,
+          "snapshot_id": "snap_98472837b76e4228b182c0398a8e79af",
+          "segment_ids": [
+            "seg_89390195817949a1a71365538e4e1ef7"
+          ],
+          "quote": "推荐翠湖公园",
+          "version": "evidence-trace-v2",
+          "start_ms": 0,
+          "end_ms": 0,
+          "source_id": "src_777c97b54a734128a2b8a3a96f73d3a7"
+        },
+        "allowed_actions": [
+          "SEARCH",
+          "REJECT"
+        ],
+        "blocked_by": [],
+        "candidate_actions": [
+          {
+            "provider_id": "mock-park",
+            "allowed_actions": [
+              "CONFIRM"
+            ],
+            "blocked_by": []
+          }
+        ],
+        "detail_verification": {
+          "status": "NOT_RECORDED",
+          "contextual_candidate": null
+        },
+        "manual_decision": null
+      }
+    },
+    {
+      "id": "category_conflict",
+      "raw_name": "翠湖公园",
+      "candidates": [
+        {
+          "provider_id": "mock-park",
+          "name": "翠湖公园",
+          "province": "云南省",
+          "city": "昆明市",
+          "typecode": "110000",
+          "longitude": 102.7,
+          "latitude": 25.03,
+          "score": 90,
+          "match_explanation": {
+            "category_compatibility": "STRONG",
+            "name_match": 1.0,
+            "city_match": true,
+            "raw_score": 90
+          }
+        }
+      ],
+      "review_contract": {
+        "version": "poi-review-v1",
+        "authority": {
+          "mention_id": "pm_6c7ea93cffe24a69babdee29c9effbaf",
+          "revision": 0,
+          "video_asset_id": "vid_ff2871e5f09740659628615c2395edf9",
+          "submission_job_id": null,
+          "ai_note_version_id": null,
+          "place_id": null,
+          "destination_id": null
+        },
+        "classification": "OBJECT_CATEGORY",
+        "automatic_classification": "OBJECT_CATEGORY",
+        "reason_codes": [
+          "CATEGORY_CONFLICT"
+        ],
+        "resolver_version": "poi-v3",
+        "candidate_source": "AUTO",
+        "search": {
+          "status": "RESULTS",
+          "completeness": "UNKNOWN"
+        },
+        "effective_context": {
+          "city": "昆明市",
+          "province": null,
+          "content_unit_id": ""
+        },
+        "evidence": {
+          "valid": true,
+          "snapshot_id": "snap_98472837b76e4228b182c0398a8e79af",
+          "segment_ids": [
+            "seg_89390195817949a1a71365538e4e1ef7"
+          ],
+          "quote": "推荐翠湖公园",
+          "version": "evidence-trace-v2",
+          "start_ms": 0,
+          "end_ms": 0,
+          "source_id": "src_777c97b54a734128a2b8a3a96f73d3a7"
+        },
+        "allowed_actions": [
+          "SEARCH",
+          "REJECT"
+        ],
+        "blocked_by": [],
+        "candidate_actions": [
+          {
+            "provider_id": "mock-park",
+            "allowed_actions": [
+              "CONFIRM"
+            ],
+            "blocked_by": []
+          }
+        ],
+        "detail_verification": {
+          "status": "NOT_RECORDED",
+          "contextual_candidate": null
+        },
+        "manual_decision": null
+      }
+    },
+    {
+      "id": "query_incomplete",
+      "raw_name": "翠湖公园",
+      "candidates": [
+        {
+          "provider_id": "mock-park",
+          "name": "翠湖公园",
+          "province": "云南省",
+          "city": "昆明市",
+          "typecode": "110000",
+          "longitude": 102.7,
+          "latitude": 25.03,
+          "score": 90,
+          "match_explanation": {
+            "category_compatibility": "STRONG",
+            "name_match": 1.0,
+            "city_match": true,
+            "raw_score": 90
+          }
+        }
+      ],
+      "review_contract": {
+        "version": "poi-review-v1",
+        "authority": {
+          "mention_id": "pm_6c7ea93cffe24a69babdee29c9effbaf",
+          "revision": 0,
+          "video_asset_id": "vid_ff2871e5f09740659628615c2395edf9",
+          "submission_job_id": null,
+          "ai_note_version_id": null,
+          "place_id": null,
+          "destination_id": null
+        },
+        "classification": "INCOMPLETE_CANDIDATES",
+        "automatic_classification": "INCOMPLETE_CANDIDATES",
+        "reason_codes": [
+          "QUERY_INCOMPLETE"
+        ],
+        "resolver_version": "poi-v3",
+        "candidate_source": "AUTO",
+        "search": {
+          "status": "PARTIAL",
+          "completeness": "PARTIAL"
+        },
+        "effective_context": {
+          "city": "昆明市",
+          "province": null,
+          "content_unit_id": ""
+        },
+        "evidence": {
+          "valid": true,
+          "snapshot_id": "snap_98472837b76e4228b182c0398a8e79af",
+          "segment_ids": [
+            "seg_89390195817949a1a71365538e4e1ef7"
+          ],
+          "quote": "推荐翠湖公园",
+          "version": "evidence-trace-v2",
+          "start_ms": 0,
+          "end_ms": 0,
+          "source_id": "src_777c97b54a734128a2b8a3a96f73d3a7"
+        },
+        "allowed_actions": [
+          "SEARCH",
+          "REJECT"
+        ],
+        "blocked_by": [],
+        "candidate_actions": [
+          {
+            "provider_id": "mock-park",
+            "allowed_actions": [
+              "CONFIRM"
+            ],
+            "blocked_by": []
+          }
+        ],
+        "detail_verification": {
+          "status": "NOT_RECORDED",
+          "contextual_candidate": null
+        },
+        "manual_decision": null
+      }
+    },
+    {
+      "id": "detail_verification_failed",
+      "raw_name": "翠湖公园",
+      "candidates": [
+        {
+          "provider_id": "mock-park",
+          "name": "翠湖公园",
+          "province": "云南省",
+          "city": "昆明市",
+          "typecode": "110000",
+          "longitude": 102.7,
+          "latitude": 25.03,
+          "score": 90,
+          "match_explanation": {
+            "category_compatibility": "STRONG",
+            "name_match": 1.0,
+            "city_match": true,
+            "raw_score": 90
+          }
+        }
+      ],
+      "review_contract": {
+        "version": "poi-review-v1",
+        "authority": {
+          "mention_id": "pm_6c7ea93cffe24a69babdee29c9effbaf",
+          "revision": 0,
+          "video_asset_id": "vid_ff2871e5f09740659628615c2395edf9",
+          "submission_job_id": null,
+          "ai_note_version_id": null,
+          "place_id": null,
+          "destination_id": null
+        },
+        "classification": "DETAIL_MISMATCH",
+        "automatic_classification": "DETAIL_MISMATCH",
+        "reason_codes": [
+          "DETAIL_VERIFICATION_FAILED"
+        ],
+        "resolver_version": "poi-v3",
+        "candidate_source": "AUTO",
+        "search": {
+          "status": "RESULTS",
+          "completeness": "UNKNOWN"
+        },
+        "effective_context": {
+          "city": "昆明市",
+          "province": null,
+          "content_unit_id": ""
+        },
+        "evidence": {
+          "valid": true,
+          "snapshot_id": "snap_98472837b76e4228b182c0398a8e79af",
+          "segment_ids": [
+            "seg_89390195817949a1a71365538e4e1ef7"
+          ],
+          "quote": "推荐翠湖公园",
+          "version": "evidence-trace-v2",
+          "start_ms": 0,
+          "end_ms": 0,
+          "source_id": "src_777c97b54a734128a2b8a3a96f73d3a7"
+        },
+        "allowed_actions": [
+          "SEARCH",
+          "REJECT"
+        ],
+        "blocked_by": [],
+        "candidate_actions": [
+          {
+            "provider_id": "mock-park",
+            "allowed_actions": [
+              "CONFIRM"
+            ],
+            "blocked_by": []
+          }
+        ],
+        "detail_verification": {
+          "status": "FAILED",
+          "contextual_candidate": null
+        },
+        "manual_decision": null
+      }
+    },
+    {
+      "id": "poi_search_failed",
+      "raw_name": "翠湖公园",
+      "candidates": [],
+      "review_contract": {
+        "version": "poi-review-v1",
+        "authority": {
+          "mention_id": "pm_6c7ea93cffe24a69babdee29c9effbaf",
+          "revision": 0,
+          "video_asset_id": "vid_ff2871e5f09740659628615c2395edf9",
+          "submission_job_id": null,
+          "ai_note_version_id": null,
+          "place_id": null,
+          "destination_id": null
+        },
+        "classification": "SEARCH_ERROR",
+        "automatic_classification": "SEARCH_ERROR",
+        "reason_codes": [
+          "POI_SEARCH_FAILED"
+        ],
+        "resolver_version": "poi-v3",
+        "candidate_source": "AUTO",
+        "search": {
+          "status": "FAILED",
+          "completeness": "PARTIAL"
+        },
+        "effective_context": {
+          "city": "昆明市",
+          "province": null,
+          "content_unit_id": ""
+        },
+        "evidence": {
+          "valid": true,
+          "snapshot_id": "snap_98472837b76e4228b182c0398a8e79af",
+          "segment_ids": [
+            "seg_89390195817949a1a71365538e4e1ef7"
+          ],
+          "quote": "推荐翠湖公园",
+          "version": "evidence-trace-v2",
+          "start_ms": 0,
+          "end_ms": 0,
+          "source_id": "src_777c97b54a734128a2b8a3a96f73d3a7"
+        },
+        "allowed_actions": [
+          "SEARCH",
+          "REJECT"
+        ],
+        "blocked_by": [],
+        "candidate_actions": [],
+        "detail_verification": {
+          "status": "NOT_RECORDED",
+          "contextual_candidate": null
+        },
+        "manual_decision": null
+      }
+    },
+    {
+      "id": "poi_search_empty",
+      "raw_name": "翠湖公园",
+      "candidates": [],
+      "review_contract": {
+        "version": "poi-review-v1",
+        "authority": {
+          "mention_id": "pm_6c7ea93cffe24a69babdee29c9effbaf",
+          "revision": 0,
+          "video_asset_id": "vid_ff2871e5f09740659628615c2395edf9",
+          "submission_job_id": null,
+          "ai_note_version_id": null,
+          "place_id": null,
+          "destination_id": null
+        },
+        "classification": "NO_RESULTS",
+        "automatic_classification": "NO_RESULTS",
+        "reason_codes": [
+          "POI_SEARCH_EMPTY"
+        ],
+        "resolver_version": "poi-v3",
+        "candidate_source": "AUTO",
+        "search": {
+          "status": "EMPTY",
+          "completeness": "UNKNOWN"
+        },
+        "effective_context": {
+          "city": "昆明市",
+          "province": null,
+          "content_unit_id": ""
+        },
+        "evidence": {
+          "valid": true,
+          "snapshot_id": "snap_98472837b76e4228b182c0398a8e79af",
+          "segment_ids": [
+            "seg_89390195817949a1a71365538e4e1ef7"
+          ],
+          "quote": "推荐翠湖公园",
+          "version": "evidence-trace-v2",
+          "start_ms": 0,
+          "end_ms": 0,
+          "source_id": "src_777c97b54a734128a2b8a3a96f73d3a7"
+        },
+        "allowed_actions": [
+          "SEARCH",
+          "REJECT"
+        ],
+        "blocked_by": [],
+        "candidate_actions": [],
+        "detail_verification": {
+          "status": "NOT_RECORDED",
+          "contextual_candidate": null
+        },
+        "manual_decision": null
+      }
+    },
+    {
+      "id": "source_evidence_invalid",
+      "raw_name": "翠湖公园",
+      "candidates": [
+        {
+          "provider_id": "mock-park",
+          "name": "翠湖公园",
+          "province": "云南省",
+          "city": "昆明市",
+          "typecode": "110000",
+          "longitude": 102.7,
+          "latitude": 25.03,
+          "score": 90,
+          "match_explanation": {
+            "category_compatibility": "STRONG",
+            "name_match": 1.0,
+            "city_match": true,
+            "raw_score": 90
+          }
+        }
+      ],
+      "review_contract": {
+        "version": "poi-review-v1",
+        "authority": {
+          "mention_id": "pm_6c7ea93cffe24a69babdee29c9effbaf",
+          "revision": 0,
+          "video_asset_id": "vid_ff2871e5f09740659628615c2395edf9",
+          "submission_job_id": null,
+          "ai_note_version_id": null,
+          "place_id": null,
+          "destination_id": null
+        },
+        "classification": "INSUFFICIENT_EVIDENCE",
+        "automatic_classification": "INSUFFICIENT_EVIDENCE",
+        "reason_codes": [
+          "SOURCE_EVIDENCE_INVALID"
+        ],
+        "resolver_version": "poi-v3",
+        "candidate_source": "AUTO",
+        "search": {
+          "status": "RESULTS",
+          "completeness": "UNKNOWN"
+        },
+        "effective_context": {
+          "city": "昆明市",
+          "province": null,
+          "content_unit_id": ""
+        },
+        "evidence": {
+          "valid": true,
+          "snapshot_id": "snap_98472837b76e4228b182c0398a8e79af",
+          "segment_ids": [
+            "seg_89390195817949a1a71365538e4e1ef7"
+          ],
+          "quote": "推荐翠湖公园",
+          "version": "evidence-trace-v2",
+          "start_ms": 0,
+          "end_ms": 0,
+          "source_id": "src_777c97b54a734128a2b8a3a96f73d3a7"
+        },
+        "allowed_actions": [
+          "SEARCH",
+          "REJECT"
+        ],
+        "blocked_by": [],
+        "candidate_actions": [
+          {
+            "provider_id": "mock-park",
+            "allowed_actions": [
+              "CONFIRM"
+            ],
+            "blocked_by": []
+          }
+        ],
+        "detail_verification": {
+          "status": "NOT_RECORDED",
+          "contextual_candidate": null
+        },
+        "manual_decision": null
+      }
+    },
+    {
+      "id": "manual_results",
+      "review_contract": {
+        "version": "poi-review-v1",
+        "authority": {
+          "mention_id": "pm_6c7ea93cffe24a69babdee29c9effbaf",
+          "revision": 0,
+          "video_asset_id": "vid_ff2871e5f09740659628615c2395edf9",
+          "submission_job_id": null,
+          "ai_note_version_id": null,
+          "place_id": null,
+          "destination_id": null
+        },
+        "classification": "MANUAL_RESULTS",
+        "automatic_classification": "INSUFFICIENT_EVIDENCE",
+        "reason_codes": [
+          "SOURCE_EVIDENCE_INVALID"
+        ],
+        "resolver_version": "poi-v3",
+        "candidate_source": "MANUAL",
+        "search": {
+          "status": "RESULTS",
+          "completeness": "UNKNOWN"
+        },
+        "effective_context": {
+          "city": "昆明市",
+          "province": null,
+          "content_unit_id": ""
+        },
+        "evidence": {
+          "valid": true,
+          "snapshot_id": "snap_98472837b76e4228b182c0398a8e79af",
+          "segment_ids": [
+            "seg_89390195817949a1a71365538e4e1ef7"
+          ],
+          "quote": "推荐翠湖公园",
+          "version": "evidence-trace-v2",
+          "start_ms": 0,
+          "end_ms": 0,
+          "source_id": "src_777c97b54a734128a2b8a3a96f73d3a7"
+        },
+        "allowed_actions": [
+          "SEARCH",
+          "REJECT"
+        ],
+        "blocked_by": [],
+        "candidate_actions": [
+          {
+            "provider_id": "mock-park",
+            "allowed_actions": [
+              "CONFIRM"
+            ],
+            "blocked_by": []
+          }
+        ],
+        "detail_verification": {
+          "status": "NOT_RECORDED",
+          "contextual_candidate": null
+        },
+        "manual_decision": null
+      },
+      "candidates": [
+        {
+          "provider_id": "mock-park",
+          "name": "翠湖公园",
+          "province": "云南省",
+          "city": "昆明市",
+          "typecode": "110000",
+          "longitude": 102.7,
+          "latitude": 25.03,
+          "score": 90,
+          "match_explanation": {
+            "category_compatibility": "STRONG",
+            "name_match": 1.0,
+            "city_match": true,
+            "raw_score": 90
+          }
+        }
+      ]
+    },
+    {
+      "id": "job_active",
+      "review_contract": {
+        "version": "poi-review-v1",
+        "authority": {
+          "mention_id": "pm_6c7ea93cffe24a69babdee29c9effbaf",
+          "revision": 0,
+          "video_asset_id": "vid_ff2871e5f09740659628615c2395edf9",
+          "submission_job_id": "job_41f2e93d33354f7c96647ededb4e2210",
+          "ai_note_version_id": null,
+          "place_id": null,
+          "destination_id": null
+        },
+        "classification": "MANUAL_RESULTS",
+        "automatic_classification": "INSUFFICIENT_EVIDENCE",
+        "reason_codes": [
+          "SOURCE_EVIDENCE_INVALID"
+        ],
+        "resolver_version": "poi-v3",
+        "candidate_source": "MANUAL",
+        "search": {
+          "status": "RESULTS",
+          "completeness": "UNKNOWN"
+        },
+        "effective_context": {
+          "city": "昆明市",
+          "province": null,
+          "content_unit_id": ""
+        },
+        "evidence": {
+          "valid": true,
+          "snapshot_id": "snap_98472837b76e4228b182c0398a8e79af",
+          "segment_ids": [
+            "seg_89390195817949a1a71365538e4e1ef7"
+          ],
+          "quote": "推荐翠湖公园",
+          "version": "evidence-trace-v2",
+          "start_ms": 0,
+          "end_ms": 0,
+          "source_id": "src_777c97b54a734128a2b8a3a96f73d3a7"
+        },
+        "allowed_actions": [],
+        "blocked_by": [
+          "PLACE_JOB_ACTIVE"
+        ],
+        "candidate_actions": [
+          {
+            "provider_id": "mock-park",
+            "allowed_actions": [],
+            "blocked_by": [
+              "PLACE_JOB_ACTIVE"
+            ]
+          }
+        ],
+        "detail_verification": {
+          "status": "NOT_RECORDED",
+          "contextual_candidate": null
+        },
+        "manual_decision": null
+      },
+      "candidates": [
+        {
+          "provider_id": "mock-park",
+          "name": "翠湖公园",
+          "province": "云南省",
+          "city": "昆明市",
+          "typecode": "110000",
+          "longitude": 102.7,
+          "latitude": 25.03,
+          "score": 90,
+          "match_explanation": {
+            "category_compatibility": "STRONG",
+            "name_match": 1.0,
+            "city_match": true,
+            "raw_score": 90
+          }
+        }
+      ]
+    },
+    {
+      "id": "manual_rejected",
+      "review_contract": {
+        "version": "poi-review-v1",
+        "authority": {
+          "mention_id": "pm_6c7ea93cffe24a69babdee29c9effbaf",
+          "revision": 0,
+          "video_asset_id": "vid_ff2871e5f09740659628615c2395edf9",
+          "submission_job_id": null,
+          "ai_note_version_id": null,
+          "place_id": null,
+          "destination_id": null
+        },
+        "classification": "MANUAL_RESULTS",
+        "automatic_classification": "MANUAL_REJECTED",
+        "reason_codes": [
+          "SOURCE_EVIDENCE_INVALID"
+        ],
+        "resolver_version": "poi-v3",
+        "candidate_source": "MANUAL",
+        "search": {
+          "status": "RESULTS",
+          "completeness": "UNKNOWN"
+        },
+        "effective_context": {
+          "city": "昆明市",
+          "province": null,
+          "content_unit_id": ""
+        },
+        "evidence": {
+          "valid": true,
+          "snapshot_id": "snap_98472837b76e4228b182c0398a8e79af",
+          "segment_ids": [
+            "seg_89390195817949a1a71365538e4e1ef7"
+          ],
+          "quote": "推荐翠湖公园",
+          "version": "evidence-trace-v2",
+          "start_ms": 0,
+          "end_ms": 0,
+          "source_id": "src_777c97b54a734128a2b8a3a96f73d3a7"
+        },
+        "allowed_actions": [
+          "RESTORE"
+        ],
+        "blocked_by": [],
+        "candidate_actions": [
+          {
+            "provider_id": "mock-park",
+            "allowed_actions": [],
+            "blocked_by": [
+              "MENTION_NOT_POI_ELIGIBLE"
+            ]
+          }
+        ],
+        "detail_verification": {
+          "status": "NOT_RECORDED",
+          "contextual_candidate": null
+        },
+        "manual_decision": null
+      },
+      "candidates": [
+        {
+          "provider_id": "mock-park",
+          "name": "翠湖公园",
+          "province": "云南省",
+          "city": "昆明市",
+          "typecode": "110000",
+          "longitude": 102.7,
+          "latitude": 25.03,
+          "score": 90,
+          "match_explanation": {
+            "category_compatibility": "STRONG",
+            "name_match": 1.0,
+            "city_match": true,
+            "raw_score": 90
+          }
+        }
+      ]
+    }
+  ]
+}

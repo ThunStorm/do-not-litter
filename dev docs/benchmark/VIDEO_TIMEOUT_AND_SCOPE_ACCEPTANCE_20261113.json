@@ -1,0 +1,86 @@
+{
+  "sample": "BV1Wx4w67Ef4",
+  "repair_acceptance": "PASS",
+  "content_quality": "NEEDS_REVIEW",
+  "independent_human_gold": false,
+  "scope": "Live metadata identity, reused existing trusted ASR/corrected transcript, genuine downstream model calls and screenshots in isolated DB; no fresh ASR E2E claim",
+  "checks": {
+    "five_primary_destinations_present": true,
+    "claim_quotes_and_segment_ids_reachable": true,
+    "weizhou_wind_and_reservation_preserved": true,
+    "jingmai_local_driving_caution_present": true,
+    "hailuogou_altitude_caution_present": true,
+    "wrong_qianshan_fact_removed": true,
+    "unassigned_source_retained": true,
+    "wanfeng_prediction_not_certainty": true,
+    "exact_note_version_bound": true,
+    "production_business_unchanged": true,
+    "browser_three_breakpoints": true
+  },
+  "note_id": "note_119c385b3ffd44f28c170a48901483c1",
+  "version_id": "ntv_573bf0f82ca34ac69804f37e6c7ecf3b",
+  "map_id": "gma_bbac8d62c811473a8816238bc4877ffb",
+  "claims": 50,
+  "raw_omission_warning_count": 9,
+  "duplicate_headings": {
+    "景迈山": 3,
+    "海螺沟": 3
+  },
+  "poi_status_counts": {
+    "REVIEW": 12,
+    "AREA_UNRESOLVED": 3,
+    "SKIPPED": 6
+  },
+  "automatic_poi_confirmations": 0,
+  "screenshots": {
+    "READY": 9,
+    "REJECTED": 1
+  },
+  "amap_read_requests": 2,
+  "model_attempt_phases": {
+    "video-live-bv1wx4w67ef4-20261113": {
+      "outbound_attempts": 1,
+      "http_200": 0,
+      "cancelled_or_timed_out": 1
+    },
+    "video-timeout-fix-bv1wx4w67ef4-20261113": {
+      "outbound_attempts": 1,
+      "http_200": 0,
+      "cancelled_or_timed_out": 1
+    },
+    "video-timeout-fix-bv1wx4w67ef4-20261113-final": {
+      "outbound_attempts": 2,
+      "http_200": 0,
+      "cancelled_or_timed_out": 2
+    },
+    "video-production-timeout-bv1wx4w67ef4-20261113": {
+      "outbound_attempts": 8,
+      "http_200": 7,
+      "cancelled_or_timed_out": 1
+    },
+    "video-scope-guard-bv1wx4w67ef4-20261113-final": {
+      "outbound_attempts": 6,
+      "http_200": 6,
+      "cancelled_or_timed_out": 0
+    }
+  },
+  "total_outbound_llm_attempts_including_failed_and_cancelled": 18,
+  "provider_usage": "UNKNOWN",
+  "actual_cost": "UNKNOWN",
+  "production_deployed": false,
+  "schema_migration": false,
+  "production_historical_write": false,
+  "video_job_status": "PARTIAL_SUCCESS",
+  "quality_issue_count": 14,
+  "generation_mode": "UNKNOWN",
+  "summarized_fact_count": null,
+  "backend_tests": 951,
+  "frontend_tests": 66,
+  "quality_tests": 151,
+  "browser_viewports": [
+    1440,
+    970,
+    390
+  ],
+  "hosted_ci": "HOSTED_NOT_RUN"
+}

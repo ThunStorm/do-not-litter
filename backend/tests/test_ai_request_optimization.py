@@ -169,6 +169,18 @@ def test_invalid_or_incomplete_json_is_rejected(text):
         parse_json_with_quality(text)
 
 
+@pytest.mark.parametrize("text", [
+    '[{"sections":[]}]',
+    '```json\n[{"sections":[]}]\n```',
+    '[{"sections":[],"quote":"原文} ]不改"}]',
+    '[[{"sections":[]}]]',
+])
+def test_object_inside_root_array_is_not_unwrapped(text):
+    with pytest.raises(AIProviderError) as caught:
+        parse_json_with_quality(text)
+    assert caught.value.code == "AI_PROVIDER_SCHEMA_INVALID"
+
+
 def test_repair_does_not_change_literal_quote():
     assert parse_json_with_quality('{"quote":"原文,}不能改",}')[0]["quote"] == "原文,}不能改"
     assert parse_json_with_quality('说明：{"ok":true}')[1:] == (

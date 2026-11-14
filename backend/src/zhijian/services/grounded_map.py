@@ -231,6 +231,9 @@ def _canonical_payload(
                 "supporting_quote": quote[:1000],
             }
         )
+    from zhijian.services.semantic_identity import guard_shared_segment_scope
+
+    warnings.extend(guard_shared_segment_scope(entities, units, claims, texts))
     return facts, places, warnings, units, entities, relations, claims
 
 
@@ -334,6 +337,7 @@ def get_or_create_grounded_map(
     domain_pack_version = domain_context_hash(domain_versions)
     semantic_options = {
         "travel_semantics_version": "travel-semantics-v2",
+        "source_scope_version": "source-binding-v3-scenic-context",
         "temporal_parser_version": "map-timing-v4",
         "temporal_context_version": VERSION,
         "cover_text_identity": cover_evidence.get("semantic_identity", cover_evidence["identity"]),
@@ -675,11 +679,12 @@ def get_or_create_grounded_map(
                     },
                 )
 
-    from zhijian.services.semantic_identity import join_boundary_entities
+    from zhijian.services.semantic_identity import join_boundary_entities, resolve_review_claims_from_source
 
     entities, content_units, claims, relations = join_boundary_entities(
         entities, content_units, claims, relations, segments
     )
+    resolve_review_claims_from_source(entities, content_units, claims, segments)
     places = entities
     remote_escalation_count = 0
     escalation_reasons = _semantic_escalation_reasons(entities, float(policy.escalation_threshold or 0.6))

@@ -36,6 +36,7 @@ def assess(candidate, texts):
     raw = candidate.get("recommendation_evidence") or {}
     values = raw.get("statements", []) if isinstance(raw, dict) else []
     reasons, statements = set(), []
+    rejected_statements, rejected_contexts = [], []
     if not isinstance(values, list) or len(values) > 80:
         values = []
         reasons.add("INVALID_STATEMENTS")
@@ -53,9 +54,36 @@ def assess(candidate, texts):
         ):
             reasons.add("UNGROUNDED_QUOTE")
             continue
-        if any(v and v not in s.quote for v in (s.condition, s.time_context)):
-            reasons.add("UNGROUNDED_CONTEXT")
-            continue
+        if s.scope == "LOCAL_DETAIL" and any(
+            name
+            and re.search(
+                rf"{re.escape(name)}(?:真的|确实|完全)?(?:不值得[来去]|不推荐[来去]|别来|别去)(?:[。！？；，,;]|$)",
+                _norm(s.quote),
+            )
+            for name in {str(candidate.get("name") or ""), str(candidate.get("raw_name") or "")}
+        ):
+            reasons.add("WHOLE_OPINION_MISSCOPED")
+        ungrounded = {
+            key: getattr(s, key)
+            for key in ("condition", "time_context")
+            if getattr(s, key) and _norm(getattr(s, key)) not in _norm(s.quote)
+        }
+        if ungrounded:
+            if s.scope != "LOCAL_DETAIL":
+                if (
+                    s.intent == "RECOMMENDED"
+                    and s.speaker == "AUTHOR"
+                    and not re.search(r"推荐|建议|适合|合适|值得|首选", s.quote)
+                ):
+                    rejected_statements.append({**s.model_dump(), "reason": "NO_EXPLICIT_OVERALL_OPINION"})
+                    continue
+                reasons.add("UNGROUNDED_CONTEXT")
+                continue
+            rejected_contexts.append(
+                {"statement_id": s.statement_id, "quote": s.quote, "segment_ids": s.segment_ids, **ungrounded}
+            )
+            # These are unsupported model annotations; the full local source quote remains intact.
+            s = s.model_copy(update={key: "" for key in ungrounded})
         if s.scope == "UNCERTAIN" or s.speaker == "UNKNOWN":
             reasons.add("UNCERTAIN_ATTRIBUTION")
         if s.scope == "PLACE_OVERALL" and s.speaker == "AUTHOR":
@@ -64,10 +92,31 @@ def assess(candidate, texts):
                 reasons.add("COMPLEX_NEGATION")
             if re.search(r"有人说|不少人说|听说|据说", s.quote):
                 reasons.add("ATTRIBUTION_NEEDS_REVIEW")
+            if re.search(r"是不是(?:非常|特别|超级)适合", s.quote) and re.search(r"[？?]", s.quote):
+                reasons.add("UNCERTAIN_ATTRIBUTION")
             parts = re.split(r"[，,；;]?(?:但是|不过|但)", s.quote, maxsplit=1)
             own_names = {str(candidate.get("name") or ""), str(candidate.get("raw_name") or "")} - {""}
-            peer_names = set(candidate.get("_peer_names", [])) - own_names
-            if any(name in s.quote for name in peer_names):
+            # A display suffix is not part of an independently named location.
+            raw_name = str(candidate.get("raw_name") or "")
+            for name in list(own_names):
+                short = re.sub(r"(?:风景区|景区)$", "", name)
+                if len(short) >= 2 and raw_name.endswith(short) and short in s.quote:
+                    own_names.add(short)
+            named_positive = any(
+                re.search(
+                    rf"(?:(?:非常|特别|超级)推荐(?:来|去)?{re.escape(name)}|"
+                    rf"(?:^|[，,。；;])推荐(?:来|去)?{re.escape(name)})(?=了|吧|呢|啊|呀|[。！？；，,;\s]|$)|"
+                    rf"{re.escape(name)}(?:就)?太合适了",
+                    s.quote,
+                )
+                for name in own_names
+            )
+            peer_names = {
+                name
+                for name in set(candidate.get("_peer_names", [])) - own_names
+                if not any(name and name in own and own in s.quote for own in own_names)
+            }
+            if any(name in s.quote for name in peer_names) and not named_positive:
                 reasons.add("MULTI_OR_WRONG_SUBJECT_QUOTE")
             local_tail = (
                 len(parts) == 2
@@ -75,20 +124,31 @@ def assess(candidate, texts):
                 and not any(name in parts[1] for name in own_names)
             )
             clause = parts[0] if local_tail else s.quote
+            clause = re.sub(r"是不是(?=(?:非常|特别|超级)适合)", "", clause)
             if re.search(r"(?:游船|菜品|门票|费用|天气|玩法).{0,6}(?:不推荐|不建议|不好)", clause):
                 reasons.add("LOCAL_DETAIL_MISSCOPED")
-            negative = bool(re.search(
-                r"不值得|不推荐|不建议.{0,5}(?:来|去|到访)|别来|别去|不.{0,3}适合|不(?:是|算).{0,3}首选",
-                clause,
-            ))
-            positive = bool(re.search(
-                r"值得(?:来|去|到访)|推荐.{0,8}(?:来|去)|建议.{0,8}(?:来|去)|"
-                r"(?:非常|超级|最)?适合.{0,24}(?:旅游|游玩|喜欢|过来|目的地)|首选",
-                s.quote,
-            ))
-            if (s.intent == "RECOMMENDED" and (negative or not positive)) or (
-                s.intent == "NOT_RECOMMENDED" and not negative
-            ):
+            negative = bool(
+                re.search(
+                    r"不值得|不.{0,3}推荐|别.{0,3}推荐|不建议.{0,5}(?:来|去|到访)|别来|别去|"
+                    r"不.{0,3}(?:适合|合适)|不(?:是|算).{0,3}首选",
+                    clause,
+                )
+            )
+            positive = (
+                bool(
+                    re.search(
+                        r"值得(?:来|去|到访)|推荐.{0,8}(?:来|去)|建议.{0,8}(?:来|去)|"
+                        r"(?:非常|超级|最)?适合.{0,24}(?:旅游|游玩|喜欢|过来|目的地|跨年|这边|这里|所有人)|"
+                        r"(?:非常|超级|最)?适合[。！？.!?]?$|首选",
+                        s.quote,
+                    )
+                )
+                or named_positive
+            )
+            if s.intent == "RECOMMENDED" and not negative and not positive:
+                rejected_statements.append({**s.model_dump(), "reason": "NO_EXPLICIT_OVERALL_OPINION"})
+                continue
+            if (s.intent == "RECOMMENDED" and negative) or (s.intent == "NOT_RECOMMENDED" and not negative):
                 reasons.add("POLARITY_NEEDS_REVIEW")
         statements.append(s.model_dump())
     statements = sorted(
@@ -143,9 +203,12 @@ def assess(candidate, texts):
     )
     return {
         "schema_version": VERSION,
+        "assessment_version": "author-opinion-v2-source-grammar",
         "assessment_status": "NEEDS_REVIEW" if reasons else "VERIFIED" if active else "UNKNOWN",
         "status": status,
         "statements": statements,
+        "rejected_statements": rejected_statements,
+        "rejected_context_annotations": rejected_contexts,
         "reason_codes": sorted(reasons),
     }
 

@@ -31,6 +31,18 @@ def parse_json_with_quality(content: str) -> tuple[dict[str, Any], str, list[str
     if not text:
         raise AIProviderError("AI_PROVIDER_EMPTY_RESPONSE", "模型没有返回内容", retryable=True)
     text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.IGNORECASE).strip()
+    if text.startswith("["):
+        # A container is not commentary: never extract an object from a root array.
+        try:
+            json.loads(text)
+        except json.JSONDecodeError as exc:
+            _check_incomplete_json(exc)
+            raise AIProviderError(
+                "AI_PROVIDER_INVALID_JSON", "模型返回的 JSON 无法解析", retryable=True, cause=exc
+            ) from exc
+        raise AIProviderError(
+            "AI_PROVIDER_SCHEMA_INVALID", "模型返回的 JSON 顶层必须是对象", retryable=True
+        )
     start, end = text.find("{"), text.rfind("}")
     if start < 0:
         try:

@@ -247,3 +247,76 @@ def test_stage_specific_validation_runs_before_cache_write(app_and_session) -> N
                 )
         assert db.query(AICacheEntry).count() == 0
     assert provider.calls == 2
+
+
+@pytest.mark.parametrize(
+    "outcome,hard_deadline,attempt_limit,expected_code,fallback_calls",
+    [
+        ("timeout", 120.0, 2, None, 1),
+        ("timeout", 105.0, 2, "AI_STAGE_WALL_TIME_EXCEEDED", 0),
+        ("timeout", 120.0, 1, "AI_PROVIDER_ATTEMPT_BUDGET", 0),
+        ("cancel", 120.0, 2, "CANCELLED", 0),
+    ],
+)
+def test_request_timeout_preserves_hard_deadline_cancel_and_attempt_budget(
+    app_and_session, monkeypatch, outcome, hard_deadline, attempt_limit, expected_code, fallback_calls
+):
+    from sqlalchemy import select
+
+    from zhijian.providers.llm import OpenAICompatibleProvider
+    from zhijian.services.jobs import JobCancelled
+
+    clock = [100.0]
+    monkeypatch.setattr("zhijian.ai.gateway.perf_counter", lambda: clock[0])
+    _, factory = app_and_session
+    with factory() as db:
+        job = Job(job_type="TRAVEL", status="RUNNING", payload_json={})
+        db.add(job)
+        db.commit()
+
+        class Client(OpenAICompatibleProvider):
+            def __init__(self, primary):
+                super().__init__("fixture", "https://fixture.test", "fixture", timeout=5 if primary else 30)
+                self.primary = primary
+                self.calls = 0
+
+            def generate_json(self, messages, *, model, options=None):
+                self.calls += 1
+                if self.primary:
+                    clock[0] = 106.0
+                    if outcome == "cancel":
+                        job.status = "CANCELLED"
+                        db.commit()
+                    self.cancel_check()
+                    pytest.fail("expired primary must not return or cache a result")
+                return LLMResult('{"changes":[]}', self.name, model, {})
+
+        primary, fallback = Client(True), Client(False)
+        provider = FallbackLLMProvider(
+            primary, "primary", fallback, "fallback",
+            primary_reliability=ModelReliabilityPolicy("STANDARD", retry_count=2),
+            fallback_reliability=ModelReliabilityPolicy("DIRECT"),
+            max_attempts=attempt_limit,
+        )
+        args = dict(
+            job=job, stage="TRANSCRIPT_CORRECTION", capability="LLM", provider=provider,
+            provider_name="fixture", model="primary", messages=[{"role": "user", "content": "原文"}],
+            semantic_options={}, cache_enabled=True, force_regenerate=False,
+            stage_deadline=hard_deadline, max_stage_attempts=attempt_limit,
+        )
+        if expected_code == "CANCELLED":
+            with pytest.raises(JobCancelled):
+                AIWorkloadGateway().execute_cached_json(db, **args)
+        elif expected_code:
+            with pytest.raises(AIProviderError) as caught:
+                AIWorkloadGateway().execute_cached_json(db, **args)
+            assert caught.value.code == expected_code
+        else:
+            result = AIWorkloadGateway().execute_cached_json(db, **args)
+            assert result.model == "fallback"
+            AIWorkloadGateway().execute_cached_json(db, **args)
+        assert primary.calls == 1  # no same-model HTTP retry for an unknown upstream timeout
+        assert fallback.calls == fallback_calls
+        assert primary.timeout == 5 and fallback.timeout == 30
+        assert primary.cancel_check is None and fallback.cancel_check is None
+        assert len(db.scalars(select(AICacheEntry)).all()) == (0 if expected_code else 1)

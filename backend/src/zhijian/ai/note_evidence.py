@@ -20,7 +20,30 @@ CONTEXT_FIELDS = {
 APPLICATION_FIELDS = {"context_id", "relation", "supporting_quote", "segment_ids", "exclusions"}
 
 
-def project_note_evidence(index):
+def project_note_evidence(index, *, pack=None):
+    index = deepcopy(index)
+    opinion_fields = {
+        "schema_version",
+        "assessment_version",
+        "status",
+        "assessment_status",
+        "review_required",
+        "reason_codes",
+        "statements",
+        "legacy_intent",
+    }
+    for row in index:
+        if isinstance(row.get("recommendation_summary"), dict):
+            row["recommendation_summary"] = {
+                key: value for key, value in row["recommendation_summary"].items() if key in opinion_fields
+            }
+        if pack is not None:
+            quotes = {q for f in pack for q in f.get("supporting_quotes", [])}
+            ids = {sid for f in pack for sid in f.get("segment_ids", [])}
+            if set(row.get("quotes", [])) <= quotes:
+                row.pop("quotes", None)
+            if set(row.get("segment_ids", [])) <= ids:
+                row.pop("segment_ids", None)
     if not any(row.get("theme_contexts") for row in index):
         return index
     contexts = {}
@@ -101,3 +124,51 @@ def validate_source_attribution(payload, index, official_title):
             raise AIProviderError(
                 "AI_PROVIDER_SOURCE_ATTRIBUTION_INVALID", "封面月份被错误归因到正式标题", switch_model=False
             )
+
+
+def validate_pack_coverage(payload, pack, *, source_texts=None):
+    """Require citation coverage, without claiming semantic summary recall from IDs."""
+    from zhijian.ai.reliability import AIProviderError
+
+    def compact(value):
+        return "".join(str(value).split())
+
+    missing = 0
+    sections = payload.get("sections", [])
+    if source_texts is not None:
+        allowed_ids = {sid for f in pack for sid in f.get("segment_ids", [])}
+        allowed_places = {mid for f in pack for mid in f.get("place_mention_ids", [])}
+        for section in sections:
+            ids = set(section.get("segment_ids", []))
+            mids = set(section.get("place_mention_ids", []))
+            source = compact("".join(text for sid, text in source_texts.items() if sid in ids))
+            if (
+                not ids
+                or not ids <= allowed_ids
+                or not ids <= source_texts.keys()
+                or not mids <= allowed_places
+                or not section.get("supporting_quotes")
+                or any(not compact(q) or compact(q) not in source for q in section["supporting_quotes"])
+            ):
+                raise AIProviderError(
+                    "AI_PROVIDER_SCHEMA_INVALID", "笔记章节引用超出本包或不是逐字原句", retryable=True
+                )
+    for fact in pack:
+        ids, mids = set(fact.get("segment_ids", [])), set(fact.get("place_mention_ids", []))
+        quotes = [
+            compact(q)
+            for s in sections
+            if isinstance(s, dict)
+            and not (fact.get("attribution_status") == "NEEDS_REVIEW" and s.get("place_mention_ids"))
+            and ids <= set(s.get("segment_ids", []))
+            and mids <= set(s.get("place_mention_ids", []))
+            for q in s.get("supporting_quotes", [])
+        ]
+        if any(not any(compact(q) in value for value in quotes) for q in fact.get("supporting_quotes", [])):
+            missing += 1
+    if missing:
+        raise AIProviderError(
+            "AI_PROVIDER_SCHEMA_INVALID",
+            f"笔记未保留本包{missing}条事实的完整逐字引文；请在正确归属章节补齐全部事实引文",
+            retryable=True,
+        )

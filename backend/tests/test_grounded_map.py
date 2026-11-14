@@ -110,7 +110,7 @@ class FixtureProvider:
                             "bullets": ["秋季开放"],
                             "body_markdown": "适合秋季到访。",
                             "segment_ids": [_segment_id(messages)],
-                            "place_mention_ids": [],
+                            "place_mention_ids": _pack_mention_ids(messages),
                             "supporting_quotes": ["西安蓝田水陆庵秋天开放"],
                         }
                     ],
@@ -121,6 +121,15 @@ class FixtureProvider:
             model,
             {"prompt_tokens": 5, "completion_tokens": 2},
         )
+
+
+def _pack_mention_ids(messages):
+    marker = "GroundedEvidencePack。仅据此生成全局笔记：\n"
+    text = messages[-1]["content"]
+    if marker not in text:
+        return []
+    pack = json.loads(text.split(marker, 1)[1])
+    return list(dict.fromkeys(mid for fact in pack for mid in fact.get("place_mention_ids", [])))
 
 
 def _segment_id(messages: list[dict[str, str]]) -> str:

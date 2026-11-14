@@ -59,3 +59,24 @@ def app_and_session(tmp_path) -> Generator[tuple[FastAPI, sessionmaker[Session]]
 def client(app_and_session) -> TestClient:
     app, _ = app_and_session
     return TestClient(app)
+
+
+@pytest.fixture
+def offline_status_runtime(monkeypatch):
+    """Status API contract only; real host/Provider readiness is a separate manual gate."""
+    monkeypatch.setattr(
+        "zhijian.api.router.runtime_report",
+        lambda *args: [
+            {"name": name, "status": "UNAVAILABLE", "detail": "offline contract fixture"}
+            for name in ("ffmpeg", "whisper.cpp", "ollama")
+        ],
+    )
+    monkeypatch.setattr(
+        "zhijian.api.router.hardware_report",
+        lambda: {
+            "machine_name": "offline-fixture",
+            "os_version": "fixture",
+            "lan_ip": "127.0.0.1",
+            "disk": {"total_gb": 1},
+        },
+    )
